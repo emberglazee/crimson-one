@@ -24,9 +24,11 @@ export default {
         const action = interaction.options.getString('action')
         const user = interaction.options.getUser('user') || interaction.user
         const roll = Math.floor(Math.random() * sides) + 1
+        const isNat = roll === 1 || roll === sides
+        const rollText = isNat ? `nat ${roll}` : roll.toString()
         const message = action 
-            ? `${user} rolls ${roll} (🎲 d${sides}) for ${action}` 
-            : `${user} rolls ${roll} (🎲 d${sides})`
+            ? `${user} rolls ${rollText} (🎲 d${sides}) for ${action}` 
+            : `${user} rolls ${rollText} (🎲 d${sides})`
         await interaction.reply(message)
     }
 } satisfies SlashCommand
