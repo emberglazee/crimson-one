@@ -54,24 +54,61 @@ function drunkWrite(inputText: string): string {
         return array[Math.floor(Math.random() * array.length)]
     }
 
-    return inputText.split('').map(char => {
+    function repeatChar(char: string): string {
+        if (Math.random() < 0.1) {
+            return char.repeat(Math.floor(Math.random() * 3) + 2)
+        }
+        return char
+    }
+
+    let result = ''
+    let isShoutingMode = false
+    
+    for (let i = 0; i < inputText.length; i++) {
+        const char = inputText[i]
+        
+        // Randomly enter/exit shouting mode
+        if (Math.random() < 0.02) {
+            isShoutingMode = !isShoutingMode
+        }
+
+        // Random backspace + correction (15% chance)
+        if (Math.random() < 0.15) {
+            result += char + '\b' + char
+            continue
+        }
+
+        // Random extra spaces
+        if (Math.random() < 0.08) {
+            result += ' '.repeat(Math.floor(Math.random() * 2) + 1)
+        }
+
+        // Skip character (forget to type it)
+        if (Math.random() < 0.03) {
+            continue
+        }
+
         const lowerChar = char.toLowerCase()
 
-        // Randomly mix case
-        const isUpperCase = Math.random() < 0.05;
-        const finalChar = isUpperCase ? lowerChar.toUpperCase() : lowerChar
+        // Apply case based on shouting mode or random uppercase
+        const shouldBeUpper = isShoutingMode || Math.random() < 0.05
+        const finalChar = shouldBeUpper ? lowerChar.toUpperCase() : lowerChar
 
-        // Randomly hold shift for special characters
+        // Random shift specials
         if (shiftSpecials[char as keyof typeof shiftSpecials] && Math.random() < 0.3) {
-            return shiftSpecials[char as keyof typeof shiftSpecials]
+            result += shiftSpecials[char as keyof typeof shiftSpecials]
+            continue
         }
 
-        // Randomly replace with adjacent key
+        // Random adjacent key
         if (qwertyLayout[lowerChar as keyof typeof qwertyLayout] && Math.random() < 0.1) {
-            return getRandomItem(qwertyLayout[lowerChar as keyof typeof qwertyLayout])
+            result += getRandomItem(qwertyLayout[lowerChar as keyof typeof qwertyLayout])
+            continue
         }
 
-        // Return the potentially modified character
-        return finalChar
-    }).join('')
+        // Add potentially repeated character
+        result += repeatChar(finalChar)
+    }
+
+    return result
 }
