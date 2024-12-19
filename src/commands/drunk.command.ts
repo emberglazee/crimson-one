@@ -72,12 +72,6 @@ function drunkWrite(inputText: string): string {
             isShoutingMode = !isShoutingMode
         }
 
-        // Random backspace + correction (15% chance)
-        if (Math.random() < 0.15) {
-            result += char + '\b' + char
-            continue
-        }
-
         // Random extra spaces
         if (Math.random() < 0.08) {
             result += ' '.repeat(Math.floor(Math.random() * 2) + 1)
