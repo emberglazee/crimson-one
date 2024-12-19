@@ -58,7 +58,7 @@ function drunkWrite(inputText: string): string {
         const lowerChar = char.toLowerCase()
 
         // Randomly mix case
-        const isUpperCase = Math.random() < 0.5;
+        const isUpperCase = Math.random() < 0.05;
         const finalChar = isUpperCase ? lowerChar.toUpperCase() : lowerChar
 
         // Randomly hold shift for special characters
