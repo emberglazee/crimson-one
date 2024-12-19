@@ -67,7 +67,7 @@ function drunkWrite(inputText: string): string {
         }
 
         // Randomly replace with adjacent key
-        if (qwertyLayout[lowerChar as keyof typeof qwertyLayout] && Math.random() < 0.4) {
+        if (qwertyLayout[lowerChar as keyof typeof qwertyLayout] && Math.random() < 0.1) {
             return getRandomItem(qwertyLayout[lowerChar as keyof typeof qwertyLayout])
         }
 
