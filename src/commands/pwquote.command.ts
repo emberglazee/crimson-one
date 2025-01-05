@@ -66,11 +66,12 @@ export default {
         const ansiColor = `[0;${colorCode}m`
         const ansiReset = '[0;37m'
         // align either the speaker name or the quote to the center by padding
-        const speakerNamePadding = Math.floor((quote.length - speakerName.length) / 2)
-        const quotePadding = Math.floor((speakerName.length - quote.length) / 2)
+        const totalLength = Math.max(speakerName.length, quote.length)
+        const speakerNamePadding = Math.floor((totalLength - speakerName.length) / 2)
+        const quotePadding = Math.floor((totalLength - quote.length) / 2)
         const speakerNameSpaces = ' '.repeat(speakerNamePadding)
         const quoteSpaces = ' '.repeat(quotePadding)
-        const ansiText = `${speakerNameSpaces}${ansiColor}${speakerName}\n${quoteSpaces}<<${ansiReset} ${quote} ${ansiColor}>>`
+        const ansiText = `${speakerNameSpaces}${ansiColor}${speakerName}\n${quoteSpaces}<< ${ansiReset}${quote} ${ansiColor}>>`
         await interaction.reply(`\`\`\`ansi\n${ansiText}\n\`\`\``)
     }
 } satisfies SlashCommand
