@@ -4,7 +4,7 @@ import type { SlashCommand } from '../modules/CommandManager'
 
 export default {
     data: new SlashCommandBuilder()
-        .setName('coolquotes')
+        .setName('pwquote')
         .setDescription('Generate a cool quote in the style of Project Wingman with an ANSI code block for colored text')
         .addStringOption(so => so
             .setName('speakername')
@@ -63,12 +63,14 @@ export default {
             pink: 35,
             cyan: 36,
         }[color]
+        const ansiColor = `[0;${colorCode}m`
+        const ansiReset = '[0;37m'
         // align either the speaker name or the quote to the center by padding
         const speakerNamePadding = Math.floor((quote.length - speakerName.length) / 2)
         const quotePadding = Math.floor((speakerName.length - quote.length) / 2)
         const speakerNameSpaces = ' '.repeat(speakerNamePadding)
         const quoteSpaces = ' '.repeat(quotePadding)
-        const ansiText = `[0;${colorCode}m${speakerNameSpaces}${speakerName}${speakerNameSpaces}\n[0;37m${quoteSpaces}<< [0;37m${quote}${quoteSpaces}>>`
+        const ansiText = `${speakerNameSpaces}${ansiColor}${speakerName}\n${quoteSpaces}<<${ansiReset} ${quote} ${ansiColor}>>`
         await interaction.reply(`\`\`\`ansi\n${ansiText}\n\`\`\``)
     }
 } satisfies SlashCommand
