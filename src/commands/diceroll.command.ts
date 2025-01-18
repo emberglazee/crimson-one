@@ -20,15 +20,20 @@ export default {
             .setRequired(false) // will default to my user
         ),
     async execute(interaction) {
+        const user = interaction.options.getUser('user') || interaction.user
+        const channel = interaction.channel
+
         const sides = interaction.options.getNumber('sides') || 20
         const action = interaction.options.getString('action')
-        const user = interaction.options.getUser('user') || interaction.user
         const roll = Math.floor(Math.random() * sides) + 1
         const isNat = roll === 1 || roll === sides
         const rollText = isNat ? `nat ${roll}` : roll.toString()
-        const message = action 
+        let message = action 
             ? `${user} rolls ${rollText} (🎲 d${sides}) for ${action}` 
             : `${user} rolls ${rollText} (🎲 d${sides})`
+        if (channel && channel.id === '311334325402599425') {
+            message += '\n-# dont spam the command here or else'
+        }
         await interaction.reply(message)
     }
 } satisfies SlashCommand
