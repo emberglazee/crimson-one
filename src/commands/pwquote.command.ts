@@ -5,7 +5,7 @@ import type { SlashCommand } from '../modules/CommandManager'
 export default {
     data: new SlashCommandBuilder()
         .setName('pwquote')
-        .setDescription('Generate a cool quote in the style of Project Wingman with an ANSI code block for colored text')
+        .setDescription('Generate a cool quote in the style of Project Wingman with an ANSI code block for colored text (doesnt work correctly yet)')
         .addStringOption(so => so
             .setName('speakername')
             .setDescription('The name of the speaker')
@@ -71,7 +71,7 @@ export default {
         const quotePadding = Math.floor((totalLength - quote.length) / 2)
         const speakerNameSpaces = ' '.repeat(speakerNamePadding)
         const quoteSpaces = ' '.repeat(quotePadding)
-        const ansiText = `${speakerNameSpaces}${ansiColor}${speakerName}\n${quoteSpaces}<< ${ansiReset}${quote} ${ansiColor}>>`
+        const ansiText = `${speakerNameSpaces}${ansiColor}${speakerName}\n${quoteSpaces}${ansiColor}<< ${ansiReset}${quote} ${ansiColor}>>`
         await interaction.reply(`\`\`\`ansi\n${ansiText}\n\`\`\``)
     }
 } satisfies SlashCommand

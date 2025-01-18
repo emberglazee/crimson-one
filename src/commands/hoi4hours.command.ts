@@ -6,7 +6,7 @@ const logger = new Logger('command.hoi4hours')
 export default {
     data: new SlashCommandBuilder()
         .setName('hoi4hours')
-        .setDescription('Check the Steam API for how many hours I have played HOI4 for')
+        .setDescription('Check the Steam API for emberglaze\'s hours in HOI4')
         .addBooleanOption(bo => bo
             .setName('ephemeral')
             .setDescription('Should the response show up only for you?')
@@ -53,10 +53,10 @@ export default {
             if (remainingHours > 0) timeString += `${remainingHours}h `
             if (remainingMinutes > 0) timeString += `${remainingMinutes}m`
 
-            await interaction.editReply(`You have spent ${hours} hours playing HOI4. That's approximately ${timeString.trim()}.`)
+            await interaction.editReply(`emberglaze has spent \`${hours}\` hours playing HOI4\nThat's approximately ${timeString.trim()}`)
         } else {
             logger.info('HOI4 not found in the list of games')
-            await interaction.editReply('❌ HOI4 not found in the list of games')
+            await interaction.editReply('❌ HOI4 not found in the list of games (did ember finally touch grass? check his steam profile directly or something)')
         }
         logger.ok('Command execution over')
     }
