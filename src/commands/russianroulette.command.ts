@@ -17,12 +17,12 @@ export default {
 
         if (chamber === 1) {
             await interaction.reply({
-                content: `🔫 **BANG!** ${interaction.user} lost the game of roulette!\nConsequence: ${action}`,
+                content: `🔫 **BANG!** ${interaction.user} Predictable.\nConsequence: ${action}`,
                 allowedMentions: { users: [interaction.user.id] }
             })
         } else {
             await interaction.reply({
-                content: `🔫 *click* - ${interaction.user} lives to play another day.`,
+                content: `🔫 *click* - ${interaction.user} got lucky... Next time.\n-# Specified action was: ${action}`,
                 allowedMentions: { users: [interaction.user.id] }
             })
         }
