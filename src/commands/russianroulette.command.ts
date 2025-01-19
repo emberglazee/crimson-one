@@ -17,7 +17,7 @@ export default {
 
         if (chamber === 1) {
             await interaction.reply({
-                content: `🔫 **BANG!** ${interaction.user} Predictable.\nConsequence: ${action}`,
+                content: `🔫 **BANG!** ${interaction.user} Predictable.\nConsequence|| (of power)||: ${action}`,
                 allowedMentions: { users: [interaction.user.id] }
             })
         } else {
