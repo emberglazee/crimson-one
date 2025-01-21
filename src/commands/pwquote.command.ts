@@ -6,6 +6,41 @@ import path from 'path'
 const fontPath = path.join(__dirname, '../../data/Roboto.ttf')
 registerFont(fontPath, { family: 'Roboto' })
 
+type ColorName = 'Gray' | 'Red' | 'Green' | 'Yellow' | 'Blue' | 'Pink' | 'Cyan' |
+    'White' | 'Orange' | 'Purple' | 'Brown' | 'Lime' | 'Teal' | 'Navy' |
+    'Peacekeeper Red' | 'Faust Green' | 'The Home Depot Orange' | 'FakeDev Orange' |
+    'Wikiyellow' | 'Federation Blue' | 'Cascadian Teal' | 'Mercenary Yellow'
+
+interface ColorDefinition {
+    name: ColorName
+    hex: string
+}
+
+const COLORS: ColorDefinition[] = [
+    { name: 'Gray', hex: '#B0B0B0' },
+    { name: 'Red', hex: '#FF5555' },
+    { name: 'Green', hex: '#55FF55' },
+    { name: 'Yellow', hex: '#FFFF55' },
+    { name: 'Blue', hex: '#5555FF' },
+    { name: 'Pink', hex: '#FF55FF' },
+    { name: 'Cyan', hex: '#55FFFF' },
+    { name: 'White', hex: '#FFFFFF' },
+    { name: 'Orange', hex: '#FFA500' },
+    { name: 'Purple', hex: '#8A2BE2' },
+    { name: 'Brown', hex: '#A52A2A' },
+    { name: 'Lime', hex: '#32CD32' },
+    { name: 'Teal', hex: '#008080' },
+    { name: 'Navy', hex: '#000080' },
+    { name: 'Peacekeeper Red', hex: '#992D22' },
+    { name: 'Faust Green', hex: '#1F8b4C' },
+    { name: 'The Home Depot Orange', hex: '#F96302' },
+    { name: 'FakeDev Orange', hex: '#E67E22' },
+    { name: 'Wikiyellow', hex: '#FFB40B' },
+    { name: 'Federation Blue', hex: '#0C0D3B' },
+    { name: 'Cascadian Teal', hex: '#2BBCC2' },
+    { name: 'Mercenary Yellow', hex: '#BBAD2C' }
+];
+
 export default {
     data: new SlashCommandBuilder()
         .setName('pwquote')
@@ -23,20 +58,20 @@ export default {
             .setDescription('Color of the speaker')
             .setRequired(true)
             .setChoices(
-                ['gray', 'red', 'green', 'yellow', 'blue', 'pink', 'cyan', 'white', 'orange', 'purple', 'brown', 'lime', 'teal', 'navy'].map(color => { return { name: color, value: color }})
+                COLORS.map(color => ({ name: color.name, value: color.name }))
             )
         ),
     async execute(interaction) {
         const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
-        const color = interaction.options.getString('color', true) as 'gray' | 'red' | 'green' | 'yellow' | 'blue' | 'pink' | 'cyan' | 'white' | 'orange' | 'purple' | 'brown' | 'lime' | 'teal' | 'navy'
+        const color = interaction.options.getString('color', true) as ColorName
         await interaction.deferReply()
         const image = createQuoteImage(speaker, quote, color)
         await interaction.editReply({ files: [image] })
     }
 } satisfies SlashCommand
 
-function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' | 'green' | 'yellow' | 'blue' | 'pink' | 'cyan' | 'white' | 'orange' | 'purple' | 'brown' | 'lime' | 'teal' | 'navy') {
+function createQuoteImage(speaker: string, quote: string, color: ColorName) {
     const fontSize = 48
     const lineHeight = fontSize * 1.2
     const padding = 40
@@ -90,24 +125,7 @@ function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' 
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
 
-    const colorMap = {
-        gray: '#B0B0B0',
-        red: '#FF5555',
-        green: '#55FF55',
-        yellow: '#FFFF55',
-        blue: '#5555FF',
-        pink: '#FF55FF',
-        cyan: '#55FFFF',
-        white: '#FFFFFF',
-        orange: '#FFA500',
-        purple: '#8A2BE2',
-        brown: '#A52A2A',
-        lime: '#32CD32',
-        teal: '#008080',
-        navy: '#000080',
-    }
-
-    const speakerColor = colorMap[color] || '#FFFFFF'
+    const speakerColor = COLORS.find(c => c.name === color)?.hex || '#FFFFFF'
 
     ctx.clearRect(0, 0, width, height)
     ctx.font = `${fontSize}px Roboto`
