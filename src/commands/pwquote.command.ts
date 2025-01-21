@@ -36,7 +36,7 @@ export default {
 } satisfies SlashCommand
 
 function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' | 'green' | 'yellow' | 'blue' | 'pink' | 'cyan') {
-    const width = 1000
+    const width = 500
     const height = 300
     const fontSize = 48
 
@@ -65,10 +65,10 @@ function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' 
     ctx.shadowBlur = 8
 
     ctx.fillStyle = speakerColor
-    ctx.fillText(speaker, width / 2, 50)
+    ctx.fillText(speaker, width / 2, 50, 500)
 
     ctx.fillStyle = 'white'
-    ctx.fillText(quote, width / 2, 100)
+    ctx.fillText(quote, width / 2, 100, 500)
 
     return canvas.toBuffer()
 }
