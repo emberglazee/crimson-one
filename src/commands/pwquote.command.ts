@@ -39,6 +39,8 @@ function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' 
     const width = 500
     const height = 300
     const fontSize = 48
+    const lineHeight = fontSize * 1.2
+    const maxWidth = width - 40 // Leave some padding on the sides
 
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
@@ -56,19 +58,37 @@ function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' 
     const speakerColor = colorMap[color] || '#FFFFFF'
 
     ctx.clearRect(0, 0, width, height)
-
     ctx.font = `${fontSize}px Roboto`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
-
     ctx.shadowColor = 'black'
     ctx.shadowBlur = 8
 
     ctx.fillStyle = speakerColor
-    ctx.fillText(speaker, width / 2, 50, 500)
+    ctx.fillText(speaker, width / 2, 50)
 
     ctx.fillStyle = 'white'
-    ctx.fillText(quote, width / 2, 100, 500)
+    const words = quote.split(' ')
+    const lines: string[] = []
+    let currentLine = words[0]
+
+    for (let i = 1; i < words.length; i++) {
+        const word = words[i]
+        const testLine = currentLine + ' ' + word
+        const metrics = ctx.measureText(testLine)
+
+        if (metrics.width > maxWidth) {
+            lines.push(currentLine)
+            currentLine = word
+        } else currentLine = testLine
+    }
+    lines.push(currentLine)
+
+    let y = 100
+    for (const line of lines) {
+        ctx.fillText(line, width / 2, y)
+        y += lineHeight
+    }
 
     return canvas.toBuffer()
 }
