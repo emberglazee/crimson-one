@@ -1,11 +1,15 @@
-// command to write a project wingman styled subtitle in an ansi code block with colors
 import { SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
+import { createCanvas, registerFont } from 'canvas'
+import path from 'path'
+
+const fontPath = path.join(__dirname, '../../data/Roboto.ttf')
+registerFont(fontPath, { family: 'Roboto' })
 
 export default {
     data: new SlashCommandBuilder()
         .setName('pwquote')
-        .setDescription('Generate a cool quote in the style of Project Wingman with an ANSI code block for colored text')
+        .setDescription('Generate a cool quote in the style of Project Wingman with an image for colored text')
         .addStringOption(so => so
             .setName('speakername')
             .setDescription('The name of the speaker')
@@ -23,55 +27,48 @@ export default {
             )
         ),
     async execute(interaction) {
-        /*
-            working example:
-
-            ```ansi
-            [0;31mFederation Peacekeeper | Crimson 1
-            [0;31m           << [0;37mPredictable. [0;31m>>
-            ```
-
-            extra spaces is to center the quote;
-            pad the speaker name into the center if the quote is longer,
-            or pad the quote into the center if the speaker name is longer;
-            assume monospace
-        */
-        /*
-            -> [{format};{color}m <-
-
-            keep format at 0(!)
-
-            working colors:
-            30 - gray
-            31 - red
-            32 - green
-            33 - yellow
-            34 - blue
-            35 - pink
-            36 - cyan
-            37 - white (for quote text color)
-        */
-        const speakerName = interaction.options.getString('speakername', true)
+        const speaker = interaction.options.getString('speakername', true)
         const quote = interaction.options.getString('quote', true)
         const color = interaction.options.getString('color', true) as 'gray' | 'red' | 'green' | 'yellow' | 'blue' | 'pink' | 'cyan'
-        const colorCode = {
-            gray: 30,
-            red: 31,
-            green: 32,
-            yellow: 33,
-            blue: 34,
-            pink: 35,
-            cyan: 36,
-        }[color]
-        const ansiColor = `[0;${colorCode}m`
-        const ansiReset = '[0;37m'
-        // align either the speaker name or the quote to the center by padding
-        const totalLength = Math.max(speakerName.length, quote.length + 6) // 6 extra characters for "<< " and " >>"
-        const speakerNamePadding = Math.floor((totalLength - speakerName.length) / 2)
-        const quotePadding = Math.floor((totalLength - quote.length - 6) / 2) // 6 extra characters for "<< " and " >>"
-        const speakerNameSpaces = ' '.repeat(speakerNamePadding)
-        const quoteSpaces = ' '.repeat(quotePadding)
-        const ansiText = `${speakerNameSpaces}${ansiColor}${speakerName}\n${quoteSpaces}${ansiColor}<< ${ansiReset}${quote} ${ansiColor}>>`
-        await interaction.reply(`\`\`\`ansi\n${ansiText}\n\`\`\``)
+        const image = createQuoteImage(speaker, quote, color)
+        await interaction.reply({ files: [image] })
     }
 } satisfies SlashCommand
+
+function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' | 'green' | 'yellow' | 'blue' | 'pink' | 'cyan') {
+    const width = 1000
+    const height = 300
+    const fontSize = 48
+
+    const canvas = createCanvas(width, height)
+    const ctx = canvas.getContext('2d')
+
+    const colorMap = {
+        gray: '#B0B0B0',
+        red: '#FF5555',
+        green: '#55FF55',
+        yellow: '#FFFF55',
+        blue: '#5555FF',
+        pink: '#FF55FF',
+        cyan: '#55FFFF',
+    }
+
+    const speakerColor = colorMap[color] || '#FFFFFF'
+
+    ctx.clearRect(0, 0, width, height)
+
+    ctx.font = `${fontSize}px Roboto`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'top'
+
+    ctx.shadowColor = 'black'
+    ctx.shadowBlur = 8
+
+    ctx.fillStyle = speakerColor
+    ctx.fillText(speaker, width / 2, 50)
+
+    ctx.fillStyle = 'white'
+    ctx.fillText(quote, width / 2, 150)
+
+    return canvas.toBuffer()
+}
