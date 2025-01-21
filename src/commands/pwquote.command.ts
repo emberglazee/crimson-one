@@ -30,8 +30,9 @@ export default {
         const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
         const color = interaction.options.getString('color', true) as 'gray' | 'red' | 'green' | 'yellow' | 'blue' | 'pink' | 'cyan'
+        await interaction.deferReply()
         const image = createQuoteImage(speaker, quote, color)
-        await interaction.reply({ files: [image] })
+        await interaction.editReply({ files: [image] })
     }
 } satisfies SlashCommand
 
