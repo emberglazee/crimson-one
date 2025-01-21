@@ -69,8 +69,8 @@ export default {
         const totalLength = Math.max(speakerName.length, quote.length)
         const speakerNamePadding = Math.floor((totalLength - speakerName.length) / 2)
         const quotePadding = Math.floor((totalLength - quote.length) / 2)
-        const speakerNameSpaces = ' '.repeat(speakerNamePadding)
-        const quoteSpaces = ' '.repeat(quotePadding)
+        const speakerNameSpaces = '  '.repeat(speakerNamePadding)
+        const quoteSpaces = '  '.repeat(quotePadding)
         const ansiText = `${speakerNameSpaces}${ansiColor}${speakerName}\n${quoteSpaces}${ansiColor}<< ${ansiReset}${quote} ${ansiColor}>>`
         await interaction.reply(`\`\`\`ansi\n${ansiText}\n\`\`\``)
     }
