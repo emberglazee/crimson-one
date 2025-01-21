@@ -3,6 +3,31 @@ import type { SlashCommand } from '../modules/CommandManager'
 import { Logger } from '../util/logger'
 const logger = new Logger('command.setusername')
 
+const usageTracker = new Map<string, number[]>()
+const USAGE_LIMIT = 2
+const WINDOW_MINUTES = 10
+
+function canExecuteCommand(): boolean {
+    const now = Date.now()
+    const key = 'setusername'
+    const timestamps = usageTracker.get(key) ?? []
+
+    // Clean up old timestamps
+    const windowMs = WINDOW_MINUTES * 60 * 1000
+    const validTimestamps = timestamps.filter(t => now - t < windowMs)
+
+    if (validTimestamps.length >= USAGE_LIMIT) return false
+    usageTracker.set(key, validTimestamps)
+    return true
+}
+
+function trackSuccessfulExecution() {
+    const key = 'setusername'
+    const timestamps = usageTracker.get(key) ?? []
+    timestamps.push(Date.now())
+    usageTracker.set(key, timestamps)
+}
+
 export default {
     data: new SlashCommandBuilder()
         .setName('setusername')
@@ -32,6 +57,15 @@ export default {
             await interaction.reply('❌ You, solely, are responsible for this')
             return
         }
+
+        if (!canExecuteCommand()) {
+            await interaction.reply({
+                content: `❌ This command can only be ran ${USAGE_LIMIT} times every ${WINDOW_MINUTES} minutes, to avoid API rate limiting`,
+                ephemeral: true
+            })
+            return
+        }
+
         await interaction.deferReply({
             ephemeral: interaction.options.getBoolean('ephemeral', false) ?? undefined
         })
@@ -68,6 +102,7 @@ export default {
         logger.info(`Changing username to ${username}...`)
         try {
             await interaction.client.user.setUsername(username)
+            trackSuccessfulExecution()
         } catch (e) {
             if ((e as Error).message.includes('USERNAME_RATE_LIMIT')) {
                 logger.error('Hit the username change rate limit')
