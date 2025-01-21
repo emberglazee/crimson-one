@@ -39,7 +39,7 @@ function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' 
     const fontSize = 48
     const lineHeight = fontSize * 1.2
     const padding = 40
-    const minWidth = 512
+    const minWidth = 768
     const speakerPadding = 100 // Extra padding for speaker name
 
     // Create temporary canvas for measurements
