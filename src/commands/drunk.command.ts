@@ -1,4 +1,3 @@
-// command to simulate drunk typing on the keyboard
 import { SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 
@@ -19,15 +18,12 @@ export default {
         const inputText = interaction.options.getString('text', true)
         const outputText = drunkWrite(inputText)
         const isEphermal = interaction.options.getBoolean('ephermal') || false
-        if (isEphermal) {
-            await interaction.reply({ content: outputText, ephemeral: true })
-        } else {
-            await interaction.reply(outputText)
-        }
+
+        if (isEphermal) await interaction.reply({ content: outputText, ephemeral: true })
+        else await interaction.reply(outputText)
     }
 } satisfies SlashCommand
 
-// Define the QWERTY keyboard layout
 const qwertyLayout = {
     a: ['q', 'w', 's', 'z'], b: ['v', 'g', 'h', 'n'], c: ['x', 'd', 'f', 'v'],
     d: ['s', 'e', 'r', 'f', 'c', 'x'], e: ['w', 'r', 's', 'd'], f: ['d', 'r', 't', 'g', 'v', 'c'],
@@ -66,21 +62,15 @@ function drunkWrite(inputText: string): string {
     
     for (let i = 0; i < inputText.length; i++) {
         const char = inputText[i]
-        
+
         // Randomly enter/exit shouting mode
-        if (Math.random() < 0.02) {
-            isShoutingMode = !isShoutingMode
-        }
+        if (Math.random() < 0.02) isShoutingMode = !isShoutingMode
 
         // Random extra spaces
-        if (Math.random() < 0.08) {
-            result += ' '.repeat(Math.floor(Math.random() * 2) + 1)
-        }
+        if (Math.random() < 0.08) result += ' '.repeat(Math.floor(Math.random() * 2) + 1)
 
         // Skip character (forget to type it)
-        if (Math.random() < 0.03) {
-            continue
-        }
+        if (Math.random() < 0.03) continue
 
         const lowerChar = char.toLowerCase()
 
