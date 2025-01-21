@@ -16,6 +16,7 @@ export default {
         const responses = [
             // Positive responses
             'As certain as Cascadia\'s victory.',
+            'As certain as Federation\'s victory.',
             'Without a doubt, like a Frost on your six.',
             'The Federation confirms it.',
             'As sure as PW-Mk.1\'s superiority.',
@@ -27,6 +28,7 @@ export default {
             'Ask Diplomat later.',
             'Comic needs more time to think.',
             'Prez is unsure.',
+            'Eye-Tee is uncertain',
             'Radio interference, try again.',
             'Too much G-force, ask again.',
             'Checking with Sicario command...',
@@ -35,7 +37,10 @@ export default {
             'Negative, RTB immediately.',
             'Mission failed.',
             'About as likely as peace with the Federation.',
+            'About as likely as peace with Cascadia.',
             'Even Monarch wouldn\'t try that.',
+            'Even Driver wouldn\'t risk it.',
+            'Even Bookie doesn\'t wanna bet on that.',
             'Orange warning lights on that one.'
         ]
         const response = responses[Math.floor(Math.random() * responses.length)]
