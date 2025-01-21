@@ -68,7 +68,7 @@ function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' 
     ctx.fillText(speaker, width / 2, 50)
 
     ctx.fillStyle = 'white'
-    ctx.fillText(quote, width / 2, 150)
+    ctx.fillText(quote, width / 2, 100)
 
     return canvas.toBuffer()
 }
