@@ -72,15 +72,14 @@ export default {
 
         let username = interaction.options.getString('username')
         const shortcut = interaction.options.getString('shortcut')
-
         if (!username && !shortcut) {
-            await interaction.editReply('❌ You must provide a username or use a shortcut')
+            await interaction.editReply('❌ You must provide either a username or a shortcut')
             return
         }
 
         if (shortcut === 'guild') {
             if (!interaction.guild) {
-                await interaction.editReply('❌ This shortcut can only be used in a guild channel')
+                await interaction.editReply('❌ The `guild` shortcut can only be used in a guild channel')
                 return
             }
             username = interaction.guild.name
@@ -88,14 +87,14 @@ export default {
             username = interaction.user.username
         } else if (shortcut === 'guilduser') {
             if (!interaction.guild) {
-                await interaction.editReply('❌ This shortcut can only be used in a guild channel')
+                await interaction.editReply('❌ The `guilduser` shortcut can only be used in a guild channel')
                 return
             }
             username = interaction.member!.user.username ?? interaction.user.username
         }
 
         if (!username) {
-            await interaction.editReply('❌ You must provide a username or use a shortcut')
+            await interaction.editReply('❌ Unexpected error: Username could not be determined')
             return
         }
 
