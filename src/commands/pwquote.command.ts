@@ -84,7 +84,7 @@ function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' 
 
     // Calculate height based on number of lines
     const speakerHeight = speakerLines.length * lineHeight
-    const height = 50 + speakerHeight + (quoteLines.length * lineHeight) + padding
+    const height = 50 + speakerHeight + 2 + (quoteLines.length * lineHeight) + padding
 
     // Create final canvas
     const canvas = createCanvas(width, height)
@@ -119,7 +119,7 @@ function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' 
 
     // Draw quote
     ctx.fillStyle = 'white'
-    y += lineHeight / 2 // Add some spacing between speaker and quote
+    y += 2 // Add 2px spacing between speaker and quote
     for (const line of quoteLines) {
         ctx.fillText(line, width / 2, y)
         y += lineHeight
