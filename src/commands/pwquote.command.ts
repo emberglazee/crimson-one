@@ -40,23 +40,35 @@ function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' 
     const fontSize = 48
     const lineHeight = fontSize * 1.2
     const padding = 40
-    const minWidth = 768
-    const speakerPadding = 100 // Extra padding for speaker name
+    const width = 1024
+    const maxWidth = width - padding * 2
 
-    // Create temporary canvas for measurements
+    // Create canvas for measurements
     const measureCanvas = createCanvas(1, 1)
     const measureCtx = measureCanvas.getContext('2d')
     measureCtx.font = `${fontSize}px Roboto`
 
-    // Calculate required width based on speaker name
-    const speakerWidth = measureCtx.measureText(speaker).width + speakerPadding
-    const width = Math.max(minWidth, speakerWidth)
-    const maxWidth = width - padding * 2
+    // Word wrap speaker name
+    const speakerWords = speaker.split(' ')
+    const speakerLines: string[] = []
+    let currentLine = speakerWords[0]
 
-    // Calculate quote lines
+    for (let i = 1; i < speakerWords.length; i++) {
+        const word = speakerWords[i]
+        const testLine = currentLine + ' ' + word
+        const metrics = measureCtx.measureText(testLine)
+
+        if (metrics.width > maxWidth) {
+            speakerLines.push(currentLine)
+            currentLine = word
+        } else currentLine = testLine
+    }
+    speakerLines.push(currentLine)
+
+    // Word wrap quote
     const words = quote.split(' ')
-    const lines: string[] = []
-    let currentLine = words[0]
+    const quoteLines: string[] = []
+    currentLine = words[0]
 
     for (let i = 1; i < words.length; i++) {
         const word = words[i]
@@ -64,16 +76,17 @@ function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' 
         const metrics = measureCtx.measureText(testLine)
 
         if (metrics.width > maxWidth) {
-            lines.push(currentLine)
+            quoteLines.push(currentLine)
             currentLine = word
         } else currentLine = testLine
     }
-    lines.push(currentLine)
+    quoteLines.push(currentLine)
 
     // Calculate height based on number of lines
-    const height = 100 + (lines.length * lineHeight) + padding
+    const speakerHeight = speakerLines.length * lineHeight
+    const height = 50 + speakerHeight + (quoteLines.length * lineHeight) + padding
 
-    // Create final canvas with calculated dimensions
+    // Create final canvas
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
 
@@ -96,12 +109,18 @@ function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' 
     ctx.shadowColor = 'black'
     ctx.shadowBlur = 8
 
+    // Draw speaker name
     ctx.fillStyle = speakerColor
-    ctx.fillText(speaker, width / 2, 50)
+    let y = 50
+    for (const line of speakerLines) {
+        ctx.fillText(line, width / 2, y)
+        y += lineHeight
+    }
 
+    // Draw quote
     ctx.fillStyle = 'white'
-    let y = 100
-    for (const line of lines) {
+    y += lineHeight / 2 // Add some spacing between speaker and quote
+    for (const line of quoteLines) {
         ctx.fillText(line, width / 2, y)
         y += lineHeight
     }
