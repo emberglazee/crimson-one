@@ -17,7 +17,7 @@ export default {
             .setRequired(false)
         ).addStringOption(so => so
             .setName('extension')
-            .setDescription('Image format to get the avatar in (default: PNG)')
+            .setDescription('Image format to get the avatar in (default: PNG, if avatar is animated, pick GIF)')
             .setChoices(
                 { name: 'GIF', value: 'gif' },
                 { name: 'WEBP', value: 'webp' },
@@ -38,22 +38,53 @@ export default {
                 { name: '2048', value: 2048 },
                 { name: '4096', value: 4096 }
             ).setRequired(false)
+        ).addStringOption(so => so
+            .setName('serverorglobal')
+            .setDescription('Should the avatar be from the server or global? (default: server/guild, unless not in a server)')
+            .addChoices(
+                { name: 'Server', value: 'guild' },
+                { name: 'Global', value: 'global' }
+            ).setRequired(false)
         ),
     async execute(interaction) {
         const user = interaction.options.getUser('user', false) ?? interaction.user
         const raw = interaction.options.getBoolean('raw', false) ?? false
         const ext = interaction.options.getString('extension', false) as ImageExtension ?? 'png'
         const size = interaction.options.getNumber('size', false) as ImageSize ?? 1024
-        const avatarUrl = user.displayAvatarURL({ size: size, extension: ext })
+        let guildOrGlobal = interaction.options.getString('guildorglobal', false) ?? 'guild'
 
+        let avatar = ''
+        if (guildOrGlobal === 'guild') {
+            if (!interaction.guild) {
+                // not in a guild, using global avatar instead
+                avatar = user.displayAvatarURL({ extension: ext, size: size })
+            } else {
+                const member = await interaction.guild.members.fetch(user.id)
+                if (!member) {
+                    await interaction.reply('❌ User not found in this server')
+                }
+                avatar = member.displayAvatarURL({ extension: ext, size: size })
+            }
+        } else if (guildOrGlobal === 'global') {
+            avatar = user.displayAvatarURL({ extension: ext, size: size })
+        }
+        let response = avatar
+        if (guildOrGlobal === 'guild' && !interaction.guild) {
+            response += '\n-# This is the global avatar, as the command was ran outside a server'
+        }
         if (raw) {
-            await interaction.reply(avatarUrl)
+            await interaction.reply(avatar)
             return
         }
         const embed = new EmbedBuilder()
             .setTitle(`Avatar of ${user.username}`)
-            .setImage(avatarUrl)
+            .setImage(avatar)
             .setColor('#F96302')
+        if (guildOrGlobal === 'guild' && !interaction.guild) {
+            embed.setFooter({
+                text: 'This is the global avatar, as the command was ran outside a server'
+            })
+        }
         await interaction.reply({ embeds: [embed] })
     }
 } satisfies SlashCommand
