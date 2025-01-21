@@ -3,13 +3,13 @@ import type { SlashCommand } from '../modules/CommandManager'
 import { createCanvas, registerFont } from 'canvas'
 import path from 'path'
 
-const fontPath = path.join(__dirname, '../../data/Roboto.ttf')
-registerFont(fontPath, { family: 'Roboto' })
+const fontPath = path.join(__dirname, '../../data/Aces07.ttf')
+registerFont(fontPath, { family: 'Aces07' })
 
 type ColorName = 'Gray' | 'Red' | 'Green' | 'Yellow' | 'Blue' | 'Pink' | 'Cyan' |
     'White' | 'Orange' | 'Purple' | 'Brown' | 'Lime' | 'Teal' | 'Navy' |
     'Peacekeeper Red' | 'Faust Green' | 'The Home Depot Orange' | 'FakeDev Orange' |
-    'Wikiyellow' | 'Federation Blue' | 'Cascadian Teal' | 'Mercenary Yellow' |
+    'Wikiyellow' | 'PACFED Blue' | 'Cascadian Teal' | 'Mercenary Yellow' |
     'PWcord Moderator Turquoise' | 'Voice Actor Blue' | 'Mugged Pink'
 
 interface ColorDefinition {
@@ -37,7 +37,7 @@ const COLORS: ColorDefinition[] = [
     { name: 'The Home Depot Orange', hex: '#F96302' },
     { name: 'FakeDev Orange', hex: '#E67E22' },
     { name: 'Wikiyellow', hex: '#FFB40B' },
-    { name: 'Federation Blue', hex: '#0C0D3B' },
+    { name: 'PACFED Blue', hex: '#0C0D3B' },
     { name: 'Cascadian Teal', hex: '#2BBCC2' },
     { name: 'Mercenary Yellow', hex: '#BBAD2C' },
     { name: 'PWcord Moderator Turquoise', hex: '#1ABC9C' },
@@ -50,10 +50,11 @@ type GradientType = 'none' | 'trans' | 'rainbow'
 const TRANS_COLORS = ['#55CDFC', '#F7A8B8', '#FFFFFF', '#F7A8B8', '#55CDFC']
 const RAINBOW_COLORS = ['#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3']
 
+
 export default {
     data: new SlashCommandBuilder()
-        .setName('pwquote')
-        .setDescription('Generate an image out of a text and speaker name styled as a Project Wingman subtitle')
+        .setName('ac7quote')
+        .setDescription('Generate an image out of a text and speaker name styled as an Ace Combat 7 subtitle')
         .addStringOption(so => so
             .setName('speaker')
             .setDescription('Who is speaking?')
@@ -78,15 +79,15 @@ export default {
                 { name: 'Rainbow', value: 'rainbow' }
             )
         ),
-    async execute(interaction) {
-        const speaker = interaction.options.getString('speaker', true)
-        const quote = interaction.options.getString('quote', true)
-        const color = interaction.options.getString('color', true) as ColorName
-        const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
-        await interaction.deferReply()
-        const image = createQuoteImage(speaker, quote, color, gradient)
-        await interaction.editReply({ files: [image] })
-    }
+        async execute(interaction) {
+            const speaker = interaction.options.getString('speaker', true)
+            const quote = interaction.options.getString('quote', true)
+            const color = interaction.options.getString('color', true) as ColorName
+            const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
+            await interaction.deferReply()
+            const image = createQuoteImage(speaker, quote, color, gradient)
+            await interaction.editReply({ files: [image] })
+        }
 } satisfies SlashCommand
 
 function createQuoteImage(speaker: string, quote: string, color: ColorName, gradient: GradientType) {
@@ -99,7 +100,7 @@ function createQuoteImage(speaker: string, quote: string, color: ColorName, grad
     // Create canvas for measurements
     const measureCanvas = createCanvas(1, 1)
     const measureCtx = measureCanvas.getContext('2d')
-    measureCtx.font = `${fontSize}px Roboto`
+    measureCtx.font = `${fontSize}px Aces07`
 
     // Word wrap speaker name
     const speakerWords = speaker.split(' ')
@@ -146,7 +147,7 @@ function createQuoteImage(speaker: string, quote: string, color: ColorName, grad
     const speakerColor = COLORS.find(c => c.name === color)?.hex || '#FFFFFF'
 
     ctx.clearRect(0, 0, width, height)
-    ctx.font = `${fontSize}px Roboto`
+    ctx.font = `${fontSize}px Aces07`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
     ctx.shadowColor = 'black'
@@ -177,11 +178,23 @@ function createQuoteImage(speaker: string, quote: string, color: ColorName, grad
         ctx.textAlign = 'center'
     }
 
-    // Draw quote
+    // Draw quote with surrounding quote marks
     ctx.fillStyle = 'white'
     y += 2 // Add 2px spacing between speaker and quote
-    for (const line of quoteLines) {
+
+    for (let i = 0; i < quoteLines.length; i++) {
+        const line = quoteLines[i]
+        // Add quote marks to first and last lines
+        if (i === 0) {
+            ctx.fillStyle = speakerColor
+            ctx.fillText('<<', width / 2 - ctx.measureText(line).width / 2 - 40, y)
+            ctx.fillStyle = 'white'
+        }
         ctx.fillText(line, width / 2, y)
+        if (i === quoteLines.length - 1) {
+            ctx.fillStyle = speakerColor
+            ctx.fillText('>>', width / 2 + ctx.measureText(line).width / 2 + 40, y)
+        }
         y += lineHeight
     }
 
