@@ -50,12 +50,6 @@ export function removeDuplicatesAndNulls<T>(array: T[]): T[] {
 export const relativeTimestamp = (seconds: number) => `<t:${seconds}:R>` as const
 
 export function stringToAttachment(string: string, filename?: string) {
-    // if (!filename) filename = 'file.txt'
-    // let buffer = Buffer.from(string, 'utf-8')
-    // let stream = new Readable({ encoding: 'utf-8' })
-    // stream.push(buffer)
-    // stream.push(null)
-    // return new AttachmentBuilder(stream).setName(filename)
     if (!filename) filename = 'file.txt'
     let buffer = Buffer.from(string, 'utf-8')
     return new AttachmentBuilder(buffer).setName(filename)
