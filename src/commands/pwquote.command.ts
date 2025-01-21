@@ -36,12 +36,43 @@ export default {
 } satisfies SlashCommand
 
 function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' | 'green' | 'yellow' | 'blue' | 'pink' | 'cyan') {
-    const width = 500
-    const height = 300
     const fontSize = 48
     const lineHeight = fontSize * 1.2
-    const maxWidth = width - 40 // Leave some padding on the sides
+    const padding = 40
+    const minWidth = 512
+    const speakerPadding = 100 // Extra padding for speaker name
 
+    // Create temporary canvas for measurements
+    const measureCanvas = createCanvas(1, 1)
+    const measureCtx = measureCanvas.getContext('2d')
+    measureCtx.font = `${fontSize}px Roboto`
+
+    // Calculate required width based on speaker name
+    const speakerWidth = measureCtx.measureText(speaker).width + speakerPadding
+    const width = Math.max(minWidth, speakerWidth)
+    const maxWidth = width - padding * 2
+
+    // Calculate quote lines
+    const words = quote.split(' ')
+    const lines: string[] = []
+    let currentLine = words[0]
+
+    for (let i = 1; i < words.length; i++) {
+        const word = words[i]
+        const testLine = currentLine + ' ' + word
+        const metrics = measureCtx.measureText(testLine)
+
+        if (metrics.width > maxWidth) {
+            lines.push(currentLine)
+            currentLine = word
+        } else currentLine = testLine
+    }
+    lines.push(currentLine)
+
+    // Calculate height based on number of lines
+    const height = 100 + (lines.length * lineHeight) + padding
+
+    // Create final canvas with calculated dimensions
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
 
@@ -68,22 +99,6 @@ function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' 
     ctx.fillText(speaker, width / 2, 50)
 
     ctx.fillStyle = 'white'
-    const words = quote.split(' ')
-    const lines: string[] = []
-    let currentLine = words[0]
-
-    for (let i = 1; i < words.length; i++) {
-        const word = words[i]
-        const testLine = currentLine + ' ' + word
-        const metrics = ctx.measureText(testLine)
-
-        if (metrics.width > maxWidth) {
-            lines.push(currentLine)
-            currentLine = word
-        } else currentLine = testLine
-    }
-    lines.push(currentLine)
-
     let y = 100
     for (const line of lines) {
         ctx.fillText(line, width / 2, y)
