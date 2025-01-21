@@ -1,5 +1,3 @@
-// command to send the "my resolution - airstrike" meme
-
 import { SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { Logger } from '../util/logger'
