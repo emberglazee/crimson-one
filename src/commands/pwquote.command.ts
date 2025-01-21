@@ -9,25 +9,25 @@ registerFont(fontPath, { family: 'Roboto' })
 export default {
     data: new SlashCommandBuilder()
         .setName('pwquote')
-        .setDescription('Generate a cool quote in the style of Project Wingman with an image for colored text')
+        .setDescription('Generate an image out of a text and speaker name styled as a Project Wingman subtitle')
         .addStringOption(so => so
-            .setName('speakername')
-            .setDescription('The name of the speaker')
+            .setName('speaker')
+            .setDescription('Who is speaking?')
             .setRequired(true)
         ).addStringOption(so => so
             .setName('quote')
-            .setDescription('The quote to display')
+            .setDescription('What are they saying?')
             .setRequired(true)
         ).addStringOption(so => so
             .setName('color')
-            .setDescription('The theme color of the text (changes speaker name and color of the quotes "<<" and ">>")')
+            .setDescription('Color of the speaker')
             .setRequired(true)
             .setChoices(
                 ['gray', 'red', 'green', 'yellow', 'blue', 'pink', 'cyan'].map(color => { return { name: color, value: color }})
             )
         ),
     async execute(interaction) {
-        const speaker = interaction.options.getString('speakername', true)
+        const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
         const color = interaction.options.getString('color', true) as 'gray' | 'red' | 'green' | 'yellow' | 'blue' | 'pink' | 'cyan'
         const image = createQuoteImage(speaker, quote, color)
