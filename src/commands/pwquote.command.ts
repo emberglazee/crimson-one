@@ -45,7 +45,10 @@ const COLORS: ColorDefinition[] = [
     { name: 'Mugged Pink', hex: '#FFABF3' }
 ];
 
+type GradientType = 'none' | 'trans' | 'rainbow';
+
 const TRANS_COLORS = ['#55CDFC', '#F7A8B8', '#FFFFFF', '#F7A8B8', '#55CDFC'];
+const RAINBOW_COLORS = ['#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'];
 
 export default {
     data: new SlashCommandBuilder()
@@ -66,23 +69,27 @@ export default {
             .setChoices(
                 COLORS.map(color => ({ name: color.name, value: color.name }))
             )
-        ).addBooleanOption(bo => bo
-            .setName('trans')
-            .setDescription('Use trans flag colors gradient for speaker name')
+        ).addStringOption(so => so
+            .setName('gradient')
+            .setDescription('Use gradient colors for speaker name')
             .setRequired(false)
+            .setChoices(
+                { name: 'Trans Flag', value: 'trans' },
+                { name: 'Rainbow', value: 'rainbow' }
+            )
         ),
     async execute(interaction) {
         const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
         const color = interaction.options.getString('color', true) as ColorName
-        const useTrans = interaction.options.getBoolean('trans') ?? false
+        const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
         await interaction.deferReply()
-        const image = createQuoteImage(speaker, quote, color, useTrans)
+        const image = createQuoteImage(speaker, quote, color, gradient)
         await interaction.editReply({ files: [image] })
     }
 } satisfies SlashCommand
 
-function createQuoteImage(speaker: string, quote: string, color: ColorName, useTrans: boolean = false) {
+function createQuoteImage(speaker: string, quote: string, color: ColorName, gradient: GradientType) {
     const fontSize = 48
     const lineHeight = fontSize * 1.2
     const padding = 40
@@ -147,18 +154,19 @@ function createQuoteImage(speaker: string, quote: string, color: ColorName, useT
     let y = 50
 
     // Draw speaker name
-    if (!useTrans) {
+    if (gradient === 'none') {
         ctx.fillStyle = speakerColor
         for (const line of speakerLines) {
             ctx.fillText(line, width / 2, y)
             y += lineHeight
         }
     } else {
+        const gradientColors = gradient === 'trans' ? TRANS_COLORS : RAINBOW_COLORS
         for (const line of speakerLines) {
             let x = width / 2 - ctx.measureText(line).width / 2
             for (let i = 0; i < line.length; i++) {
                 const char = line[i]
-                ctx.fillStyle = TRANS_COLORS[i % TRANS_COLORS.length]
+                ctx.fillStyle = gradientColors[i % gradientColors.length]
                 ctx.textAlign = 'left'
                 const charWidth = ctx.measureText(char).width
                 ctx.fillText(char, x, y)
