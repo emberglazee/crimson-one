@@ -7,7 +7,6 @@ import path from 'path'
 import { Logger } from '../util/logger'
 const logger = new Logger('command.randombilly')
 
-// { emojiName: emojiID }[]
 let emojis: { [key: string]: string }[] = []
 
 export default {
@@ -21,10 +20,13 @@ export default {
         ),
     async execute(interaction) {
         logger.info('Command executed')
-        await interaction.deferReply({
-            ephemeral: interaction.options.getBoolean('ephemeral', false) ?? undefined
-        })
+
+        let deferred = false
         if (!emojis.length) {
+            await interaction.deferReply({
+                ephemeral: interaction.options.getBoolean('ephemeral', false) ?? undefined
+            })
+            deferred = true
             logger.info('Reading emojis.json...')
             emojis = JSON.parse(await fs.readFile(path.join(__dirname, '../../data/emojis.json'), 'utf-8')).billy
             logger.ok('emojis.json read')
@@ -33,7 +35,9 @@ export default {
         const emojiName = Object.keys(emoji)[0]
         const emojiID = Object.values(emoji)[0]
         logger.info(`Sending ${emojiName}...`)
-        await interaction.editReply(`<:${emojiName}:${emojiID}>`)
+        const str = `<:${emojiName}:${emojiID}>`
+        deferred ? await interaction.editReply(str) : await interaction.reply(str)
+
         logger.ok('Command execution over')
     }
 } satisfies SlashCommand
