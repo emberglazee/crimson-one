@@ -144,17 +144,16 @@ function createQuoteImage(speaker: string, quote: string, color: ColorName, useT
     ctx.textBaseline = 'top'
     ctx.shadowColor = 'black'
     ctx.shadowBlur = 8
+    let y = 50
 
     // Draw speaker name
     if (!useTrans) {
         ctx.fillStyle = speakerColor
-        let y = 50
         for (const line of speakerLines) {
             ctx.fillText(line, width / 2, y)
             y += lineHeight
         }
     } else {
-        let y = 50
         for (const line of speakerLines) {
             let x = width / 2 - ctx.measureText(line).width / 2
             for (let i = 0; i < line.length; i++) {
