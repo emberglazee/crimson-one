@@ -23,20 +23,20 @@ export default {
             .setDescription('Color of the speaker')
             .setRequired(true)
             .setChoices(
-                ['gray', 'red', 'green', 'yellow', 'blue', 'pink', 'cyan'].map(color => { return { name: color, value: color }})
+                ['gray', 'red', 'green', 'yellow', 'blue', 'pink', 'cyan', 'white', 'orange', 'purple', 'brown', 'lime', 'teal', 'navy'].map(color => { return { name: color, value: color }})
             )
         ),
     async execute(interaction) {
         const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
-        const color = interaction.options.getString('color', true) as 'gray' | 'red' | 'green' | 'yellow' | 'blue' | 'pink' | 'cyan'
+        const color = interaction.options.getString('color', true) as 'gray' | 'red' | 'green' | 'yellow' | 'blue' | 'pink' | 'cyan' | 'white' | 'orange' | 'purple' | 'brown' | 'lime' | 'teal' | 'navy'
         await interaction.deferReply()
         const image = createQuoteImage(speaker, quote, color)
         await interaction.editReply({ files: [image] })
     }
 } satisfies SlashCommand
 
-function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' | 'green' | 'yellow' | 'blue' | 'pink' | 'cyan') {
+function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' | 'green' | 'yellow' | 'blue' | 'pink' | 'cyan' | 'white' | 'orange' | 'purple' | 'brown' | 'lime' | 'teal' | 'navy') {
     const fontSize = 48
     const lineHeight = fontSize * 1.2
     const padding = 40
@@ -98,6 +98,13 @@ function createQuoteImage(speaker: string, quote: string, color: 'gray' | 'red' 
         blue: '#5555FF',
         pink: '#FF55FF',
         cyan: '#55FFFF',
+        white: '#FFFFFF',
+        orange: '#FFA500',
+        purple: '#8A2BE2',
+        brown: '#A52A2A',
+        lime: '#32CD32',
+        teal: '#008080',
+        navy: '#000080',
     }
 
     const speakerColor = colorMap[color] || '#FFFFFF'
