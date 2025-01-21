@@ -35,8 +35,5 @@ export const COLORS: ColorDefinition[] = [
     { name: 'Mercenary Yellow', hex: '#BBAD2C' },
     { name: 'PWcord Moderator Turquoise', hex: '#1ABC9C' },
     { name: 'Voice Actor Blue', hex: '#86A4C7' },
-    { name: 'Mugged Pink', hex: '#FFABF3' },
-    { name: 'Potato', hex: '#c8a186' },
-    { name: 'Star Yellow', hex: '#fdb401' },
-    { name: 'Priority Red', hex: '#FF0000' }
+    { name: 'Mugged Pink', hex: '#FFABF3' }
 ]
