@@ -33,7 +33,7 @@ bot.once('ready', async () => {
     logger.ok('Commands initialized, bot ready')
 })
 bot.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return
+    if (!interaction.isChatInputCommand() && !interaction.isContextMenuCommand()) return
     commandHandler.handleInteraction(interaction)
 })
 bot.rest.on('rateLimited', rateLimitInfo => {

@@ -80,7 +80,7 @@ export default class CommandHandler {
         }
     }
 
-    async handleInteraction(interaction: CommandInteraction): Promise<void> {
+    async handleInteraction(interaction: CommandInteraction | ContextMenuCommandInteraction): Promise<void> {
         if (!this.initialized) throw new ClassNotInitializedError()
         const matchingCommand = this.findMatchingCommand(interaction)
         if (!matchingCommand) {
@@ -97,27 +97,37 @@ export default class CommandHandler {
             return
         }
     }
-    findMatchingCommand(interaction: CommandInteraction) {
-        return (this.globalCommands.find(
+
+    findMatchingCommand(interaction: CommandInteraction | ContextMenuCommandInteraction) {
+        if (interaction.isChatInputCommand()) {
+            return this.globalCommands.find(
                 command => command.data.name === interaction.commandName
                 && CommandHandler.isGlobalSlashCommand(command)
-            ) || this.contextMenuCommands.find(
+            )
+        } else if (interaction.isContextMenuCommand()) {
+            return this.contextMenuCommands.find(
                 command => command.data.name === interaction.commandName
                 && CommandHandler.isContextMenuCommand(command)
             )
-        )
+        }
+        return undefined
     }
-    async executeCommand(command: SlashCommand | ContextMenuCommand, interaction: CommandInteraction) {
+
+    async executeCommand(command: SlashCommand | ContextMenuCommand, interaction: CommandInteraction | ContextMenuCommandInteraction) {
         if (!command.execute) {
             throw new Error(`Command ${interaction.commandName} does not have an execute method`)
         }
+        
         if (interaction.isChatInputCommand() && CommandHandler.isSlashCommand(command)) {
-            await command.execute(interaction);
+            await command.execute(interaction)
         } else if (interaction.isContextMenuCommand() && CommandHandler.isContextMenuCommand(command)) {
-            await command.execute(interaction);
+            await command.execute(interaction)
+        } else {
+            throw new Error('Command type mismatch with interaction type')
         }
     }
-    handleError(e: Error, interaction: CommandInteraction) {
+
+    handleError(e: Error, interaction: CommandInteraction | ContextMenuCommandInteraction) {
         if (!interaction.deferred) interaction.reply(`❌ Deferred interraction error: \`${e.message}\``)
         else interaction.editReply(`❌ Interaction error: \`${e.message}\``)
         logger.error(`{handleInteraction} Error while executing command ${interaction.commandName}: ${e.message}\n${e.stack}`)
