@@ -1,23 +1,22 @@
 import { SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 
-// since you fuckers couldnt behave and got dyno's roll command banned
 export default {
     data: new SlashCommandBuilder()
         .setName('roll')
         .setDescription('Do a dice roll 🎲')
         .addNumberOption(no => no
             .setName('sides')
-            .setDescription('Number of sides on the dice')
-            .setRequired(false) // default to d20
+            .setDescription('Number of sides on the dice (default: 20)')
+            .setRequired(false)
         ).addStringOption(so => so
             .setName('action')
             .setDescription('What action is the roll for?')
-            .setRequired(false) // if none, dont mention it
+            .setRequired(false)
         ).addUserOption(uo => uo
             .setName('user')
             .setDescription('Who is the roll for?')
-            .setRequired(false) // will default to my user
+            .setRequired(false)
         ),
     async execute(interaction) {
         const user = interaction.options.getUser('user') || interaction.user
