@@ -10,7 +10,7 @@ type ColorName = 'Gray' | 'Red' | 'Green' | 'Yellow' | 'Blue' | 'Pink' | 'Cyan' 
     'White' | 'Orange' | 'Purple' | 'Brown' | 'Lime' | 'Teal' | 'Navy' |
     'Peacekeeper Red' | 'Faust Green' | 'The Home Depot Orange' | 'FakeDev Orange' |
     'Wikiyellow' | 'Federation Blue' | 'Cascadian Teal' | 'Mercenary Yellow' |
-    'PWcord Moderator Turquoise' | 'Voice Actor Blue'
+    'PWcord Moderator Turquoise' | 'Voice Actor Blue' | 'Mugged Pink'
 
 interface ColorDefinition {
     name: ColorName
@@ -41,7 +41,8 @@ const COLORS: ColorDefinition[] = [
     { name: 'Cascadian Teal', hex: '#2BBCC2' },
     { name: 'Mercenary Yellow', hex: '#BBAD2C' },
     { name: 'PWcord Moderator Turquoise', hex: '#1ABC9C' },
-    { name: 'Voice Actor Blue', hex: '#86A4C7' }
+    { name: 'Voice Actor Blue', hex: '#86A4C7' },
+    { name: 'Mugged Pink', hex: '#FFABF3' }
 ];
 
 export default {
