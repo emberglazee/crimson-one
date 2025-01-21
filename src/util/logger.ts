@@ -1,5 +1,5 @@
 import { EventEmitter } from 'tseep'
-import colors from '@colors/colors'
+import chalk from 'chalk'
 import fs from 'fs'
 import path from 'path'
 import url from 'url'
@@ -68,10 +68,10 @@ export function formatDate() {
 function logoutput(level: 'err' | 'warn' | 'info' | 'ok', data: JSONResolvable, module?: string, formatting = false) {
     let str = ''
     const displayLevelsColored = {
-        'err' : colors.red(' err'),
-        'warn': colors.yellow('warn'),
-        'info': colors.cyan('info'),
-        'ok'  : colors.green('  ok')
+        'err' : chalk.red(' err'),
+        'warn': chalk.yellow('warn'),
+        'info': chalk.cyan('info'),
+        'ok'  : chalk.green('  ok')
     }
     const displayLevels = {
         'err' : ' err',
