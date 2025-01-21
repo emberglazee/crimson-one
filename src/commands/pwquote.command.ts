@@ -45,6 +45,8 @@ const COLORS: ColorDefinition[] = [
     { name: 'Mugged Pink', hex: '#FFABF3' }
 ];
 
+const TRANS_COLORS = ['#55CDFC', '#F7A8B8', '#FFFFFF', '#F7A8B8', '#55CDFC'];
+
 export default {
     data: new SlashCommandBuilder()
         .setName('pwquote')
@@ -64,18 +66,23 @@ export default {
             .setChoices(
                 COLORS.map(color => ({ name: color.name, value: color.name }))
             )
+        ).addBooleanOption(bo => bo
+            .setName('trans')
+            .setDescription('Use trans flag colors gradient for speaker name')
+            .setRequired(false)
         ),
     async execute(interaction) {
         const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
         const color = interaction.options.getString('color', true) as ColorName
+        const useTrans = interaction.options.getBoolean('trans') ?? false
         await interaction.deferReply()
-        const image = createQuoteImage(speaker, quote, color)
+        const image = createQuoteImage(speaker, quote, color, useTrans)
         await interaction.editReply({ files: [image] })
     }
 } satisfies SlashCommand
 
-function createQuoteImage(speaker: string, quote: string, color: ColorName) {
+function createQuoteImage(speaker: string, quote: string, color: ColorName, useTrans: boolean = false) {
     const fontSize = 48
     const lineHeight = fontSize * 1.2
     const padding = 40
@@ -139,11 +146,28 @@ function createQuoteImage(speaker: string, quote: string, color: ColorName) {
     ctx.shadowBlur = 8
 
     // Draw speaker name
-    ctx.fillStyle = speakerColor
-    let y = 50
-    for (const line of speakerLines) {
-        ctx.fillText(line, width / 2, y)
-        y += lineHeight
+    if (!useTrans) {
+        ctx.fillStyle = speakerColor
+        let y = 50
+        for (const line of speakerLines) {
+            ctx.fillText(line, width / 2, y)
+            y += lineHeight
+        }
+    } else {
+        let y = 50
+        for (const line of speakerLines) {
+            let x = width / 2 - ctx.measureText(line).width / 2
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i]
+                ctx.fillStyle = TRANS_COLORS[i % TRANS_COLORS.length]
+                ctx.textAlign = 'left'
+                const charWidth = ctx.measureText(char).width
+                ctx.fillText(char, x, y)
+                x += charWidth
+            }
+            y += lineHeight
+        }
+        ctx.textAlign = 'center'
     }
 
     // Draw quote
