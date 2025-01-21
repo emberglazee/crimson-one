@@ -34,7 +34,7 @@ export default {
             extra spaces is to center the quote;
             pad the speaker name into the center if the quote is longer,
             or pad the quote into the center if the speaker name is longer;
-            each character equals 2 spaces
+            assume monospace
         */
         /*
             -> [{format};{color}m <-
