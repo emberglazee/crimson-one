@@ -1,10 +1,13 @@
 import { Logger } from './util/logger'
-const logger = new Logger()
+const logger = Logger.new()
 logger.info('Starting bot')
 
+import { readdir } from 'fs/promises'
+import path from 'path'
 import { Client, IntentsBitField, Partials } from 'discord.js'
 
 import CommandHandler from './modules/CommandManager'
+import type { DiscordEventListener } from './util/types'
 
 const bot = new Client({
     intents: new IntentsBitField([
@@ -27,14 +30,19 @@ const bot = new Client({
 export const commandHandler = new CommandHandler(bot)
 
 bot.once('ready', async () => {
-    logger.ok(`Logged in as ${bot.user?.tag}`)
+    logger.ok(`Logged in as ${bot.user!.tag}`)
     await commandHandler.init()
     await commandHandler.refreshGlobalCommands()
+
+    const eventFiles = (
+        await readdir(path.join(__dirname, 'events'))
+    ).filter(file => file.endsWith('.ts'))
+    for (const file of eventFiles) {
+        const event = await import(path.join(__dirname, `events/${file}`)) as DiscordEventListener
+        event.default(bot)
+    }
+
     logger.ok('Commands initialized, bot ready')
-})
-bot.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand() && !interaction.isContextMenuCommand()) return
-    commandHandler.handleInteraction(interaction)
 })
 bot.rest.on('rateLimited', rateLimitInfo => {
     logger.warn(
