@@ -1,17 +1,11 @@
 import { SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { createCanvas, registerFont } from 'canvas'
-import { type ColorName, COLORS } from '../util/colors'
+import { type ColorName, type GradientType, COLORS, TRANS_COLORS, RAINBOW_COLORS } from '../util/colors'
 import path from 'path'
 
 const fontPath = path.join(__dirname, '../../data/Aces07.ttf')
 registerFont(fontPath, { family: 'Aces07' })
-
-type GradientType = 'none' | 'trans' | 'rainbow'
-
-const TRANS_COLORS = ['#55CDFC', '#F7A8B8', '#FFFFFF', '#F7A8B8', '#55CDFC']
-const RAINBOW_COLORS = ['#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3']
-
 
 export default {
     data: new SlashCommandBuilder()

@@ -37,3 +37,8 @@ export const COLORS: ColorDefinition[] = [
     { name: 'Voice Actor Blue', hex: '#86A4C7' },
     { name: 'Mugged Pink', hex: '#FFABF3' }
 ]
+
+export type GradientType = 'none' | 'trans' | 'rainbow'
+
+export const TRANS_COLORS = ['#55CDFC', '#F7A8B8', '#FFFFFF', '#F7A8B8', '#55CDFC']
+export const RAINBOW_COLORS = ['#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3']
