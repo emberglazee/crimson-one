@@ -1,49 +1,11 @@
 import { SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { createCanvas, registerFont } from 'canvas'
+import { type ColorName, COLORS } from '../util/colors'
 import path from 'path'
 
 const fontPath = path.join(__dirname, '../../data/Aces07.ttf')
 registerFont(fontPath, { family: 'Aces07' })
-
-type ColorName = 'Gray' | 'Red' | 'Green' | 'Yellow' | 'Blue' | 'Pink' | 'Cyan' |
-    'White' | 'Orange' | 'Purple' | 'Brown' | 'Lime' | 'Teal' | 'Navy' |
-    'Peacekeeper Red' | 'Faust Green' | 'The Home Depot Orange' | 'FakeDev Orange' |
-    'Wikiyellow' | 'PACFED Blue' | 'Cascadian Teal' | 'Mercenary Yellow' |
-    'PWcord Moderator Turquoise' | 'Voice Actor Blue' | 'Mugged Pink'
-
-interface ColorDefinition {
-    name: ColorName
-    hex: string
-}
-
-const COLORS: ColorDefinition[] = [
-    { name: 'Gray', hex: '#B0B0B0' },
-    { name: 'Red', hex: '#FF5555' },
-    { name: 'Green', hex: '#55FF55' },
-    { name: 'Yellow', hex: '#FFFF55' },
-    { name: 'Blue', hex: '#5555FF' },
-    { name: 'Pink', hex: '#FF55FF' },
-    { name: 'Cyan', hex: '#55FFFF' },
-    { name: 'White', hex: '#FFFFFF' },
-    { name: 'Orange', hex: '#FFA500' },
-    { name: 'Purple', hex: '#8A2BE2' },
-    { name: 'Brown', hex: '#A52A2A' },
-    { name: 'Lime', hex: '#32CD32' },
-    { name: 'Teal', hex: '#008080' },
-    { name: 'Navy', hex: '#000080' },
-    { name: 'Peacekeeper Red', hex: '#992D22' },
-    { name: 'Faust Green', hex: '#1F8b4C' },
-    { name: 'The Home Depot Orange', hex: '#F96302' },
-    { name: 'FakeDev Orange', hex: '#E67E22' },
-    { name: 'Wikiyellow', hex: '#FFB40B' },
-    { name: 'PACFED Blue', hex: '#0C0D3B' },
-    { name: 'Cascadian Teal', hex: '#2BBCC2' },
-    { name: 'Mercenary Yellow', hex: '#BBAD2C' },
-    { name: 'PWcord Moderator Turquoise', hex: '#1ABC9C' },
-    { name: 'Voice Actor Blue', hex: '#86A4C7' },
-    { name: 'Mugged Pink', hex: '#FFABF3' }
-]
 
 type GradientType = 'none' | 'trans' | 'rainbow'
 
