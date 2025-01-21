@@ -5,7 +5,7 @@ import type { SlashCommand } from '../modules/CommandManager'
 export default {
     data: new SlashCommandBuilder()
         .setName('pwquote')
-        .setDescription('Generate a cool quote in the style of Project Wingman with an ANSI code block for colored text (doesnt work correctly yet)')
+        .setDescription('Generate a cool quote in the style of Project Wingman with an ANSI code block for colored text')
         .addStringOption(so => so
             .setName('speakername')
             .setDescription('The name of the speaker')
