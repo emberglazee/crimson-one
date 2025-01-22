@@ -32,7 +32,7 @@ export default class QuoteFactory {
 
             const files = [image]
             if (message.content.includes('preble')) {
-                files.push(await readFile(path.join('../../data/preble.wav')))
+                files.push(await readFile(path.join(__dirname, '../../data/preble.wav')))
             }
             await this.thread!.send({ files: [image] })
             // await message.delete()
