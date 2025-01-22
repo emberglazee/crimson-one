@@ -1,5 +1,5 @@
 import { AttachmentBuilder, BaseInteraction, ChatInputCommandInteraction, CommandInteraction, Guild, GuildChannel, GuildMember, Message, User } from 'discord.js'
-import { createCanvas, registerFont } from 'canvas'
+import { createCanvas, loadImage, registerFont } from 'canvas'
 import { type GradientType, TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS } from './colors'
 import path from 'path'
 import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable } from './types'
@@ -11,7 +11,7 @@ registerFont(acesPath, { family: 'Aces07' })
 
 export type QuoteStyle = 'pw' | 'ac7'
 
-export function createQuoteImage(speaker: string, quote: string, color: string | null, gradient: GradientType, stretchGradient = false, style: QuoteStyle = 'pw') {
+export async function createQuoteImage(speaker: string, quote: string, color: string | null, gradient: GradientType, stretchGradient = false, style: QuoteStyle = 'pw') {
     const fontSize = 48
     const lineHeight = fontSize * 1.2
     const padding = 40
@@ -111,21 +111,65 @@ export function createQuoteImage(speaker: string, quote: string, color: string |
         ctx.textAlign = 'center'
     }
 
+    // Helper function to detect and parse Discord emoji
+    const parseEmojis = (text: string) => {
+        const emojiRegex = /<:([^:]+):(\d+)>/g
+        const matches = [...text.matchAll(emojiRegex)]
+        return matches.map(match => ({
+            full: match[0],
+            name: match[1],
+            id: match[2],
+            url: `https://cdn.discordapp.com/emojis/${match[2]}.png?size=48`
+        }))
+    }
+    // Pre-load all emojis
+    const emojis = parseEmojis(quote)
+    const emojiImages = await Promise.all(
+        emojis.map(async emoji => ({
+            ...emoji,
+            image: await loadImage(emoji.url)
+        }))
+    )
+
     // Draw quote
     ctx.fillStyle = 'white'
     y += 2
 
     for (let i = 0; i < quoteLines.length; i++) {
         const line = quoteLines[i]
+        let x = width / 2 - ctx.measureText(line).width / 2
+
         if (style === 'ac7' && i === 0) {
             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
-            ctx.fillText('<<', width / 2 - ctx.measureText(line).width / 2 - 40, y)
+            ctx.fillText('<<', x - 40, y)
             ctx.fillStyle = 'white'
         }
-        ctx.fillText(line, width / 2, y)
+
+        // Split line into text and emoji segments
+        const segments = line.split(/<:[^:]+:\d+>/)
+        let emojiIndex = 0
+        let currentX = x
+
+        for (let j = 0; j < segments.length; j++) {
+            // Draw text segment
+            const text = segments[j]
+            ctx.textAlign = 'left'
+            ctx.fillText(text, currentX, y)
+            currentX += ctx.measureText(text).width
+
+            // Draw emoji if there is one after this segment
+            if (j < segments.length - 1 && emojiIndex < emojiImages.length) {
+                const emoji = emojiImages[emojiIndex]
+                const emojiSize = fontSize
+                ctx.drawImage(emoji.image, currentX, y + (fontSize * 0.1), emojiSize, emojiSize)
+                currentX += emojiSize
+                emojiIndex++
+            }
+        }
+
         if (style === 'ac7' && i === quoteLines.length - 1) {
             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
-            ctx.fillText('>>', width / 2 + ctx.measureText(line).width / 2 + 40, y)
+            ctx.fillText('>>', x + ctx.measureText(line).width + 40, y)
         }
         y += lineHeight
     }
