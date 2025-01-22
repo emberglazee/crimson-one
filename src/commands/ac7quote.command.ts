@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { createCanvas, registerFont } from 'canvas'
-import { type ColorName, type GradientType, COLORS, TRANS_COLORS, RAINBOW_COLORS } from '../util/colors'
+import { type ColorName, type GradientType, COLORS, TRANS_COLORS, RAINBOW_COLORS, ROLE_COLORS } from '../util/colors'
 import path from 'path'
 
 const fontPath = path.join(__dirname, '../../data/Aces07.ttf')
@@ -21,10 +21,17 @@ export default {
             .setRequired(true)
         ).addStringOption(so => so
             .setName('color')
-            .setDescription('Color of the speaker')
-            .setRequired(true)
+            .setDescription('Speaker name color')
+            .setRequired(false)
             .setChoices(
                 COLORS.map(color => ({ name: color.name, value: color.name }))
+            )
+        ).addStringOption(so => so
+            .setName('rolecolor')
+            .setDescription('Pick a discord role color for speaker instead of a predefined color')
+            .setRequired(false)
+            .setChoices(
+                ROLE_COLORS.map(color => ({ name: color.name, value: color.name }))
             )
         ).addStringOption(so => so
             .setName('gradient')
@@ -35,15 +42,19 @@ export default {
                 { name: 'Rainbow', value: 'rainbow' }
             )
         ),
-        async execute(interaction) {
-            const speaker = interaction.options.getString('speaker', true)
-            const quote = interaction.options.getString('quote', true)
-            const color = interaction.options.getString('color', true) as ColorName
-            const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
-            await interaction.deferReply()
-            const image = createQuoteImage(speaker, quote, color, gradient)
-            await interaction.editReply({ files: [image] })
+    async execute(interaction) {
+        const speaker = interaction.options.getString('speaker', true)
+        const quote = interaction.options.getString('quote', true)
+        const color = (interaction.options.getString('color', true) || interaction.options.getString('rolecolor')) as ColorName | null
+        if (!color) {
+            await interaction.reply('❌ Neither color nor role color was provided, provide one of them')
+            return
         }
+        const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
+        await interaction.deferReply()
+        const image = createQuoteImage(speaker, quote, color, gradient)
+        await interaction.editReply({ files: [image] })
+    }
 } satisfies SlashCommand
 
 function createQuoteImage(speaker: string, quote: string, color: ColorName, gradient: GradientType) {
@@ -100,7 +111,7 @@ function createQuoteImage(speaker: string, quote: string, color: ColorName, grad
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
 
-    const speakerColor = COLORS.find(c => c.name === color)?.hex || '#FFFFFF'
+    const speakerColor = COLORS.find(c => c.name === color)?.hex || ROLE_COLORS.find(c => c.name === color)?.hex || '#FFFFFF'
 
     ctx.clearRect(0, 0, width, height)
     ctx.font = `${fontSize}px Aces07`
@@ -136,7 +147,7 @@ function createQuoteImage(speaker: string, quote: string, color: ColorName, grad
 
     // Draw quote with surrounding quote marks
     ctx.fillStyle = 'white'
-    y += 2 // Add 2px spacing between speaker and quote
+    y += 2
 
     for (let i = 0; i < quoteLines.length; i++) {
         const line = quoteLines[i]
