@@ -66,31 +66,40 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
 
     // Word wrap quote with emoji preservation
     const quoteLines: string[] = []
+    let lineStartIndices: number[] = []
+    let currentIndex = 0
     const textLines = quote.split('\n')
     
     for (const textLine of textLines) {
         const words = textLine.split(' ')
         let currentLine = words[0]
-        let currentLineEmojis: typeof emojis = []
+        let lineStart = currentIndex
+        currentIndex += currentLine.length
 
         for (let i = 1; i < words.length; i++) {
             const word = words[i]
             const testLine = currentLine + ' ' + word
             const metrics = measureCtx.measureText(testLine)
             const testLineEmojis = emojis.filter(e => 
-                e.index! >= (testLine.length - word.length) && 
-                e.index! < testLine.length
+                e.index >= lineStart && 
+                e.index < lineStart + testLine.length
             )
             const emojiWidth = testLineEmojis.length * fontSize
 
             if (metrics.width + emojiWidth > maxWidth) {
                 quoteLines.push(currentLine)
+                lineStartIndices.push(lineStart)
                 currentLine = word
+                lineStart = currentIndex + 1 // +1 for space
+                currentIndex = lineStart + word.length
             } else {
                 currentLine = testLine
+                currentIndex = lineStart + testLine.length
             }
         }
         quoteLines.push(currentLine)
+        lineStartIndices.push(lineStart)
+        currentIndex += 1 // for newline
     }
 
     // Calculate height based on number of lines
@@ -146,10 +155,18 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
 
     for (let i = 0; i < quoteLines.length; i++) {
         const line = quoteLines[i]
-        const lineEmojis = emojis.filter(e => {
-            const lineStart = quote.indexOf(line)
-            return e.index >= lineStart && e.index < lineStart + line.length
-        }).sort((a, b) => a.index - b.index)
+        const lineStart = lineStartIndices[i]
+        const nextLineStart = lineStartIndices[i + 1] || quote.length
+        
+        const lineEmojis = emojis.filter(e => 
+            e.index >= lineStart && e.index < nextLineStart
+        ).sort((a, b) => a.index - b.index)
+
+        // Adjust emoji indices relative to line start
+        const adjustedEmojis = lineEmojis.map(emoji => ({
+            ...emoji,
+            relativeIndex: emoji.index - lineStart
+        }))
 
         // Calculate line width including emojis
         let totalWidth = 0
@@ -157,10 +174,10 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
         let lineText = line
 
         // Pre-calculate total width with emoji replacements
-        for (const emoji of lineEmojis) {
-            const textBefore = lineText.substring(currentPos, emoji.index)
+        for (const emoji of adjustedEmojis) {
+            const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
             totalWidth += ctx.measureText(textBefore).width + fontSize
-            currentPos = emoji.index + emoji.length
+            currentPos = emoji.relativeIndex + emoji.length
         }
         totalWidth += ctx.measureText(lineText.substring(currentPos)).width
 
@@ -177,8 +194,8 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
 
         // Reset for actual drawing
         currentPos = 0
-        for (const emoji of lineEmojis) {
-            const textBefore = lineText.substring(currentPos, emoji.index)
+        for (const emoji of adjustedEmojis) {
+            const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
             if (textBefore) {
                 const textWidth = ctx.measureText(textBefore).width
                 ctx.fillText(textBefore, currentX + textWidth/2, y)
@@ -191,7 +208,7 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
                 ctx.drawImage(loadedEmoji.image, currentX, y + (fontSize * 0.1), fontSize, fontSize)
             }
             currentX += fontSize
-            currentPos = emoji.index + emoji.length
+            currentPos = emoji.relativeIndex + emoji.length
         }
 
         // Draw remaining text
