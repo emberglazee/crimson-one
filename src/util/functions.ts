@@ -50,6 +50,7 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
             name: match[1],
             id: match[2],
             index: match.index!,
+            length: match[0].length,
             url: `https://cdn.discordapp.com/emojis/${match[2]}.png?size=48`
         }))
     }
@@ -145,50 +146,68 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
 
     for (let i = 0; i < quoteLines.length; i++) {
         const line = quoteLines[i]
-        const lineWidth = ctx.measureText(line).width
-        const centerX = width / 2
-        let lineEmojis = emojiImages.filter(e => {
+        const lineEmojis = emojis.filter(e => {
             const lineStart = quote.indexOf(line)
             return e.index >= lineStart && e.index < lineStart + line.length
-        })
+        }).sort((a, b) => a.index - b.index)
 
+        // Calculate line width including emojis
+        let totalWidth = 0
+        let currentPos = 0
+        let lineText = line
+
+        // Pre-calculate total width with emoji replacements
+        for (const emoji of lineEmojis) {
+            const textBefore = lineText.substring(currentPos, emoji.index)
+            totalWidth += ctx.measureText(textBefore).width + fontSize
+            currentPos = emoji.index + emoji.length
+        }
+        totalWidth += ctx.measureText(lineText.substring(currentPos)).width
+
+        // Center alignment calculations
+        const centerX = width / 2
+        let currentX = centerX - totalWidth / 2
+
+        // Draw AC7 opening arrows if needed
         if (style === 'ac7' && i === 0) {
             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
-            ctx.fillText('<<', centerX - lineWidth/2 - 40, y)
+            ctx.fillText('<<', currentX - 40, y)
             ctx.fillStyle = 'white'
         }
 
-        // Calculate total width including emojis
-        const totalWidth = lineWidth + (lineEmojis.length * fontSize)
-        let currentX = centerX - totalWidth/2
-
-        // Draw text segments and emojis
-        let lastIndex = 0
+        // Reset for actual drawing
+        currentPos = 0
         for (const emoji of lineEmojis) {
-            const textBefore = line.substring(lastIndex, emoji.index)
+            const textBefore = lineText.substring(currentPos, emoji.index)
             if (textBefore) {
                 const textWidth = ctx.measureText(textBefore).width
                 ctx.fillText(textBefore, currentX + textWidth/2, y)
                 currentX += textWidth
             }
 
-            const emojiSize = fontSize
-            ctx.drawImage(emoji.image, currentX, y + (fontSize * 0.1), emojiSize, emojiSize)
-            currentX += emojiSize
-            lastIndex = emoji.index + emoji.full.length
+            // Find and draw the loaded emoji image
+            const loadedEmoji = emojiImages.find(e => e.id === emoji.id)
+            if (loadedEmoji) {
+                ctx.drawImage(loadedEmoji.image, currentX, y + (fontSize * 0.1), fontSize, fontSize)
+            }
+            currentX += fontSize
+            currentPos = emoji.index + emoji.length
         }
 
-        // Draw remaining text after last emoji
-        const remainingText = line.substring(lastIndex)
+        // Draw remaining text
+        const remainingText = lineText.substring(currentPos)
         if (remainingText) {
             const textWidth = ctx.measureText(remainingText).width
             ctx.fillText(remainingText, currentX + textWidth/2, y)
+            currentX += textWidth
         }
 
+        // Draw AC7 closing arrows if needed
         if (style === 'ac7' && i === quoteLines.length - 1) {
             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
-            ctx.fillText('>>', centerX + lineWidth/2 + 40, y)
+            ctx.fillText('>>', currentX + 40, y)
         }
+
         y += lineHeight
     }
 
