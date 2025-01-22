@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { createCanvas, registerFont } from 'canvas'
-import { type ColorName, type GradientType, COLORS, TRANS_COLORS, RAINBOW_COLORS, ROLE_COLORS } from '../util/colors'
+import { type ColorName, type GradientType, COLORS, TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS, ROLE_COLORS } from '../util/colors'
 import path from 'path'
 
 const fontPath = path.join(__dirname, '../../data/Aces07.ttf')
@@ -39,14 +39,20 @@ export default {
             .setRequired(false)
             .setChoices(
                 { name: 'Trans Flag', value: 'trans' },
-                { name: 'Rainbow', value: 'rainbow' }
+                { name: 'Rainbow', value: 'rainbow' },
+                { name: 'Italian Flag', value: 'italian' }
             )
+        ).addBooleanOption(bo => bo
+            .setName('stretch')
+            .setDescription('Stretch gradient across entire name instead of repeating')
+            .setRequired(false)
         ),
     async execute(interaction) {
         const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
         const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
         const color = (interaction.options.getString('color') || interaction.options.getString('rolecolor')) as ColorName | null
+        const stretchGradient = interaction.options.getBoolean('stretch') ?? false
         
         if (!color && gradient === 'none') {
             await interaction.reply('❌ Either color/role color or gradient must be provided')
@@ -54,12 +60,12 @@ export default {
         }
         
         await interaction.deferReply()
-        const image = createQuoteImage(speaker, quote, color, gradient)
+        const image = createQuoteImage(speaker, quote, color, gradient, stretchGradient)
         await interaction.editReply({ files: [image] })
     }
 } satisfies SlashCommand
 
-function createQuoteImage(speaker: string, quote: string, color: ColorName | null, gradient: GradientType) {
+function createQuoteImage(speaker: string, quote: string, color: ColorName | null, gradient: GradientType, stretchGradient = false) {
     const fontSize = 48
     const lineHeight = fontSize * 1.2
     const padding = 40
@@ -114,6 +120,9 @@ function createQuoteImage(speaker: string, quote: string, color: ColorName | nul
     const ctx = canvas.getContext('2d')
 
     const speakerColor = color ? (COLORS.find(c => c.name === color)?.hex || ROLE_COLORS.find(c => c.name === color)?.hex || '#FFFFFF') : '#FFFFFF'
+    const gradientColors = gradient === 'trans' ? TRANS_COLORS 
+        : gradient === 'rainbow' ? RAINBOW_COLORS 
+        : ITALIAN_COLORS
 
     ctx.clearRect(0, 0, width, height)
     ctx.font = `${fontSize}px Aces07`
@@ -131,12 +140,14 @@ function createQuoteImage(speaker: string, quote: string, color: ColorName | nul
             y += lineHeight
         }
     } else {
-        const gradientColors = gradient === 'trans' ? TRANS_COLORS : RAINBOW_COLORS
         for (const line of speakerLines) {
             let x = width / 2 - ctx.measureText(line).width / 2
             for (let i = 0; i < line.length; i++) {
                 const char = line[i]
-                ctx.fillStyle = gradientColors[i % gradientColors.length]
+                const colorIndex = stretchGradient 
+                    ? Math.floor((i / line.length) * gradientColors.length)
+                    : i % gradientColors.length
+                ctx.fillStyle = gradientColors[colorIndex]
                 ctx.textAlign = 'left'
                 const charWidth = ctx.measureText(char).width
                 ctx.fillText(char, x, y)
@@ -155,13 +166,13 @@ function createQuoteImage(speaker: string, quote: string, color: ColorName | nul
         const line = quoteLines[i]
         // Add quote marks to first and last lines
         if (i === 0) {
-            ctx.fillStyle = speakerColor
+            ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
             ctx.fillText('<<', width / 2 - ctx.measureText(line).width / 2 - 40, y)
             ctx.fillStyle = 'white'
         }
         ctx.fillText(line, width / 2, y)
         if (i === quoteLines.length - 1) {
-            ctx.fillStyle = speakerColor
+            ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
             ctx.fillText('>>', width / 2 + ctx.measureText(line).width / 2 + 40, y)
         }
         y += lineHeight
