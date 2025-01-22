@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { AttachmentBuilder, SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { createQuoteImage } from '../util/functions'
 import { type ColorName, type GradientType, COLORS, ROLE_COLORS } from '../util/colors'
@@ -62,7 +62,12 @@ export default {
         }
         
         await interaction.deferReply()
-        const image = await createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw')
-        await interaction.editReply({ files: [image] })
+        const result = await createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw')
+        await interaction.editReply({ 
+            files: [
+                new AttachmentBuilder(result.buffer)
+                    .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
+            ] 
+        })
     }
 } satisfies SlashCommand
