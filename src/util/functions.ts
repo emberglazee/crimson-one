@@ -5,6 +5,7 @@ import path from 'path'
 import GIFEncoder from 'gif-encoder-2'
 import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable } from '../types/types'
 import { Logger } from './logger'
+import { Buffer } from 'buffer'
 const logger = Logger.new('functions')
 
 const robotoPath = path.join(__dirname, '../../data/Roboto.ttf')
@@ -96,10 +97,10 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
         const speakerEmojis = parseEmojis(speaker)
         const quoteEmojis = parseEmojis(quote)
         const allEmojis = [...speakerEmojis, ...quoteEmojis]
-        
+
         const hasAnimatedEmojis = allEmojis.some(e => e.animated)
         logger.info(`Animation status: ${hasAnimatedEmojis ? 'Animated' : 'Static'}`)
-        
+
         // Load emoji frames
         logger.info('Loading emoji images...')
         const emojiImages = await Promise.all(
@@ -108,10 +109,18 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
                     if (emoji.animated) {
                         logger.info(`Loading animated emoji ${index + 1}/${allEmojis.length}: ${emoji.name || emoji.id}`)
                         const response = await fetch(emoji.url)
-                        const buffer = await response.arrayBuffer()
+                        const arrayBuffer = await response.arrayBuffer()
+                        // Convert ArrayBuffer to Buffer
+                        const buffer = Buffer.from(arrayBuffer)
+                        
+                        // Create data URL for gif-frames
+                        const base64 = buffer.toString('base64')
+                        const dataUrl = `data:image/gif;base64,${base64}`
+                        
                         const frames = await import('gif-frames').then(m => 
-                            m.default({ url: buffer, frames: 'all' })
+                            m.default({ url: dataUrl, frames: 'all', outputType: 'canvas' })
                         )
+
                         return {
                             ...emoji,
                             frames: await Promise.all(
