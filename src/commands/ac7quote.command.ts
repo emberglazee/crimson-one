@@ -62,7 +62,7 @@ export default {
         }
         
         await interaction.deferReply()
-        const image = await createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'ac7')
+        const image = createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'ac7')
         await interaction.editReply({ files: [image] })
     }
 } satisfies SlashCommand
