@@ -24,7 +24,9 @@ export const COLORS: ColorDefinition[] = [
     { name: 'Brown', hex: '#A52A2A' },
     { name: 'Lime', hex: '#32CD32' },
     { name: 'Teal', hex: '#008080' },
-    { name: 'Navy', hex: '#000080' },
+    { name: 'Navy', hex: '#000080' }
+]
+export const ROLE_COLORS: ColorDefinition[] = [
     { name: 'Peacekeeper Red', hex: '#992D22' },
     { name: 'Faust/Goblin Green', hex: '#1F8b4C' },
     { name: 'The Home Depot Orange', hex: '#F96302' },
