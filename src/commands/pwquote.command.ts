@@ -45,7 +45,7 @@ export default {
     async execute(interaction) {
         const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
-        const color = (interaction.options.getString('color', true) || interaction.options.getString('rolecolor')) as ColorName | null
+        const color = (interaction.options.getString('color') || interaction.options.getString('rolecolor')) as ColorName | null
         if (!color) {
             await interaction.reply('❌ Neither color nor role color was provided, provide one of them')
             return
