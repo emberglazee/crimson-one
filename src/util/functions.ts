@@ -1,8 +1,9 @@
 import { AttachmentBuilder, BaseInteraction, ChatInputCommandInteraction, CommandInteraction, Guild, GuildChannel, GuildMember, Message, User } from 'discord.js'
-import { createCanvas, loadImage, registerFont } from 'canvas'
+import { createCanvas, loadImage, registerFont, createImageData } from 'canvas'
 import { type GradientType, TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS } from './colors'
 import path from 'path'
 import GIFEncoder from 'gif-encoder-2'
+import { parseGIF, decompressFrames } from 'gifuct-js'
 import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable } from '../types/types'
 import { Logger } from './logger'
 import { Buffer } from 'buffer'
@@ -110,22 +111,31 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
                         logger.info(`Loading animated emoji ${index + 1}/${allEmojis.length}: ${emoji.name || emoji.id}`)
                         const response = await fetch(emoji.url)
                         const arrayBuffer = await response.arrayBuffer()
-                        // Convert ArrayBuffer to Buffer
-                        const buffer = Buffer.from(arrayBuffer)
                         
-                        // Create data URL for gif-frames
-                        const base64 = buffer.toString('base64')
-                        const dataUrl = `data:image/gif;base64,${base64}`
+                        // Use gifuct-js to decode the GIF
+                        const gif = parseGIF(arrayBuffer)
+                        const frames = decompressFrames(gif, true)
                         
-                        const frames = await import('gif-frames').then(m => 
-                            m.default({ url: dataUrl, frames: 'all', outputType: 'canvas' })
-                        )
+                        // Convert frames to canvas images
+                        const canvasFrames = await Promise.all(frames.map(async frame => {
+                            const frameCanvas = createCanvas(frame.dims.width, frame.dims.height)
+                            const ctx = frameCanvas.getContext('2d')
+                            
+                            // Create ImageData from the pixel array
+                            const imageData = createImageData(
+                                new Uint8ClampedArray(frame.patch),
+                                frame.dims.width,
+                                frame.dims.height
+                            )
+                            
+                            ctx.putImageData(imageData, 0, 0)
+                            return frameCanvas
+                        }))
 
                         return {
                             ...emoji,
-                            frames: await Promise.all(
-                                frames.map(frame => loadImage(frame.getImage()._obj))
-                            )
+                            frames: canvasFrames,
+                            frameDelays: frames.map(f => f.delay)
                         }
                     } else {
                         logger.info(`Loading static emoji ${index + 1}/${allEmojis.length}`)
@@ -135,7 +145,7 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
                         }
                     }
                 } catch (error) {
-                    logger.error(`Failed to load emoji: ${emoji.name || emoji.id}\n${error}`)
+                    logger.error(`Failed to load emoji: ${emoji.name || emoji.id}\n${error}\n${emoji.url}`)
                     return { ...emoji, image: null }
                 }
             })
