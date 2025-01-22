@@ -41,20 +41,48 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
     }
     speakerLines.push(currentLine)
 
-    // Word wrap quote
+    // Helper function to detect and parse Discord emoji
+    const parseEmojis = (text: string) => {
+        const emojiRegex = /<:([^:]+):(\d+)>/g
+        const matches = [...text.matchAll(emojiRegex)]
+        return matches.map(match => ({
+            full: match[0],
+            name: match[1],
+            id: match[2],
+            index: match.index!,
+            url: `https://cdn.discordapp.com/emojis/${match[2]}.png?size=48`
+        }))
+    }
+
+    // Pre-load all emojis
+    const emojis = parseEmojis(quote)
+    const emojiImages = await Promise.all(
+        emojis.map(async emoji => ({
+            ...emoji,
+            image: await loadImage(emoji.url)
+        }))
+    )
+
+    // Word wrap quote with emoji preservation
     const quoteLines: string[] = []
     const textLines = quote.split('\n')
     
     for (const textLine of textLines) {
         const words = textLine.split(' ')
         let currentLine = words[0]
+        let currentLineEmojis: typeof emojis = []
 
         for (let i = 1; i < words.length; i++) {
             const word = words[i]
             const testLine = currentLine + ' ' + word
             const metrics = measureCtx.measureText(testLine)
+            const testLineEmojis = emojis.filter(e => 
+                e.index! >= (testLine.length - word.length) && 
+                e.index! < testLine.length
+            )
+            const emojiWidth = testLineEmojis.length * fontSize
 
-            if (metrics.width > maxWidth) {
+            if (metrics.width + emojiWidth > maxWidth) {
                 quoteLines.push(currentLine)
                 currentLine = word
             } else {
@@ -111,26 +139,6 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
         ctx.textAlign = 'center'
     }
 
-    // Helper function to detect and parse Discord emoji
-    const parseEmojis = (text: string) => {
-        const emojiRegex = /<:([^:]+):(\d+)>/g
-        const matches = [...text.matchAll(emojiRegex)]
-        return matches.map(match => ({
-            full: match[0],
-            name: match[1],
-            id: match[2],
-            url: `https://cdn.discordapp.com/emojis/${match[2]}.png?size=48`
-        }))
-    }
-    // Pre-load all emojis
-    const emojis = parseEmojis(quote)
-    const emojiImages = await Promise.all(
-        emojis.map(async emoji => ({
-            ...emoji,
-            image: await loadImage(emoji.url)
-        }))
-    )
-
     // Draw quote
     ctx.fillStyle = 'white'
     y += 2
@@ -139,6 +147,10 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
         const line = quoteLines[i]
         const lineWidth = ctx.measureText(line).width
         const centerX = width / 2
+        let lineEmojis = emojiImages.filter(e => {
+            const lineStart = quote.indexOf(line)
+            return e.index >= lineStart && e.index < lineStart + line.length
+        })
 
         if (style === 'ac7' && i === 0) {
             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
@@ -146,33 +158,31 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
             ctx.fillStyle = 'white'
         }
 
-        // Split line into text and emoji segments
-        const segments = line.split(/<:[^:]+:\d+>/)
-        let emojiIndex = 0
-        
         // Calculate total width including emojis
-        const totalWidth = segments.reduce((acc, text, j) => {
-            acc += ctx.measureText(text).width
-            if (j < segments.length - 1) acc += fontSize // emoji width
-            return acc
-        }, 0)
-
+        const totalWidth = lineWidth + (lineEmojis.length * fontSize)
         let currentX = centerX - totalWidth/2
 
-        for (let j = 0; j < segments.length; j++) {
-            const text = segments[j]
-            ctx.textAlign = 'center'
-            const textWidth = ctx.measureText(text).width
-            ctx.fillText(text, currentX + textWidth/2, y)
-            currentX += textWidth
-
-            if (j < segments.length - 1 && emojiIndex < emojiImages.length) {
-                const emoji = emojiImages[emojiIndex]
-                const emojiSize = fontSize
-                ctx.drawImage(emoji.image, currentX, y + (fontSize * 0.1), emojiSize, emojiSize)
-                currentX += emojiSize
-                emojiIndex++
+        // Draw text segments and emojis
+        let lastIndex = 0
+        for (const emoji of lineEmojis) {
+            const textBefore = line.substring(lastIndex, emoji.index)
+            if (textBefore) {
+                const textWidth = ctx.measureText(textBefore).width
+                ctx.fillText(textBefore, currentX + textWidth/2, y)
+                currentX += textWidth
             }
+
+            const emojiSize = fontSize
+            ctx.drawImage(emoji.image, currentX, y + (fontSize * 0.1), emojiSize, emojiSize)
+            currentX += emojiSize
+            lastIndex = emoji.index + emoji.full.length
+        }
+
+        // Draw remaining text after last emoji
+        const remainingText = line.substring(lastIndex)
+        if (remainingText) {
+            const textWidth = ctx.measureText(remainingText).width
+            ctx.fillText(remainingText, currentX + textWidth/2, y)
         }
 
         if (style === 'ac7' && i === quoteLines.length - 1) {
