@@ -2,7 +2,7 @@ export type ColorName = 'Gray' | 'Red' | 'Green' | 'Yellow' | 'Blue' | 'Pink' | 
     'White' | 'Orange' | 'Purple' | 'Brown' | 'Lime' | 'Teal' | 'Navy' |
     'Peacekeeper Red' | 'Faust/Goblin Green' | 'The Home Depot Orange' | 'FakeDev Orange' |
     'Wikiyellow' | 'Federation Blue' | 'Cascadian Teal' | 'Mercenary Yellow' |
-    'PWcord Moderator Turquoise' | 'Voice Actor Blue' | 'Mugged Pink' | 'Potato' | 'Star Yellow' |
+    'PWcord Moderator Turquoise' | 'Voice Actor Blue' | 'Mugged Pink' | 'Potato Brown' | '⭐ Yellow' |
     'Priority Red'
 
 export interface ColorDefinition {
@@ -37,7 +37,10 @@ export const ROLE_COLORS: ColorDefinition[] = [
     { name: 'Mercenary Yellow', hex: '#BBAD2C' },
     { name: 'PWcord Moderator Turquoise', hex: '#1ABC9C' },
     { name: 'Voice Actor Blue', hex: '#86A4C7' },
-    { name: 'Mugged Pink', hex: '#FFABF3' }
+    { name: 'Mugged Pink', hex: '#FFABF3' },
+    { name: 'Potato Brown', hex: '#c8a186' },
+    { name: '⭐ Yellow', hex: '#fdb401' },
+    { name: 'Priority Red', hex: '#FF0000' }
 ]
 
 export type GradientType = 'none' | 'trans' | 'rainbow'
