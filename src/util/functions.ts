@@ -49,6 +49,20 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
         }))
     )
 
+    const measureWordWidth = (word: string, startIndex: number, emojis: ReturnType<typeof parseEmojis>) => {
+        let width = measureCtx.measureText(word).width
+        const wordEmojis = emojis.filter(e => 
+            e.index >= startIndex && 
+            e.index < startIndex + word.length
+        )
+        // Subtract the width of emoji placeholders and add actual emoji width
+        for (const emoji of wordEmojis) {
+            width -= measureCtx.measureText(emoji.full).width
+            width += fontSize
+        }
+        return width
+    }
+
     // Word wrap speaker name
     const speakerLines: string[] = []
     let speakerStartIndices: number[] = []
@@ -64,14 +78,9 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
         for (let i = 1; i < words.length; i++) {
             const word = words[i]
             const testLine = currentLine + ' ' + word
-            const metrics = measureCtx.measureText(testLine)
-            const testLineEmojis = speakerEmojis.filter(e => 
-                e.index >= lineStart && 
-                e.index < lineStart + testLine.length
-            )
-            const emojiWidth = testLineEmojis.length * fontSize
+            const actualWidth = measureWordWidth(testLine, lineStart, speakerEmojis)
 
-            if (metrics.width + emojiWidth > maxWidth) {
+            if (actualWidth > maxWidth) {
                 speakerLines.push(currentLine)
                 speakerStartIndices.push(lineStart)
                 currentLine = word
@@ -102,18 +111,13 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
         for (let i = 1; i < words.length; i++) {
             const word = words[i]
             const testLine = currentLine + ' ' + word
-            const metrics = measureCtx.measureText(testLine)
-            const testLineEmojis = quoteEmojis.filter(e => 
-                e.index >= lineStart && 
-                e.index < lineStart + testLine.length
-            )
-            const emojiWidth = testLineEmojis.length * fontSize
+            const actualWidth = measureWordWidth(testLine, lineStart, quoteEmojis)
 
-            if (metrics.width + emojiWidth > maxWidth) {
+            if (actualWidth > maxWidth) {
                 quoteLines.push(currentLine)
                 lineStartIndices.push(lineStart)
                 currentLine = word
-                lineStart = currentIndex + 1 // +1 for space
+                lineStart = currentIndex + 1
                 currentIndex = lineStart + word.length
             } else {
                 currentLine = testLine
@@ -122,7 +126,7 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
         }
         quoteLines.push(currentLine)
         lineStartIndices.push(lineStart)
-        currentIndex += 1 // for newline
+        currentIndex += 1
     }
 
     // Calculate height based on number of lines
