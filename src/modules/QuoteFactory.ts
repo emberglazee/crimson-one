@@ -20,7 +20,7 @@ export default class QuoteFactory {
         this.thread = await this.client.channels.fetch(this.threadId) as ThreadChannel
         this.client.on('messageCreate', async message => {
             if (message.channel.id !== this.threadId) return
-            if (message.interactionMetadata && message.interactionMetadata.user === this.client.user) return
+            if (message.interactionMetadata) return
             if (message.author === this.client.user) return
             await message.channel.sendTyping()
             const speaker = message.member!.displayName
