@@ -27,7 +27,7 @@ export default class QuoteFactory {
             const stretchGradient = false
             const image = createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw')
             await this.thread!.send({ files: [image] })
-            await message.delete()
+            // await message.delete()
         })
     }
 }
