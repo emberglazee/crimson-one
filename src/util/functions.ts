@@ -1,9 +1,11 @@
 import { AttachmentBuilder, BaseInteraction, ChatInputCommandInteraction, CommandInteraction, Guild, GuildChannel, GuildMember, Message, User } from 'discord.js'
-import { createCanvas, Image, loadImage, registerFont } from 'canvas'
+import { createCanvas, loadImage, registerFont } from 'canvas'
 import { type GradientType, TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS } from './colors'
 import path from 'path'
 import GIFEncoder from 'gif-encoder-2'
 import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable } from '../types/types'
+import { Logger } from './logger'
+const logger = Logger.new('functions')
 
 const robotoPath = path.join(__dirname, '../../data/Roboto.ttf')
 const acesPath = path.join(__dirname, '../../data/Aces07.ttf')
@@ -34,6 +36,8 @@ function toCodePoint(unicodeSurrogates: string) {
 }
 
 export async function createQuoteImage(speaker: string, quote: string, color: string | null, gradient: GradientType, stretchGradient = false, style: QuoteStyle = 'pw') {
+    logger.info(`Creating quote image with params:\n${speaker}\n${quote}\n${color}\n${gradient}\n${stretchGradient}\n${style}`)
+
     const fontSize = 48
     const lineHeight = fontSize * 1.2
     const padding = 40
@@ -48,6 +52,7 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
 
     // Updated helper function to detect and parse both Discord and Unicode emoji
     const parseEmojis = (text: string) => {
+        logger.info(`Parsing emojis from text of length ${text.length}`)
         const results: Array<{
             full: string
             id?: string
@@ -82,175 +87,269 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
             url: `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${toCodePoint(match[0])}.png`
         })))
 
-        // Sort by index to maintain order
-        return results.sort((a, b) => a.index - b.index)
+        logger.info(`Found ${results.length} emojis: ${results.map(e => e.full).join(', ')}`)
+        return results
     }
 
-    // Pre-load all emojis and detect if any are animated
-    const speakerEmojis = parseEmojis(speaker)
-    const quoteEmojis = parseEmojis(quote)
-    const allEmojis = [...speakerEmojis, ...quoteEmojis]
-    
-    const hasAnimatedEmojis = allEmojis.some(e => e.animated)
-    
-    // Load emoji frames
-    const emojiImages = await Promise.all(
-        allEmojis.map(async emoji => {
-            if (emoji.animated) {
-                const response = await fetch(emoji.url)
-                const buffer = await response.arrayBuffer()
-                const frames = await import('gif-frames').then(m => 
-                    m.default({ url: buffer, frames: 'all' })
-                )
-                return {
-                    ...emoji,
-                    frames: await Promise.all(
-                        frames.map(frame => loadImage(frame.getImage()._obj))
-                    )
+    try {
+        // Pre-load all emojis and detect if any are animated
+        const speakerEmojis = parseEmojis(speaker)
+        const quoteEmojis = parseEmojis(quote)
+        const allEmojis = [...speakerEmojis, ...quoteEmojis]
+        
+        const hasAnimatedEmojis = allEmojis.some(e => e.animated)
+        logger.info(`Animation status: ${hasAnimatedEmojis ? 'Animated' : 'Static'}`)
+        
+        // Load emoji frames
+        logger.info('Loading emoji images...')
+        const emojiImages = await Promise.all(
+            allEmojis.map(async (emoji, index) => {
+                try {
+                    if (emoji.animated) {
+                        logger.info(`Loading animated emoji ${index + 1}/${allEmojis.length}: ${emoji.name || emoji.id}`)
+                        const response = await fetch(emoji.url)
+                        const buffer = await response.arrayBuffer()
+                        const frames = await import('gif-frames').then(m => 
+                            m.default({ url: buffer, frames: 'all' })
+                        )
+                        return {
+                            ...emoji,
+                            frames: await Promise.all(
+                                frames.map(frame => loadImage(frame.getImage()._obj))
+                            )
+                        }
+                    } else {
+                        logger.info(`Loading static emoji ${index + 1}/${allEmojis.length}`)
+                        return {
+                            ...emoji,
+                            image: await loadImage(emoji.url)
+                        }
+                    }
+                } catch (error) {
+                    logger.error(`Failed to load emoji: ${emoji.name || emoji.id}\n${error}`)
+                    return { ...emoji, image: null }
                 }
-            } else {
-                return {
-                    ...emoji,
-                    image: await loadImage(emoji.url)
-                }
-            }
-        })
-    )
-
-    const measureWordWidth = (word: string, startIndex: number, emojis: ReturnType<typeof parseEmojis>) => {
-        let width = measureCtx.measureText(word).width
-        const wordEmojis = emojis.filter(e => 
-            e.index >= startIndex && 
-            e.index < startIndex + word.length
+            })
         )
-        // Subtract the width of emoji placeholders and add actual emoji width
-        for (const emoji of wordEmojis) {
-            width -= measureCtx.measureText(emoji.full).width
-            width += fontSize
+        logger.info('Finished loading emoji images')
+
+        const measureWordWidth = (word: string, startIndex: number, emojis: ReturnType<typeof parseEmojis>) => {
+            let width = measureCtx.measureText(word).width
+            const wordEmojis = emojis.filter(e => 
+                e.index >= startIndex && 
+                e.index < startIndex + word.length
+            )
+            // Subtract the width of emoji placeholders and add actual emoji width
+            for (const emoji of wordEmojis) {
+                width -= measureCtx.measureText(emoji.full).width
+                width += fontSize
+            }
+            return width
         }
-        return width
-    }
 
-    // Word wrap speaker name
-    const speakerLines: string[] = []
-    let speakerStartIndices: number[] = []
-    let currentIndex = 0
-    const speakerTextLines = speaker.split('\n')
-    
-    for (const textLine of speakerTextLines) {
-        const words = textLine.split(' ')
-        let currentLine = words[0]
-        let lineStart = currentIndex
-        currentIndex += currentLine.length
+        // Word wrap speaker name
+        const speakerLines: string[] = []
+        let speakerStartIndices: number[] = []
+        let currentIndex = 0
+        const speakerTextLines = speaker.split('\n')
+        
+        for (const textLine of speakerTextLines) {
+            const words = textLine.split(' ')
+            let currentLine = words[0]
+            let lineStart = currentIndex
+            currentIndex += currentLine.length
 
-        for (let i = 1; i < words.length; i++) {
-            const word = words[i]
-            const testLine = currentLine + ' ' + word
-            const actualWidth = measureWordWidth(testLine, lineStart, speakerEmojis)
+            for (let i = 1; i < words.length; i++) {
+                const word = words[i]
+                const testLine = currentLine + ' ' + word
+                const actualWidth = measureWordWidth(testLine, lineStart, speakerEmojis)
 
-            if (actualWidth > maxWidth) {
-                speakerLines.push(currentLine)
-                speakerStartIndices.push(lineStart)
-                currentLine = word
-                lineStart = currentIndex + 1
-                currentIndex = lineStart + word.length
+                if (actualWidth > maxWidth) {
+                    speakerLines.push(currentLine)
+                    speakerStartIndices.push(lineStart)
+                    currentLine = word
+                    lineStart = currentIndex + 1
+                    currentIndex = lineStart + word.length
+                } else {
+                    currentLine = testLine
+                    currentIndex = lineStart + testLine.length
+                }
+            }
+            speakerLines.push(currentLine)
+            speakerStartIndices.push(lineStart)
+            currentIndex += 1
+        }
+
+        // Word wrap quote with emoji preservation
+        const quoteLines: string[] = []
+        let lineStartIndices: number[] = []
+        currentIndex = 0
+        const textLines = quote.split('\n')
+        
+        for (const textLine of textLines) {
+            const words = textLine.split(' ')
+            let currentLine = words[0]
+            let lineStart = currentIndex
+            currentIndex += currentLine.length
+
+            for (let i = 1; i < words.length; i++) {
+                const word = words[i]
+                const testLine = currentLine + ' ' + word
+                const actualWidth = measureWordWidth(testLine, lineStart, quoteEmojis)
+
+                if (actualWidth > maxWidth) {
+                    quoteLines.push(currentLine)
+                    lineStartIndices.push(lineStart)
+                    currentLine = word
+                    lineStart = currentIndex + 1
+                    currentIndex = lineStart + word.length
+                } else {
+                    currentLine = testLine
+                    currentIndex = lineStart + testLine.length
+                }
+            }
+            quoteLines.push(currentLine)
+            lineStartIndices.push(lineStart)
+            currentIndex += 1
+        }
+
+        // Calculate height based on number of lines
+        const speakerHeight = speakerLines.length * lineHeight
+        const height = 50 + speakerHeight + 2 + (quoteLines.length * lineHeight) + padding
+
+        const renderFrame = async (frameIndex: number) => {
+            logger.info(`Rendering frame ${frameIndex + 1}`)
+            const startTime = performance.now()
+            
+            // Create canvas and context for this frame
+            const canvas = createCanvas(width, height)
+            const ctx = canvas.getContext('2d')
+
+            // Define drawEmoji at the start of renderFrame so it's available everywhere
+            const drawEmoji = (emoji: typeof emojiImages[0], x: number, y: number) => {
+                if ('frames' in emoji && emoji.frames) {
+                    const frame = emoji.frames[frameIndex % emoji.frames.length]
+                    ctx.drawImage(frame, x, y + (fontSize * 0.1), fontSize, fontSize)
+                } else if ('image' in emoji) {
+                    ctx.drawImage(emoji.image!, x, y + (fontSize * 0.1), fontSize, fontSize)
+                }
+            }
+
+            const speakerColor = color || '#FFFFFF'
+            const gradientColors = gradient === 'trans' ? TRANS_COLORS 
+                : gradient === 'rainbow' ? RAINBOW_COLORS 
+                : ITALIAN_COLORS
+
+            ctx.clearRect(0, 0, width, height)
+            ctx.font = `${fontSize}px ${font}`
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'top'
+            ctx.shadowColor = 'black'
+            ctx.shadowBlur = 8
+            let y = 50
+
+            // Draw speaker name
+            if (gradient === 'none') {
+                ctx.fillStyle = speakerColor
+                for (let i = 0; i < speakerLines.length; i++) {
+                    const line = speakerLines[i]
+                    const lineStart = speakerStartIndices[i]
+                    const nextLineStart = speakerStartIndices[i + 1] || speaker.length
+
+                    const lineEmojis = speakerEmojis.filter(e => 
+                        e.index >= lineStart && e.index < nextLineStart
+                    ).sort((a, b) => a.index - b.index)
+
+                    const adjustedEmojis = lineEmojis.map(emoji => ({
+                        ...emoji,
+                        relativeIndex: emoji.index - lineStart
+                    }))
+
+                    // Calculate total width
+                    let totalWidth = 0
+                    let currentPos = 0
+                    let lineText = line
+
+                    for (const emoji of adjustedEmojis) {
+                        const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
+                        totalWidth += ctx.measureText(textBefore).width + fontSize
+                        currentPos = emoji.relativeIndex + emoji.length
+                    }
+                    totalWidth += ctx.measureText(lineText.substring(currentPos)).width
+
+                    // Draw text and emojis
+                    const centerX = width / 2
+                    let currentX = centerX - totalWidth / 2
+                    currentPos = 0
+
+                    for (const emoji of adjustedEmojis) {
+                        const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
+                        if (textBefore) {
+                            const textWidth = ctx.measureText(textBefore).width
+                            ctx.fillText(textBefore, currentX + textWidth/2, y)
+                            currentX += textWidth
+                        }
+
+                        const loadedEmoji = emojiImages.find(e => e.id === emoji.id)
+                        if (loadedEmoji) {
+                            drawEmoji(loadedEmoji, currentX, y)
+                        }
+                        currentX += fontSize
+                        currentPos = emoji.relativeIndex + emoji.length
+                    }
+
+                    const remainingText = lineText.substring(currentPos)
+                    if (remainingText) {
+                        const textWidth = ctx.measureText(remainingText).width
+                        ctx.fillText(remainingText, currentX + textWidth/2, y)
+                    }
+
+                    y += lineHeight
+                }
             } else {
-                currentLine = testLine
-                currentIndex = lineStart + testLine.length
+                for (const line of speakerLines) {
+                    let x = width / 2 - ctx.measureText(line).width / 2
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i]
+                        const colorIndex = stretchGradient 
+                            ? Math.floor((i / line.length) * gradientColors.length)
+                            : i % gradientColors.length
+                        ctx.fillStyle = gradientColors[colorIndex]
+                        ctx.textAlign = 'left'
+                        const charWidth = ctx.measureText(char).width
+                        ctx.fillText(char, x, y)
+                        x += charWidth
+                    }
+                    y += lineHeight
+                }
+                ctx.textAlign = 'center'
             }
-        }
-        speakerLines.push(currentLine)
-        speakerStartIndices.push(lineStart)
-        currentIndex += 1
-    }
 
-    // Word wrap quote with emoji preservation
-    const quoteLines: string[] = []
-    let lineStartIndices: number[] = []
-    currentIndex = 0
-    const textLines = quote.split('\n')
-    
-    for (const textLine of textLines) {
-        const words = textLine.split(' ')
-        let currentLine = words[0]
-        let lineStart = currentIndex
-        currentIndex += currentLine.length
+            // Draw quote
+            ctx.fillStyle = 'white'
+            y += 2
 
-        for (let i = 1; i < words.length; i++) {
-            const word = words[i]
-            const testLine = currentLine + ' ' + word
-            const actualWidth = measureWordWidth(testLine, lineStart, quoteEmojis)
-
-            if (actualWidth > maxWidth) {
-                quoteLines.push(currentLine)
-                lineStartIndices.push(lineStart)
-                currentLine = word
-                lineStart = currentIndex + 1
-                currentIndex = lineStart + word.length
-            } else {
-                currentLine = testLine
-                currentIndex = lineStart + testLine.length
-            }
-        }
-        quoteLines.push(currentLine)
-        lineStartIndices.push(lineStart)
-        currentIndex += 1
-    }
-
-    // Calculate height based on number of lines
-    const speakerHeight = speakerLines.length * lineHeight
-    const height = 50 + speakerHeight + 2 + (quoteLines.length * lineHeight) + padding
-
-    const renderFrame = async (frameIndex: number) => {
-        // Create canvas and context for this frame
-        const canvas = createCanvas(width, height)
-        const ctx = canvas.getContext('2d')
-
-        // Define drawEmoji at the start of renderFrame so it's available everywhere
-        const drawEmoji = (emoji: typeof emojiImages[0], x: number, y: number) => {
-            if ('frames' in emoji && emoji.frames) {
-                const frame = emoji.frames[frameIndex % emoji.frames.length]
-                ctx.drawImage(frame, x, y + (fontSize * 0.1), fontSize, fontSize)
-            } else if ('image' in emoji) {
-                ctx.drawImage(emoji.image, x, y + (fontSize * 0.1), fontSize, fontSize)
-            }
-        }
-
-        const speakerColor = color || '#FFFFFF'
-        const gradientColors = gradient === 'trans' ? TRANS_COLORS 
-            : gradient === 'rainbow' ? RAINBOW_COLORS 
-            : ITALIAN_COLORS
-
-        ctx.clearRect(0, 0, width, height)
-        ctx.font = `${fontSize}px ${font}`
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'top'
-        ctx.shadowColor = 'black'
-        ctx.shadowBlur = 8
-        let y = 50
-
-        // Draw speaker name
-        if (gradient === 'none') {
-            ctx.fillStyle = speakerColor
-            for (let i = 0; i < speakerLines.length; i++) {
-                const line = speakerLines[i]
-                const lineStart = speakerStartIndices[i]
-                const nextLineStart = speakerStartIndices[i + 1] || speaker.length
-
-                const lineEmojis = speakerEmojis.filter(e => 
+            for (let i = 0; i < quoteLines.length; i++) {
+                const line = quoteLines[i]
+                const lineStart = lineStartIndices[i]
+                const nextLineStart = lineStartIndices[i + 1] || quote.length
+                
+                const lineEmojis = quoteEmojis.filter(e => 
                     e.index >= lineStart && e.index < nextLineStart
                 ).sort((a, b) => a.index - b.index)
 
+                // Adjust emoji indices relative to line start
                 const adjustedEmojis = lineEmojis.map(emoji => ({
                     ...emoji,
                     relativeIndex: emoji.index - lineStart
                 }))
 
-                // Calculate total width
+                // Calculate line width including emojis
                 let totalWidth = 0
                 let currentPos = 0
                 let lineText = line
 
+                // Pre-calculate total width with emoji replacements
                 for (const emoji of adjustedEmojis) {
                     const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
                     totalWidth += ctx.measureText(textBefore).width + fontSize
@@ -258,11 +357,19 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
                 }
                 totalWidth += ctx.measureText(lineText.substring(currentPos)).width
 
-                // Draw text and emojis
+                // Center alignment calculations
                 const centerX = width / 2
                 let currentX = centerX - totalWidth / 2
-                currentPos = 0
 
+                // Draw AC7 opening arrows if needed
+                if (style === 'ac7' && i === 0) {
+                    ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
+                    ctx.fillText('<<', currentX - 40, y)
+                    ctx.fillStyle = 'white'
+                }
+
+                // Reset for actual drawing
+                currentPos = 0
                 for (const emoji of adjustedEmojis) {
                     const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
                     if (textBefore) {
@@ -271,6 +378,7 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
                         currentX += textWidth
                     }
 
+                    // Find and draw the loaded emoji image
                     const loadedEmoji = emojiImages.find(e => e.id === emoji.id)
                     if (loadedEmoji) {
                         drawEmoji(loadedEmoji, currentX, y)
@@ -279,140 +387,67 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
                     currentPos = emoji.relativeIndex + emoji.length
                 }
 
+                // Draw remaining text
                 const remainingText = lineText.substring(currentPos)
                 if (remainingText) {
                     const textWidth = ctx.measureText(remainingText).width
                     ctx.fillText(remainingText, currentX + textWidth/2, y)
-                }
-
-                y += lineHeight
-            }
-        } else {
-            for (const line of speakerLines) {
-                let x = width / 2 - ctx.measureText(line).width / 2
-                for (let i = 0; i < line.length; i++) {
-                    const char = line[i]
-                    const colorIndex = stretchGradient 
-                        ? Math.floor((i / line.length) * gradientColors.length)
-                        : i % gradientColors.length
-                    ctx.fillStyle = gradientColors[colorIndex]
-                    ctx.textAlign = 'left'
-                    const charWidth = ctx.measureText(char).width
-                    ctx.fillText(char, x, y)
-                    x += charWidth
-                }
-                y += lineHeight
-            }
-            ctx.textAlign = 'center'
-        }
-
-        // Draw quote
-        ctx.fillStyle = 'white'
-        y += 2
-
-        for (let i = 0; i < quoteLines.length; i++) {
-            const line = quoteLines[i]
-            const lineStart = lineStartIndices[i]
-            const nextLineStart = lineStartIndices[i + 1] || quote.length
-            
-            const lineEmojis = quoteEmojis.filter(e => 
-                e.index >= lineStart && e.index < nextLineStart
-            ).sort((a, b) => a.index - b.index)
-
-            // Adjust emoji indices relative to line start
-            const adjustedEmojis = lineEmojis.map(emoji => ({
-                ...emoji,
-                relativeIndex: emoji.index - lineStart
-            }))
-
-            // Calculate line width including emojis
-            let totalWidth = 0
-            let currentPos = 0
-            let lineText = line
-
-            // Pre-calculate total width with emoji replacements
-            for (const emoji of adjustedEmojis) {
-                const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
-                totalWidth += ctx.measureText(textBefore).width + fontSize
-                currentPos = emoji.relativeIndex + emoji.length
-            }
-            totalWidth += ctx.measureText(lineText.substring(currentPos)).width
-
-            // Center alignment calculations
-            const centerX = width / 2
-            let currentX = centerX - totalWidth / 2
-
-            // Draw AC7 opening arrows if needed
-            if (style === 'ac7' && i === 0) {
-                ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
-                ctx.fillText('<<', currentX - 40, y)
-                ctx.fillStyle = 'white'
-            }
-
-            // Reset for actual drawing
-            currentPos = 0
-            for (const emoji of adjustedEmojis) {
-                const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
-                if (textBefore) {
-                    const textWidth = ctx.measureText(textBefore).width
-                    ctx.fillText(textBefore, currentX + textWidth/2, y)
                     currentX += textWidth
                 }
 
-                // Find and draw the loaded emoji image
-                const loadedEmoji = emojiImages.find(e => e.id === emoji.id)
-                if (loadedEmoji) {
-                    drawEmoji(loadedEmoji, currentX, y)
+                // Draw AC7 closing arrows if needed
+                if (style === 'ac7' && i === quoteLines.length - 1) {
+                    ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
+                    ctx.fillText('>>', currentX + 40, y)
                 }
-                currentX += fontSize
-                currentPos = emoji.relativeIndex + emoji.length
+
+                y += lineHeight
             }
 
-            // Draw remaining text
-            const remainingText = lineText.substring(currentPos)
-            if (remainingText) {
-                const textWidth = ctx.measureText(remainingText).width
-                ctx.fillText(remainingText, currentX + textWidth/2, y)
-                currentX += textWidth
-            }
-
-            // Draw AC7 closing arrows if needed
-            if (style === 'ac7' && i === quoteLines.length - 1) {
-                ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
-                ctx.fillText('>>', currentX + 40, y)
-            }
-
-            y += lineHeight
+            const endTime = performance.now()
+            logger.info(`Frame ${frameIndex + 1} rendered in ${(endTime - startTime).toFixed(2)}ms`)
+            return canvas
         }
 
-        return canvas
-    }
+        if (hasAnimatedEmojis) {
+            // Find maximum number of frames among all animated emojis
+            const maxFrames = Math.max(...emojiImages
+                .filter(e => 'frames' in e)
+                .map(e => (e as any).frames.length))
 
-    if (hasAnimatedEmojis) {
-        // Find maximum number of frames among all animated emojis
-        const maxFrames = Math.max(...emojiImages
-            .filter(e => 'frames' in e)
-            .map(e => (e as any).frames.length))
+            logger.info(`Creating animated image with ${maxFrames} frames`)
+            // Create GIF encoder
+            const encoder = new GIFEncoder(width, height)
+            encoder.start()
+            encoder.setDelay(50) // 20fps
+            encoder.setQuality(10)
+            encoder.setRepeat(0) // Loop forever
 
-        // Create GIF encoder
-        const encoder = new GIFEncoder(width, height)
-        encoder.start()
-        encoder.setDelay(50) // 20fps
-        encoder.setQuality(10)
-        encoder.setRepeat(0) // Loop forever
+            const startTime = performance.now()
+            // Render each frame
+            for (let i = 0; i < maxFrames; i++) {
+                const canvas = await renderFrame(i)
+                encoder.addFrame(canvas.getContext('2d') as any)
+                
+                if (i % 10 === 0) { // Log every 10 frames
+                    const progress = ((i + 1) / maxFrames * 100).toFixed(1)
+                    const elapsed = ((performance.now() - startTime) / 1000).toFixed(1)
+                    logger.info(`GIF progress: ${progress}% (${i + 1}/${maxFrames} frames, ${elapsed}s elapsed)`)
+                }
+            }
 
-        // Render each frame
-        for (let i = 0; i < maxFrames; i++) {
-            const canvas = await renderFrame(i)
-            encoder.addFrame(canvas.getContext('2d') as any)
+            encoder.finish()
+            const finalBuffer = encoder.out.getData()
+            logger.info(`GIF generation complete. Final size: ${(finalBuffer.length / 1024).toFixed(2)}KB`)
+            return finalBuffer
+        } else {
+            logger.info('Generating static image')
+            const canvas = await renderFrame(0)
+            return canvas.toBuffer()
         }
-
-        encoder.finish()
-        return encoder.out.getData()
-    } else {
-        // For static images, just render one frame
-        const canvas = await renderFrame(0)
-        return canvas.toBuffer()
+    } catch (error) {
+        logger.error('Error creating quote image: ' + error)
+        throw error
     }
 }
 
