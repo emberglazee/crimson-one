@@ -3,11 +3,12 @@ export type ColorName = 'Gray' | 'Red' | 'Green' | 'Yellow' | 'Blue' | 'Pink' | 
     'Peacekeeper Red' | 'Faust/Goblin Green' | 'The Home Depot Orange' | 'FakeDev Orange' |
     'Wikiyellow' | 'Federation Dark Blue' | 'Cascadian Teal' | 'Mercenary Yellow' |
     'PWcord Moderator Turquoise' | 'Voice Actor Blue' | 'Mugged Pink' | 'Potato Brown' | '⭐ Yellow' |
-    'Priority Red' | 'Ridel Purple' | 'OG Member Orange' | 'Mad Yellow' | 'Gremlin Pink'
+    'Priority Red' | 'Ridel Purple' | 'OG Member Orange' | 'Mad Yellow' | 'Gremlin Pink' |
+    'Friendly Blue' | 'Hostile Red'
 
 export interface ColorDefinition {
     name: ColorName
-    hex: string
+    hex: `#${string}`
 }
 
 export const COLORS: ColorDefinition[] = [
@@ -29,7 +30,7 @@ export const COLORS: ColorDefinition[] = [
 export const ROLE_COLORS: ColorDefinition[] = [
     { name: 'Peacekeeper Red', hex: '#992D22' },
     { name: 'Priority Red', hex: '#FF0000' },
-    { name: 'Faust/Goblin Green', hex: '#1F8b4C' },
+    { name: 'Hostile Red', hex:'#e74c3c' },
     { name: 'The Home Depot Orange', hex: '#F96302' },
     { name: 'FakeDev Orange', hex: '#E67E22' },
     { name: 'Wikiyellow', hex: '#FFB40B' },
@@ -37,9 +38,11 @@ export const ROLE_COLORS: ColorDefinition[] = [
     { name: '⭐ Yellow', hex: '#fdb401' },
     { name: 'Mercenary Yellow', hex: '#BBAD2C' },
     { name: 'Federation Dark Blue', hex: '#0C0D3B' },
+    { name: 'Friendly Blue', hex: '#3498db' },
     { name: 'Voice Actor Blue', hex: '#86A4C7' },
     { name: 'Cascadian Teal', hex: '#2BBCC2' },
     { name: 'PWcord Moderator Turquoise', hex: '#1ABC9C' },
+    { name: 'Faust/Goblin Green', hex: '#1F8b4C' },
     { name: 'Mugged Pink', hex: '#FFABF3' },
     { name: 'Gremlin Pink', hex: '#ff00dc' },
     { name: 'Ridel Purple', hex: '#71368A' },
