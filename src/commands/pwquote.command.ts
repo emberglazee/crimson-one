@@ -45,19 +45,21 @@ export default {
     async execute(interaction) {
         const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
+        const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
         const color = (interaction.options.getString('color') || interaction.options.getString('rolecolor')) as ColorName | null
-        if (!color) {
-            await interaction.reply('❌ Neither color nor role color was provided, provide one of them')
+        
+        if (!color && gradient === 'none') {
+            await interaction.reply('❌ Either color/role color or gradient must be provided')
             return
         }
-        const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
+        
         await interaction.deferReply()
         const image = createQuoteImage(speaker, quote, color, gradient)
         await interaction.editReply({ files: [image] })
     }
 } satisfies SlashCommand
 
-function createQuoteImage(speaker: string, quote: string, color: ColorName, gradient: GradientType) {
+function createQuoteImage(speaker: string, quote: string, color: ColorName | null, gradient: GradientType) {
     const fontSize = 48
     const lineHeight = fontSize * 1.2
     const padding = 40
@@ -111,7 +113,7 @@ function createQuoteImage(speaker: string, quote: string, color: ColorName, grad
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
 
-    const speakerColor = COLORS.find(c => c.name === color)?.hex || ROLE_COLORS.find(c => c.name === color)?.hex || '#FFFFFF'
+    const speakerColor = color ? (COLORS.find(c => c.name === color)?.hex || ROLE_COLORS.find(c => c.name === color)?.hex || '#FFFFFF') : '#FFFFFF'
 
     ctx.clearRect(0, 0, width, height)
     ctx.font = `${fontSize}px Roboto`
