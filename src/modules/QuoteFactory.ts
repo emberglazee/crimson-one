@@ -6,6 +6,8 @@
 
 import type { Client, ThreadChannel } from 'discord.js'
 import { createQuoteImage } from '../util/functions'
+import { readFile } from 'fs/promises'
+import path from 'path'
 
 export default class QuoteFactory {
     client: Client
@@ -27,6 +29,11 @@ export default class QuoteFactory {
             const gradient = 'none'
             const stretchGradient = false
             const image = createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw')
+
+            const files = [image]
+            if (message.content.includes('preble')) {
+                files.push(await readFile(path.join('../../data/preble.wav')))
+            }
             await this.thread!.send({ files: [image] })
             // await message.delete()
         })
