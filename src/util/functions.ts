@@ -11,6 +11,27 @@ registerFont(acesPath, { family: 'Aces07' })
 
 export type QuoteStyle = 'pw' | 'ac7'
 
+// Add new helper for emoji codepoint conversion
+function toCodePoint(unicodeSurrogates: string) {
+    const r = []
+    let c = 0
+    let p = 0
+    let i = 0
+
+    while (i < unicodeSurrogates.length) {
+        c = unicodeSurrogates.charCodeAt(i++)
+        if (p) {
+            r.push((0x10000 + ((p - 0xD800) << 10) + (c - 0xDC00)).toString(16))
+            p = 0
+        } else if (0xD800 <= c && c <= 0xDBFF) {
+            p = c
+        } else {
+            r.push(c.toString(16))
+        }
+    }
+    return r.join('-')
+}
+
 export async function createQuoteImage(speaker: string, quote: string, color: string | null, gradient: GradientType, stretchGradient = false, style: QuoteStyle = 'pw') {
     const fontSize = 48
     const lineHeight = fontSize * 1.2
@@ -24,18 +45,42 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
     const measureCtx = measureCanvas.getContext('2d')
     measureCtx.font = `${fontSize}px ${font}`
 
-    // Helper function to detect and parse Discord emoji
+    // Updated helper function to detect and parse both Discord and Unicode emoji
     const parseEmojis = (text: string) => {
-        const emojiRegex = /<:([^:]+):(\d+)>/g
-        const matches = [...text.matchAll(emojiRegex)]
-        return matches.map(match => ({
+        const results: Array<{
+            full: string
+            id?: string
+            name?: string
+            index: number
+            length: number
+            url: string
+        }> = []
+
+        // Parse custom Discord emojis
+        const customEmojiRegex = /<:([^:]+):(\d+)>/g
+        const customMatches = [...text.matchAll(customEmojiRegex)]
+        results.push(...customMatches.map(match => ({
             full: match[0],
             name: match[1],
             id: match[2],
             index: match.index!,
             length: match[0].length,
             url: `https://cdn.discordapp.com/emojis/${match[2]}.png?size=48`
-        }))
+        })))
+
+        // Parse Unicode emojis
+        // This regex catches most modern emojis including combined ones
+        const unicodeEmojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?(?:\u200D[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?)*|[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?/gu
+        const unicodeMatches = [...text.matchAll(unicodeEmojiRegex)]
+        results.push(...unicodeMatches.map(match => ({
+            full: match[0],
+            index: match.index!,
+            length: match[0].length,
+            url: `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${toCodePoint(match[0])}.png`
+        })))
+
+        // Sort by index to maintain order
+        return results.sort((a, b) => a.index - b.index)
     }
 
     // Pre-load all emojis from both speaker and quote
