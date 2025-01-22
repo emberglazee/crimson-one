@@ -1,4 +1,4 @@
-import type { HexColor } from './types'
+import type { HexColor } from '../types/types'
 
 export type ColorName = 'Gray' | 'Red' | 'Green' | 'Yellow' | 'Blue' | 'Pink' | 'Cyan' |
     'White' | 'Orange' | 'Purple' | 'Brown' | 'Lime' | 'Teal' | 'Navy' |
