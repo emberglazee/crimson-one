@@ -137,27 +137,35 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
 
     for (let i = 0; i < quoteLines.length; i++) {
         const line = quoteLines[i]
-        let x = width / 2 - ctx.measureText(line).width / 2
+        const lineWidth = ctx.measureText(line).width
+        const centerX = width / 2
 
         if (style === 'ac7' && i === 0) {
             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
-            ctx.fillText('<<', x - 40, y)
+            ctx.fillText('<<', centerX - lineWidth/2 - 40, y)
             ctx.fillStyle = 'white'
         }
 
         // Split line into text and emoji segments
         const segments = line.split(/<:[^:]+:\d+>/)
         let emojiIndex = 0
-        let currentX = x
+        
+        // Calculate total width including emojis
+        const totalWidth = segments.reduce((acc, text, j) => {
+            acc += ctx.measureText(text).width
+            if (j < segments.length - 1) acc += fontSize // emoji width
+            return acc
+        }, 0)
+
+        let currentX = centerX - totalWidth/2
 
         for (let j = 0; j < segments.length; j++) {
-            // Draw text segment
             const text = segments[j]
-            ctx.textAlign = 'left'
-            ctx.fillText(text, currentX, y)
-            currentX += ctx.measureText(text).width
+            ctx.textAlign = 'center'
+            const textWidth = ctx.measureText(text).width
+            ctx.fillText(text, currentX + textWidth/2, y)
+            currentX += textWidth
 
-            // Draw emoji if there is one after this segment
             if (j < segments.length - 1 && emojiIndex < emojiImages.length) {
                 const emoji = emojiImages[emojiIndex]
                 const emojiSize = fontSize
@@ -169,7 +177,7 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
 
         if (style === 'ac7' && i === quoteLines.length - 1) {
             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
-            ctx.fillText('>>', x + ctx.measureText(line).width + 40, y)
+            ctx.fillText('>>', centerX + lineWidth/2 + 40, y)
         }
         y += lineHeight
     }
