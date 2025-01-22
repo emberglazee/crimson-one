@@ -42,21 +42,27 @@ export function createQuoteImage(speaker: string, quote: string, color: string |
     speakerLines.push(currentLine)
 
     // Word wrap quote
-    const words = quote.split(' ')
     const quoteLines: string[] = []
-    currentLine = words[0]
+    const textLines = quote.split('\n')
+    
+    for (const textLine of textLines) {
+        const words = textLine.split(' ')
+        let currentLine = words[0]
 
-    for (let i = 1; i < words.length; i++) {
-        const word = words[i]
-        const testLine = currentLine + ' ' + word
-        const metrics = measureCtx.measureText(testLine)
+        for (let i = 1; i < words.length; i++) {
+            const word = words[i]
+            const testLine = currentLine + ' ' + word
+            const metrics = measureCtx.measureText(testLine)
 
-        if (metrics.width > maxWidth) {
-            quoteLines.push(currentLine)
-            currentLine = word
-        } else currentLine = testLine
+            if (metrics.width > maxWidth) {
+                quoteLines.push(currentLine)
+                currentLine = word
+            } else {
+                currentLine = testLine
+            }
+        }
+        quoteLines.push(currentLine)
     }
-    quoteLines.push(currentLine)
 
     // Calculate height based on number of lines
     const speakerHeight = speakerLines.length * lineHeight
