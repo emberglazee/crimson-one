@@ -121,17 +121,27 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
                         const gif = parseGIF(arrayBuffer)
                         const frames = decompressFrames(gif, true)
                         
-                        // Convert frames to canvas images
+                        // Convert frames to canvas images with transparency
                         const canvasFrames = await Promise.all(frames.map(async frame => {
                             const frameCanvas = createCanvas(frame.dims.width, frame.dims.height)
                             const ctx = frameCanvas.getContext('2d')
                             
-                            // Create ImageData from the pixel array
+                            // Create ImageData with transparency
                             const imageData = createImageData(
                                 new Uint8ClampedArray(frame.patch),
                                 frame.dims.width,
                                 frame.dims.height
                             )
+
+                            // Handle transparency
+                            for (let i = 0; i < imageData.data.length; i += 4) {
+                                if (imageData.data[i + 3] === 0) {
+                                    imageData.data[i] = 0
+                                    imageData.data[i + 1] = 0
+                                    imageData.data[i + 2] = 0
+                                    imageData.data[i + 3] = 0
+                                }
+                            }
                             
                             ctx.putImageData(imageData, 0, 0)
                             return frameCanvas
@@ -451,7 +461,16 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
             // Render each frame
             for (let i = 0; i < maxFrames; i++) {
                 const canvas = await renderFrame(i)
-                encoder.addFrame(canvas.getContext('2d') as any)
+                const ctx = canvas.getContext('2d')
+                
+                // Create a temporary canvas for transparency handling
+                const tempCanvas = createCanvas(width, height)
+                const tempCtx = tempCanvas.getContext('2d')
+                tempCtx.fillStyle = '#000000'  // Fill with transparent color
+                tempCtx.fillRect(0, 0, width, height)
+                tempCtx.drawImage(canvas, 0, 0)  // Draw actual content
+                
+                encoder.addFrame(tempCtx as unknown as CanvasRenderingContext2D)
                 
                 if (i % 10 === 0) { // Log every 10 frames
                     const progress = ((i + 1) / maxFrames * 100).toFixed(1)
