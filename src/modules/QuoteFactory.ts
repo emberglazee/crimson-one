@@ -4,7 +4,7 @@
 // 3. run it through the same function as in /pwquote (and /ac7quote later on, todo)
 // 4. send the image back to the same thread, then delete the original message
 
-import type { Client, ThreadChannel } from 'discord.js'
+import { AttachmentBuilder, type Client, type ThreadChannel } from 'discord.js'
 import { createQuoteImage } from '../util/functions'
 import { readFile } from 'fs/promises'
 import path from 'path'
@@ -30,11 +30,12 @@ export default class QuoteFactory {
             const stretchGradient = false
             const image = createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw')
 
-            const files = [image]
             if (message.content.includes('preble')) {
-                files.push(await readFile(path.join(__dirname, '../../data/preble.wav')))
+                const preble = new AttachmentBuilder(await readFile(path.join(__dirname, '../../data/preble.wav')), { name: 'preble.wav' })
+                await this.thread!.send({ files: [image, preble] })
+                return
             }
-            await this.thread!.send({ files })
+            await this.thread!.send({ files: [image] })
             // await message.delete()
         })
     }
