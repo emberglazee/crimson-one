@@ -1,5 +1,6 @@
 import { AttachmentBuilder, BaseInteraction, ChatInputCommandInteraction, CommandInteraction, Guild, GuildChannel, GuildMember, Message, User } from 'discord.js'
-import { createCanvas, registerFont } from 'canvas'
+import { createCanvas, registerFont, loadImage } from 'canvas'
+import { parse as parseEmoji } from 'twemoji-parser'
 import { type GradientType, TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS } from './colors'
 import path from 'path'
 import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable } from './types'
@@ -11,7 +12,7 @@ registerFont(acesPath, { family: 'Aces07' })
 
 export type QuoteStyle = 'pw' | 'ac7'
 
-export function createQuoteImage(speaker: string, quote: string, color: string | null, gradient: GradientType, stretchGradient = false, style: QuoteStyle = 'pw') {
+export async function createQuoteImage(speaker: string, quote: string, color: string | null, gradient: GradientType, stretchGradient = false, style: QuoteStyle = 'pw') {
     const fontSize = 48
     const lineHeight = fontSize * 1.2
     const padding = 40
@@ -85,11 +86,51 @@ export function createQuoteImage(speaker: string, quote: string, color: string |
     ctx.shadowBlur = 8
     let y = 50
 
+    // Helper function to draw text with emoji support
+    async function drawTextWithEmojis(text: string, x: number, y: number, centered = true) {
+        const emojis = parseEmoji(text)
+        let currentX = x
+        let textParts = text
+
+        if (centered) {
+            // Measure total width including emojis
+            const totalWidth = ctx.measureText(text).width + 
+                (emojis.length * fontSize) - // Add emoji widths
+                emojis.reduce((acc, emoji) => acc + ctx.measureText(emoji.text).width, 0) // Subtract original emoji text widths
+            currentX = width / 2 - totalWidth / 2
+        }
+
+        for (const emoji of emojis) {
+            // Draw text before emoji
+            const beforeText = textParts.substring(0, emoji.indices[0])
+            if (beforeText) {
+                ctx.fillText(beforeText, currentX, y)
+                currentX += ctx.measureText(beforeText).width
+            }
+
+            // Load and draw emoji
+            try {
+                const emojiImage = await loadImage(emoji.url)
+                ctx.drawImage(emojiImage, currentX, y, fontSize, fontSize)
+                currentX += fontSize
+            } catch (err) {
+                console.error(`Failed to load emoji: ${emoji.text}`)
+            }
+
+            textParts = textParts.substring(emoji.indices[1])
+        }
+
+        // Draw remaining text
+        if (textParts) {
+            ctx.fillText(textParts, currentX, y)
+        }
+    }
+
     // Draw speaker name
     if (gradient === 'none') {
         ctx.fillStyle = speakerColor
         for (const line of speakerLines) {
-            ctx.fillText(line, width / 2, y)
+            await drawTextWithEmojis(line, width / 2, y)
             y += lineHeight
         }
     } else {
@@ -122,7 +163,7 @@ export function createQuoteImage(speaker: string, quote: string, color: string |
             ctx.fillText('<<', width / 2 - ctx.measureText(line).width / 2 - 40, y)
             ctx.fillStyle = 'white'
         }
-        ctx.fillText(line, width / 2, y)
+        await drawTextWithEmojis(line, width / 2, y)
         if (style === 'ac7' && i === quoteLines.length - 1) {
             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
             ctx.fillText('>>', width / 2 + ctx.measureText(line).width / 2 + 40, y)
