@@ -1,3 +1,5 @@
+import type { HexColor } from './types'
+
 export type ColorName = 'Gray' | 'Red' | 'Green' | 'Yellow' | 'Blue' | 'Pink' | 'Cyan' |
     'White' | 'Orange' | 'Purple' | 'Brown' | 'Lime' | 'Teal' | 'Navy' |
     'Peacekeeper Red' | 'Faust/Goblin Green' | 'The Home Depot Orange' | 'FakeDev Orange' |
@@ -8,7 +10,7 @@ export type ColorName = 'Gray' | 'Red' | 'Green' | 'Yellow' | 'Blue' | 'Pink' | 
 
 export interface ColorDefinition {
     name: ColorName
-    hex: `#${string}`
+    hex: HexColor
 }
 
 export const COLORS: ColorDefinition[] = [
