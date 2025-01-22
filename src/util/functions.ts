@@ -93,11 +93,15 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
         let textParts = text
 
         if (centered) {
-            // Measure total width including emojis
-            const totalWidth = ctx.measureText(text).width + 
-                (emojis.length * fontSize) - // Add emoji widths
-                emojis.reduce((acc, emoji) => acc + ctx.measureText(emoji.text).width, 0) // Subtract original emoji text widths
-            currentX = width / 2 - totalWidth / 2
+            // Calculate total width properly
+            let totalWidth = ctx.measureText(text).width
+            // Remove original emoji text widths and add emoji widths
+            for (const emoji of emojis) {
+                totalWidth -= ctx.measureText(emoji.text).width
+                totalWidth += fontSize
+            }
+            // Set starting X position for centered text
+            currentX = (width / 2) - (totalWidth / 2)
         }
 
         for (const emoji of emojis) {
