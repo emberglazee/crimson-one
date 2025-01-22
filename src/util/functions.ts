@@ -37,7 +37,12 @@ function toCodePoint(unicodeSurrogates: string) {
     return r.join('-')
 }
 
-export async function createQuoteImage(speaker: string, quote: string, color: string | null, gradient: GradientType, stretchGradient = false, style: QuoteStyle = 'pw') {
+export type QuoteImageResult = {
+    buffer: Buffer,
+    type: 'image/gif' | 'image/png'
+}
+
+export async function createQuoteImage(speaker: string, quote: string, color: string | null, gradient: GradientType, stretchGradient = false, style: QuoteStyle = 'pw'): Promise<QuoteImageResult> {
     logger.info(`Creating quote image with params:\n${speaker}\n${quote}\n${color}\n${gradient}\n${stretchGradient}\n${style}`)
 
     const fontSize = 48
@@ -171,7 +176,7 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
         let speakerStartIndices: number[] = []
         let currentIndex = 0
         const speakerTextLines = speaker.split('\n')
-        
+
         for (const textLine of speakerTextLines) {
             const words = textLine.split(' ')
             let currentLine = words[0]
@@ -458,11 +463,17 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
             encoder.finish()
             const finalBuffer = encoder.out.getData()
             logger.info(`GIF generation complete. Final size: ${(finalBuffer.length / 1024).toFixed(2)}KB`)
-            return finalBuffer
+            return {
+                buffer: finalBuffer,
+                type: 'image/gif'
+            }
         } else {
             logger.info('Generating static image')
             const canvas = await renderFrame(0)
-            return canvas.toBuffer()
+            return {
+                buffer: canvas.toBuffer(),
+                type: 'image/png'
+            }
         }
     } catch (error) {
         logger.error('Error creating quote image: ' + error)

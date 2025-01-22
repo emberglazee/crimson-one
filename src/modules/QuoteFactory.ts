@@ -28,7 +28,9 @@ export default class QuoteFactory {
             const color = message.member!.displayHexColor
             const gradient = 'none'
             const stretchGradient = false
-            const image = await createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw')
+            const result = await createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw')
+            const image = new AttachmentBuilder(result.buffer)
+                .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
 
             if (message.content.includes('preble')) {
                 const preble = new AttachmentBuilder(await readFile(path.join(__dirname, '../../data/preble.wav')), { name: 'preble.wav' })
