@@ -7,6 +7,7 @@ import path from 'path'
 import { Client, IntentsBitField, Partials } from 'discord.js'
 
 import CommandHandler from './modules/CommandManager'
+import QuoteFactory from './modules/QuoteFactory'
 import type { DiscordEventListener } from './util/types'
 
 import { registerFont } from 'canvas'
@@ -32,11 +33,13 @@ const bot = new Client({
 })
 
 export const commandHandler = new CommandHandler(bot)
+export const quoteFactory = new QuoteFactory(bot)
 
 bot.once('ready', async () => {
     logger.ok(`Logged in as ${bot.user!.tag}`)
     await commandHandler.init()
     await commandHandler.refreshGlobalCommands()
+    await quoteFactory.init()
 
     const eventFiles = (
         await readdir(path.join(__dirname, 'events'))
