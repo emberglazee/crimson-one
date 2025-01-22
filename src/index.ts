@@ -9,6 +9,10 @@ import { Client, IntentsBitField, Partials } from 'discord.js'
 import CommandHandler from './modules/CommandManager'
 import type { DiscordEventListener } from './util/types'
 
+import { registerFont } from 'canvas'
+registerFont(path.join(__dirname, '../data/Roboto.ttf'), { family: 'Roboto' })
+registerFont(path.join(__dirname, '../data/Aces07.ttf'), { family: 'Aces07' })
+
 const bot = new Client({
     intents: new IntentsBitField([
         IntentsBitField.Flags.Guilds,
