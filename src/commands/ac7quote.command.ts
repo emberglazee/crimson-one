@@ -1,11 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
-import { createCanvas, registerFont } from 'canvas'
-import { type ColorName, type GradientType, COLORS, TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS, ROLE_COLORS } from '../util/colors'
-import path from 'path'
-
-const fontPath = path.join(__dirname, '../../data/Aces07.ttf')
-registerFont(fontPath, { family: 'Aces07' })
+import { createQuoteImage } from '../util/functions'
+import { type ColorName, type GradientType, COLORS, ROLE_COLORS } from '../util/colors'
 
 export default {
     data: new SlashCommandBuilder()
@@ -51,7 +47,13 @@ export default {
         const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
         const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
-        const color = (interaction.options.getString('color') || interaction.options.getString('rolecolor')) as ColorName | null
+        const roleColor = interaction.options.getString('rolecolor')
+        const plainColor = interaction.options.getString('color')
+        const color = roleColor 
+            ? ROLE_COLORS.find(c => c.name === roleColor)?.hex ?? null
+            : plainColor 
+                ? COLORS.find(c => c.name === plainColor)?.hex ?? null
+                : null
         const stretchGradient = interaction.options.getBoolean('stretch') ?? false
         
         if (!color && gradient === 'none') {
@@ -60,123 +62,7 @@ export default {
         }
         
         await interaction.deferReply()
-        const image = createQuoteImage(speaker, quote, color, gradient, stretchGradient)
+        const image = createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'ac7')
         await interaction.editReply({ files: [image] })
     }
 } satisfies SlashCommand
-
-function createQuoteImage(speaker: string, quote: string, color: ColorName | null, gradient: GradientType, stretchGradient = false) {
-    const fontSize = 48
-    const lineHeight = fontSize * 1.2
-    const padding = 40
-    const width = 1024
-    const maxWidth = width - padding * 2
-
-    // Create canvas for measurements
-    const measureCanvas = createCanvas(1, 1)
-    const measureCtx = measureCanvas.getContext('2d')
-    measureCtx.font = `${fontSize}px Aces07`
-
-    // Word wrap speaker name
-    const speakerWords = speaker.split(' ')
-    const speakerLines: string[] = []
-    let currentLine = speakerWords[0]
-
-    for (let i = 1; i < speakerWords.length; i++) {
-        const word = speakerWords[i]
-        const testLine = currentLine + ' ' + word
-        const metrics = measureCtx.measureText(testLine)
-
-        if (metrics.width > maxWidth) {
-            speakerLines.push(currentLine)
-            currentLine = word
-        } else currentLine = testLine
-    }
-    speakerLines.push(currentLine)
-
-    // Word wrap quote
-    const words = quote.split(' ')
-    const quoteLines: string[] = []
-    currentLine = words[0]
-
-    for (let i = 1; i < words.length; i++) {
-        const word = words[i]
-        const testLine = currentLine + ' ' + word
-        const metrics = measureCtx.measureText(testLine)
-
-        if (metrics.width > maxWidth) {
-            quoteLines.push(currentLine)
-            currentLine = word
-        } else currentLine = testLine
-    }
-    quoteLines.push(currentLine)
-
-    // Calculate height based on number of lines
-    const speakerHeight = speakerLines.length * lineHeight
-    const height = 50 + speakerHeight + 2 + (quoteLines.length * lineHeight) + padding
-
-    // Create final canvas
-    const canvas = createCanvas(width, height)
-    const ctx = canvas.getContext('2d')
-
-    const speakerColor = color ? (COLORS.find(c => c.name === color)?.hex || ROLE_COLORS.find(c => c.name === color)?.hex || '#FFFFFF') : '#FFFFFF'
-    const gradientColors = gradient === 'trans' ? TRANS_COLORS 
-        : gradient === 'rainbow' ? RAINBOW_COLORS 
-        : ITALIAN_COLORS
-
-    ctx.clearRect(0, 0, width, height)
-    ctx.font = `${fontSize}px Aces07`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'top'
-    ctx.shadowColor = 'black'
-    ctx.shadowBlur = 8
-    let y = 50
-
-    // Draw speaker name
-    if (gradient === 'none') {
-        ctx.fillStyle = speakerColor
-        for (const line of speakerLines) {
-            ctx.fillText(line, width / 2, y)
-            y += lineHeight
-        }
-    } else {
-        for (const line of speakerLines) {
-            let x = width / 2 - ctx.measureText(line).width / 2
-            for (let i = 0; i < line.length; i++) {
-                const char = line[i]
-                const colorIndex = stretchGradient 
-                    ? Math.floor((i / line.length) * gradientColors.length)
-                    : i % gradientColors.length
-                ctx.fillStyle = gradientColors[colorIndex]
-                ctx.textAlign = 'left'
-                const charWidth = ctx.measureText(char).width
-                ctx.fillText(char, x, y)
-                x += charWidth
-            }
-            y += lineHeight
-        }
-        ctx.textAlign = 'center'
-    }
-
-    // Draw quote with surrounding quote marks
-    ctx.fillStyle = 'white'
-    y += 2
-
-    for (let i = 0; i < quoteLines.length; i++) {
-        const line = quoteLines[i]
-        // Add quote marks to first and last lines
-        if (i === 0) {
-            ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
-            ctx.fillText('<<', width / 2 - ctx.measureText(line).width / 2 - 40, y)
-            ctx.fillStyle = 'white'
-        }
-        ctx.fillText(line, width / 2, y)
-        if (i === quoteLines.length - 1) {
-            ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
-            ctx.fillText('>>', width / 2 + ctx.measureText(line).width / 2 + 40, y)
-        }
-        y += lineHeight
-    }
-
-    return canvas.toBuffer()
-}
