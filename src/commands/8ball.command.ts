@@ -81,7 +81,7 @@ export default {
         // Pick a random response
         const response = finalResponses[Math.floor(Math.random() * finalResponses.length)]
 
-        const msgPrefix = `💬 ${interaction.user.username}: *${question}*\n`
+        const msgPrefix = `💬 ${interaction.user}: *${question}*\n`
         const msgAnswer = `🎱 **8ball says:** ${response}`
         const msgLoading = '🔮 *Shaking the magic 8ball...*'
 
