@@ -7,6 +7,9 @@ import { parseGIF, decompressFrames } from 'gifuct-js'
 import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable } from '../types/types'
 import { Logger } from './logger'
 import { Buffer } from 'buffer'
+import { spawn } from 'child_process'
+import fs from 'fs/promises'
+import os from 'os'
 const logger = Logger.new('functions')
 
 const robotoPath = path.join(__dirname, '../../data/Roboto.ttf')
@@ -40,6 +43,53 @@ function toCodePoint(unicodeSurrogates: string) {
 export type QuoteImageResult = {
     buffer: Buffer,
     type: 'image/gif' | 'image/png'
+}
+
+async function createTempDir() {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'quote-'))
+    return tmpDir
+}
+
+async function cleanupTempDir(dir: string) {
+    try {
+        await fs.rm(dir, { recursive: true, force: true })
+    } catch (error) {
+        logger.error(`Failed to cleanup temp dir: ${error}`)
+    }
+}
+
+async function ffmpegCreateGif(framesDir: string, outputPath: string, fps: number): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+        const ffmpeg = spawn('ffmpeg', [
+            '-framerate', fps.toString(),
+            '-i', path.join(framesDir, 'frame-%d.png'),
+            '-filter_complex', '[0:v] split [a][b];[a] palettegen=reserve_transparent=on:transparency_color=000000 [p];[b][p] paletteuse',
+            '-y',
+            outputPath
+        ])
+
+        let stderr = ''
+        ffmpeg.stderr.on('data', (data) => {
+            stderr += data.toString()
+        })
+
+        ffmpeg.on('close', async (code) => {
+            if (code === 0) {
+                try {
+                    const buffer = await fs.readFile(outputPath)
+                    resolve(buffer)
+                } catch (error) {
+                    reject(new Error(`Failed to read output file: ${error}`))
+                }
+            } else {
+                reject(new Error(`FFmpeg failed with code ${code}: ${stderr}`))
+            }
+        })
+
+        ffmpeg.on('error', (error) => {
+            reject(new Error(`Failed to start FFmpeg: ${error}`))
+        })
+    })
 }
 
 export async function createQuoteImage(speaker: string, quote: string, color: string | null, gradient: GradientType, stretchGradient = false, style: QuoteStyle = 'pw'): Promise<QuoteImageResult> {
@@ -116,11 +166,11 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
                         logger.info(`Loading animated emoji ${index + 1}/${allEmojis.length}: ${emoji.name || emoji.id}`)
                         const response = await fetch(emoji.url)
                         const arrayBuffer = await response.arrayBuffer()
-                        
+
                         // Use gifuct-js to decode the GIF
                         const gif = parseGIF(arrayBuffer)
                         const frames = decompressFrames(gif, true)
-                        
+
                         // Convert frames to canvas images with transparency
                         const canvasFrames = await Promise.all(frames.map(async frame => {
                             const frameCanvas = createCanvas(frame.dims.width, frame.dims.height)
@@ -450,41 +500,34 @@ export async function createQuoteImage(speaker: string, quote: string, color: st
                 .map(e => (e as any).frames.length))
 
             logger.info(`Creating animated image with ${maxFrames} frames`)
-            // Create GIF encoder
-            const encoder = new GIFEncoder(width, height)
-            encoder.start()
-            encoder.setDelay(50) // 20fps
-            encoder.setQuality(10)
-            encoder.setRepeat(0) // Loop forever
-
-            const startTime = performance.now()
-            // Render each frame
-            for (let i = 0; i < maxFrames; i++) {
-                const canvas = await renderFrame(i)
-                const ctx = canvas.getContext('2d')
-                
-                // Create a temporary canvas for transparency handling
-                const tempCanvas = createCanvas(width, height)
-                const tempCtx = tempCanvas.getContext('2d')
-                tempCtx.fillStyle = '#000000'  // Fill with transparent color
-                tempCtx.fillRect(0, 0, width, height)
-                tempCtx.drawImage(canvas, 0, 0)  // Draw actual content
-                
-                encoder.addFrame(tempCtx as unknown as CanvasRenderingContext2D)
-                
-                if (i % 10 === 0) { // Log every 10 frames
-                    const progress = ((i + 1) / maxFrames * 100).toFixed(1)
-                    const elapsed = ((performance.now() - startTime) / 1000).toFixed(1)
-                    logger.info(`GIF progress: ${progress}% (${i + 1}/${maxFrames} frames, ${elapsed}s elapsed)`)
+            
+            const tmpDir = await createTempDir()
+            const outputPath = path.join(tmpDir, 'output.gif')
+            
+            try {
+                // Render frames to PNG files
+                for (let i = 0; i < maxFrames; i++) {
+                    const canvas = await renderFrame(i)
+                    const framePath = path.join(tmpDir, `frame-${i + 1}.png`)
+                    await fs.writeFile(framePath, new Uint8Array(canvas.toBuffer()))
+                    
+                    if (i % 10 === 0) {
+                        const progress = ((i + 1) / maxFrames * 100).toFixed(1)
+                        logger.info(`Frame progress: ${progress}% (${i + 1}/${maxFrames})`)
+                    }
                 }
-            }
 
-            encoder.finish()
-            const finalBuffer = encoder.out.getData()
-            logger.info(`GIF generation complete. Final size: ${(finalBuffer.length / 1024).toFixed(2)}KB`)
-            return {
-                buffer: finalBuffer,
-                type: 'image/gif'
+                // Create GIF using FFmpeg
+                logger.info('Creating GIF with FFmpeg...')
+                const buffer = await ffmpegCreateGif(tmpDir, outputPath, 20)
+                logger.info(`GIF generation complete. Final size: ${(buffer.length / 1024).toFixed(2)}KB`)
+                
+                return {
+                    buffer,
+                    type: 'image/gif'
+                }
+            } finally {
+                await cleanupTempDir(tmpDir)
             }
         } else {
             logger.info('Generating static image')
