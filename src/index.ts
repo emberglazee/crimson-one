@@ -38,10 +38,10 @@ export const quoteFactory = new QuoteFactory(bot)
 
 bot.once('ready', async () => {
     logger.ok(`Logged in as ${bot.user!.tag}`)
-    
+
     // Set client on QuoteImageFactory
     QuoteImageFactory.getInstance().setClient(bot)
-    
+
     await commandHandler.init()
     await commandHandler.refreshGlobalCommands()
     await quoteFactory.init()

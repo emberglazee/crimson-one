@@ -350,7 +350,6 @@ export class QuoteImageFactory {
                     e.index >= startIndex && 
                     e.index < startIndex + word.length
                 )
-                // For pings, use actual username width instead of ID
                 for (const emoji of wordEmojis) {
                     width -= measureCtx.measureText(emoji.full).width
                     if (emoji.type === 'ping') {
@@ -591,7 +590,13 @@ export class QuoteImageFactory {
                     // Pre-calculate total width with emoji replacements
                     for (const emoji of adjustedEmojis) {
                         const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
-                        totalWidth += ctx.measureText(textBefore).width + fontSize
+                        if (emoji.type === 'ping') {
+                            const username = this.usernames.get(emoji.id!) || emoji.full
+                            totalWidth += ctx.measureText(textBefore).width
+                            totalWidth += ctx.measureText('@' + username).width
+                        } else {
+                            totalWidth += ctx.measureText(textBefore).width + fontSize
+                        }
                         currentPos = emoji.relativeIndex + emoji.length
                     }
                     totalWidth += ctx.measureText(lineText.substring(currentPos)).width
