@@ -6,6 +6,7 @@ import fs from 'fs/promises'
 import os from 'os'
 import path from 'path'
 import { TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS, type GradientType } from '../util/colors'
+import { type Client } from 'discord.js'
 
 const logger = Logger.new('QuoteImageFactory')
 
@@ -20,12 +21,34 @@ export class QuoteImageFactory {
     private static instance: QuoteImageFactory
     private robotoPath: string
     private acesPath: string
+    private client: Client | null = null
+    private usernames: Map<string, string>
 
     private constructor() {
         this.robotoPath = path.join(__dirname, '../../data/Roboto.ttf')
         this.acesPath = path.join(__dirname, '../../data/Aces07.ttf')
         registerFont(this.robotoPath, { family: 'Roboto' })
         registerFont(this.acesPath, { family: 'Aces07' })
+        this.usernames = new Map()
+    }
+
+    public setUsernames(userMap: Record<string, string>) {
+        this.usernames = new Map(Object.entries(userMap))
+    }
+
+    public setClient(client: Client) {
+        this.client = client
+    }
+
+    private async fetchUsername(id: string): Promise<string> {
+        if (!this.client) return id
+        try {
+            const user = await this.client.users.fetch(id)
+            return user.username
+        } catch (error) {
+            logger.error(`Failed to fetch username for ID ${id}: ${error}`)
+            return id
+        }
     }
 
     static getInstance(): QuoteImageFactory {
@@ -259,6 +282,20 @@ export class QuoteImageFactory {
             return results
         }
 
+        // Get all ping IDs and fetch usernames
+        const allPings = [...parseEmojis(speaker), ...parseEmojis(quote)]
+            .filter(e => e.type === 'ping')
+            .map(e => e.id!)
+
+        const usernames = new Map(
+            await Promise.all(
+                [...new Set(allPings)].map(async id => 
+                    [id, await this.fetchUsername(id)] as [string, string]
+                )
+            )
+        )
+        this.usernames = usernames
+
         try {
             // Pre-load all emojis and detect if any are animated
             const speakerEmojis = parseEmojis(speaker)
@@ -313,10 +350,15 @@ export class QuoteImageFactory {
                     e.index >= startIndex && 
                     e.index < startIndex + word.length
                 )
-                // Subtract the width of emoji placeholders and add actual emoji width
+                // For pings, use actual username width instead of ID
                 for (const emoji of wordEmojis) {
                     width -= measureCtx.measureText(emoji.full).width
-                    width += fontSize
+                    if (emoji.type === 'ping') {
+                        const username = this.usernames.get(emoji.id!) || emoji.full
+                        width += measureCtx.measureText('@' + username).width
+                    } else {
+                        width += fontSize
+                    }
                 }
                 return width
             }
@@ -409,13 +451,15 @@ export class QuoteImageFactory {
                     }
                 }
 
-                const drawText = (text: string, x: number, y: number, isPing = false) => {
+                const drawText = (text: string, x: number, y: number, isPing = false, pingId?: string) => {
                     if (isPing) {
-                        ctx.fillStyle = '#7289DA' // Discord ping color
+                        ctx.fillStyle = '#7289DA'
+                        const username = this.usernames.get(pingId!) || text
+                        text = '@' + username
                     }
                     ctx.fillText(text, x, y)
                     if (isPing) {
-                        ctx.fillStyle = 'white' // Reset color
+                        ctx.fillStyle = 'white'
                     }
                 }
 
@@ -475,8 +519,9 @@ export class QuoteImageFactory {
                             }
 
                             if (emoji.type === 'ping') {
-                                const pingWidth = ctx.measureText(emoji.full).width
-                                drawText(emoji.full, currentX + pingWidth/2, y, true)
+                                const username = this.usernames.get(emoji.id!) || emoji.full
+                                const pingWidth = ctx.measureText('@' + username).width
+                                drawText(emoji.full, currentX + pingWidth/2, y, true, emoji.id)
                                 currentX += pingWidth
                             } else {
                                 // Existing emoji drawing code
@@ -573,8 +618,9 @@ export class QuoteImageFactory {
                         }
 
                         if (emoji.type === 'ping') {
-                            const pingWidth = ctx.measureText(emoji.full).width
-                            drawText(emoji.full, currentX + pingWidth/2, y, true)
+                            const username = this.usernames.get(emoji.id!) || emoji.full
+                            const pingWidth = ctx.measureText('@' + username).width
+                            drawText(emoji.full, currentX + pingWidth/2, y, true, emoji.id)
                             currentX += pingWidth
                         } else {
                             // Find and draw the loaded emoji image
