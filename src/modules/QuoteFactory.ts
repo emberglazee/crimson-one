@@ -16,24 +16,29 @@ export default class QuoteFactory {
             if (message.channel.id !== this.threadId) return
             if (message.interactionMetadata) return
             if (message.author === this.client.user) return
-            await message.channel.sendTyping()
-            const speaker = message.member!.displayName
-            const quote = message.content
-            const color = message.member!.displayHexColor
-            const gradient = 'none'
-            const stretchGradient = false
-            const factory = QuoteImageFactory.getInstance()
-            const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw')
-            const image = new AttachmentBuilder(result.buffer)
-                .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
+            try {
+                await message.channel.sendTyping()
+                const speaker = message.member!.displayName
+                const quote = message.content
+                const color = message.member!.displayHexColor
+                const gradient = 'none'
+                const stretchGradient = false
+                const factory = QuoteImageFactory.getInstance()
+                const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw')
+                const image = new AttachmentBuilder(result.buffer)
+                    .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
 
-            if (message.content.toLowerCase().includes('preble')) {
-                const preble = new AttachmentBuilder(await readFile(path.join(__dirname, '../../data/preble.wav')), { name: 'preble.wav' })
-                await this.thread!.send({ files: [image, preble] })
-                return
+                if (message.content.toLowerCase().includes('preble')) {
+                    const preble = new AttachmentBuilder(await readFile(path.join(__dirname, '../../data/preble.wav')), { name: 'preble.wav' })
+                    await this.thread!.send({ files: [image, preble] })
+                    return
+                }
+                await this.thread!.send({ files: [image] })
+                // await message.delete()
+            } catch (error) {
+                console.error('Error processing quote:', error)
+                await this.thread!.send(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
             }
-            await this.thread!.send({ files: [image] })
-            // await message.delete()
         })
     }
 }
