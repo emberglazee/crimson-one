@@ -452,13 +452,36 @@ export class QuoteImageFactory {
 
                 const drawText = (text: string, x: number, y: number, isPing = false, pingId?: string) => {
                     if (isPing) {
-                        ctx.fillStyle = '#7289DA'
+                        // Save context state
+                        ctx.save()
+                        
                         const username = this.usernames.get(pingId!) || text
                         text = '@' + username
-                    }
-                    ctx.fillText(text, x, y)
-                    if (isPing) {
-                        ctx.fillStyle = 'white'
+                        
+                        // Draw background with lighter ping color
+                        const textWidth = ctx.measureText(text).width
+                        ctx.fillStyle = '#7289DA30' // Discord ping color with 30% opacity
+                        const bgPadding = fontSize * 0.2
+                        const bgHeight = fontSize * 1.1
+                        // Round the corners of the background
+                        ctx.beginPath()
+                        ctx.roundRect(
+                            x - textWidth/2 - bgPadding,
+                            y - bgPadding/2,
+                            textWidth + bgPadding * 2,
+                            bgHeight,
+                            bgHeight/2
+                        )
+                        ctx.fill()
+                        
+                        // Draw text
+                        ctx.fillStyle = '#7289DA'
+                        ctx.fillText(text, x, y)
+                        
+                        // Restore context state
+                        ctx.restore()
+                    } else {
+                        ctx.fillText(text, x, y)
                     }
                 }
 
