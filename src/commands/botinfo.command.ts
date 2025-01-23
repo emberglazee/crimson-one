@@ -19,7 +19,7 @@ export default {
                 fields: [
                     { name: 'Memory Usage', value: `Heap: ${formatBytes(heapUsed)}/${formatBytes(heapTotal)}\nRSS: ${formatBytes(rss)}`, inline: true },
                     { name: 'Uptime', value: uptimeStr, inline: true },
-                    { name: 'Stats', value: `Servers: ${interaction.client.application?.approximateGuildCount ?? 'N/A'}\nUsers: ${interaction.client.application?.approximateUserInstallCount ?? 'N/A'}`, inline: true }
+                    { name: 'Stats (approx.)', value: `Servers: ${interaction.client.application?.approximateGuildCount ?? 'N/A'}\nUsers: ${interaction.client.application?.approximateUserInstallCount ?? 'N/A'}`, inline: true }
                 ],
                 color: 0x2B2D31,
                 timestamp: new Date().toISOString()
