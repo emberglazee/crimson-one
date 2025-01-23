@@ -211,10 +211,9 @@ export class QuoteImageFactory {
                 animated: !!match[1]
             })))
 
-            // Parse Unicode emojis
-            // This regex catches most modern emojis including combined ones
-            // Update the Unicode emoji regex to handle consecutive emojis better
-            const unicodeEmojiRegex = /(?:[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?(?:\u200D(?:[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?)*|\uFE0F|\u20E3|[\u{1F3FB}-\u{1F3FF}])?)/gu
+            // Parse Unicode emojis with better handling of flags and combined emojis
+            const unicodeEmojiRegex = /(?:\p{RI}\p{RI})|(?:[\u{1F3F3}\u{1F3F4}](?:\u{FE0F}\u{200D}[\u{1F308}\u{2620}]|\u{E0067}\u{E0062}(?:\u{E0077}\u{E006C}\u{E0073}|\u{E0073}\u{E0063}\u{E0074}|\u{E0065}\u{E006E}\u{E0067})\u{E007F})?|(?:[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?(?:\u200D(?:[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?)*|\uFE0F|\u20E3|[\u{1F3FB}-\u{1F3FF}])?)/gu;
+
             const unicodeMatches = [...text.matchAll(unicodeEmojiRegex)]
 
             results.push(...unicodeMatches.map(match => ({
