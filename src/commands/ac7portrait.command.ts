@@ -26,6 +26,10 @@ export default {
             .setName('subtext')
             .setDescription('Smaller text to display below the name')
             .setRequired(false)
+        ).addBooleanOption(bo => bo
+            .setName('filter')
+            .setDescription('Apply green tint filter to the image')
+            .setRequired(false)
         ),
     /**
      * Creates an AC7-style portrait frame with the following specifications:
@@ -48,14 +52,29 @@ export default {
         const user = interaction.options.getUser('user')
         const name = interaction.options.getString('name', true)
         const subtext = interaction.options.getString('subtext')
+        const useFilter = interaction.options.getBoolean('filter') ?? false
+
+        // Validate image source options
+        const selectedOptions = [attachment, urlOption, user].filter(Boolean).length
+        if (selectedOptions === 0) {
+            await interaction.editReply('❌ Please provide either an image attachment, URL, or user mention.')
+            return
+        }
+        if (selectedOptions > 1) {
+            await interaction.editReply('❌ Please provide only one image source (attachment, URL, or user mention).')
+            return
+        }
 
         let imageUrl = urlOption
         if (attachment) {
             imageUrl = attachment.url
         } else if (user) {
             imageUrl = user.displayAvatarURL({ size: 256, extension: 'png' })
-        } else if (!imageUrl) {
-            imageUrl = interaction.user.displayAvatarURL({ size: 256, extension: 'png' })
+        }
+
+        if (!imageUrl) {
+            await interaction.editReply('❌ Invalid image URL provided.')
+            return
         }
 
         try {
@@ -69,6 +88,14 @@ export default {
 
             // Draw the image centered at (20,18) with 250x250 dimensions
             ctx.drawImage(image, 20, 18, 250, 250)
+
+            // Apply green tint if enabled
+            if (useFilter) {
+                ctx.globalCompositeOperation = 'color-burn'
+                ctx.fillStyle = 'rgba(29, 43, 33, 0.3)' // Slight green tint
+                ctx.fillRect(20, 18, 250, 250)
+                ctx.globalCompositeOperation = 'source-over'
+            }
 
             // Add name text
             ctx.shadowBlur = 2
