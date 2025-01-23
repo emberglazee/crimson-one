@@ -101,6 +101,7 @@ export class QuoteImageFactory {
     private async ffmpegExtractFrames(gifUrl: string, outputDir: string): Promise<{
         frames: string[]
         delays: number[]
+        framerate: number
     }> {
         return new Promise(async (resolve, reject) => {
             // Download GIF to temp file
@@ -125,6 +126,25 @@ export class QuoteImageFactory {
 
             await new Promise((resolve) => ffprobe.on('close', resolve))
 
+            // Get frame durations using ffprobe
+            const ffprobeDurations = spawn('ffprobe', [
+                '-v', 'quiet',
+                '-select_streams', 'v:0',
+                '-show_entries', 'frame=pkt_duration_time',
+                '-of', 'csv=p=0',
+                gifPath
+            ])
+
+            let durationsStr = ''
+            ffprobeDurations.stdout.on('data', data => {
+                durationsStr += data.toString()
+            })
+
+            await new Promise((resolve) => ffprobeDurations.on('close', resolve))
+            const durations = durationsStr.trim().split('\n').map(Number)
+            const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length
+            const framerate = Math.round(1 / avgDuration)
+
             // Extract frames and their timestamps
             const ffmpeg = spawn('ffmpeg', [
                 '-i', gifPath,
@@ -141,7 +161,7 @@ export class QuoteImageFactory {
             ffmpeg.on('close', async (code) => {
                 if (code === 0) {
                     const frames = []
-                    const delays = []
+                    const delays = durations.map(d => d * 1000) // Convert to milliseconds
                     const frameFiles = await fs.readdir(outputDir)
                     const pngFiles = frameFiles.filter(f => f.startsWith('frame-') && f.endsWith('.png'))
                     
@@ -155,7 +175,7 @@ export class QuoteImageFactory {
                         delays.push(100)
                     }
 
-                    resolve({ frames, delays })
+                    resolve({ frames, delays, framerate })
                 } else {
                     reject(new Error(`FFmpeg failed with code ${code}: ${stderr}`))
                 }
@@ -245,12 +265,13 @@ export class QuoteImageFactory {
                             logger.info(`Loading animated emoji ${index + 1}/${allEmojis.length}: ${emoji.name || emoji.id}`)
                             const tmpDir = await this.createTempDir()
                             try {
-                                const { frames, delays } = await this.ffmpegExtractFrames(emoji.url, tmpDir)
+                                const { frames, delays, framerate } = await this.ffmpegExtractFrames(emoji.url, tmpDir)
                                 const loadedFrames = await Promise.all(frames.map(f => loadImage(f)))
                                 return {
                                     ...emoji,
                                     frames: loadedFrames,
-                                    frameDelays: delays
+                                    frameDelays: delays,
+                                    framerate
                                 }
                             } finally {
                                 await this.cleanupTempDir(tmpDir)
@@ -557,12 +578,20 @@ export class QuoteImageFactory {
             }
 
             if (hasAnimatedEmojis) {
-                // Find maximum number of frames among all animated emojis
-                const maxFrames = Math.max(...emojiImages
-                    .filter(e => 'frames' in e)
-                    .map(e => (e as any).frames.length))
+                // Find all unique animated emojis
+                const animatedEmojis = emojiImages.filter(e => 'frames' in e)
+                const uniqueAnimatedIds = new Set(animatedEmojis.map(e => e.id))
 
-                logger.info(`Creating animated image with ${maxFrames} frames`)
+                // If there's only one unique animated emoji, use its framerate
+                let targetFramerate = 20 // default
+                if (uniqueAnimatedIds.size === 1) {
+                    const firstAnimatedEmoji = animatedEmojis[0] as any
+                    targetFramerate = firstAnimatedEmoji.frameDelays ? 
+                        Math.round(1000 / firstAnimatedEmoji.frameDelays[0]) : 20
+                }
+
+                const maxFrames = Math.max(...animatedEmojis.map(e => (e as any).frames.length))
+                logger.info(`Creating animated image with ${maxFrames} frames at ${targetFramerate}fps`)
                 
                 const tmpDir = await this.createTempDir()
                 const outputPath = path.join(tmpDir, 'output.gif')
@@ -580,9 +609,9 @@ export class QuoteImageFactory {
                         }
                     }
 
-                    // Create GIF using FFmpeg
-                    logger.info('Creating GIF with FFmpeg...')
-                    const buffer = await this.ffmpegCreateGif(tmpDir, outputPath, 20)
+                    // Create GIF using FFmpeg with detected framerate
+                    logger.info(`Creating GIF with FFmpeg at ${targetFramerate}fps...`)
+                    const buffer = await this.ffmpegCreateGif(tmpDir, outputPath, targetFramerate)
                     logger.info(`GIF generation complete. Final size: ${(buffer.length / 1024).toFixed(2)}KB`)
                     
                     return {
