@@ -71,23 +71,23 @@ export default {
             ctx.drawImage(image, 20, 18, 250, 250)
 
             // Add name text
-            ctx.shadowBlur = 0
+            ctx.shadowBlur = 2
             ctx.font = '20px Aces07'
             ctx.fillStyle = '#536256'
-            
+
             // Draw each character with spacing
             let currentX = 20 // Fixed left position
             const chars = name.split('')
-            const letterSpacing = 10
+            const letterSpacing = 6
             chars.forEach(char => {
-                ctx.fillText(char, currentX, 18 + 250 + 16)
+                ctx.fillText(char, currentX, 18 + 250 + 32) // Added 16px
                 currentX += ctx.measureText(char).width + letterSpacing
             })
 
             // Add subtext if provided
             if (subtext) {
                 ctx.font = '10px Aces07'
-                ctx.fillText(subtext, 20, 18 + 250 + 16 + 8 + 10)
+                ctx.fillText(subtext, 20, 18 + 250 + 32 + 8 + 10) // Added 16px
             }
 
             // Add green border with inner glow
