@@ -5,7 +5,6 @@ import { spawn } from 'child_process'
 import fs from 'fs/promises'
 import os from 'os'
 import path from 'path'
-import { parseGIF, decompressFrames } from 'gifuct-js'
 import { TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS, type GradientType } from '../util/colors'
 
 const logger = Logger.new('QuoteImageFactory')
@@ -99,6 +98,71 @@ export class QuoteImageFactory {
         })
     }
 
+    private async ffmpegExtractFrames(gifUrl: string, outputDir: string): Promise<{
+        frames: string[]
+        delays: number[]
+    }> {
+        return new Promise(async (resolve, reject) => {
+            // Download GIF to temp file
+            const response = await fetch(gifUrl)
+            const buffer = Buffer.from(await response.arrayBuffer())
+            const gifPath = path.join(outputDir, 'temp.gif')
+            await fs.writeFile(gifPath, new Uint8Array(buffer))
+
+            // Extract frame information
+            const ffprobe = spawn('ffprobe', [
+                '-v', 'quiet',
+                '-select_streams', 'v:0',
+                '-show_entries', 'stream=nb_frames',
+                '-of', 'default=nokey=1:noprint_wrappers=1',
+                gifPath
+            ])
+
+            let frameCount = ''
+            ffprobe.stdout.on('data', data => {
+                frameCount += data.toString()
+            })
+
+            await new Promise((resolve) => ffprobe.on('close', resolve))
+
+            // Extract frames and their timestamps
+            const ffmpeg = spawn('ffmpeg', [
+                '-i', gifPath,
+                '-vsync', '0',
+                '-frame_pts', '1',
+                path.join(outputDir, 'frame-%d.png')
+            ])
+
+            let stderr = ''
+            ffmpeg.stderr.on('data', data => {
+                stderr += data.toString()
+            })
+
+            ffmpeg.on('close', async (code) => {
+                if (code === 0) {
+                    const frames = []
+                    const delays = []
+                    const frameFiles = await fs.readdir(outputDir)
+                    const pngFiles = frameFiles.filter(f => f.startsWith('frame-') && f.endsWith('.png'))
+                    
+                    for (const file of pngFiles.sort((a, b) => {
+                        const numA = parseInt(a.match(/frame-(\d+)\.png/)?.[1] || '0')
+                        const numB = parseInt(b.match(/frame-(\d+)\.png/)?.[1] || '0')
+                        return numA - numB
+                    })) {
+                        frames.push(path.join(outputDir, file))
+                        // Assuming default 100ms delay between frames
+                        delays.push(100)
+                    }
+
+                    resolve({ frames, delays })
+                } else {
+                    reject(new Error(`FFmpeg failed with code ${code}: ${stderr}`))
+                }
+            })
+        })
+    }
+
     public async createQuoteImage(
         speaker: string,
         quote: string,
@@ -178,43 +242,17 @@ export class QuoteImageFactory {
                     try {
                         if (emoji.animated) {
                             logger.info(`Loading animated emoji ${index + 1}/${allEmojis.length}: ${emoji.name || emoji.id}`)
-                            const response = await fetch(emoji.url)
-                            const arrayBuffer = await response.arrayBuffer()
-    
-                            // Use gifuct-js to decode the GIF
-                            const gif = parseGIF(arrayBuffer)
-                            const frames = decompressFrames(gif, true)
-    
-                            // Convert frames to canvas images with transparency
-                            const canvasFrames = await Promise.all(frames.map(async frame => {
-                                const frameCanvas = createCanvas(frame.dims.width, frame.dims.height)
-                                const ctx = frameCanvas.getContext('2d')
-                                
-                                // Create ImageData with transparency
-                                const imageData = createImageData(
-                                    new Uint8ClampedArray(frame.patch),
-                                    frame.dims.width,
-                                    frame.dims.height
-                                )
-    
-                                // Handle transparency
-                                for (let i = 0; i < imageData.data.length; i += 4) {
-                                    if (imageData.data[i + 3] === 0) {
-                                        imageData.data[i] = 0
-                                        imageData.data[i + 1] = 0
-                                        imageData.data[i + 2] = 0
-                                        imageData.data[i + 3] = 0
-                                    }
+                            const tmpDir = await this.createTempDir()
+                            try {
+                                const { frames, delays } = await this.ffmpegExtractFrames(emoji.url, tmpDir)
+                                const loadedFrames = await Promise.all(frames.map(f => loadImage(f)))
+                                return {
+                                    ...emoji,
+                                    frames: loadedFrames,
+                                    frameDelays: delays
                                 }
-                                
-                                ctx.putImageData(imageData, 0, 0)
-                                return frameCanvas
-                            }))
-    
-                            return {
-                                ...emoji,
-                                frames: canvasFrames,
-                                frameDelays: frames.map(f => f.delay)
+                            } finally {
+                                await this.cleanupTempDir(tmpDir)
                             }
                         } else {
                             logger.info(`Loading static emoji ${index + 1}/${allEmojis.length}`)
