@@ -6,7 +6,11 @@ export default {
     data: new SlashCommandBuilder()
         .setName('ac7portrait')
         .setDescription('Generate an Ace Combat 7 style portrait with either a custom image or someone\'s avatar')
-        .addAttachmentOption(ao => ao
+        .addStringOption(so => so
+            .setName('name')
+            .setDescription('Name to display on the portrait')
+            .setRequired(true)
+        ).addAttachmentOption(ao => ao
             .setName('image')
             .setDescription('Custom image to use as the portrait')
             .setRequired(false)
@@ -18,10 +22,6 @@ export default {
             .setName('user')
             .setDescription('User to use their avatar as the portrait')
             .setRequired(false)
-        ).addStringOption(so => so
-            .setName('name')
-            .setDescription('Name to display on the portrait')
-            .setRequired(true)
         ).addStringOption(so => so
             .setName('subtext')
             .setDescription('Smaller text to display below the name')
