@@ -75,16 +75,10 @@ export default {
             ctx.font = '20px Aces07'
             ctx.fillStyle = '#536256'
             
-            // Calculate total width including gaps
-            const letterSpacing = 6
-            const chars = name.split('')
-            const totalWidth = chars.reduce((width, char) => 
-                width + ctx.measureText(char).width + letterSpacing, 0) - letterSpacing
-
-            // Start position for centered text
-            let currentX = 20 + (250 - totalWidth) / 2
-            
             // Draw each character with spacing
+            let currentX = 20 // Fixed left position
+            const chars = name.split('')
+            const letterSpacing = 10
             chars.forEach(char => {
                 ctx.fillText(char, currentX, 18 + 250 + 16)
                 currentX += ctx.measureText(char).width + letterSpacing
@@ -93,9 +87,7 @@ export default {
             // Add subtext if provided
             if (subtext) {
                 ctx.font = '10px Aces07'
-                const subtextMetrics = ctx.measureText(subtext)
-                const subtextX = 20 + (250 - subtextMetrics.width) / 2
-                ctx.fillText(subtext, subtextX, 18 + 250 + 16 + 8 + 10)
+                ctx.fillText(subtext, 20, 18 + 250 + 16 + 8 + 10)
             }
 
             // Add green border with inner glow
