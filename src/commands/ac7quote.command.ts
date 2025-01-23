@@ -63,6 +63,7 @@ export default {
         
         await interaction.deferReply()
         const factory = QuoteImageFactory.getInstance()
+        factory.setGuild(interaction.guild!)
         try {
             const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'ac7')
             await interaction.editReply({ 
