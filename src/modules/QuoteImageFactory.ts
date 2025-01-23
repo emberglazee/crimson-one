@@ -1,4 +1,4 @@
-import { createCanvas, loadImage, registerFont, createImageData } from 'canvas'
+import { createCanvas, loadImage, registerFont } from 'canvas'
 import { Logger } from '../util/logger'
 import { Buffer } from 'buffer'
 import { spawn } from 'child_process'
@@ -19,17 +19,11 @@ export type QuoteStyle = 'pw' | 'ac7'
 
 export class QuoteImageFactory {
     private static instance: QuoteImageFactory
-    private robotoPath: string
-    private acesPath: string
     private client: Client | null = null
     private guild: Guild | null = null
     private usernames: Map<string, string>
 
     private constructor() {
-        this.robotoPath = path.join(__dirname, '../../data/Roboto.ttf')
-        this.acesPath = path.join(__dirname, '../../data/Aces07.ttf')
-        registerFont(this.robotoPath, { family: 'Roboto' })
-        registerFont(this.acesPath, { family: 'Aces07' })
         this.usernames = new Map()
     }
 
