@@ -33,12 +33,13 @@ export default {
         ),
     /**
      * Creates an AC7-style portrait frame with the following specifications:
-     * - Canvas dimensions: 289x362 pixels
+     * - Canvas dimensions: 290x362 pixels
      * - Border: 1px bright green (#00FF00) with 5px inner glow effect
      * - Background: Semi-transparent dark green (#1d2b21ee)
-     * 
-     * Note: The image/avatar content should be placed starting at coordinates (20,18) 
-     * with dimensions of 250x250 pixels
+     * - Image area: 250x250 pixels starting at (20,18)
+     * - Name text: 20px Aces07 font at (20, 300) with 6px letter spacing
+     * - Optional subtext: 10px Aces07 font below name
+     * - Optional green tint filter using color-burn blend mode
      * 
      * @param interaction The interaction object containing command details
      * @returns Promise<void>
