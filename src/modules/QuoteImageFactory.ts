@@ -6,7 +6,7 @@ import fs from 'fs/promises'
 import os from 'os'
 import path from 'path'
 import { TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS, type GradientType } from '../util/colors'
-import { type Client } from 'discord.js'
+import { type Client, type Guild } from 'discord.js'
 
 const logger = Logger.new('QuoteImageFactory')
 
@@ -22,6 +22,7 @@ export class QuoteImageFactory {
     private robotoPath: string
     private acesPath: string
     private client: Client | null = null
+    private guild: Guild | null = null
     private usernames: Map<string, string>
 
     private constructor() {
@@ -40,11 +41,23 @@ export class QuoteImageFactory {
         this.client = client
     }
 
+    public setGuild(guild: Guild) {
+        this.guild = guild
+    }
+
     private async fetchUsername(id: string): Promise<string> {
         if (!this.client) return id
         try {
+            if (this.guild) {
+                // Try to get member from guild first
+                const member = await this.guild.members.fetch(id)
+                if (member) {
+                    return member.displayName
+                }
+            }
+            // Fall back to global username if not found in guild
             const user = await this.client.users.fetch(id)
-            return user.username
+            return user.displayName
         } catch (error) {
             logger.error(`Failed to fetch username for ID ${id}: ${error}`)
             return id
