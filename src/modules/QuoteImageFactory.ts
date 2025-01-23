@@ -179,12 +179,12 @@ export class QuoteImageFactory {
         const width = 1024
         const maxWidth = width - padding * 2
         const font = style === 'pw' ? 'Roboto' : 'Aces07'
-    
+
         // Create canvas for measurements
         const measureCanvas = createCanvas(1, 1)
         const measureCtx = measureCanvas.getContext('2d')
         measureCtx.font = `${fontSize}px ${font}`
-    
+
         // Updated helper function to detect and parse both Discord and Unicode emoji
         const parseEmojis = (text: string) => {
             logger.info(`Parsing emojis from text of length ${text.length}`)
@@ -197,7 +197,7 @@ export class QuoteImageFactory {
                 url: string
                 animated?: boolean
             }> = []
-    
+
             // Parse custom Discord emojis (both static and animated)
             const customEmojiRegex = /<(a)?:([^:]+):(\d+)>/g
             const customMatches = [...text.matchAll(customEmojiRegex)]
@@ -210,31 +210,33 @@ export class QuoteImageFactory {
                 url: `https://cdn.discordapp.com/emojis/${match[3]}.${match[1] ? 'gif' : 'png'}?size=48`,
                 animated: !!match[1]
             })))
-    
+
             // Parse Unicode emojis
             // This regex catches most modern emojis including combined ones
-            const unicodeEmojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?(?:\u200D[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?)*|[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?/gu
+            // Update the Unicode emoji regex to handle consecutive emojis better
+            const unicodeEmojiRegex = /(?:[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?(?:\u200D(?:[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?)*|\uFE0F|\u20E3|[\u{1F3FB}-\u{1F3FF}])?)/gu
             const unicodeMatches = [...text.matchAll(unicodeEmojiRegex)]
+
             results.push(...unicodeMatches.map(match => ({
                 full: match[0],
                 index: match.index!,
                 length: match[0].length,
                 url: `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${this.toCodePoint(match[0])}.png`
             })))
-    
+
             logger.info(`Found ${results.length} emojis: ${results.map(e => e.full).join(', ')}`)
             return results
         }
-    
+
         try {
             // Pre-load all emojis and detect if any are animated
             const speakerEmojis = parseEmojis(speaker)
             const quoteEmojis = parseEmojis(quote)
             const allEmojis = [...speakerEmojis, ...quoteEmojis]
-    
+
             const hasAnimatedEmojis = allEmojis.some(e => e.animated)
             logger.info(`Animation status: ${hasAnimatedEmojis ? 'Animated' : 'Static'}`)
-    
+
             // Load emoji frames
             logger.info('Loading emoji images...')
             const emojiImages = await Promise.all(
@@ -268,7 +270,7 @@ export class QuoteImageFactory {
                 })
             )
             logger.info('Finished loading emoji images')
-    
+
             const measureWordWidth = (word: string, startIndex: number, emojis: ReturnType<typeof parseEmojis>) => {
                 let width = measureCtx.measureText(word).width
                 const wordEmojis = emojis.filter(e => 
@@ -282,24 +284,24 @@ export class QuoteImageFactory {
                 }
                 return width
             }
-    
+
             // Word wrap speaker name
             const speakerLines: string[] = []
             let speakerStartIndices: number[] = []
             let currentIndex = 0
             const speakerTextLines = speaker.split('\n')
-    
+
             for (const textLine of speakerTextLines) {
                 const words = textLine.split(' ')
                 let currentLine = words[0]
                 let lineStart = currentIndex
                 currentIndex += currentLine.length
-    
+
                 for (let i = 1; i < words.length; i++) {
                     const word = words[i]
                     const testLine = currentLine + ' ' + word
                     const actualWidth = measureWordWidth(testLine, lineStart, speakerEmojis)
-    
+
                     if (actualWidth > maxWidth) {
                         speakerLines.push(currentLine)
                         speakerStartIndices.push(lineStart)
@@ -315,7 +317,7 @@ export class QuoteImageFactory {
                 speakerStartIndices.push(lineStart)
                 currentIndex += 1
             }
-    
+
             // Word wrap quote with emoji preservation
             const quoteLines: string[] = []
             let lineStartIndices: number[] = []
@@ -327,12 +329,12 @@ export class QuoteImageFactory {
                 let currentLine = words[0]
                 let lineStart = currentIndex
                 currentIndex += currentLine.length
-    
+
                 for (let i = 1; i < words.length; i++) {
                     const word = words[i]
                     const testLine = currentLine + ' ' + word
                     const actualWidth = measureWordWidth(testLine, lineStart, quoteEmojis)
-    
+
                     if (actualWidth > maxWidth) {
                         quoteLines.push(currentLine)
                         lineStartIndices.push(lineStart)
@@ -348,11 +350,11 @@ export class QuoteImageFactory {
                 lineStartIndices.push(lineStart)
                 currentIndex += 1
             }
-    
+
             // Calculate height based on number of lines
             const speakerHeight = speakerLines.length * lineHeight
             const height = 50 + speakerHeight + 2 + (quoteLines.length * lineHeight) + padding
-    
+
             const renderFrame = async (frameIndex: number) => {
                 logger.info(`Rendering frame ${frameIndex + 1}`)
                 const startTime = performance.now()
@@ -360,7 +362,7 @@ export class QuoteImageFactory {
                 // Create canvas and context for this frame
                 const canvas = createCanvas(width, height)
                 const ctx = canvas.getContext('2d')
-    
+
                 // Define drawEmoji at the start of renderFrame so it's available everywhere
                 const drawEmoji = (emoji: typeof emojiImages[0], x: number, y: number) => {
                     if ('frames' in emoji && emoji.frames) {
@@ -370,12 +372,12 @@ export class QuoteImageFactory {
                         ctx.drawImage(emoji.image!, x, y + (fontSize * 0.1), fontSize, fontSize)
                     }
                 }
-    
+
                 const speakerColor = color || '#FFFFFF'
                 const gradientColors = gradient === 'trans' ? TRANS_COLORS 
                     : gradient === 'rainbow' ? RAINBOW_COLORS 
                     : ITALIAN_COLORS
-    
+
                 ctx.clearRect(0, 0, width, height)
                 ctx.font = `${fontSize}px ${font}`
                 ctx.textAlign = 'center'
@@ -383,7 +385,7 @@ export class QuoteImageFactory {
                 ctx.shadowColor = 'black'
                 ctx.shadowBlur = 8
                 let y = 50
-    
+
                 // Draw speaker name
                 if (gradient === 'none') {
                     ctx.fillStyle = speakerColor
@@ -391,33 +393,33 @@ export class QuoteImageFactory {
                         const line = speakerLines[i]
                         const lineStart = speakerStartIndices[i]
                         const nextLineStart = speakerStartIndices[i + 1] || speaker.length
-    
+
                         const lineEmojis = speakerEmojis.filter(e => 
                             e.index >= lineStart && e.index < nextLineStart
                         ).sort((a, b) => a.index - b.index)
-    
+
                         const adjustedEmojis = lineEmojis.map(emoji => ({
                             ...emoji,
                             relativeIndex: emoji.index - lineStart
                         }))
-    
+
                         // Calculate total width
                         let totalWidth = 0
                         let currentPos = 0
                         let lineText = line
-    
+
                         for (const emoji of adjustedEmojis) {
                             const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
                             totalWidth += ctx.measureText(textBefore).width + fontSize
                             currentPos = emoji.relativeIndex + emoji.length
                         }
                         totalWidth += ctx.measureText(lineText.substring(currentPos)).width
-    
+
                         // Draw text and emojis
                         const centerX = width / 2
                         let currentX = centerX - totalWidth / 2
                         currentPos = 0
-    
+
                         for (const emoji of adjustedEmojis) {
                             const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
                             if (textBefore) {
@@ -425,7 +427,7 @@ export class QuoteImageFactory {
                                 ctx.fillText(textBefore, currentX + textWidth/2, y)
                                 currentX += textWidth
                             }
-    
+
                             const loadedEmoji = emojiImages.find(e => 
                                 // For Discord emojis, match by ID
                                 (emoji.id && e.id === emoji.id) || 
@@ -438,13 +440,13 @@ export class QuoteImageFactory {
                             currentX += fontSize
                             currentPos = emoji.relativeIndex + emoji.length
                         }
-    
+
                         const remainingText = lineText.substring(currentPos)
                         if (remainingText) {
                             const textWidth = ctx.measureText(remainingText).width
                             ctx.fillText(remainingText, currentX + textWidth/2, y)
                         }
-    
+
                         y += lineHeight
                     }
                 } else {
@@ -465,11 +467,11 @@ export class QuoteImageFactory {
                     }
                     ctx.textAlign = 'center'
                 }
-    
+
                 // Draw quote
                 ctx.fillStyle = 'white'
                 y += 2
-    
+
                 for (let i = 0; i < quoteLines.length; i++) {
                     const line = quoteLines[i]
                     const lineStart = lineStartIndices[i]
@@ -478,18 +480,18 @@ export class QuoteImageFactory {
                     const lineEmojis = quoteEmojis.filter(e => 
                         e.index >= lineStart && e.index < nextLineStart
                     ).sort((a, b) => a.index - b.index)
-    
+
                     // Adjust emoji indices relative to line start
                     const adjustedEmojis = lineEmojis.map(emoji => ({
                         ...emoji,
                         relativeIndex: emoji.index - lineStart
                     }))
-    
+
                     // Calculate line width including emojis
                     let totalWidth = 0
                     let currentPos = 0
                     let lineText = line
-    
+
                     // Pre-calculate total width with emoji replacements
                     for (const emoji of adjustedEmojis) {
                         const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
@@ -497,18 +499,18 @@ export class QuoteImageFactory {
                         currentPos = emoji.relativeIndex + emoji.length
                     }
                     totalWidth += ctx.measureText(lineText.substring(currentPos)).width
-    
+
                     // Center alignment calculations
                     const centerX = width / 2
                     let currentX = centerX - totalWidth / 2
-    
+
                     // Draw AC7 opening arrows if needed
                     if (style === 'ac7' && i === 0) {
                         ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
                         ctx.fillText('<<', currentX - 40, y)
                         ctx.fillStyle = 'white'
                     }
-    
+
                     // Reset for actual drawing
                     currentPos = 0
                     for (const emoji of adjustedEmojis) {
@@ -518,7 +520,7 @@ export class QuoteImageFactory {
                             ctx.fillText(textBefore, currentX + textWidth/2, y)
                             currentX += textWidth
                         }
-    
+
                         // Find and draw the loaded emoji image
                         const loadedEmoji = emojiImages.find(e => 
                             // For Discord emojis, match by ID
@@ -532,7 +534,7 @@ export class QuoteImageFactory {
                         currentX += fontSize
                         currentPos = emoji.relativeIndex + emoji.length
                     }
-    
+
                     // Draw remaining text
                     const remainingText = lineText.substring(currentPos)
                     if (remainingText) {
@@ -540,27 +542,27 @@ export class QuoteImageFactory {
                         ctx.fillText(remainingText, currentX + textWidth/2, y)
                         currentX += textWidth
                     }
-    
+
                     // Draw AC7 closing arrows if needed
                     if (style === 'ac7' && i === quoteLines.length - 1) {
                         ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
                         ctx.fillText('>>', currentX + 40, y)
                     }
-    
+
                     y += lineHeight
                 }
-    
+
                 const endTime = performance.now()
                 logger.info(`Frame ${frameIndex + 1} rendered in ${(endTime - startTime).toFixed(2)}ms`)
                 return canvas
             }
-    
+
             if (hasAnimatedEmojis) {
                 // Find maximum number of frames among all animated emojis
                 const maxFrames = Math.max(...emojiImages
                     .filter(e => 'frames' in e)
                     .map(e => (e as any).frames.length))
-    
+
                 logger.info(`Creating animated image with ${maxFrames} frames`)
                 
                 const tmpDir = await this.createTempDir()
@@ -578,7 +580,7 @@ export class QuoteImageFactory {
                             logger.info(`Frame progress: ${progress}% (${i + 1}/${maxFrames})`)
                         }
                     }
-    
+
                     // Create GIF using FFmpeg
                     logger.info('Creating GIF with FFmpeg...')
                     const buffer = await this.ffmpegCreateGif(tmpDir, outputPath, 20)
