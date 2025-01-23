@@ -34,7 +34,7 @@ export default class QuoteFactory {
                     return
                 }
                 await this.thread!.send({ files: [image] })
-                // await message.delete()
+                await message.delete()
             } catch (error) {
                 console.error('Error processing quote:', error)
                 await this.thread!.send(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
