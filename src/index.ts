@@ -11,6 +11,7 @@ import QuoteFactory from './modules/QuoteFactory'
 import type { DiscordEventListener } from './types/types'
 
 import { registerFont } from 'canvas'
+import { QuoteImageFactory } from './modules/QuoteImageFactory'
 registerFont(path.join(__dirname, '../data/Roboto.ttf'), { family: 'Roboto' })
 registerFont(path.join(__dirname, '../data/Aces07.ttf'), { family: 'Aces07' })
 
@@ -37,6 +38,10 @@ export const quoteFactory = new QuoteFactory(bot)
 
 bot.once('ready', async () => {
     logger.ok(`Logged in as ${bot.user!.tag}`)
+    
+    // Set client on QuoteImageFactory
+    QuoteImageFactory.getInstance().setClient(bot)
+    
     await commandHandler.init()
     await commandHandler.refreshGlobalCommands()
     await quoteFactory.init()
