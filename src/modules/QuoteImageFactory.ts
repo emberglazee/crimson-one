@@ -426,7 +426,12 @@ export class QuoteImageFactory {
                                 currentX += textWidth
                             }
     
-                            const loadedEmoji = emojiImages.find(e => e.id === emoji.id)
+                            const loadedEmoji = emojiImages.find(e => 
+                                // For Discord emojis, match by ID
+                                (emoji.id && e.id === emoji.id) || 
+                                // For Twemojis, match by full text
+                                (!emoji.id && e.full === emoji.full)
+                            )
                             if (loadedEmoji) {
                                 drawEmoji(loadedEmoji, currentX, y)
                             }
@@ -515,7 +520,12 @@ export class QuoteImageFactory {
                         }
     
                         // Find and draw the loaded emoji image
-                        const loadedEmoji = emojiImages.find(e => e.id === emoji.id)
+                        const loadedEmoji = emojiImages.find(e => 
+                            // For Discord emojis, match by ID
+                            (emoji.id && e.id === emoji.id) || 
+                            // For Twemojis, match by full text
+                            (!emoji.id && e.full === emoji.full)
+                        )
                         if (loadedEmoji) {
                             drawEmoji(loadedEmoji, currentX, y)
                         }
