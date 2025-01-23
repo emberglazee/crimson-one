@@ -1,6 +1,7 @@
 import { SlashCommand } from '../modules/CommandManager'
 import { SlashCommandBuilder } from 'discord.js'
 import { sleep } from 'bun'
+import { randRange } from '../util/functions'
 
 export default {
     data: new SlashCommandBuilder()
@@ -80,8 +81,12 @@ export default {
         // Pick a random response
         const response = finalResponses[Math.floor(Math.random() * finalResponses.length)]
 
-        await interaction.reply(`Question: ${question}`)
-        await sleep(2000)
-        await interaction.editReply(`Question: ${question}\n\nAnswer: ${response}`)
+        const msgPrefix = `💬 ${interaction.user.username}: *${question}*\n`
+        const msgAnswer = `🎱 **8ball says:** ${response}`
+        const msgLoading = '🔮 *Shaking the magic 8ball...*'
+
+        const msg = await interaction.reply(msgPrefix + msgLoading)
+        await sleep(randRange(600, 3000))
+        await msg.edit(msgPrefix + msgAnswer)
     }
 } satisfies SlashCommand
