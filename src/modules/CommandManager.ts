@@ -20,7 +20,7 @@ export interface ISlashCommand {
 export abstract class SlashCommand implements ISlashCommand {
     data!: SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommandGroup' | 'addSubcommand'> | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder
     permissions?: PermissionsBitField[]
-    execute!: (interaction: ChatInputCommandInteraction) => Promise<void>;
+    execute!: (interaction: ChatInputCommandInteraction) => Promise<void>
 }
 
 export interface IContextMenuCommand {
@@ -44,14 +44,14 @@ export default class CommandHandler {
         this.client = client
     }
     async init() {
-        const initStartTime = Date.now();
+        const initStartTime = Date.now()
         logger.info('{init} Reading the command folder...')
         this.files = await fs.promises.readdir(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, '../commands'), { withFileTypes: true })
         logger.ok(`{init} ${this.files.length} files found`)
         for (const file of this.files) await this.importCommand(file)
         this.initialized = true
-        const initEndTime = Date.now();
-        const totalTime = (initEndTime - initStartTime) / 1000;
+        const initEndTime = Date.now()
+        const totalTime = (initEndTime - initStartTime) / 1000
         logger.ok(`{init} Total time to import all commands: ${totalTime}s`)
     }
     async importCommand(file: fs.Dirent) {
@@ -59,7 +59,7 @@ export default class CommandHandler {
         const startTime = Date.now()
         try {
             const importedModule = (await import(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, `../commands/${file.name}`)))
-            const command: SlashCommand | ContextMenuCommand = importedModule.default;
+            const command: SlashCommand | ContextMenuCommand = importedModule.default
             if (!command.data) {
                 logger.warn(`{importCommand} Command data not found in ${file.name}`)
                 return null
@@ -71,7 +71,7 @@ export default class CommandHandler {
                 return command
             }
 
-            logger.ok(`{importCommand} Imported /${command.data.name} from file ${file.name} in ${(Date.now() - startTime) / 1000}s`);
+            logger.ok(`{importCommand} Imported /${command.data.name} from file ${file.name} in ${(Date.now() - startTime) / 1000}s`)
             if (CommandHandler.isGlobalSlashCommand(command)) this.globalCommands.push(command)
             return command
         } catch (err) {
