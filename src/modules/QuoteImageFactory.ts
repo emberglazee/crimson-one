@@ -214,9 +214,21 @@ export class QuoteImageFactory {
                 name?: string
                 index: number
                 length: number
-                url: string
+                url?: string
                 animated?: boolean
+                type?: 'ping'
             }> = []
+
+            // Parse pings
+            const pingRegex = /<@!?(\d+)>/g
+            const pingMatches = [...text.matchAll(pingRegex)]
+            results.push(...pingMatches.map(match => ({
+                full: match[0],
+                id: match[1],
+                index: match.index!,
+                length: match[0].length,
+                type: 'ping' as const
+            })))
 
             // Parse custom Discord emojis (both static and animated)
             const customEmojiRegex = /<(a)?:([^:]+):(\d+)>/g
@@ -243,7 +255,7 @@ export class QuoteImageFactory {
                 url: `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${this.toCodePoint(match[0])}.png`
             })))
 
-            logger.info(`Found ${results.length} emojis: ${results.map(e => e.full).join(', ')}`)
+            logger.info(`Found ${results.length} emojis/pings: ${results.map(e => e.full).join(', ')}`)
             return results
         }
 
@@ -265,13 +277,17 @@ export class QuoteImageFactory {
                             logger.info(`Loading animated emoji ${index + 1}/${allEmojis.length}: ${emoji.name || emoji.id}`)
                             const tmpDir = await this.createTempDir()
                             try {
-                                const { frames, delays, framerate } = await this.ffmpegExtractFrames(emoji.url, tmpDir)
-                                const loadedFrames = await Promise.all(frames.map(f => loadImage(f)))
-                                return {
-                                    ...emoji,
-                                    frames: loadedFrames,
-                                    frameDelays: delays,
-                                    framerate
+                                if (emoji.url) {
+                                    const { frames, delays, framerate } = await this.ffmpegExtractFrames(emoji.url, tmpDir)
+                                    const loadedFrames = await Promise.all(frames.map(f => loadImage(f)))
+                                    return {
+                                        ...emoji,
+                                        frames: loadedFrames,
+                                        frameDelays: delays,
+                                        framerate
+                                    }
+                                } else {
+                                    throw new Error(`Emoji URL is undefined for emoji: ${emoji.name || emoji.id}`)
                                 }
                             } finally {
                                 await this.cleanupTempDir(tmpDir)
@@ -280,7 +296,7 @@ export class QuoteImageFactory {
                             logger.info(`Loading static emoji ${index + 1}/${allEmojis.length}`)
                             return {
                                 ...emoji,
-                                image: await loadImage(emoji.url)
+                                image: emoji.url ? await loadImage(emoji.url) : null
                             }
                         }
                     } catch (error) {
@@ -393,6 +409,16 @@ export class QuoteImageFactory {
                     }
                 }
 
+                const drawText = (text: string, x: number, y: number, isPing = false) => {
+                    if (isPing) {
+                        ctx.fillStyle = '#7289DA' // Discord ping color
+                    }
+                    ctx.fillText(text, x, y)
+                    if (isPing) {
+                        ctx.fillStyle = 'white' // Reset color
+                    }
+                }
+
                 const speakerColor = color || '#FFFFFF'
                 const gradientColors = gradient === 'trans' ? TRANS_COLORS 
                     : gradient === 'rainbow' ? RAINBOW_COLORS 
@@ -444,27 +470,32 @@ export class QuoteImageFactory {
                             const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
                             if (textBefore) {
                                 const textWidth = ctx.measureText(textBefore).width
-                                ctx.fillText(textBefore, currentX + textWidth/2, y)
+                                drawText(textBefore, currentX + textWidth/2, y)
                                 currentX += textWidth
                             }
 
-                            const loadedEmoji = emojiImages.find(e => 
-                                // For Discord emojis, match by ID
-                                (emoji.id && e.id === emoji.id) || 
-                                // For Twemojis, match by full text
-                                (!emoji.id && e.full === emoji.full)
-                            )
-                            if (loadedEmoji) {
-                                drawEmoji(loadedEmoji, currentX, y)
+                            if (emoji.type === 'ping') {
+                                const pingWidth = ctx.measureText(emoji.full).width
+                                drawText(emoji.full, currentX + pingWidth/2, y, true)
+                                currentX += pingWidth
+                            } else {
+                                // Existing emoji drawing code
+                                const loadedEmoji = emojiImages.find(e => 
+                                    (emoji.id && e.id === emoji.id) || 
+                                    (!emoji.id && e.full === emoji.full)
+                                )
+                                if (loadedEmoji) {
+                                    drawEmoji(loadedEmoji, currentX, y)
+                                }
+                                currentX += fontSize
                             }
-                            currentX += fontSize
                             currentPos = emoji.relativeIndex + emoji.length
                         }
 
                         const remainingText = lineText.substring(currentPos)
                         if (remainingText) {
                             const textWidth = ctx.measureText(remainingText).width
-                            ctx.fillText(remainingText, currentX + textWidth/2, y)
+                            drawText(remainingText, currentX + textWidth/2, y)
                         }
 
                         y += lineHeight
@@ -537,21 +568,27 @@ export class QuoteImageFactory {
                         const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
                         if (textBefore) {
                             const textWidth = ctx.measureText(textBefore).width
-                            ctx.fillText(textBefore, currentX + textWidth/2, y)
+                            drawText(textBefore, currentX + textWidth/2, y)
                             currentX += textWidth
                         }
 
-                        // Find and draw the loaded emoji image
-                        const loadedEmoji = emojiImages.find(e => 
-                            // For Discord emojis, match by ID
-                            (emoji.id && e.id === emoji.id) || 
-                            // For Twemojis, match by full text
-                            (!emoji.id && e.full === emoji.full)
-                        )
-                        if (loadedEmoji) {
-                            drawEmoji(loadedEmoji, currentX, y)
+                        if (emoji.type === 'ping') {
+                            const pingWidth = ctx.measureText(emoji.full).width
+                            drawText(emoji.full, currentX + pingWidth/2, y, true)
+                            currentX += pingWidth
+                        } else {
+                            // Find and draw the loaded emoji image
+                            const loadedEmoji = emojiImages.find(e => 
+                                // For Discord emojis, match by ID
+                                (emoji.id && e.id === emoji.id) || 
+                                // For Twemojis, match by full text
+                                (!emoji.id && e.full === emoji.full)
+                            )
+                            if (loadedEmoji) {
+                                drawEmoji(loadedEmoji, currentX, y)
+                            }
+                            currentX += fontSize
                         }
-                        currentX += fontSize
                         currentPos = emoji.relativeIndex + emoji.length
                     }
 
@@ -559,7 +596,7 @@ export class QuoteImageFactory {
                     const remainingText = lineText.substring(currentPos)
                     if (remainingText) {
                         const textWidth = ctx.measureText(remainingText).width
-                        ctx.fillText(remainingText, currentX + textWidth/2, y)
+                        drawText(remainingText, currentX + textWidth/2, y)
                         currentX += textWidth
                     }
 
