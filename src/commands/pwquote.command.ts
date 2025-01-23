@@ -63,12 +63,16 @@ export default {
         
         await interaction.deferReply()
         const factory = QuoteImageFactory.getInstance()
-        const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw')
-        await interaction.editReply({ 
-            files: [
-                new AttachmentBuilder(result.buffer)
-                    .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
-            ] 
-        })
+        try {
+            const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw')
+            await interaction.editReply({ 
+                files: [
+                    new AttachmentBuilder(result.buffer)
+                        .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
+                ] 
+            })
+        } catch (error) {
+            await interaction.editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error'))
+        }
     }
 } satisfies SlashCommand
