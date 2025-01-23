@@ -1,6 +1,7 @@
-import { EmbedBuilder, SlashCommandBuilder } from 'discord.js'
-import type { ImageExtension, ImageSize } from 'discord.js'
-
+import {
+    EmbedBuilder, SlashCommandBuilder,
+    type ImageExtension, type ImageSize
+} from 'discord.js'
 import { SlashCommand } from '../modules/CommandManager'
 
 export default {

@@ -1,11 +1,5 @@
-// This module will "rule over" a specific discord thread, and will do this:
-// 1. monitor for any messages sent
-// 2. when a message is sent, grab these: message text, author server name and their color
-// 3. run it through the same function as in /pwquote (and /ac7quote later on, todo)
-// 4. send the image back to the same thread, then delete the original message
-
 import { AttachmentBuilder, type Client, type ThreadChannel } from 'discord.js'
-import { createQuoteImage } from '../util/functions'
+import { QuoteImageFactory } from './QuoteImageFactory'
 import { readFile } from 'fs/promises'
 import path from 'path'
 
@@ -28,7 +22,8 @@ export default class QuoteFactory {
             const color = message.member!.displayHexColor
             const gradient = 'none'
             const stretchGradient = false
-            const result = await createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw')
+            const factory = QuoteImageFactory.getInstance()
+            const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw')
             const image = new AttachmentBuilder(result.buffer)
                 .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
 

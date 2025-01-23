@@ -1,5 +1,5 @@
 import { SlashCommand } from '../modules/CommandManager'
-import { CommandInteraction, SlashCommandBuilder } from 'discord.js'
+import { SlashCommandBuilder } from 'discord.js'
 import { sleep } from 'bun'
 
 export default {

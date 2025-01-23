@@ -26,7 +26,7 @@ async function randomUnusualArticle(): Promise<string> {
     const res = await axios.get(url)
     const $ = load(res.data)
     const articleLinks: string[] = []
-    $('div.mw-parser-output ul li a').each((index, element) => {
+    $('div.mw-parser-output ul li a').each((_, element) => {
         const href = $(element).attr('href')
         if (href && href.startsWith('/wiki/') && !href.includes(':')) {
             articleLinks.push(`https://en.wikipedia.org${href}`)
