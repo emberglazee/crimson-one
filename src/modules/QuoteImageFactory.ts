@@ -463,11 +463,12 @@ export class QuoteImageFactory {
                         ctx.fillStyle = '#7289DA30' // Discord ping color with 30% opacity
                         const bgPadding = fontSize * 0.2
                         const bgHeight = fontSize * 1.1
+                        const bgOffset = 10 // Offset background down by 10px
                         // Round the corners of the background
                         ctx.beginPath()
                         ctx.roundRect(
                             x - textWidth/2 - bgPadding,
-                            y - bgPadding/2,
+                            y + bgOffset - bgPadding/2,
                             textWidth + bgPadding * 2,
                             bgHeight,
                             bgHeight/2
