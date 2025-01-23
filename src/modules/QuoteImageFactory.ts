@@ -369,7 +369,7 @@ export class QuoteImageFactory {
                 return width
             }
 
-            // Word wrap speaker name
+            // Word wrap speaker name with long word handling
             const speakerLines: string[] = []
             let speakerStartIndices: number[] = []
             let currentIndex = 0
@@ -377,32 +377,50 @@ export class QuoteImageFactory {
 
             for (const textLine of speakerTextLines) {
                 const words = textLine.split(' ')
-                let currentLine = words[0]
-                let lineStart = currentIndex
-                currentIndex += currentLine.length
-
-                for (let i = 1; i < words.length; i++) {
+                for (let i = 0; i < words.length; i++) {
                     const word = words[i]
-                    const testLine = currentLine + ' ' + word
-                    const actualWidth = measureWordWidth(testLine, lineStart, speakerEmojis)
+                    const wordWidth = measureWordWidth(word, currentIndex, speakerEmojis)
 
-                    if (actualWidth > maxWidth) {
-                        speakerLines.push(currentLine)
-                        speakerStartIndices.push(lineStart)
-                        currentLine = word
-                        lineStart = currentIndex + 1
-                        currentIndex = lineStart + word.length
+                    if (wordWidth > maxWidth) {
+                        // Split long word into chunks
+                        let remainingWord = word
+                        let remainingIndex = currentIndex
+                        
+                        while (remainingWord.length > 0) {
+                            let chunkLength = remainingWord.length
+                            while (chunkLength > 0 && measureWordWidth(remainingWord.slice(0, chunkLength), remainingIndex, speakerEmojis) > maxWidth) {
+                                chunkLength--
+                            }
+                            
+                            // If we couldn't fit even one character, force at least one
+                            if (chunkLength === 0) chunkLength = 1
+                            
+                            const chunk = remainingWord.slice(0, chunkLength)
+                            speakerLines.push(chunk)
+                            speakerStartIndices.push(remainingIndex)
+                            
+                            remainingWord = remainingWord.slice(chunkLength)
+                            remainingIndex += chunkLength
+                        }
+                        currentIndex += word.length + 1
                     } else {
-                        currentLine = testLine
-                        currentIndex = lineStart + testLine.length
+                        // Normal word handling
+                        const isFirstWord = i === 0
+                        const testLine = isFirstWord ? word : speakerLines[speakerLines.length - 1] + ' ' + word
+                        const testWidth = isFirstWord ? wordWidth : measureWordWidth(testLine, speakerStartIndices[speakerStartIndices.length - 1], speakerEmojis)
+
+                        if (!isFirstWord && testWidth <= maxWidth) {
+                            speakerLines[speakerLines.length - 1] = testLine
+                        } else {
+                            speakerLines.push(word)
+                            speakerStartIndices.push(currentIndex)
+                        }
+                        currentIndex += word.length + 1
                     }
                 }
-                speakerLines.push(currentLine)
-                speakerStartIndices.push(lineStart)
-                currentIndex += 1
             }
 
-            // Word wrap quote with emoji preservation
+            // Word wrap quote with emoji preservation and long word handling
             const quoteLines: string[] = []
             let lineStartIndices: number[] = []
             currentIndex = 0
@@ -410,29 +428,87 @@ export class QuoteImageFactory {
             
             for (const textLine of textLines) {
                 const words = textLine.split(' ')
-                let currentLine = words[0]
-                let lineStart = currentIndex
-                currentIndex += currentLine.length
-
-                for (let i = 1; i < words.length; i++) {
+                for (let i = 0; i < words.length; i++) {
                     const word = words[i]
-                    const testLine = currentLine + ' ' + word
-                    const actualWidth = measureWordWidth(testLine, lineStart, quoteEmojis)
+                    const wordWidth = measureWordWidth(word, currentIndex, quoteEmojis)
 
-                    if (actualWidth > maxWidth) {
-                        quoteLines.push(currentLine)
-                        lineStartIndices.push(lineStart)
-                        currentLine = word
-                        lineStart = currentIndex + 1
-                        currentIndex = lineStart + word.length
+                    if (wordWidth > maxWidth) {
+                        // Split long word into chunks, first try splitting at slashes
+                        const slashParts = word.split('/')
+                        if (slashParts.length > 1) {
+                            // Handle each part as a separate word
+                            for (const part of slashParts) {
+                                if (part) { // Skip empty parts
+                                    const partWidth = measureWordWidth(part, currentIndex, quoteEmojis)
+                                    if (partWidth > maxWidth) {
+                                        // If part is still too long, do character-by-character splitting
+                                        let remainingWord = part
+                                        let remainingIndex = currentIndex
+                                        
+                                        while (remainingWord.length > 0) {
+                                            let chunkLength = remainingWord.length
+                                            while (chunkLength > 0 && measureWordWidth(remainingWord.slice(0, chunkLength), remainingIndex, quoteEmojis) > maxWidth) {
+                                                chunkLength--
+                                            }
+                                            
+                                            if (chunkLength === 0) chunkLength = 1
+                                            
+                                            const chunk = remainingWord.slice(0, chunkLength)
+                                            quoteLines.push(chunk)
+                                            lineStartIndices.push(remainingIndex)
+                                            
+                                            remainingWord = remainingWord.slice(chunkLength)
+                                            remainingIndex += chunkLength
+                                        }
+                                    } else {
+                                        quoteLines.push(part)
+                                        lineStartIndices.push(currentIndex)
+                                    }
+                                    currentIndex += part.length + 1
+                                }
+                                
+                                // Add slash back except for last part
+                                if (part !== slashParts[slashParts.length - 1]) {
+                                    quoteLines[quoteLines.length - 1] += '/'
+                                }
+                            }
+                        } else {
+                            // No slashes, fall back to character-by-character splitting
+                            let remainingWord = word
+                            let remainingIndex = currentIndex
+                            
+                            while (remainingWord.length > 0) {
+                                let chunkLength = remainingWord.length
+                                while (chunkLength > 0 && measureWordWidth(remainingWord.slice(0, chunkLength), remainingIndex, quoteEmojis) > maxWidth) {
+                                    chunkLength--
+                                }
+                                
+                                if (chunkLength === 0) chunkLength = 1
+                                
+                                const chunk = remainingWord.slice(0, chunkLength)
+                                quoteLines.push(chunk)
+                                lineStartIndices.push(remainingIndex)
+                                
+                                remainingWord = remainingWord.slice(chunkLength)
+                                remainingIndex += chunkLength
+                            }
+                            currentIndex += word.length + 1
+                        }
                     } else {
-                        currentLine = testLine
-                        currentIndex = lineStart + testLine.length
+                        // Normal word handling
+                        const isFirstWord = i === 0
+                        const testLine = isFirstWord ? word : quoteLines[quoteLines.length - 1] + ' ' + word
+                        const testWidth = isFirstWord ? wordWidth : measureWordWidth(testLine, lineStartIndices[lineStartIndices.length - 1], quoteEmojis)
+
+                        if (!isFirstWord && testWidth <= maxWidth) {
+                            quoteLines[quoteLines.length - 1] = testLine
+                        } else {
+                            quoteLines.push(word)
+                            lineStartIndices.push(currentIndex)
+                        }
+                        currentIndex += word.length + 1
                     }
                 }
-                quoteLines.push(currentLine)
-                lineStartIndices.push(lineStart)
-                currentIndex += 1
             }
 
             // Calculate height based on number of lines
