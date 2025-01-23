@@ -27,7 +27,7 @@ export default class QuoteFactory {
             const image = new AttachmentBuilder(result.buffer)
                 .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
 
-            if (message.content.includes('preble')) {
+            if (message.content.toLowerCase().includes('preble')) {
                 const preble = new AttachmentBuilder(await readFile(path.join(__dirname, '../../data/preble.wav')), { name: 'preble.wav' })
                 await this.thread!.send({ files: [image, preble] })
                 return
