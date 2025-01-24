@@ -1,15 +1,17 @@
+import { Logger } from '../util/logger'
+const logger = Logger.new('CommandManager')
+
 import {
     SlashCommandBuilder, ChatInputCommandInteraction, PermissionsBitField,
     ContextMenuCommandBuilder, ContextMenuCommandInteraction, Client,
     type SlashCommandSubcommandsOnlyBuilder, CommandInteraction,
     type SlashCommandOptionsOnlyBuilder
 } from 'discord.js'
-import fs from 'fs'
-import { Logger } from '../util/logger'
-const logger = Logger.new('CommandManager')
+
+import { readdir } from 'fs/promises'
+import type { Dirent } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-
 const esmodules = !!import.meta.url
 
 export interface ISlashCommand {
@@ -37,31 +39,33 @@ export abstract class ContextMenuCommand implements IContextMenuCommand {
 export default class CommandHandler {
     globalCommands: SlashCommand[] = []
     contextMenuCommands: ContextMenuCommand[] = []
-    files: fs.Dirent[] = []
+    files: Dirent[] = []
     initialized = false
     client: Client
     constructor(client: Client) {
         this.client = client
     }
-    async init() {
+    public async init() {
+        logger.info('{init} Initializing...')
         const initStartTime = Date.now()
-        logger.info('{init} Reading the command folder...')
-        this.files = await fs.promises.readdir(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, '../commands'), { withFileTypes: true })
-        logger.ok(`{init} ${this.files.length} files found`)
-        for (const file of this.files) await this.importCommand(file)
+        await this.loadCommands(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, '../commands'))
         this.initialized = true
         const initEndTime = Date.now()
         const totalTime = (initEndTime - initStartTime) / 1000
-        logger.ok(`{init} Total time to import all commands: ${totalTime}s`)
+        logger.ok(`{init} Total time: ${totalTime}s`)
     }
-    async importCommand(file: fs.Dirent) {
-        logger.info(`{importCommand} Reading ${file.name}...`)
+    private async importCommand(file: Dirent) {
+        logger.info(`{importCommand} Importing ${file.name}...`)
         const startTime = Date.now()
         try {
             const importedModule = (await import(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, `../commands/${file.name}`)))
             const command: SlashCommand | ContextMenuCommand = importedModule.default
             if (!command.data) {
                 logger.warn(`{importCommand} Command data not found in ${file.name}`)
+                return null
+            }
+            if (!command.execute) {
+                logger.warn(`{importCommand} Command execute method not found in ${file.name}`)
                 return null
             }
 
@@ -79,8 +83,21 @@ export default class CommandHandler {
             return null
         }
     }
+    private async loadCommands(dir: string) {
+        logger.info(`{loadCommands} Reading commands from ${dir}...`)
+        const files = await readdir(dir, { withFileTypes: true })
+        logger.info(`{loadCommands} Found ${files.length} files in ${dir}`)
+        for (const file of files) {
+            if (file.isDirectory()) {
+                await this.loadCommands(path.join(dir, file.name))
+            } else if (file.isFile() && file.name.endsWith('.ts')) {
+                await this.importCommand(file)
+            }
+        }
+        logger.ok(`{loadCommands} Finished loading commands in ${dir}`)
+    }
 
-    async handleInteraction(interaction: CommandInteraction | ContextMenuCommandInteraction): Promise<void> {
+    public async handleInteraction(interaction: CommandInteraction | ContextMenuCommandInteraction): Promise<void> {
         if (!this.initialized) throw new ClassNotInitializedError()
         const matchingCommand = this.findMatchingCommand(interaction)
         if (!matchingCommand) {
@@ -98,7 +115,7 @@ export default class CommandHandler {
         }
     }
 
-    findMatchingCommand(interaction: CommandInteraction | ContextMenuCommandInteraction) {
+    private findMatchingCommand(interaction: CommandInteraction | ContextMenuCommandInteraction) {
         if (interaction.isChatInputCommand()) {
             return this.globalCommands.find(
                 command => command.data.name === interaction.commandName
@@ -113,7 +130,7 @@ export default class CommandHandler {
         return undefined
     }
 
-    async executeCommand(command: SlashCommand | ContextMenuCommand, interaction: CommandInteraction | ContextMenuCommandInteraction) {
+    private async executeCommand(command: SlashCommand | ContextMenuCommand, interaction: CommandInteraction | ContextMenuCommandInteraction) {
         if (!command.execute) {
             throw new Error(`Command ${interaction.commandName} does not have an execute method`)
         }
@@ -127,29 +144,24 @@ export default class CommandHandler {
         }
     }
 
-    handleError(e: Error, interaction: CommandInteraction | ContextMenuCommandInteraction) {
+    private handleError(e: Error, interaction: CommandInteraction | ContextMenuCommandInteraction) {
         if (!interaction.deferred) interaction.reply(`❌ Deferred interraction error: \`${e.message}\``)
         else interaction.editReply(`❌ Interaction error: \`${e.message}\``)
         logger.error(`{handleInteraction} Error while executing command ${interaction.commandName}: ${e.message}\n${e.stack}`)
     }
-    async refreshGlobalCommands() {
+    public async refreshGlobalCommands() {
         if (!this.initialized) throw new ClassNotInitializedError()
 
         logger.info('{refreshGlobalCommands} Refreshing global commands...')
         await this.client.application!.commands.set([...this.globalCommands, ...this.contextMenuCommands].map(command => command.data))
     }
-    commandList(guildId?: string) {
-        if (!this.initialized) throw new ClassNotInitializedError()
-        const commands = [...this.globalCommands]
-        return commands
-    }
-    static isGlobalSlashCommand = (obj: any): obj is SlashCommand => {
+    public static isGlobalSlashCommand = (obj: any): obj is SlashCommand => {
         return CommandHandler.isSlashCommand(obj) && !('guildId' in obj)
     }
-    static isSlashCommand = (obj: any): obj is SlashCommand => {
+    public static isSlashCommand = (obj: any): obj is SlashCommand => {
         return obj.data instanceof SlashCommandBuilder
     }
-    static isContextMenuCommand = (obj: any): obj is ContextMenuCommand => {
+    public static isContextMenuCommand = (obj: any): obj is ContextMenuCommand => {
         return obj.data instanceof ContextMenuCommandBuilder && ['user', 'message'].includes(obj.type)
     }
 }
