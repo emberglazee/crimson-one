@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import fs from 'fs/promises'
 import { randArr } from '../util/functions'
@@ -24,7 +24,7 @@ export default {
         let deferred = false
         if (!emojis.length) {
             await interaction.deferReply({
-                ephemeral: interaction.options.getBoolean('ephemeral', false) ?? undefined
+                flags: interaction.options.getBoolean('ephemeral', false) ? MessageFlags.Ephemeral : undefined
             })
             deferred = true
             logger.info('Reading emojis.json...')

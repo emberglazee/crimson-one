@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { Logger } from '../util/logger'
 const logger = new Logger('command.test')
@@ -14,11 +14,11 @@ export default {
         ),
     async execute(interaction) {
         logger.info('Command executed')
-        const ephemeral = interaction.options.getBoolean('ephemeral', false) ?? undefined
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
         logger.info(`Ephemeral: ${ephemeral}`)
         await interaction.reply({
             content: `Test command executed, ephemeral: ${ephemeral}`,
-            ephemeral: ephemeral
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
         logger.ok('Command execution over')
     }

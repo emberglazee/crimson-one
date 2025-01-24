@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 
 export default {
@@ -19,7 +19,10 @@ export default {
         const outputText = drunkWrite(inputText)
         const isEphermal = interaction.options.getBoolean('ephermal') || false
 
-        if (isEphermal) await interaction.reply({ content: outputText, ephemeral: true })
+        if (isEphermal) await interaction.reply({
+            content: outputText,
+            flags: isEphermal ? MessageFlags.Ephemeral : undefined
+        })
         else await interaction.reply(outputText)
     }
 } satisfies SlashCommand

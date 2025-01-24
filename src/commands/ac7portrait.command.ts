@@ -1,5 +1,5 @@
 import { SlashCommand } from '../modules/CommandManager'
-import { SlashCommandBuilder, AttachmentBuilder } from 'discord.js'
+import { SlashCommandBuilder, AttachmentBuilder, MessageFlags } from 'discord.js'
 import { createCanvas, loadImage } from 'canvas'
 
 export default {
@@ -30,6 +30,10 @@ export default {
             .setName('filter')
             .setDescription('Apply green tint filter to the image')
             .setRequired(false)
+        ).addBooleanOption(so => so
+            .setName('ephemeral')
+            .setDescription('Should the response only show up for you?')
+            .setRequired(false)
         ),
     /**
      * Creates an AC7-style portrait frame with the following specifications:
@@ -45,7 +49,9 @@ export default {
      * @returns Promise<void>
      */
     async execute(interaction) {
-        await interaction.deferReply()
+        await interaction.deferReply({
+            flags: interaction.options.getBoolean('ephemeral', false) ? MessageFlags.Ephemeral : undefined
+        })
 
         // Get image URL from options
         const attachment = interaction.options.getAttachment('image')

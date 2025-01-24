@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { MessageFlags, SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { Logger } from '../util/logger'
 const logger = new Logger('command.setusername')
@@ -52,22 +52,27 @@ export default {
         ),
     async execute(interaction) {
         logger.info('Command executed')
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
+
         const user = interaction.user
         if (user.id !== '341123308844220447') {
-            await interaction.reply('❌ You, solely, are responsible for this')
+            await interaction.reply({
+                content: '❌ You, solely, are responsible for this',
+                flags: ephemeral ? MessageFlags.Ephemeral : undefined
+            })
             return
         }
 
         if (!canExecuteCommand()) {
             await interaction.reply({
                 content: `❌ This command can only be ran ${USAGE_LIMIT} times every ${WINDOW_MINUTES} minutes, to avoid API rate limiting`,
-                ephemeral: true
+                flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
             return
         }
 
         await interaction.deferReply({
-            ephemeral: interaction.options.getBoolean('ephemeral', false) ?? undefined
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
 
         let username = interaction.options.getString('username')
@@ -76,7 +81,6 @@ export default {
             await interaction.editReply('❌ You must provide either a username or a shortcut')
             return
         }
-
         if (shortcut === 'guild') {
             if (!interaction.guild) {
                 await interaction.editReply('❌ The `guild` shortcut can only be used in a guild channel')
