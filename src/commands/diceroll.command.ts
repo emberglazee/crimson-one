@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 
 export default {
@@ -17,6 +17,10 @@ export default {
             .setName('user')
             .setDescription('Who is the roll for?')
             .setRequired(false)
+        ).addBooleanOption(bo => bo
+            .setName('ephemeral')
+            .setDescription('Should the response only show up for you?')
+            .setRequired(false)
         ),
     async execute(interaction) {
         const user = interaction.options.getUser('user') || interaction.user
@@ -33,6 +37,9 @@ export default {
         if (channel && channel.id === '311334325402599425') {
             message += '\n-# dont spam the command here or else'
         }
-        await interaction.reply(message)
+        await interaction.reply({
+            content: message,
+            flags: interaction.options.getBoolean('ephemeral') ? MessageFlags.Ephemeral : undefined
+        })
     }
 } satisfies SlashCommand

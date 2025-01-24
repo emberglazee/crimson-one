@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { Logger } from '../util/logger'
 import { formatBytes } from '../util/functions'
@@ -7,7 +7,12 @@ const logger = new Logger('command.botinfo')
 export default {
     data: new SlashCommandBuilder()
         .setName('botinfo')
-        .setDescription('Show bot statistics and information'),
+        .setDescription('Show bot statistics and information')
+        .addBooleanOption(bo => bo
+            .setName('ephemeral')
+            .setDescription('Should the response only show up for you?')
+            .setRequired(false)
+        ),
     async execute(interaction) {
         const { heapUsed, heapTotal, rss } = process.memoryUsage()
         const uptime = Math.floor(process.uptime())
@@ -23,7 +28,8 @@ export default {
                 ],
                 color: 0x2B2D31,
                 timestamp: new Date().toISOString()
-            }]
+            }],
+            flags: interaction.options.getBoolean('ephemeral', false) ? MessageFlags.Ephemeral : undefined
         })
         logger.ok('Command executed')
     }

@@ -46,7 +46,12 @@ export default {
                 { name: 'Server', value: 'guild' },
                 { name: 'Global', value: 'global' }
             ).setRequired(false)
+        ).addBooleanOption(bo => bo
+            .setName('ephemeral')
+            .setDescription('Should the response show up only for you?')
+            .setRequired(false)
         ),
+
     async execute(interaction) {
         const user = interaction.options.getUser('user', false) ?? interaction.user
         const raw = interaction.options.getBoolean('raw', false) ?? false
@@ -61,9 +66,7 @@ export default {
                 avatar = user.displayAvatarURL({ extension: ext, size: size })
             } else {
                 const member = await interaction.guild.members.fetch(user.id)
-                if (!member) {
-                    await interaction.reply('❌ User not found in this server')
-                }
+                if (!member) await interaction.reply('❌ User not found in this server')
                 avatar = member.displayAvatarURL({ extension: ext, size: size })
             }
         } else if (guildOrGlobal === 'global') {

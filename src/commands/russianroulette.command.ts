@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js'
+import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 
 export default {
@@ -9,21 +9,28 @@ export default {
             .setName('action')
             .setDescription('What happens if you lose (e.g., "timeout for 1 minute")')
             .setRequired(true)
+        ).addBooleanOption(bo => bo
+            .setName('ephemeral')
+            .setDescription('Should the response only show up for you?')
+            .setRequired(false)
         ),
 
     async execute(interaction: ChatInputCommandInteraction) {
         const action = interaction.options.getString('action', true)
         const chamber = Math.floor(Math.random() * 6) + 1
+        const epheremal = interaction.options.getBoolean('ephemeral', false)
 
         if (chamber === 1) {
             await interaction.reply({
                 content: `🔫 **BANG!** ${interaction.user} Predictable.\nConsequence|| (of power)||: ${action}`,
-                allowedMentions: { users: [interaction.user.id] }
+                allowedMentions: { users: [interaction.user.id] },
+                flags: epheremal ? MessageFlags.Ephemeral : undefined
             })
         } else {
             await interaction.reply({
                 content: `🔫 *click* - ${interaction.user} got lucky... Next time.\n-# Specified action was: ${action}`,
-                allowedMentions: { users: [interaction.user.id] }
+                allowedMentions: { users: [interaction.user.id] },
+                flags: epheremal ? MessageFlags.Ephemeral : undefined
             })
         }
     }

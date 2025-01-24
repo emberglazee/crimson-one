@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { Logger } from '../util/logger'
 const logger = new Logger('command.hoi4hours')
@@ -15,7 +15,7 @@ export default {
     async execute(interaction) {
         logger.info('Command executed')
         await interaction.deferReply({
-            ephemeral: interaction.options.getBoolean('ephemeral', false) ?? undefined
+            flags: interaction.options.getBoolean('ephemeral', false) ? MessageFlags.Ephemeral : undefined
         })
 
         interface SteamAPIResponse {

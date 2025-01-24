@@ -1,4 +1,4 @@
-import { AttachmentBuilder, SlashCommandBuilder } from 'discord.js'
+import { AttachmentBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { QuoteImageFactory } from '../modules/QuoteImageFactory'
 import { type GradientType, COLORS, ROLE_COLORS } from '../util/colors'
@@ -42,6 +42,10 @@ export default {
             .setName('stretch')
             .setDescription('Stretch gradient across entire name instead of repeating')
             .setRequired(false)
+        ).addBooleanOption(so => so
+            .setName('ephemeral')
+            .setDescription('Should the response only show up for you?')
+            .setRequired(false)
         ),
     async execute(interaction) {
         const speaker = interaction.options.getString('speaker', true)
@@ -55,13 +59,15 @@ export default {
                 ? COLORS.find(c => c.name === plainColor)?.hex ?? null
                 : null
         const stretchGradient = interaction.options.getBoolean('stretch') ?? false
-        
+
         if (!color && gradient === 'none') {
             await interaction.reply('❌ Either color/role color or gradient must be provided')
             return
         }
-        
-        await interaction.deferReply()
+
+        await interaction.deferReply({
+            flags: interaction.options.getBoolean('ephemeral', false) ? MessageFlags.Ephemeral : undefined
+        })
         const factory = QuoteImageFactory.getInstance()
         factory.setGuild(interaction.guild!)
         try {

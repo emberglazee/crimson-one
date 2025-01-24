@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { Logger } from '../util/logger'
 import { inspect } from 'util'
@@ -28,7 +28,7 @@ export default {
 
         const ephemeral = interaction.options.getBoolean('ephemeral', false) || undefined
         await interaction.deferReply({
-            ephemeral
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
 
         const code = interaction.options.getString('code', true)
