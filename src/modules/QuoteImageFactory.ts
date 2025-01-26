@@ -229,6 +229,7 @@ export class QuoteImageFactory {
         const minWidth = 1024
         const maxWidth = 2048
         const font = style === 'pw' ? 'Roboto' : 'Aces07'
+        const arrowQuoteWidth = style === 'ac7' ? 80 : 0 // Width for << and >> in AC7 style
 
         // Create canvas for measurements
         const measureCanvas = createCanvas(1, 1)
@@ -391,14 +392,14 @@ export class QuoteImageFactory {
                     maxLineWidth = Math.max(maxLineWidth, lineWidth)
                     currentIndex += line.length + 1
                 }
-                return maxLineWidth + padding * 2
+                return maxLineWidth + padding * 2 + arrowQuoteWidth
             }
 
             const speakerWidth = calculateRequiredWidth(speaker, speakerEmojis)
             const quoteWidth = calculateRequiredWidth(quote, quoteEmojis)
             const requiredWidth = Math.max(speakerWidth, quoteWidth)
             const width = Math.min(Math.max(minWidth, requiredWidth), maxWidth)
-            const effectiveMaxWidth = width - padding * 2
+            const effectiveMaxWidth = width - padding * 2 - arrowQuoteWidth
 
             // Word wrap speaker name with long word handling
             const speakerLines: string[] = []
