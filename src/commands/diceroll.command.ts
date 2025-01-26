@@ -23,6 +23,7 @@ export default {
             .setRequired(false)
         ),
     async execute(interaction) {
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const user = interaction.options.getUser('user') || interaction.user
         const channel = interaction.channel
 
@@ -39,7 +40,7 @@ export default {
         }
         await interaction.reply({
             content: message,
-            flags: interaction.options.getBoolean('ephemeral') ? MessageFlags.Ephemeral : undefined
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
     }
 } satisfies SlashCommand

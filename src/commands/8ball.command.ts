@@ -26,6 +26,7 @@ export default {
             .setRequired(false)
         ),
     async execute(interaction) {
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const question = interaction.options.getString('question', true)
         const theme = interaction.options.getString('theme', false)
 
@@ -91,7 +92,7 @@ export default {
 
         await interaction.reply({
             content: msgPrefix + msgLoading,
-            flags: interaction.options.getBoolean('ephemeral', false) ? MessageFlags.Ephemeral : undefined,
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined,
         })
         await sleep(randRange(600, 3000))
         await interaction.editReply(msgPrefix + msgAnswer)

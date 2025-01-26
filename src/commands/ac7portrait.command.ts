@@ -49,8 +49,9 @@ export default {
      * @returns Promise<void>
      */
     async execute(interaction) {
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
         await interaction.deferReply({
-            flags: interaction.options.getBoolean('ephemeral', false) ? MessageFlags.Ephemeral : undefined
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
 
         // Get image URL from options

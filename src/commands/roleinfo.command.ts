@@ -16,12 +16,12 @@ export default {
             .setRequired(false)
         ),
     async execute(interaction) {
-        const isEphemeral = interaction.options.getBoolean('ephemeral', false)
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
 
         if (!interaction.guild) {
             await interaction.reply({
                 content: '❌ This command can only be used in a server!',
-                flags: isEphemeral ? MessageFlags.Ephemeral : undefined
+                flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
         }
 
@@ -44,7 +44,7 @@ export default {
 
         await interaction.reply({
             embeds: [embed],
-            flags: isEphemeral ? MessageFlags.Ephemeral : undefined
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
     }
 } satisfies SlashCommand

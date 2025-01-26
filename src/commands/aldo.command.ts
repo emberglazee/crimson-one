@@ -13,8 +13,9 @@ export default {
             .setRequired(false)
         ),
     async execute(interaction) {
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
         await interaction.deferReply({
-            flags: interaction.options.getBoolean('ephemeral', false) ? MessageFlags.Ephemeral : undefined
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
         const url = await randomUnusualArticle().catch(() => '❌ Failed to get article')
         await interaction.editReply(url)

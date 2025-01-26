@@ -14,6 +14,7 @@ export default {
             .setRequired(false)
         ),
     async execute(interaction) {
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const { heapUsed, heapTotal, rss } = process.memoryUsage()
         const uptime = Math.floor(process.uptime())
         const uptimeStr = `${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`
@@ -29,7 +30,7 @@ export default {
                 color: 0x2B2D31,
                 timestamp: new Date().toISOString()
             }],
-            flags: interaction.options.getBoolean('ephemeral', false) ? MessageFlags.Ephemeral : undefined
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
         logger.ok('Command executed')
     }
