@@ -2,12 +2,13 @@ import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import fs from 'fs/promises'
 import { randArr } from '../util/functions'
-import path from 'path'
+import { join } from 'path'
+import type { Emoji, Emojis } from '../types/types'
 
 import { Logger } from '../util/logger'
 const logger = new Logger('command.randombilly')
 
-let emojis: { [key: string]: string }[] = []
+let emojis: Emoji[] = []
 
 export default {
     data: new SlashCommandBuilder()
@@ -27,9 +28,12 @@ export default {
                 flags: interaction.options.getBoolean('ephemeral', false) ? MessageFlags.Ephemeral : undefined
             })
             deferred = true
-            logger.info('Reading emojis.json...')
-            emojis = JSON.parse(await fs.readFile(path.join(__dirname, '../../data/emojis.json'), 'utf-8')).billy
-            logger.ok('emojis.json read')
+            logger.info('`emojis` not set, reading emojis.json...')
+            const json = JSON.parse(
+                await fs.readFile(join(__dirname, '../../data/emojis.json'), 'utf-8')
+            ) as Emojis
+            emojis = json.billy
+            logger.ok('emojis.json read, `emojis` set')
         }
         const emoji = randArr(emojis)
         const emojiName = Object.keys(emoji)[0]
