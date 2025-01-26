@@ -5,7 +5,7 @@ const logger = Logger.new('event.interactionCreate')
 
 export default function onInteractionCreate(client: Client) {
     client.on('interactionCreate', async interaction => {
-        if (!interaction.isChatInputCommand()) return
+        if (!interaction.isChatInputCommand() || !interaction.isContextMenuCommand()) return
         commandHandler.handleInteraction(interaction).catch(err => {
             logger.warn(`Error while handling interaction: ${err.message}\n${err.stack}`)
         })
