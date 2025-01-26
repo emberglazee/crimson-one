@@ -226,8 +226,8 @@ export class QuoteImageFactory {
         const fontSize = 48
         const lineHeight = fontSize * 1.2
         const padding = 40
-        const width = 1024
-        const maxWidth = width - padding * 2
+        const minWidth = 1024
+        const maxWidth = 2048
         const font = style === 'pw' ? 'Roboto' : 'Aces07'
 
         // Create canvas for measurements
@@ -369,6 +369,37 @@ export class QuoteImageFactory {
                 return width
             }
 
+            // Calculate optimal width based on speaker and quote content
+            const calculateRequiredWidth = (text: string, emojis: ReturnType<typeof parseEmojis>) => {
+                let maxLineWidth = 0
+                const lines = text.split('\n')
+                let currentIndex = 0
+
+                for (const line of lines) {
+                    let lineWidth = 0
+                    const lineEmojis = emojis.filter(e => 
+                        e.index >= currentIndex && 
+                        e.index < currentIndex + line.length
+                    )
+
+                    const words = line.split(' ')
+                    for (const word of words) {
+                        lineWidth += measureWordWidth(word, currentIndex, emojis) + 
+                            (lineWidth > 0 ? measureCtx.measureText(' ').width : 0)
+                    }
+
+                    maxLineWidth = Math.max(maxLineWidth, lineWidth)
+                    currentIndex += line.length + 1
+                }
+                return maxLineWidth + padding * 2
+            }
+
+            const speakerWidth = calculateRequiredWidth(speaker, speakerEmojis)
+            const quoteWidth = calculateRequiredWidth(quote, quoteEmojis)
+            const requiredWidth = Math.max(speakerWidth, quoteWidth)
+            const width = Math.min(Math.max(minWidth, requiredWidth), maxWidth)
+            const effectiveMaxWidth = width - padding * 2
+
             // Word wrap speaker name with long word handling
             const speakerLines: string[] = []
             let speakerStartIndices: number[] = []
@@ -381,14 +412,14 @@ export class QuoteImageFactory {
                     const word = words[i]
                     const wordWidth = measureWordWidth(word, currentIndex, speakerEmojis)
 
-                    if (wordWidth > maxWidth) {
+                    if (wordWidth > effectiveMaxWidth) {
                         // Split long word into chunks
                         let remainingWord = word
                         let remainingIndex = currentIndex
                         
                         while (remainingWord.length > 0) {
                             let chunkLength = remainingWord.length
-                            while (chunkLength > 0 && measureWordWidth(remainingWord.slice(0, chunkLength), remainingIndex, speakerEmojis) > maxWidth) {
+                            while (chunkLength > 0 && measureWordWidth(remainingWord.slice(0, chunkLength), remainingIndex, speakerEmojis) > effectiveMaxWidth) {
                                 chunkLength--
                             }
                             
@@ -409,7 +440,7 @@ export class QuoteImageFactory {
                         const testLine = isFirstWord ? word : speakerLines[speakerLines.length - 1] + ' ' + word
                         const testWidth = isFirstWord ? wordWidth : measureWordWidth(testLine, speakerStartIndices[speakerStartIndices.length - 1], speakerEmojis)
 
-                        if (!isFirstWord && testWidth <= maxWidth) {
+                        if (!isFirstWord && testWidth <= effectiveMaxWidth) {
                             speakerLines[speakerLines.length - 1] = testLine
                         } else {
                             speakerLines.push(word)
@@ -432,7 +463,7 @@ export class QuoteImageFactory {
                     const word = words[i]
                     const wordWidth = measureWordWidth(word, currentIndex, quoteEmojis)
 
-                    if (wordWidth > maxWidth) {
+                    if (wordWidth > effectiveMaxWidth) {
                         // Split long word into chunks, first try splitting at slashes
                         const slashParts = word.split('/')
                         if (slashParts.length > 1) {
@@ -440,14 +471,14 @@ export class QuoteImageFactory {
                             for (const part of slashParts) {
                                 if (part) { // Skip empty parts
                                     const partWidth = measureWordWidth(part, currentIndex, quoteEmojis)
-                                    if (partWidth > maxWidth) {
+                                    if (partWidth > effectiveMaxWidth) {
                                         // If part is still too long, do character-by-character splitting
                                         let remainingWord = part
                                         let remainingIndex = currentIndex
                                         
                                         while (remainingWord.length > 0) {
                                             let chunkLength = remainingWord.length
-                                            while (chunkLength > 0 && measureWordWidth(remainingWord.slice(0, chunkLength), remainingIndex, quoteEmojis) > maxWidth) {
+                                            while (chunkLength > 0 && measureWordWidth(remainingWord.slice(0, chunkLength), remainingIndex, quoteEmojis) > effectiveMaxWidth) {
                                                 chunkLength--
                                             }
                                             
@@ -479,7 +510,7 @@ export class QuoteImageFactory {
                             
                             while (remainingWord.length > 0) {
                                 let chunkLength = remainingWord.length
-                                while (chunkLength > 0 && measureWordWidth(remainingWord.slice(0, chunkLength), remainingIndex, quoteEmojis) > maxWidth) {
+                                while (chunkLength > 0 && measureWordWidth(remainingWord.slice(0, chunkLength), remainingIndex, quoteEmojis) > effectiveMaxWidth) {
                                     chunkLength--
                                 }
                                 
@@ -500,7 +531,7 @@ export class QuoteImageFactory {
                         const testLine = isFirstWord ? word : quoteLines[quoteLines.length - 1] + ' ' + word
                         const testWidth = isFirstWord ? wordWidth : measureWordWidth(testLine, lineStartIndices[lineStartIndices.length - 1], quoteEmojis)
 
-                        if (!isFirstWord && testWidth <= maxWidth) {
+                        if (!isFirstWord && testWidth <= effectiveMaxWidth) {
                             quoteLines[quoteLines.length - 1] = testLine
                         } else {
                             quoteLines.push(word)
