@@ -1,5 +1,5 @@
 import {
-    EmbedBuilder, SlashCommandBuilder,
+    EmbedBuilder, MessageFlags, SlashCommandBuilder,
     type ImageExtension, type ImageSize
 } from 'discord.js'
 import { SlashCommand } from '../modules/CommandManager'
@@ -53,6 +53,7 @@ export default {
         ),
 
     async execute(interaction) {
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const user = interaction.options.getUser('user', false) ?? interaction.user
         const raw = interaction.options.getBoolean('raw', false) ?? false
         const ext = interaction.options.getString('extension', false) as ImageExtension ?? 'png'
@@ -89,6 +90,9 @@ export default {
                 text: 'This is the global avatar, as the command was ran outside a server'
             })
         }
-        await interaction.reply({ embeds: [embed] })
+        await interaction.reply({
+            embeds: [embed],
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined
+        })
     }
 } satisfies SlashCommand

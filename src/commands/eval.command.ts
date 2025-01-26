@@ -19,14 +19,17 @@ export default {
         ),
     async execute(interaction) {
         logger.info('Command executed')
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
 
         const user = interaction.user
         if (user.id !== '341123308844220447') {
-            await interaction.reply('❌ You, solely, are responsible for this')
+            await interaction.reply({
+                content: '❌ You, solely, are responsible for this',
+                flags: ephemeral ? MessageFlags.Ephemeral : undefined
+            })
             return
         }
 
-        const ephemeral = interaction.options.getBoolean('ephemeral', false) || undefined
         await interaction.deferReply({
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })

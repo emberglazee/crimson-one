@@ -17,11 +17,11 @@ export default {
     async execute(interaction) {
         const inputText = interaction.options.getString('text', true)
         const outputText = drunkWrite(inputText)
-        const isEphermal = interaction.options.getBoolean('ephermal') || false
+        const ephermal = interaction.options.getBoolean('ephermal') || false
 
-        if (isEphermal) await interaction.reply({
+        if (ephermal) await interaction.reply({
             content: outputText,
-            flags: isEphermal ? MessageFlags.Ephemeral : undefined
+            flags: ephermal ? MessageFlags.Ephemeral : undefined
         })
         else await interaction.reply(outputText)
     }

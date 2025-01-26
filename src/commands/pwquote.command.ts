@@ -48,6 +48,7 @@ export default {
             .setRequired(false)
         ),
     async execute(interaction) {
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
         const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
@@ -63,13 +64,13 @@ export default {
         if (!color && gradient === 'none') {
             await interaction.reply({
                 content: '❌ Either color/role color or gradient must be provided',
-                flags: interaction.options.getBoolean('ephemeral') ? MessageFlags.Ephemeral : undefined
+                flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
             return
         }
         
         await interaction.deferReply({
-            flags: interaction.options.getBoolean('ephemeral') ? MessageFlags.Ephemeral : undefined
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
         const factory = QuoteImageFactory.getInstance()
         factory.setGuild(interaction.guild!)

@@ -14,8 +14,9 @@ export default {
         ),
     async execute(interaction) {
         logger.info('Command executed')
+        const epheremal = interaction.options.getBoolean('ephemeral', false)
         await interaction.deferReply({
-            flags: interaction.options.getBoolean('ephemeral', false) ? MessageFlags.Ephemeral : undefined
+            flags: epheremal ? MessageFlags.Ephemeral : undefined
         })
         await interaction.editReply({
             files: [{

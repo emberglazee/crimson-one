@@ -21,11 +21,12 @@ export default {
         ),
     async execute(interaction) {
         logger.info('Command executed')
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
 
         let deferred = false
         if (!emojis.length) {
             await interaction.deferReply({
-                flags: interaction.options.getBoolean('ephemeral', false) ? MessageFlags.Ephemeral : undefined
+                flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
             deferred = true
             logger.info('`emojis` not set, reading emojis.json...')
@@ -40,7 +41,10 @@ export default {
         const emojiID = Object.values(emoji)[0]
         logger.info(`Sending ${emojiName}...`)
         const str = `<:${emojiName}:${emojiID}>`
-        deferred ? await interaction.editReply(str) : await interaction.reply(str)
+        deferred ? await interaction.editReply(str) : await interaction.reply({
+            content: str,
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined
+        })
 
         logger.ok('Command execution over')
     }
