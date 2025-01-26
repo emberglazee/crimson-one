@@ -5,7 +5,7 @@ const logger = Logger.new('event.interactionCreate')
 
 export default function onInteractionCreate(client: Client) {
     client.on('interactionCreate', async interaction => {
-        if (!interaction.isChatInputCommand() || !interaction.isContextMenuCommand()) {
+        if (!interaction.isChatInputCommand() && !interaction.isUserContextMenuCommand() && !interaction.isMessageContextMenuCommand()) {
             if (interaction.isRepliable()) await interaction.reply(`⚠️ Unhandled interaction type ${interaction.type}`)
             return
         }
