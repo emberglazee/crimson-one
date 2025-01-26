@@ -1,9 +1,9 @@
-import { AttachmentBuilder, SlashCommandBuilder, MessageFlags } from 'discord.js'
-import type { SlashCommand } from '../modules/CommandManager'
+import { AttachmentBuilder, SlashCommandBuilder, MessageFlags, ContextMenuCommandBuilder, InteractionContextType, ApplicationCommandType } from 'discord.js'
+import type { ContextMenuCommand, SlashCommand } from '../modules/CommandManager'
 import { QuoteImageFactory } from '../modules/QuoteImageFactory'
 import { type GradientType, COLORS, ROLE_COLORS } from '../util/colors'
 
-export default {
+export const slashCommand = {
     data: new SlashCommandBuilder()
         .setName('pwquote')
         .setDescription('Generate an image out of a text and speaker name styled as a Project Wingman subtitle')
@@ -87,3 +87,30 @@ export default {
         }
     }
 } satisfies SlashCommand
+
+export const contextMenuCommand = {
+    data: new ContextMenuCommandBuilder()
+        .setName('Quick Project Wingman subtitle')
+        .setContexts(InteractionContextType.Guild),
+    type: ApplicationCommandType.Message,
+    async execute(interaction) {
+        const speaker = interaction.targetMessage.author.displayName
+        const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
+        const quote = interaction.targetMessage.content
+
+        await interaction.deferReply()
+        const factory = QuoteImageFactory.getInstance()
+        factory.setGuild(interaction.guild!)
+        try {
+            const result = await factory.createQuoteImage(speaker, quote, color, 'none', false, 'pw')
+            await interaction.editReply({ 
+                files: [
+                    new AttachmentBuilder(result.buffer)
+                        .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
+                ]
+            })
+        } catch (error) {
+            await interaction.editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error'))
+        }
+    }
+} satisfies ContextMenuCommand<ApplicationCommandType.Message>
