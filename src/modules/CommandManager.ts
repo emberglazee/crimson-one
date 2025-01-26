@@ -5,7 +5,9 @@ import {
     SlashCommandBuilder, ChatInputCommandInteraction, PermissionsBitField,
     ContextMenuCommandBuilder, ContextMenuCommandInteraction, Client,
     type SlashCommandSubcommandsOnlyBuilder, CommandInteraction,
-    type SlashCommandOptionsOnlyBuilder
+    type SlashCommandOptionsOnlyBuilder,
+    UserContextMenuCommandInteraction,
+    MessageContextMenuCommandInteraction
 } from 'discord.js'
 
 import { readdir } from 'fs/promises'
@@ -25,15 +27,20 @@ export abstract class SlashCommand implements ISlashCommand {
     execute!: (interaction: ChatInputCommandInteraction) => Promise<void>
 }
 
-export interface IContextMenuCommand {
+type ContextMenuInteractionType<T extends 2 | 3> = T extends 2 
+    ? UserContextMenuCommandInteraction 
+    : MessageContextMenuCommandInteraction
+
+export interface IContextMenuCommand<T extends 2 | 3 = 2 | 3> {
     data: ContextMenuCommandBuilder
-    type: 'user' | 'message'
-    execute: (interaction: ContextMenuCommandInteraction) => Promise<void>
+    type: T
+    execute: (interaction: ContextMenuInteractionType<T>) => Promise<void>
 }
-export abstract class ContextMenuCommand implements IContextMenuCommand {
+
+export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements IContextMenuCommand<T> {
     data!: ContextMenuCommandBuilder
-    type!: 'user' | 'message'
-    execute!: (interaction: ContextMenuCommandInteraction) => Promise<void>
+    type!: T
+    execute!: (interaction: ContextMenuInteractionType<T>) => Promise<void>
 }
 
 export default class CommandHandler {
@@ -54,35 +61,49 @@ export default class CommandHandler {
         const totalTime = (initEndTime - initStartTime) / 1000
         logger.ok(`{init} Total time: ${totalTime}s`)
     }
+
     private async importCommand(file: Dirent) {
         logger.info(`{importCommand} Importing ${file.name}...`)
         const startTime = Date.now()
         try {
-            const importedModule = (await import(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, `../commands/${file.name}`)))
-            const command: SlashCommand | ContextMenuCommand = importedModule.default
-            if (!command.data) {
-                logger.warn(`{importCommand} Command data not found in ${file.name}`)
-                return null
+            const importedModule = await import(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, `../commands/${file.name}`))
+            const commands: (SlashCommand | ContextMenuCommand)[] = []
+
+            // Handle both default and named exports
+            for (const [_, exportedItem] of Object.entries(importedModule)) {
+                if (typeof exportedItem !== 'object' || !exportedItem) continue
+
+                // Check if the exported item has required command properties
+                if (!('data' in exportedItem) || !('execute' in exportedItem)) continue
+
+                const command = exportedItem as SlashCommand | ContextMenuCommand
+
+                if (CommandHandler.isContextMenuCommand(command)) {
+                    const type = command.type === 2 ? 'user' : 'message'
+                    logger.ok(`{importCommand} Found ${type} context menu command ${command.data.name}`)
+                    command.data.setType(command.type)
+                    this.contextMenuCommands.push(command)
+                    commands.push(command)
+                } else if (CommandHandler.isGlobalSlashCommand(command)) {
+                    logger.ok(`{importCommand} Found slash command /${command.data.name}`)
+                    this.globalCommands.push(command)
+                    commands.push(command)
+                }
             }
-            if (!command.execute) {
-                logger.warn(`{importCommand} Command execute method not found in ${file.name}`)
+
+            if (commands.length === 0) {
+                logger.warn(`{importCommand} No valid commands found in ${file.name}`)
                 return null
             }
 
-            if (CommandHandler.isContextMenuCommand(command)) {
-                logger.ok(`{importCommand} Imported context menu command ${command.data.name} from file ${file.name} in ${(Date.now() - startTime) / 1000}s`)
-                this.contextMenuCommands.push(command)
-                return command
-            }
-
-            logger.ok(`{importCommand} Imported /${command.data.name} from file ${file.name} in ${(Date.now() - startTime) / 1000}s`)
-            if (CommandHandler.isGlobalSlashCommand(command)) this.globalCommands.push(command)
-            return command
+            logger.ok(`{importCommand} Imported ${commands.length} commands from file ${file.name} in ${(Date.now() - startTime) / 1000}s`)
+            return commands
         } catch (err) {
             console.log(err)
             return null
         }
     }
+
     private async loadCommands(dir: string) {
         logger.info(`{loadCommands} Reading commands from ${dir}...`)
         const files = await readdir(dir, { withFileTypes: true })
@@ -123,14 +144,15 @@ export default class CommandHandler {
             )
         } else if (interaction.isContextMenuCommand()) {
             return this.contextMenuCommands.find(
-                command => command.data.name === interaction.commandName
-                && CommandHandler.isContextMenuCommand(command)
+                command => command.data.name === interaction.commandName && 
+                ((interaction.isUserContextMenuCommand() && command.type === 2) ||
+                (interaction.isMessageContextMenuCommand() && command.type === 3))
             )
         }
         return undefined
     }
 
-    private async executeCommand(command: SlashCommand | ContextMenuCommand, interaction: CommandInteraction | ContextMenuCommandInteraction) {
+    private async executeCommand(command: SlashCommand | ContextMenuCommand<2 | 3>, interaction: CommandInteraction | ContextMenuCommandInteraction) {
         if (!command.execute) {
             throw new Error(`Command ${interaction.commandName} does not have an execute method`)
         }
@@ -138,7 +160,13 @@ export default class CommandHandler {
         if (interaction.isChatInputCommand() && CommandHandler.isSlashCommand(command)) {
             await command.execute(interaction)
         } else if (interaction.isContextMenuCommand() && CommandHandler.isContextMenuCommand(command)) {
-            await command.execute(interaction)
+            if (interaction.isUserContextMenuCommand() && command.type === 2) {
+                await (command.execute as (i: UserContextMenuCommandInteraction) => Promise<void>)(interaction)
+            } else if (interaction.isMessageContextMenuCommand() && command.type === 3) {
+                await (command.execute as (i: MessageContextMenuCommandInteraction) => Promise<void>)(interaction)
+            } else {
+                throw new Error('Context menu command type mismatch with interaction type')
+            }
         } else {
             throw new Error('Command type mismatch with interaction type')
         }
@@ -153,7 +181,10 @@ export default class CommandHandler {
         if (!this.initialized) throw new ClassNotInitializedError()
 
         logger.info('{refreshGlobalCommands} Refreshing global commands...')
-        await this.client.application!.commands.set([...this.globalCommands, ...this.contextMenuCommands].map(command => command.data))
+        await this.client.application!.commands.set([
+            ...this.globalCommands,
+            ...this.contextMenuCommands
+        ].map(command => command.data))
     }
     public static isGlobalSlashCommand = (obj: any): obj is SlashCommand => {
         return CommandHandler.isSlashCommand(obj) && !('guildId' in obj)
@@ -161,8 +192,9 @@ export default class CommandHandler {
     public static isSlashCommand = (obj: any): obj is SlashCommand => {
         return obj.data instanceof SlashCommandBuilder
     }
+
     public static isContextMenuCommand = (obj: any): obj is ContextMenuCommand => {
-        return obj.data instanceof ContextMenuCommandBuilder && ['user', 'message'].includes(obj.type)
+        return obj.data instanceof ContextMenuCommandBuilder && (obj.type === 2 || obj.type === 3)
     }
 }
 
