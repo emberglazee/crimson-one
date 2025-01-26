@@ -236,6 +236,70 @@ export class QuoteImageFactory {
         })
     }
 
+    private parseEmojis(text: string): ParsedEmoji[] {
+        const emojiRegex = /<(a)?:([^:]+):(\d+)>|<@!?(\d+)>/g
+        const emojis: ParsedEmoji[] = []
+        let match
+
+        while ((match = emojiRegex.exec(text)) !== null) {
+            if (match[3]) { // Discord emoji
+                emojis.push({
+                    id: match[3],
+                    type: 'emoji',
+                    full: match[0],
+                    index: match.index,
+                    length: match[0].length
+                })
+            } else if (match[4]) { // User mention/ping
+                emojis.push({
+                    id: match[4],
+                    type: 'ping',
+                    full: match[0],
+                    index: match.index,
+                    length: match[0].length
+                })
+            }
+        }
+
+        return emojis
+    }
+
+    private async loadEmoji(emoji: ParsedEmoji): Promise<void> {
+        if (emoji.type === 'ping') return // No image to load for pings
+
+        const emojiUrl = `https://cdn.discordapp.com/emojis/${emoji.id}`
+        try {
+            // Try loading as GIF first
+            const gifResponse = await fetch(emojiUrl + '.gif')
+            if (gifResponse.ok) {
+                const tmpDir = await this.createTempDir()
+                try {
+                    const { frames, delays, framerate } = await this.ffmpegExtractFrames(emojiUrl + '.gif', tmpDir)
+                    const loadedFrames = await Promise.all(frames.map(frame => loadImage(frame)))
+                    emojiImages.push({
+                        id: emoji.id,
+                        full: emoji.full,
+                        frames: loadedFrames,
+                        frameDelays: delays
+                    })
+                    hasAnimatedEmojis = true
+                } finally {
+                    await this.cleanupTempDir(tmpDir)
+                }
+            } else {
+                // Fall back to PNG
+                const image = await loadImage(emojiUrl + '.png')
+                emojiImages.push({
+                    id: emoji.id,
+                    full: emoji.full,
+                    image
+                })
+            }
+        } catch (error) {
+            logger.error(`Failed to load emoji ${emoji.id}: ${error}`)
+        }
+    }
+
     public async createQuoteImage(
         speaker: string,
         quote: string,
@@ -245,6 +309,18 @@ export class QuoteImageFactory {
         style: QuoteStyle = 'pw'
     ): Promise<QuoteImageResult> {
         logger.info(`Creating quote image with params:\n${speaker}\n${quote}\n${color}\n${gradient}\n${stretchGradient}\n${style}`)
+
+        // Reset emoji state
+        hasAnimatedEmojis = false
+        speakerEmojis = this.parseEmojis(speaker)
+        quoteEmojis = this.parseEmojis(quote)
+        emojiImages = []
+
+        // Load all emojis
+        await Promise.all([
+            ...speakerEmojis.map(emoji => this.loadEmoji(emoji)),
+            ...quoteEmojis.map(emoji => this.loadEmoji(emoji))
+        ])
 
         const fontSize = 48
         const lineHeight = fontSize * 1.2
