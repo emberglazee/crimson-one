@@ -34,7 +34,7 @@ const bot = new Client({
     }
 })
 
-export const commandHandler = new CommandHandler(bot)
+const commandHandler = CommandHandler.getInstance()
 export const quoteFactory = new QuoteFactory(bot)
 
 bot.once('ready', async () => {
@@ -43,15 +43,17 @@ bot.once('ready', async () => {
     // Set client on QuoteImageFactory
     QuoteImageFactory.getInstance().setClient(bot)
 
-    // Initialize Github webhook
+    // Set client and initialize command handler
+    commandHandler.setClient(bot)
+    await commandHandler.init()
+    await commandHandler.refreshGlobalCommands()
+
+    // Initialize Github webhook and quote factory
     const webhook = GithubWebhook.getInstance({
         port: Number(process.env.GITHUB_WEBHOOK_PORT) || 3000,
         secret: process.env.GITHUB_WEBHOOK_SECRET!
     })
     await webhook.init(bot)
-
-    await commandHandler.init()
-    await commandHandler.refreshGlobalCommands()
     await quoteFactory.init()
 
     const eventFiles = (
