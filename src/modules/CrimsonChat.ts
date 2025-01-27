@@ -144,7 +144,7 @@ export default class CrimsonChat {
 
                 if (!hadCommands) {
                     // No more commands to process, send the final message
-                    await this.sendResponseToDiscord(parsedResponse)
+                    await this.sendResponseToDiscord(parsedResponse, message)
                     hasMoreCommands = false
                 } else {
                     // There were commands, append their responses and continue the chain
@@ -177,12 +177,17 @@ export default class CrimsonChat {
         return { content: modifiedContent, hadCommands: true }
     }
 
-    private async sendResponseToDiscord(content: string): Promise<void> {
+    private async sendResponseToDiscord(content: string, message?: ChatCompletionMessage): Promise<void> {
         if (!this.thread) throw new Error('Thread not set')
-        
+
+        let finalContent = content
+        if (message?.refusal) {
+            finalContent += '\n-# ⚠️ note: this chatgpt response is `message.refusal`, what the FUCK is wrong with yall what have yall done to it 😭\n-# - emberglaze'
+        }
+
         // If content is over 2000 characters, send as a file
-        if (content.length > 2000) {
-            const buffer = Buffer.from(content, 'utf-8')
+        if (finalContent.length > 2000) {
+            const buffer = Buffer.from(finalContent, 'utf-8')
             await this.thread.send({
                 files: [{
                     attachment: buffer,
@@ -190,7 +195,7 @@ export default class CrimsonChat {
                 }]
             })
         } else {
-            await this.thread.send(content)
+            await this.thread.send(finalContent)
         }
     }
 
