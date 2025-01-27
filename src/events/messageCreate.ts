@@ -9,6 +9,13 @@ export default function onMessageCreate(client: Client) {
         if (message.channel.id !== '1333319963737325570') return
         if (message.author.bot) return
 
+        // Handle reset command for specific user
+        if (message.author.id === '341123308844220447' && message.content === '!reset') {
+            await crimsonChat.clearHistory()
+            await message.react('✅')
+            return
+        }
+
         let { content } = message
         const respondingTo = message.reference?.messageId ? {
             targetUsername: (await message.channel.messages.fetch(message.reference.messageId)).author.username,
