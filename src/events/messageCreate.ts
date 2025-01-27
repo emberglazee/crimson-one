@@ -23,14 +23,20 @@ export default function onMessageCreate(client: Client) {
             }
         }
 
+        // Skip processing if chat is disabled
+        if (!crimsonChat.isEnabled()) return
+
         let { content } = message
         const respondingTo = message.reference?.messageId ? {
             targetUsername: (await message.channel.messages.fetch(message.reference.messageId)).author.username,
             targetText: (await message.channel.messages.fetch(message.reference.messageId)).content
         } : undefined
-        await message.channel.sendTyping()
+
         if (!content.length && message.stickers.first()) content = `<sticker:${message.stickers.first()!.name}>`
         if (!content.length && message.attachments.first()) content = `<attachment:${message.attachments.first()!.name}`
+
+        // Only send typing indicator if chat is enabled
+        await message.channel.sendTyping()
         await crimsonChat.sendMessage(content, {
             username: message.author.username,
             displayName: message.member!.displayName,
