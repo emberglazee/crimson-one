@@ -119,7 +119,7 @@ export default class CrimsonChat {
 
             if (!hadCommands) {
                 // No more commands to process, send the final message
-                await this.thread.send(parsedResponse)
+                await this.sendResponseToDiscord(parsedResponse)
                 hasMoreCommands = false
             } else {
                 // There were commands, append their responses and continue the chain
@@ -147,6 +147,24 @@ export default class CrimsonChat {
 
         return { content: modifiedContent, hadCommands: true }
     }
+
+    private async sendResponseToDiscord(content: string): Promise<void> {
+        if (!this.thread) throw new Error('Thread not set')
+        
+        // If content is over 2000 characters, send as a file
+        if (content.length > 2000) {
+            const buffer = Buffer.from(content, 'utf-8')
+            await this.thread.send({
+                files: [{
+                    attachment: buffer,
+                    name: 'response.txt'
+                }]
+            })
+        } else {
+            await this.thread.send(content)
+        }
+    }
+
     private async parseCommand(text: string): Promise<string | null> {
         // Command regex with argument capture
         const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore)\(([^)]*)\)/
