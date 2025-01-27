@@ -1,5 +1,4 @@
-// module for crimson chat - chatgpt talks with the personality of Crimson 1
-import type { Client, TextChannel } from 'discord.js'
+import type { Client, TextChannel, ChatInputCommandInteraction, CommandInteractionOption, CacheType } from 'discord.js'
 import OpenAI from 'openai'
 import { CRIMSON_CHAT_SYSTEM_PROMPT } from '../util/constants'
 import type { ChatCompletionMessage } from 'openai/resources/index.mjs'
@@ -29,6 +28,26 @@ export default class CrimsonChat {
             apiKey: process.env.OPENAI_API_KEY
         })
     }
+
+    // Track slash command usage in the thread
+    public async trackCommandUsage(interaction: ChatInputCommandInteraction) {
+        const command = `/${interaction.commandName}`
+        const options = interaction.options.data
+        const optionStr = options.length > 0 
+            ? ' ' + options.map((opt: CommandInteractionOption<CacheType>) => `${opt.name}:${opt.value ?? '[no value]'}`).join(' ')
+            : ''
+
+        const message = await this.formatUserMessage(
+            interaction.user.username,
+            interaction.user.displayName,
+            interaction.user.displayName, // Fallback to user displayName since member might not be available
+            `Used command: ${command}${optionStr}`
+        )
+
+        this.appendMessage('user', message)
+        this.trimHistory()
+    }
+
     public static getInstance(): CrimsonChat {
         if (!CrimsonChat.instance) {
             CrimsonChat.instance = new CrimsonChat()
