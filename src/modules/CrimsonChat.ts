@@ -72,12 +72,15 @@ export default class CrimsonChat {
     public async init(): Promise<void> {
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
+        logger.info('Initializing CrimsonChat...')
         this.thread = await this.client.channels.fetch(this.threadId) as TextChannel
         if (!this.thread) {
+            logger.error('Could not find webhook thread')
             throw new Error('Could not find webhook thread')
         }
         
         await this.loadHistory()
+        logger.ok('CrimsonChat initialized successfully')
     }
 
     // Toggle Methods
@@ -104,10 +107,12 @@ export default class CrimsonChat {
 
         // If already processing a message, react with X and return
         if (this.isProcessing && originalMessage) {
+            logger.warn(`Message from ${options.username} ignored - already processing another message`)
             await originalMessage.react('❌')
             return
         }
 
+        logger.info(`Processing message from ${options.username}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`)
         this.isProcessing = true
 
         try {
@@ -125,16 +130,19 @@ export default class CrimsonChat {
             let hasMoreCommands = true
 
             while (hasMoreCommands) {
+                logger.info('Sending request to OpenAI...')
                 const response = await this.openai.chat.completions.create({
                     messages: this.prepareHistory(),
                     model: 'gpt-4o-mini'
                 })
 
                 const message = response.choices[0].message
+                logger.info(`Received response from OpenAI: ${message.content?.substring(0, 50)}${message.content && message.content.length > 50 ? '...' : ''}`)
+                
                 const { content: parsedResponse, hadCommands } = await this.parseAssistantReply(message)
 
                 if (parsedResponse === null) {
-                    // ignore() was called
+                    logger.info('Message ignored via !ignore command')
                     this.isProcessing = false
                     return
                 }
@@ -143,16 +151,20 @@ export default class CrimsonChat {
                 this.appendMessage('assistant', message.content || '')
 
                 if (!hadCommands) {
-                    // No more commands to process, send the final message
+                    logger.info('No more commands to process, sending final response')
                     await this.sendResponseToDiscord(parsedResponse, message)
                     hasMoreCommands = false
                 } else {
-                    // There were commands, append their responses and continue the chain
+                    logger.info('Commands found in response, continuing chain')
                     this.appendMessage('system', parsedResponse)
                 }
             }
+        } catch (error) {
+            logger.error(`Error processing message: ${error}`)
+            throw error
         } finally {
             this.isProcessing = false
+            logger.info('Message processing completed')
         }
     }
 
@@ -166,9 +178,12 @@ export default class CrimsonChat {
 
         if (!commands) return { content, hadCommands: false }
 
+        logger.info(`Found ${commands.length} commands in response`)
+
         // Process each command and replace it in the message
         let modifiedContent = content
         for (const command of commands) {
+            logger.info(`Processing command: ${command}`)
             const response = await this.parseCommand(command)
             if (response === null) return { content: null, hadCommands: true } // ignore() was called
             modifiedContent = modifiedContent.replace(command, `${command} -> ${response}`)
@@ -208,6 +223,7 @@ export default class CrimsonChat {
 
         const [_, command, args] = match
         const argument = args.trim()
+        logger.info(`Executing command ${command} with args: ${argument}`)
 
         switch (command) {
             case 'fetchRoles':
@@ -250,21 +266,28 @@ export default class CrimsonChat {
     private async appendMessage(role: 'system' | 'assistant' | 'user', content: string) {
         this.history.push({ role, content })
         await this.saveHistory()
+        logger.info(`Appended ${role} message to history`)
     }
     private async trimHistory() {
+        const originalLength = this.history.length
         let historyTokens = this.history.reduce((acc, curr) => acc + (curr.content || '').split(' ').length, 0)
         while (historyTokens > 128000) {
             this.history.shift()
             historyTokens = this.history.reduce((acc, curr) => acc + (curr.content || '').split(' ').length, 0)
         }
+        if (originalLength !== this.history.length) {
+            logger.info(`Trimmed history from ${originalLength} to ${this.history.length} messages`)
+        }
         await this.saveHistory()
     }
     public async clearHistory() {
+        logger.info('Clearing chat history')
         this.history = [{
             role: 'system',
             content: CRIMSON_CHAT_SYSTEM_PROMPT
         }]
         await this.saveHistory()
+        logger.ok('Chat history cleared')
     }
     private prepareHistory() {
         this.history = this.history.map(({ role, content }) => ({ role, content: content || '' }))
