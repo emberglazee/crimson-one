@@ -16,6 +16,7 @@ export default class CrimsonChat {
     private client: Client | null = null
     private historyPath = path.join(process.cwd(), 'data', 'chat_history.json')
     private isProcessing: boolean = false
+    private enabled: boolean = true
     history: { role: 'system' | 'assistant' | 'user', content?: string }[] = [{
         role: 'system',
         content: CRIMSON_CHAT_SYSTEM_PROMPT
@@ -79,6 +80,16 @@ export default class CrimsonChat {
         await this.loadHistory()
     }
 
+    // Toggle Methods
+    public isEnabled(): boolean {
+        return this.enabled
+    }
+
+    public setEnabled(state: boolean): void {
+        this.enabled = state
+        logger.info(`CrimsonChat ${state ? 'enabled' : 'disabled'}`)
+    }
+
     // Message Processing Methods
     public async sendMessage(content: string, options: {
         username: string,
@@ -87,6 +98,9 @@ export default class CrimsonChat {
         respondingTo?: { targetUsername: string; targetText: string }
     }, originalMessage?: any) {
         if (!this.thread) throw new Error('Thread not set. Call init() first.')
+
+        // If chat is disabled, silently ignore the message
+        if (!this.enabled) return
 
         // If already processing a message, react with X and return
         if (this.isProcessing && originalMessage) {
