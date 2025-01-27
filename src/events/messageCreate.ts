@@ -19,7 +19,7 @@ export default function onMessageCreate(client: Client) {
         if (!content.length && message.attachments.first()) content = `<attachment:${message.attachments.first()!.name}`
         await crimsonChat.sendMessage(content, {
             username: message.author.username,
-            displayName: message.author.displayName,
+            displayName: message.member!.displayName,
             serverDisplayName: message.member?.displayName ?? message.author.displayName,
             respondingTo
         })
