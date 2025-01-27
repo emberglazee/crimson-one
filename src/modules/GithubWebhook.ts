@@ -117,7 +117,7 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
     }
 
     public start(): Promise<void> {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
             this.server.listen(this.port, () => {
                 resolve()
             })
