@@ -14,7 +14,7 @@ export default function onMessageCreate(client: Client) {
             targetUsername: (await message.channel.messages.fetch(message.reference.messageId)).author.username,
             targetText: (await message.channel.messages.fetch(message.reference.messageId)).content
         } : undefined
-        await message.thread!.sendTyping()
+        await message.channel.sendTyping()
         await crimsonChat.sendMessage(content, {
             username: message.author.username,
             displayName: message.author.displayName,
