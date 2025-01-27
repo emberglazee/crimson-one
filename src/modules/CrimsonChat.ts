@@ -108,7 +108,9 @@ export default class CrimsonChat {
         // If already processing a message, react with X and return
         if (this.isProcessing && originalMessage) {
             logger.warn(`Message from ${options.username} ignored - already processing another message`)
-            await originalMessage.react('❌')
+            await originalMessage.react('❌').catch((err: Error) => {
+                logger.error(`Failed to add reaction: ${err.message}`)
+            })
             return
         }
 
@@ -131,37 +133,71 @@ export default class CrimsonChat {
 
             while (hasMoreCommands) {
                 logger.info('Sending request to OpenAI...')
-                const response = await this.openai.chat.completions.create({
-                    messages: this.prepareHistory(),
-                    model: 'gpt-4o-mini'
-                })
+                let response;
+                try {
+                    response = await this.openai.chat.completions.create({
+                        messages: this.prepareHistory(),
+                        model: 'gpt-4o-mini'
+                    })
+                } catch (apiError: any) {
+                    // Handle specific OpenAI API errors
+                    if (apiError.status === 429) {
+                        logger.error('Rate limit exceeded with OpenAI API')
+                        await this.thread.send('❌ Hit a ChatGPT rate limit, try again in a bit.')
+                        return
+                    } else if (apiError.status === 500) {
+                        logger.error('OpenAI API internal server error')
+                        await this.thread.send('❌ ChatGPT API internal error, is it down?')
+                        return
+                    } else {
+                        logger.error(`OpenAI API error: ${apiError.message}`)
+                        await this.thread.send('⚠️ Unknown error with ChatGPT, try again later.')
+                        return
+                    }
+                }
 
-                const message = response.choices[0].message
-                logger.info(`Received response from OpenAI: ${message.content?.substring(0, 50)}${message.content && message.content.length > 50 ? '...' : ''}`)
-                
-                const { content: parsedResponse, hadCommands } = await this.parseAssistantReply(message)
-
-                if (parsedResponse === null) {
-                    logger.info('Message ignored via !ignore command')
-                    this.isProcessing = false
+                if (!response?.choices?.[0]?.message) {
+                    logger.error('Invalid response format from OpenAI')
+                    await this.thread.send('❌ ChatGPT response was invalid, try again later.')
                     return
                 }
 
-                // Always keep the original message in history
-                this.appendMessage('assistant', message.content || '')
+                const message = response.choices[0].message
+                logger.info(`Received response from OpenAI: ${message.content?.substring(0, 50)}${message.content && message.content.length > 50 ? '...' : ''}`)
 
-                if (!hadCommands) {
-                    logger.info('No more commands to process, sending final response')
-                    await this.sendResponseToDiscord(parsedResponse, message)
-                    hasMoreCommands = false
-                } else {
-                    logger.info('Commands found in response, continuing chain')
-                    this.appendMessage('system', parsedResponse)
+                try {
+                    const { content: parsedResponse, hadCommands } = await this.parseAssistantReply(message)
+
+                    if (parsedResponse === null) {
+                        logger.info('Message ignored via !ignore command')
+                        this.isProcessing = false
+                        return
+                    }
+
+                    // Always keep the original message in history
+                    this.appendMessage('assistant', message.content || '')
+
+                    if (!hadCommands) {
+                        logger.info('No more commands to process, sending final response')
+                        await this.sendResponseToDiscord(parsedResponse, message)
+                        hasMoreCommands = false
+                    } else {
+                        logger.info('Commands found in response, continuing chain')
+                        this.appendMessage('system', parsedResponse)
+                    }
+                } catch (parseError: any) {
+                    logger.error(`Error parsing assistant reply: ${parseError.message}`)
+                    await this.thread.send('Sorry, I encountered an error while processing the response.')
+                    return
                 }
             }
-        } catch (error) {
-            logger.error(`Error processing message: ${error}`)
-            throw error
+        } catch (error: any) {
+            logger.error(`Error processing message: ${error.message}`)
+            try {
+                await this.thread.send('Sorry, something went wrong while processing your message. Please try again later.')
+            } catch (sendError) {
+                logger.error(`Failed to send error message: ${sendError}`)
+            }
         } finally {
             this.isProcessing = false
             logger.info('Message processing completed')
@@ -169,48 +205,69 @@ export default class CrimsonChat {
     }
 
     private async parseAssistantReply(message: ChatCompletionMessage): Promise<{ content: string | null; hadCommands: boolean }> {
-        const content = message.content
-        if (!content) return { content: null, hadCommands: false }
+        try {
+            const content = message.content
+            if (!content) return { content: null, hadCommands: false }
 
-        // Look for commands in the message
-        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore)\([^)]*\)/g
-        const commands = content.match(commandRegex)
+            // Look for commands in the message
+            const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore)\([^)]*\)/g
+            const commands = content.match(commandRegex)
 
-        if (!commands) return { content, hadCommands: false }
+            if (!commands) return { content, hadCommands: false }
 
-        logger.info(`Found ${commands.length} commands in response`)
+            logger.info(`Found ${commands.length} commands in response`)
 
-        // Process each command and replace it in the message
-        let modifiedContent = content
-        for (const command of commands) {
-            logger.info(`Processing command: ${command}`)
-            const response = await this.parseCommand(command)
-            if (response === null) return { content: null, hadCommands: true } // ignore() was called
-            modifiedContent = modifiedContent.replace(command, `${command} -> ${response}`)
+            // Process each command and replace it in the message
+            let modifiedContent = content
+            for (const command of commands) {
+                logger.info(`Processing command: ${command}`)
+                try {
+                    const response = await this.parseCommand(command)
+                    if (response === null) return { content: null, hadCommands: true } // ignore() was called
+                    modifiedContent = modifiedContent.replace(command, `${command} -> ${response}`)
+                } catch (cmdError: any) {
+                    logger.error(`Error processing command ${command}: ${cmdError.message}`)
+                    modifiedContent = modifiedContent.replace(command, `${command} -> Error: ${cmdError.message}`)
+                }
+            }
+
+            return { content: modifiedContent, hadCommands: true }
+        } catch (error: any) {
+            logger.error(`Error in parseAssistantReply: ${error.message}`)
+            throw error
         }
-
-        return { content: modifiedContent, hadCommands: true }
     }
 
     private async sendResponseToDiscord(content: string, message?: ChatCompletionMessage): Promise<void> {
         if (!this.thread) throw new Error('Thread not set')
 
-        let finalContent = content
-        if (message?.refusal) {
-            finalContent += '\n-# ⚠️ note: this chatgpt response is `message.refusal`, what the FUCK is wrong with yall what have yall done to it 😭\n-# - emberglaze'
-        }
+        try {
+            let finalContent = content
+            if (message?.refusal) {
+                finalContent += '\n-# ⚠️ note: this chatgpt response is `message.refusal`, what the FUCK is wrong with yall what have yall done to it 😭\n-# - emberglaze'
+            }
 
-        // If content is over 2000 characters, send as a file
-        if (finalContent.length > 2000) {
-            const buffer = Buffer.from(finalContent, 'utf-8')
-            await this.thread.send({
-                files: [{
-                    attachment: buffer,
-                    name: 'response.txt'
-                }]
-            })
-        } else {
-            await this.thread.send(finalContent)
+            // If content is over 2000 characters, send as a file
+            if (finalContent.length > 2000) {
+                const buffer = Buffer.from(finalContent, 'utf-8')
+                await this.thread.send({
+                    files: [{
+                        attachment: buffer,
+                        name: 'response.txt'
+                    }]
+                }).catch(err => {
+                    logger.error(`Failed to send file response: ${err.message}`)
+                    throw new Error('Failed to send file response')
+                })
+            } else {
+                await this.thread.send(finalContent).catch(err => {
+                    logger.error(`Failed to send message: ${err.message}`)
+                    throw new Error('Failed to send message')
+                })
+            }
+        } catch (error: any) {
+            logger.error(`Error sending response to Discord: ${error.message}`)
+            throw error
         }
     }
 
