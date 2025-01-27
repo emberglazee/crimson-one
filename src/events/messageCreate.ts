@@ -7,7 +7,7 @@ export default function onMessageCreate(client: Client) {
 
     client.on('messageCreate', async message => {
         if (message.channel.id !== '1333319963737325570') return
-        if (message.author.bot) return
+        if (message.author === client.user) return
 
         // Handle admin commands for specific user
         if (message.author.id === '341123308844220447') {
@@ -39,6 +39,11 @@ export default function onMessageCreate(client: Client) {
             for (const attachment of attachments) {
                 content += `<attachment: ${attachment}>\n`
             }
+        }
+        if (message.embeds.length) {
+            const embed = message.embeds[0]
+            // Describe the entirety of the embed
+            content += `<embed: ${JSON.stringify(embed)}>\n`
         }
 
         // Start typing indicator loop
