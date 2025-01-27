@@ -294,7 +294,7 @@ export default class CrimsonChat {
 
     private async parseCommand(text: string): Promise<string | null> {
         // Command regex with argument capture
-        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage)\(([^)]*)\)/
+        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)\(([^)]*)\)/
         const match = text.match(commandRegex)
 
         if (!match) return null
@@ -339,6 +339,16 @@ export default class CrimsonChat {
                     return `Image Description: ${description}`
                 } catch (error) {
                     return `Error describing image: ${error instanceof Error ? error.message : 'Unknown error'}`
+                }
+
+            case 'getEmojis':
+                try {
+                    const emojisPath = path.join(process.cwd(), 'data', 'emojis.json')
+                    const emojisData = await fs.readFile(emojisPath, 'utf-8')
+                    const emojis = JSON.parse(emojisData)
+                    return JSON.stringify(emojis, null, 2)
+                } catch (error) {
+                    return `Error reading emojis: ${error instanceof Error ? error.message : 'Unknown error'}`
                 }
 
             case 'ignore':
