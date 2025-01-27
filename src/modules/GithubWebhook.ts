@@ -4,13 +4,15 @@ import { createServer } from 'http'
 import crypto from 'crypto'
 import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
 import { Logger } from '../util/logger'
+import type { GitHubPushEvent } from '../types/types'
 
 const logger = Logger.new('GithubWebhook')
 
 type WebhookEvents = {
-    [K in 'push' | 'pull_request' | 'issues' | 'error']: K extends 'error' 
-        ? (error: Error) => void
-        : (payload: any) => void
+    push: (payload: GitHubPushEvent) => void
+    pull_request: (payload: any) => void
+    issues: (payload: any) => void
+    error: (error: Error) => void
 } & {
     [key: string]: (...args: any[]) => void
 }
@@ -54,8 +56,8 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
         this.on('push', async payload => {
             const embed = new EmbedBuilder()
                 .setAuthor({
-                    name: payload.repository.full_name,
-                    iconURL: this.client?.user?.displayAvatarURL()
+                    name: payload.repository.name,
+                    iconURL: this.client!.user!.displayAvatarURL()
                 })
                 .setTitle('Push Event')
                 .setDescription(`[${payload.head_commit.id.substring(0, 7)}](${payload.head_commit.url}) - ${payload.head_commit.message}`)
