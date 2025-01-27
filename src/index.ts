@@ -8,6 +8,7 @@ import { Client, IntentsBitField, Partials } from 'discord.js'
 
 import CommandHandler from './modules/CommandManager'
 import QuoteFactory from './modules/QuoteFactory'
+import { GithubWebhook } from './modules/GithubWebhook'
 import type { DiscordEventListener } from './types/types'
 
 import { registerFont } from 'canvas'
@@ -41,6 +42,13 @@ bot.once('ready', async () => {
 
     // Set client on QuoteImageFactory
     QuoteImageFactory.getInstance().setClient(bot)
+
+    // Initialize Github webhook
+    const webhook = GithubWebhook.getInstance({
+        port: Number(process.env.GITHUB_WEBHOOK_PORT) || 3000,
+        secret: process.env.GITHUB_WEBHOOK_SECRET!
+    })
+    await webhook.init(bot)
 
     await commandHandler.init()
     await commandHandler.refreshGlobalCommands()
