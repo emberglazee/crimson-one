@@ -22,6 +22,6 @@ export default function onMessageCreate(client: Client) {
             displayName: message.member!.displayName,
             serverDisplayName: message.member?.displayName ?? message.author.displayName,
             respondingTo
-        })
+        }, message)
     })
 }

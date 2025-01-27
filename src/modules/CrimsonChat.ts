@@ -15,6 +15,7 @@ export default class CrimsonChat {
     private thread: TextChannel | null = null
     private client: Client | null = null
     private historyPath = path.join(process.cwd(), 'data', 'chat_history.json')
+    private isProcessing: boolean = false
     history: { role: 'system' | 'assistant' | 'user', content?: string }[] = [{
         role: 'system',
         content: CRIMSON_CHAT_SYSTEM_PROMPT
@@ -84,49 +85,63 @@ export default class CrimsonChat {
         displayName: string,
         serverDisplayName: string,
         respondingTo?: { targetUsername: string; targetText: string }
-    }) {
+    }, originalMessage?: any) {
         if (!this.thread) throw new Error('Thread not set. Call init() first.')
 
-        const formattedMessage = await this.formatUserMessage(
-            options.username,
-            options.displayName,
-            options.serverDisplayName,
-            content,
-            options.respondingTo
-        )
+        // If already processing a message, react with X and return
+        if (this.isProcessing && originalMessage) {
+            await originalMessage.react('❌')
+            return
+        }
 
-        this.appendMessage('user', formattedMessage)
-        this.trimHistory()
+        this.isProcessing = true
 
-        let hasMoreCommands = true
+        try {
+            const formattedMessage = await this.formatUserMessage(
+                options.username,
+                options.displayName,
+                options.serverDisplayName,
+                content,
+                options.respondingTo
+            )
 
-        while (hasMoreCommands) {
-            const response = await this.openai.chat.completions.create({
-                messages: this.prepareHistory(),
-                model: 'gpt-4o-mini'
-            })
+            this.appendMessage('user', formattedMessage)
+            this.trimHistory()
 
-            const message = response.choices[0].message
-            const { content: parsedResponse, hadCommands } = await this.parseAssistantReply(message)
+            let hasMoreCommands = true
 
-            if (parsedResponse === null) {
-                // ignore() was called
-                return
+            while (hasMoreCommands) {
+                const response = await this.openai.chat.completions.create({
+                    messages: this.prepareHistory(),
+                    model: 'gpt-4o-mini'
+                })
+
+                const message = response.choices[0].message
+                const { content: parsedResponse, hadCommands } = await this.parseAssistantReply(message)
+
+                if (parsedResponse === null) {
+                    // ignore() was called
+                    this.isProcessing = false
+                    return
+                }
+
+                // Always keep the original message in history
+                this.appendMessage('assistant', message.content || '')
+
+                if (!hadCommands) {
+                    // No more commands to process, send the final message
+                    await this.sendResponseToDiscord(parsedResponse)
+                    hasMoreCommands = false
+                } else {
+                    // There were commands, append their responses and continue the chain
+                    this.appendMessage('system', parsedResponse)
+                }
             }
-
-            // Always keep the original message in history
-            this.appendMessage('assistant', message.content || '')
-
-            if (!hadCommands) {
-                // No more commands to process, send the final message
-                await this.sendResponseToDiscord(parsedResponse)
-                hasMoreCommands = false
-            } else {
-                // There were commands, append their responses and continue the chain
-                this.appendMessage('system', parsedResponse)
-            }
+        } finally {
+            this.isProcessing = false
         }
     }
+
     private async parseAssistantReply(message: ChatCompletionMessage): Promise<{ content: string | null; hadCommands: boolean }> {
         const content = message.content
         if (!content) return { content: null, hadCommands: false }
