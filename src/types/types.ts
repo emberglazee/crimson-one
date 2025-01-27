@@ -16,3 +16,20 @@ export interface Emojis {
     billy: Emoji[]
 }
 export type Emoji = { [key: string]: string }
+
+export interface GitHubCommit {
+    id: string
+    message: string
+    timestamp: string
+    url: string
+}
+
+export interface GitHubRepository {
+    full_name: string
+    name: string
+}
+
+export interface GitHubPushEvent {
+    repository: GitHubRepository
+    head_commit: GitHubCommit
+}
