@@ -28,7 +28,8 @@ export default class Vision {
             media_input: image,
             text_input: 'Describe this image in detail'
         }).catch(err => {
-            logger.error(`Failed to predict image caption\n${err}`)
+            logger.error('Failed to predict image caption')
+            console.log(err)
             throw err
         })
         logger.ok(`Image caption predicted: ${response.data}`)
