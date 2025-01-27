@@ -3,6 +3,10 @@ import type { Client, TextChannel } from 'discord.js'
 import OpenAI from 'openai'
 import { CRIMSON_CHAT_SYSTEM_PROMPT } from '../util/constants'
 import type { ChatCompletionMessage } from 'openai/resources/index.mjs'
+import { promises as fs } from 'fs'
+import path from 'path'
+import { Logger } from '../util/logger'
+const logger = new Logger('CrimsonChat')
 
 export default class CrimsonChat {
     private static instance: CrimsonChat
@@ -10,6 +14,7 @@ export default class CrimsonChat {
     private threadId = '1333319963737325570'
     private thread: TextChannel | null = null
     private client: Client | null = null
+    private historyPath = path.join(process.cwd(), 'data', 'chat_history.json')
     history: { role: 'system' | 'assistant' | 'user', content?: string }[] = [{
         role: 'system',
         content: CRIMSON_CHAT_SYSTEM_PROMPT
@@ -32,6 +37,36 @@ export default class CrimsonChat {
     public setClient(client: Client) {
         this.client = client
     }
+
+    private async loadHistory(): Promise<void> {
+        try {
+            const data = await fs.readFile(this.historyPath, 'utf-8')
+            const savedHistory = JSON.parse(data)
+            // Always ensure system prompt is first
+            this.history = [{
+                role: 'system',
+                content: CRIMSON_CHAT_SYSTEM_PROMPT
+            }]
+            // Add saved messages after system prompt
+            this.history.push(...savedHistory.filter((msg: any) => msg.role !== 'system'))
+        } catch (error) {
+            // If file doesn't exist or is invalid, start with just the system prompt
+            this.history = [{
+                role: 'system',
+                content: CRIMSON_CHAT_SYSTEM_PROMPT
+            }]
+        }
+    }
+
+    private async saveHistory(): Promise<void> {
+        try {
+            await fs.mkdir(path.dirname(this.historyPath), { recursive: true })
+            await fs.writeFile(this.historyPath, JSON.stringify(this.history, null, 2))
+        } catch (error) {
+            console.error('Failed to save chat history:', error)
+        }
+    }
+
     public async init(): Promise<void> {
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
@@ -39,10 +74,8 @@ export default class CrimsonChat {
         if (!this.thread) {
             throw new Error('Could not find webhook thread')
         }
-        this.history = [{
-            role: 'system',
-            content: CRIMSON_CHAT_SYSTEM_PROMPT
-        }]
+        
+        await this.loadHistory()
     }
 
     // Message Processing Methods
@@ -162,21 +195,24 @@ export default class CrimsonChat {
     }
 
     // History Management Methods
-    private appendMessage(role: 'system' | 'assistant' | 'user', content: string) {
+    private async appendMessage(role: 'system' | 'assistant' | 'user', content: string) {
         this.history.push({ role, content })
+        await this.saveHistory()
     }
-    private trimHistory() {
+    private async trimHistory() {
         let historyTokens = this.history.reduce((acc, curr) => acc + (curr.content || '').split(' ').length, 0)
         while (historyTokens > 128000) {
             this.history.shift()
             historyTokens = this.history.reduce((acc, curr) => acc + (curr.content || '').split(' ').length, 0)
         }
+        await this.saveHistory()
     }
-    public clearHistory() {
+    public async clearHistory() {
         this.history = [{
             role: 'system',
             content: CRIMSON_CHAT_SYSTEM_PROMPT
         }]
+        await this.saveHistory()
     }
     private prepareHistory() {
         this.history = this.history.map(({ role, content }) => ({ role, content: content || '' }))
