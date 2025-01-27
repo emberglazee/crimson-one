@@ -34,9 +34,11 @@ export default function onMessageCreate(client: Client) {
 
         const attachments = message.attachments.map(att => att.url)
 
-        if (!content.length && message.stickers.first()) content = `<sticker:${message.stickers.first()!.name}>`
-        if (!content.length && attachments.length) {
-            content = `<Contains ${attachments.length} image${attachments.length > 1 ? 's' : ''}>`
+        if (!content.length && message.stickers.first()) content = `<sticker: ${message.stickers.first()!.name}>`
+        if (attachments.length) {
+            for (const attachment of attachments) {
+                content += `<attachment: ${attachment}>\n`
+            }
         }
 
         // Start typing indicator loop
