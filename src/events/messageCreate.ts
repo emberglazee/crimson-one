@@ -32,8 +32,12 @@ export default function onMessageCreate(client: Client) {
             targetText: (await message.channel.messages.fetch(message.reference.messageId)).content
         } : undefined
 
+        const attachments = message.attachments.map(att => att.url)
+
         if (!content.length && message.stickers.first()) content = `<sticker:${message.stickers.first()!.name}>`
-        if (!content.length && message.attachments.first()) content = `<attachment:${message.attachments.first()!.name}`
+        if (!content.length && attachments.length) {
+            content = `<Contains ${attachments.length} image${attachments.length > 1 ? 's' : ''}>`
+        }
 
         // Start typing indicator loop
         const typingInterval = setInterval(() => {

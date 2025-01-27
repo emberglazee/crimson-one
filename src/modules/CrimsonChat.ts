@@ -6,6 +6,7 @@ import type { ChatCompletionMessage } from 'openai/resources/index.mjs'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { Logger } from '../util/logger'
+import Vision from './Vision'
 const logger = new Logger('CrimsonChat')
 
 export default class CrimsonChat {
@@ -80,6 +81,7 @@ export default class CrimsonChat {
         }
         
         await this.loadHistory()
+        await Vision.getInstance().init()
         logger.ok('CrimsonChat initialized successfully')
     }
 
@@ -210,7 +212,7 @@ export default class CrimsonChat {
             if (!content) return { content: null, hadCommands: false }
 
             // Look for commands in the message
-            const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore)\([^)]*\)/g
+            const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage)\([^)]*\)/g
             const commands = content.match(commandRegex)
 
             if (!commands) return { content, hadCommands: false }
@@ -273,7 +275,7 @@ export default class CrimsonChat {
 
     private async parseCommand(text: string): Promise<string | null> {
         // Command regex with argument capture
-        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore)\(([^)]*)\)/
+        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage)\(([^)]*)\)/
         const match = text.match(commandRegex)
 
         if (!match) return null
@@ -310,6 +312,15 @@ export default class CrimsonChat {
                 if (!presenceMember) return `Could not find user: ${argument}`
                 const presence = presenceMember.presence
                 return presence ? JSON.stringify(presence.activities, null, 2) : 'No presence data available'
+
+            case 'describeImage':
+                if (!argument) return 'Error: Image URL required for describeImage'
+                try {
+                    const description = await Vision.getInstance().captionImage(argument)
+                    return `Image Description: ${description}`
+                } catch (error) {
+                    return `Error describing image: ${error instanceof Error ? error.message : 'Unknown error'}`
+                }
 
             case 'ignore':
                 return null
@@ -373,7 +384,7 @@ export default class CrimsonChat {
         return parsedText
     }
 
-    private async formatUserMessage(username: string, displayName: string, serverDisplayName: string, text: string, respondingTo?: { targetUsername: string; targetText: string }) {
+    private async formatUserMessage(username: string, displayName: string, serverDisplayName: string, text: string, respondingTo?: { targetUsername: string; targetText: string }, attachments?: string[]) {
         const parsedText = await this.parseMentions(text)
         return JSON.stringify({
             username,
@@ -381,6 +392,7 @@ export default class CrimsonChat {
             serverDisplayName,
             currentTime: new Date().toISOString(),
             text: parsedText,
+            attachments,
             respondingTo
         })
     }
