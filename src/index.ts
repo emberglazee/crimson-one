@@ -7,6 +7,7 @@ import path from 'path'
 import { Client, IntentsBitField, Partials } from 'discord.js'
 
 import CommandHandler from './modules/CommandManager'
+import CrimsonChat from './modules/CrimsonChat'
 import QuoteFactory from './modules/QuoteFactory'
 import { GithubWebhook } from './modules/GithubWebhook'
 import type { DiscordEventListener } from './types/types'
@@ -35,6 +36,7 @@ const bot = new Client({
 })
 
 const commandHandler = CommandHandler.getInstance()
+const crimsonChat = CrimsonChat.getInstance()
 export const quoteFactory = new QuoteFactory(bot)
 
 bot.once('ready', async () => {
@@ -47,6 +49,10 @@ bot.once('ready', async () => {
     commandHandler.setClient(bot)
     await commandHandler.init()
     await commandHandler.refreshGlobalCommands()
+
+    // initialize CrimsonChat
+    crimsonChat.setClient(bot)
+    await crimsonChat.init()
 
     // Initialize Github webhook and quote factory
     const webhook = GithubWebhook.getInstance({
