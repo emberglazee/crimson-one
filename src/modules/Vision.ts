@@ -14,7 +14,7 @@ export default class Vision {
     }
     public async init() {
         logger.info('Initializing Gradio client')
-        this.GradioClient = await Client.connect('KingNish/Qwen2-VL-7B')
+        this.GradioClient = await Client.connect('1aurent/cogvlm_captionner')
         logger.ok('Gradio client initialized')
     }
     public async captionImage(imageUrl: string): Promise<string> {
@@ -24,9 +24,9 @@ export default class Vision {
         logger.info('Fetching image')
         const image = await (await fetch(imageUrl)).blob()
         logger.info('Predicting image caption')
-        const response = await this.GradioClient.predict('/qwen_inference', {
-            media_input: image,
-            text_input: 'Describe this image in detail'
+        const response = await this.GradioClient.predict('/generate_caption', {
+            image,
+            query: 'Provide a factual description of this image in up to two paragraphs. Include details on objects, background, scenery, interactions, gestures, poses, and any visible text content. Specify the number of repeated objects. Describe the dominant colors, color contrasts, textures, and materials. Mention the composition, including the arrangement of elements and focus points. Note the camera angle or perspective, and provide any identifiable contextual information. Include details on the style, lighting, and shadows. Avoid subjective interpretations or speculation.'
         }).catch(err => {
             logger.error('Failed to predict image caption')
             console.log(err)
