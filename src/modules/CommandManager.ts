@@ -44,15 +44,28 @@ export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements ICo
 }
 
 export default class CommandHandler {
-    globalCommands: SlashCommand[] = []
-    contextMenuCommands: ContextMenuCommand[] = []
-    files: Dirent[] = []
-    initialized = false
-    client: Client
-    constructor(client: Client) {
+    private static instance: CommandHandler
+    private globalCommands: SlashCommand[] = []
+    private contextMenuCommands: ContextMenuCommand[] = []
+    private files: Dirent[] = []
+    private initialized = false
+    private client: Client | null = null
+
+    private constructor() {}
+
+    public static getInstance(): CommandHandler {
+        if (!CommandHandler.instance) {
+            CommandHandler.instance = new CommandHandler()
+        }
+        return CommandHandler.instance
+    }
+
+    public setClient(client: Client) {
         this.client = client
     }
+
     public async init() {
+        if (!this.client) throw new Error('Client not set. Call setClient() first.')
         logger.info('{init} Initializing...')
         const initStartTime = Date.now()
         await this.loadCommands(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, '../commands'))
@@ -177,8 +190,10 @@ export default class CommandHandler {
         else interaction.editReply(`❌ Interaction error: \`${e.message}\``)
         logger.error(`{handleInteraction} Error while executing command ${interaction.commandName}: ${e.message}\n${e.stack}`)
     }
+
     public async refreshGlobalCommands() {
         if (!this.initialized) throw new ClassNotInitializedError()
+        if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
         logger.info('{refreshGlobalCommands} Refreshing global commands...')
         await this.client.application!.commands.set([
@@ -186,6 +201,7 @@ export default class CommandHandler {
             ...this.contextMenuCommands
         ].map(command => command.data))
     }
+
     public static isGlobalSlashCommand = (obj: any): obj is SlashCommand => {
         return CommandHandler.isSlashCommand(obj) && !('guildId' in obj)
     }
