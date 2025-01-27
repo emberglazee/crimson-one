@@ -1,9 +1,9 @@
-import { AttachmentBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js'
-import type { SlashCommand } from '../modules/CommandManager'
+import { AttachmentBuilder, MessageFlags, SlashCommandBuilder, ContextMenuCommandBuilder, InteractionContextType, ApplicationCommandType } from 'discord.js'
+import type { SlashCommand, ContextMenuCommand } from '../modules/CommandManager'
 import { QuoteImageFactory } from '../modules/QuoteImageFactory'
 import { type GradientType, COLORS, ROLE_COLORS } from '../util/colors'
 
-export default {
+export const slashCommand = {
     data: new SlashCommandBuilder()
         .setName('ac7quote')
         .setDescription('Generate an image out of a text and speaker name styled as an Ace Combat 7 subtitle')
@@ -87,3 +87,30 @@ export default {
         }
     }
 } satisfies SlashCommand
+
+export const contextMenuCommand = {
+    data: new ContextMenuCommandBuilder()
+        .setName('Quick Ace Combat 7 subtitle')
+        .setContexts(InteractionContextType.Guild),
+    type: ApplicationCommandType.Message,
+    async execute(interaction) {
+        const speaker = interaction.targetMessage.author.displayName
+        const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
+        const quote = interaction.targetMessage.content
+
+        await interaction.deferReply()
+        const factory = QuoteImageFactory.getInstance()
+        factory.setGuild(interaction.guild!)
+        try {
+            const result = await factory.createQuoteImage(speaker, quote, color, 'none', false, 'ac7')
+            await interaction.editReply({ 
+                files: [
+                    new AttachmentBuilder(result.buffer)
+                        .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
+                ]
+            })
+        } catch (error) {
+            await interaction.editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error'))
+        }
+    }
+} satisfies ContextMenuCommand<ApplicationCommandType.Message>
