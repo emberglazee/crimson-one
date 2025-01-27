@@ -27,6 +27,9 @@ export default class Vision {
         const response = await this.GradioClient.predict('/qwen_inference', {
             media_input: image,
             text_input: 'Describe this image in detail'
+        }).catch(err => {
+            logger.error(`Failed to predict image caption\n${err}`)
+            throw err
         })
         logger.ok(`Image caption predicted: ${response.data}`)
         return response.data as string
