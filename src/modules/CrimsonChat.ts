@@ -54,7 +54,7 @@ export default class CrimsonChat {
     }) {
         if (!this.thread) throw new Error('Thread not set. Call init() first.')
 
-        const formattedMessage = this.formatUserMessage(
+        const formattedMessage = await this.formatUserMessage(
             options.username,
             options.displayName,
             options.serverDisplayName,
@@ -184,13 +184,35 @@ export default class CrimsonChat {
     }
 
     // Utility Methods
-    private formatUserMessage(username: string, displayName: string, serverDisplayName: string, text: string, respondingTo?: { targetUsername: string; targetText: string }) {
+    private async parseMentions(text: string): Promise<string> {
+        if (!this.client) throw new Error('Client not set')
+        
+        const mentionRegex = /<@!?(\d+)>/g
+        let parsedText = text
+        const mentions = text.matchAll(mentionRegex)
+        
+        for (const match of mentions) {
+            const userId = match[1]
+            try {
+                const user = await this.client.users.fetch(userId)
+                parsedText = parsedText.replace(match[0], `@${user.username}`)
+            } catch (error) {
+                // If user can't be fetched, leave the mention as is
+                console.error(`Could not fetch user ${userId}:`, error)
+            }
+        }
+        
+        return parsedText
+    }
+
+    private async formatUserMessage(username: string, displayName: string, serverDisplayName: string, text: string, respondingTo?: { targetUsername: string; targetText: string }) {
+        const parsedText = await this.parseMentions(text)
         return JSON.stringify({
             username,
             displayName,
             serverDisplayName,
             currentTime: new Date().toISOString(),
-            text,
+            text: parsedText,
             respondingTo
         })
     }
