@@ -94,7 +94,7 @@ export const contextMenuCommand = {
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
     async execute(interaction) {
-        const speaker = interaction.targetMessage.author.displayName
+        const speaker = interaction.targetMessage.member?.displayName || interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const quote = interaction.targetMessage.content
 
