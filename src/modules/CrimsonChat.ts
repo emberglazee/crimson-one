@@ -1,4 +1,4 @@
-import type { Client, TextChannel, ChatInputCommandInteraction, CommandInteractionOption, CacheType } from 'discord.js'
+import type { Client, TextChannel, ChatInputCommandInteraction, CommandInteractionOption, CacheType, Message } from 'discord.js'
 import OpenAI from 'openai'
 import { CRIMSON_CHAT_SYSTEM_PROMPT } from '../util/constants'
 import type { ChatCompletionMessage } from 'openai/resources/index.mjs'
@@ -120,7 +120,7 @@ export default class CrimsonChat {
         displayName: string,
         serverDisplayName: string,
         respondingTo?: { targetUsername: string; targetText: string }
-    }, originalMessage?: any) {
+    }, originalMessage?: Message) {
         if (!this.thread) throw new Error('Thread not set. Call init() first.')
 
         // If chat is disabled, silently ignore the message
@@ -191,6 +191,7 @@ export default class CrimsonChat {
 
                     if (parsedResponse === null) {
                         logger.info('Message ignored via !ignore command')
+                        await originalMessage?.reply('...')
                         this.isProcessing = false
                         return
                     }
