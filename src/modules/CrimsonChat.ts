@@ -384,10 +384,14 @@ export default class CrimsonChat {
     private async trimHistory() {
         const originalLength = this.history.length
         let historyTokens = this.history.reduce((acc, curr) => acc + (curr.content || '').split(' ').length, 0)
-        while (historyTokens > 128000) {
-            this.history.shift()
+        
+        // Keep the system prompt (first message) and only trim subsequent messages
+        while (historyTokens > 128000 && this.history.length > 2) {
+            // Remove the second element (index 1), keeping the system prompt at index 0
+            this.history.splice(1, 1)
             historyTokens = this.history.reduce((acc, curr) => acc + (curr.content || '').split(' ').length, 0)
         }
+        
         if (originalLength !== this.history.length) {
             logger.info(`Trimmed history from ${originalLength} to ${this.history.length} messages`)
         }
