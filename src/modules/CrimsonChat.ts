@@ -200,7 +200,7 @@ export default class CrimsonChat {
 
                     if (!hadCommands) {
                         logger.info('No more commands to process, sending final response')
-                        await this.sendResponseToDiscord(parsedResponse, message)
+                        await this.sendResponseToDiscord(parsedResponse, message, originalMessage)
                         hasMoreCommands = false
                     } else {
                         logger.info('Commands found in response, continuing chain')
@@ -259,7 +259,7 @@ export default class CrimsonChat {
         }
     }
 
-    private async sendResponseToDiscord(content: string, message?: ChatCompletionMessage): Promise<void> {
+    private async sendResponseToDiscord(content: string, message?: ChatCompletionMessage, originalMessage?: any): Promise<void> {
         if (!this.thread) throw new Error('Thread not set')
 
         try {
@@ -271,20 +271,36 @@ export default class CrimsonChat {
             // If content is over 2000 characters, send as a file
             if (finalContent.length > 2000) {
                 const buffer = Buffer.from(finalContent, 'utf-8')
-                await this.thread.send({
+                const messageOptions = {
                     files: [{
                         attachment: buffer,
                         name: 'response.txt'
                     }]
-                }).catch(err => {
-                    logger.error(`Failed to send file response: ${err.message}`)
-                    throw new Error('Failed to send file response')
-                })
+                }
+                
+                if (originalMessage?.reply) {
+                    await originalMessage.reply(messageOptions).catch((err: Error) => {
+                        logger.error(`Failed to send file response: ${err.message}`)
+                        throw new Error('Failed to send file response')
+                    })
+                } else {
+                    await this.thread.send(messageOptions).catch((err: Error) => {
+                        logger.error(`Failed to send file response: ${err.message}`)
+                        throw new Error('Failed to send file response')
+                    })
+                }
             } else {
-                await this.thread.send(finalContent).catch(err => {
-                    logger.error(`Failed to send message: ${err.message}`)
-                    throw new Error('Failed to send message')
-                })
+                if (originalMessage?.reply) {
+                    await originalMessage.reply(finalContent).catch((err: Error) => {
+                        logger.error(`Failed to send message: ${err.message}`)
+                        throw new Error('Failed to send message')
+                    })
+                } else {
+                    await this.thread.send(finalContent).catch((err: Error) => {
+                        logger.error(`Failed to send message: ${err.message}`)
+                        throw new Error('Failed to send message')
+                    })
+                }
             }
         } catch (error: any) {
             logger.error(`Error sending response to Discord: ${error.message}`)
