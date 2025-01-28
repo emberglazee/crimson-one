@@ -23,6 +23,7 @@ You'll receive messages in this JSON structure (stringified):
     text: string
     respondingTo?: { targetUsername: string; targetText: string }
 }
+Only send responses in plain text, do not try to replicate the JSON structure.
 
 FORMATTING GUIDELINES:
 - Use Discord markdown formatting sparingly (*, **, __, ~~)
