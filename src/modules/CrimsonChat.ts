@@ -335,7 +335,6 @@ export default class CrimsonChat {
         text = text.normalize('NFKC')
         logger.info(`Normalized text before regex: ${text}`)
 
-        // Updated command regex to better capture parameters
         const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)(?:\(([^)]+)\))?/
         const match = commandRegex.exec(text)
         if (!match) {
@@ -345,17 +344,16 @@ export default class CrimsonChat {
 
         const [fullMatch, command, params] = match
         let finalUsername = params?.trim() || ''
-
-        logger.info(`Command: ${command}, Initial Username: ${finalUsername}`)
         
+        // Move afterCommand declaration here so it's available to all cases
+        const afterCommand = text.slice(match.index + fullMatch.length).trim()
+        logger.info(`Command: ${command}, Initial Username: ${finalUsername}`)
+        logger.info(`Content after command: ${afterCommand}`)
+
         // Only try to extract username from after command if no params found
-        if (!finalUsername) {
-            const afterCommand = text.slice(match.index + fullMatch.length).trim()
-            logger.info(`Content after command: ${afterCommand}`)
-            if (afterCommand) {
-                finalUsername = afterCommand.split(/\s+/)[0]
-                logger.info(`Found username after command: ${finalUsername}`)
-            }
+        if (!finalUsername && afterCommand) {
+            finalUsername = afterCommand.split(/\s+/)[0]
+            logger.info(`Found username after command: ${finalUsername}`)
         }
 
         logger.info(`Executing command ${command} with final username: ${finalUsername}`)
@@ -383,11 +381,41 @@ export default class CrimsonChat {
 
             case 'getRichPresence':
                 if (!finalUsername) return 'Error: Username or ID required for getRichPresence'
-                const presenceMember = await this.thread?.guild?.members.fetch(finalUsername)
-                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === finalUsername))
-                if (!presenceMember) return `Could not find user: ${finalUsername}`
-                const presence = presenceMember.presence
-                return presence ? JSON.stringify(presence.activities, null, 2) : 'No presence data available'
+                try {
+                    logger.info(`Fetching member for rich presence: ${finalUsername}`)
+                    const presenceMember = await this.thread?.guild?.members.fetch(finalUsername)
+                        .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === finalUsername))
+
+                    if (!presenceMember) return `Could not find user: ${finalUsername}`
+
+                    // Force fetch the presence
+                    await presenceMember.fetch(true)
+                    const presence = presenceMember.presence
+
+                    logger.info(`Presence data for ${finalUsername}: ${JSON.stringify(presence)}`)
+
+                    if (!presence) {
+                        return 'User is offline or has no presence data'
+                    }
+
+                    if (!presence.activities || presence.activities.length === 0) {
+                        return 'User has presence data but no current activities'
+                    }
+
+                    // Format activities in a more readable way
+                    const activities = presence.activities.map(activity => ({
+                        name: activity.name,
+                        type: activity.type,
+                        state: activity.state,
+                        details: activity.details,
+                        createdAt: activity.createdAt
+                    }))
+
+                    return JSON.stringify(activities, null, 2)
+                } catch (error) {
+                    logger.error(`Error fetching rich presence: ${error}`)
+                    return `Error fetching presence data: ${error instanceof Error ? error.message : 'Unknown error'}`
+                }
 
             case 'describeImage':
                 const urlInParens = match[2]
