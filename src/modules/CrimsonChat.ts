@@ -299,7 +299,7 @@ export default class CrimsonChat {
                         name: 'response.txt'
                     }]
                 }
-                
+
                 if (originalMessage?.reply) {
                     await originalMessage.reply(messageOptions).catch((err: Error) => {
                         logger.error(`Failed to send file response: ${err.message}`)
