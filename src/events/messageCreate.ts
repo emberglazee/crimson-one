@@ -19,6 +19,11 @@ export default function onMessageCreate(client: Client) {
             if (message.content === '!toggle') {
                 crimsonChat.setEnabled(!crimsonChat.isEnabled())
                 await message.react(crimsonChat.isEnabled() ? '✅' : '🔴')
+                await crimsonChat.sendMessage('Chat is now ' + (crimsonChat.isEnabled() ? 'enabled' : 'disabled') + ', you will' + (crimsonChat.isEnabled() ? ' ' : ' not') + ' be able to see and reply to users messages now.', {
+                    username: 'System',
+                    displayName: 'System',
+                    serverDisplayName: 'System'
+                })
                 return
             }
 
@@ -26,12 +31,24 @@ export default function onMessageCreate(client: Client) {
                 const userId = message.content.split(' ')[1]
                 await crimsonChat.banUser(userId)
                 await message.react('✅')
+                const user = await client.users.fetch(userId)
+                await crimsonChat.sendMessage(`User ${user.username} has been banned, you are now not able to see their messages.`, {
+                    username: 'System',
+                    displayName: 'System',
+                    serverDisplayName: 'System'
+                })
                 return
             }
             if (message.content.startsWith('!unban ')) {
                 const userId = message.content.split(' ')[1]
                 await crimsonChat.unbanUser(userId)
                 await message.react('✅')
+                const user = await client.users.fetch(userId)
+                await crimsonChat.sendMessage(`User ${user.username} has been unbanned, you are now able to see their messages.`, {
+                    username: 'System',
+                    displayName: 'System',
+                    serverDisplayName: 'System'
+                })
                 return
             }
         }
