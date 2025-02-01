@@ -331,21 +331,21 @@ export default class CrimsonChat {
     }
 
     private async parseCommand(text: string): Promise<string | null> {
-        // Command regex - now includes parentheses pattern
-        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)(?:\(([^)]+)\))?/
+        // Command regex - now includes parentheses pattern but captures command name without !
+        const commandRegex = /!(?:(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis))(?:\(([^)]+)\))?/
         const match = commandRegex.exec(text)
 
         if (!match) return null
 
-        const command = match[0]
-        // First try to get username from parentheses (preferred method)
-        let username = match[2]
+        const command = match[1] // Get just the command name without the !
+        const username = match[2] // Get the argument from parentheses if it exists
         
         // Get everything after the command for parsing URLs or fallback username patterns
-        const afterCommand = text.slice(match.index + match[1].length)
+        const afterCommand = text.slice(match.index + match[0].length)
         
-        // If no username in parentheses, fall back to getting it from trailing text
-        if (!username) {
+        // Try to get username from text after command if not found in parentheses
+        let finalUsername = username
+        if (!finalUsername) {
             // Try different patterns as fallback
             const patterns = [
                 /[\s(]+([\w\d]+)[\s)]*/, // Matches username with spaces or parentheses
@@ -355,27 +355,27 @@ export default class CrimsonChat {
             for (const pattern of patterns) {
                 const fallbackMatch = afterCommand.match(pattern)
                 if (fallbackMatch?.[1]) {
-                    username = fallbackMatch[1].trim()
+                    finalUsername = fallbackMatch[1].trim()
                     break
                 }
             }
         }
 
-        logger.info(`Executing command ${match[1]} with content after command: ${afterCommand}`)
+        logger.info(`Executing command ${command} with content after command: ${afterCommand}`)
 
-        switch (match[1]) {
-            case '!fetchRoles':
-                if (!username) return 'Error: Username or ID required for fetchRoles'
-                const member = await this.thread?.guild?.members.fetch(username)
-                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === username))
-                if (!member) return `Could not find user: ${username}`
+        switch (command) {
+            case 'fetchRoles':
+                if (!finalUsername) return 'Error: Username or ID required for fetchRoles'
+                const member = await this.thread?.guild?.members.fetch(finalUsername)
+                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === finalUsername))
+                if (!member) return `Could not find user: ${finalUsername}`
                 return member.roles.cache.map(role => role.name).join(', ')
 
-            case '!fetchUser':
-                if (!username) return 'Error: Username or ID required for fetchUser'
-                const user = await this.client?.users.fetch(username)
-                    .catch(() => this.client?.users.cache.find(u => u.username === username))
-                if (!user) return `Could not find user: ${username}`
+            case 'fetchUser':
+                if (!finalUsername) return 'Error: Username or ID required for fetchUser'
+                const user = await this.client?.users.fetch(finalUsername)
+                    .catch(() => this.client?.users.cache.find(u => u.username === finalUsername))
+                if (!user) return `Could not find user: ${finalUsername}`
                 return JSON.stringify({
                     id: user.id,
                     username: user.username,
@@ -384,15 +384,15 @@ export default class CrimsonChat {
                     bot: user.bot
                 }, null, 2)
 
-            case '!getRichPresence':
-                if (!username) return 'Error: Username or ID required for getRichPresence'
-                const presenceMember = await this.thread?.guild?.members.fetch(username)
-                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === username))
-                if (!presenceMember) return `Could not find user: ${username}`
+            case 'getRichPresence':
+                if (!finalUsername) return 'Error: Username or ID required for getRichPresence'
+                const presenceMember = await this.thread?.guild?.members.fetch(finalUsername)
+                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === finalUsername))
+                if (!presenceMember) return `Could not find user: ${finalUsername}`
                 const presence = presenceMember.presence
                 return presence ? JSON.stringify(presence.activities, null, 2) : 'No presence data available'
 
-            case '!describeImage':
+            case 'describeImage':
                 const urlInParens = username // First try URL from parentheses
                 const imageMatch = urlInParens || afterCommand.match(/https?:\/\/\S+/i)?.[0]
                 if (!imageMatch) return 'Error: Image URL required for describeImage'
@@ -403,7 +403,7 @@ export default class CrimsonChat {
                     return `Error describing image: ${error instanceof Error ? error.message : 'Unknown error'}`
                 }
 
-            case '!getEmojis':
+            case 'getEmojis':
                 try {
                     const emojisPath = path.join(process.cwd(), 'data', 'emojis.json')
                     const emojisData = await fs.readFile(emojisPath, 'utf-8')
@@ -413,11 +413,11 @@ export default class CrimsonChat {
                     return `Error reading emojis: ${error instanceof Error ? error.message : 'Unknown error'}`
                 }
 
-            case '!ignore':
+            case 'ignore':
                 return null
 
             default:
-                return `Unknown command: ${command}`
+                return `Unknown command: !${command}`
         }
     }
 
