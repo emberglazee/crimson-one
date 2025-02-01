@@ -5,6 +5,7 @@ import crypto from 'crypto'
 import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
 import { Logger } from '../util/logger'
 import type { GitHubPushEvent } from '../types/types'
+import CrimsonChat from './CrimsonChat'
 
 const logger = Logger.new('GithubWebhook')
 
@@ -63,7 +64,21 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
                 .setDescription(`[${payload.head_commit.id.substring(0, 7)}](${payload.head_commit.url}) - ${payload.head_commit.message}`)
                 .setTimestamp(new Date(payload.head_commit.timestamp))
 
-            await this.thread?.send({ embeds: [embed] })
+            const chatInstance = CrimsonChat.getInstance()
+            await chatInstance.sendMessage(`GitHub Webhook Event\n\`\`\`json\n${JSON.stringify({
+                type: 'push',
+                repo: payload.repository.name,
+                commit: {
+                    id: payload.head_commit.id.substring(0, 7),
+                    url: payload.head_commit.url,
+                    message: payload.head_commit.message,
+                    timestamp: payload.head_commit.timestamp
+                }
+            }, null, 2)}\n\`\`\``, {
+                username: 'GitHub',
+                displayName: 'GitHub Webhook',
+                serverDisplayName: 'GitHub Webhook'
+            })
         })
 
         await this.start()
