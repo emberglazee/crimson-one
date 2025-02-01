@@ -11,8 +11,8 @@ export default function onMessageUpdate(client: Client) {
             const old = oldMessage as Message
             const current = newMessage as Message
 
-            // Skip if content hasn't changed or if it's the bot's own message
-            if (old.content === current.content || current.author.id === client.user?.id) return
+            // Skip if content hasn't changed
+            if (old.content === current.content) return
 
             // Send edit notification through CrimsonChat
             const chatInstance = CrimsonChat.getInstance()
