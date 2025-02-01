@@ -252,25 +252,26 @@ export default class CrimsonChat {
             const content = message.content
             if (!content) return { content: null, hadCommands: false }
 
-            // Look for commands in the message
-            const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)/g
-            const commands = content.match(commandRegex)
+            // Updated regex to match entire command with parameters
+            const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)(?:\(([^)]+)\))?/g
+            const commands = Array.from(content.matchAll(commandRegex))
 
-            if (!commands) return { content, hadCommands: false }
+            if (!commands.length) return { content, hadCommands: false }
 
             logger.info(`Found ${commands.length} commands in response`)
 
             // Process each command and replace it in the message
             let modifiedContent = content
-            for (const command of commands) {
-                logger.info(`Processing command: ${command}`)
+            for (const [fullMatch, command, params] of commands) {
+                logger.info(`Processing command: ${fullMatch} (params: ${params || 'none'})`)
                 try {
-                    const response = await this.parseCommand(command)
-                    if (response === null) return { content: null, hadCommands: true } // ignore() was called
-                    modifiedContent = modifiedContent.replace(command, `${command} -> ${response}`)
+                    // Pass the full command match for parsing
+                    const response = await this.parseCommand(fullMatch)
+                    if (response === null) return { content: null, hadCommands: true }
+                    modifiedContent = modifiedContent.replace(fullMatch, `${fullMatch} -> ${response}`)
                 } catch (cmdError: any) {
-                    logger.error(`Error processing command ${command}: ${cmdError.message}`)
-                    modifiedContent = modifiedContent.replace(command, `${command} -> Error: ${cmdError.message}`)
+                    logger.error(`Error processing command ${fullMatch}: ${cmdError.message}`)
+                    modifiedContent = modifiedContent.replace(fullMatch, `${fullMatch} -> Error: ${cmdError.message}`)
                 }
             }
 
@@ -331,32 +332,28 @@ export default class CrimsonChat {
     }
 
     private async parseCommand(text: string): Promise<string | null> {
-        // Normalize text to handle possible fancy parentheses or hidden chars
         text = text.normalize('NFKC')
         logger.info(`Normalized text before regex: ${text}`)
 
-        // Updated regex to better handle parentheses content
-        const commandRegex = /!(?:(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis))(?:\(([^)]*)\))?/
+        // Updated command regex to better capture parameters
+        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)(?:\(([^)]+)\))?/
         const match = commandRegex.exec(text)
         if (!match) {
             logger.error(`No command match found in text: ${text}`)
             return null
         }
 
-        const command = match[1]
-        let finalUsername = match[2]?.trim() || ''
+        const [fullMatch, command, params] = match
+        let finalUsername = params?.trim() || ''
+
         logger.info(`Command: ${command}, Initial Username: ${finalUsername}`)
-
-        const afterCommand = text.slice(match.index + match[0].length)
-        logger.info(`Content after command: ${afterCommand}`)
-
-        // Only try to extract username if not found in parentheses
+        
+        // Only try to extract username from after command if no params found
         if (!finalUsername) {
-            // Look for username after the command
-            const usernamePattern = /^\s*([a-zA-Z0-9_]+)/
-            const fallbackMatch = afterCommand.match(usernamePattern)
-            if (fallbackMatch?.[1]) {
-                finalUsername = fallbackMatch[1].trim()
+            const afterCommand = text.slice(match.index + fullMatch.length).trim()
+            logger.info(`Content after command: ${afterCommand}`)
+            if (afterCommand) {
+                finalUsername = afterCommand.split(/\s+/)[0]
                 logger.info(`Found username after command: ${finalUsername}`)
             }
         }
