@@ -4,6 +4,8 @@ import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT } from '../util/co
 import type { ChatCompletionMessage } from 'openai/resources/index.mjs'
 import { promises as fs } from 'fs'
 import path from 'path'
+import { spawn } from 'child_process'
+import os from 'os'
 import { Logger } from '../util/logger'
 const logger = new Logger('CrimsonChat')
 
@@ -467,14 +469,71 @@ export default class CrimsonChat {
         }
     }
 
+    private async extractFirstFrameFromGif(url: string): Promise<Buffer | null> {
+        const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gif-frame-'))
+        const outputPath = path.join(tmpDir, 'frame.png')
+
+        try {
+            // Download GIF to temp file
+            const response = await fetch(url)
+            const buffer = Buffer.from(await response.arrayBuffer())
+            const gifPath = path.join(tmpDir, 'temp.gif')
+            await fs.writeFile(gifPath, buffer)
+
+            // Extract first frame using FFmpeg
+            return new Promise((resolve, reject) => {
+                const ffmpeg = spawn('ffmpeg', [
+                    '-i', gifPath,
+                    '-vframes', '1',
+                    '-f', 'image2',
+                    outputPath
+                ])
+
+                ffmpeg.on('close', async (code) => {
+                    if (code === 0) {
+                        try {
+                            const frameBuffer = await fs.readFile(outputPath)
+                            resolve(frameBuffer)
+                        } catch (error) {
+                            reject(error)
+                        }
+                    } else {
+                        reject(new Error(`FFmpeg exited with code ${code}`))
+                    }
+                })
+
+                ffmpeg.on('error', reject)
+            })
+        } catch (error) {
+            logger.error(`Failed to extract first frame: ${error}`)
+            return null
+        } finally {
+            // Cleanup temp directory
+            fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+        }
+    }
+
     private async fetchAndConvertToBase64(url: string): Promise<string | null> {
         try {
             logger.info(`Fetching image from URL: ${url}`)
-            const response = await fetch(url)
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-            const buffer = await response.arrayBuffer()
-            const base64 = Buffer.from(buffer).toString('base64')
-            const mimeType = response.headers.get('content-type') || 'image/jpeg'
+            let buffer: Buffer
+
+            // Check if the URL is a GIF
+            if (url.toLowerCase().endsWith('.gif')) {
+                logger.info('GIF detected, extracting first frame...')
+                const frameBuffer = await this.extractFirstFrameFromGif(url)
+                if (!frameBuffer) {
+                    throw new Error('Failed to extract first frame from GIF')
+                }
+                buffer = frameBuffer
+            } else {
+                const response = await fetch(url)
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+                buffer = Buffer.from(await response.arrayBuffer())
+            }
+
+            const base64 = buffer.toString('base64')
+            const mimeType = url.toLowerCase().endsWith('.gif') ? 'image/png' : 'image/jpeg'
             return `data:${mimeType};base64,${base64}`
         } catch (error) {
             logger.error(`Failed to fetch and convert image: ${error}`)
