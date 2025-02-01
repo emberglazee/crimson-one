@@ -141,6 +141,7 @@ export default class CrimsonChat {
         displayName: string,
         serverDisplayName: string,
         respondingTo?: { targetUsername: string; targetText: string }
+        imageAttachments?: string[]
     }, originalMessage?: Message) {
         if (!this.thread) throw new Error('Thread not set. Call init() first.')
 
@@ -168,10 +169,12 @@ export default class CrimsonChat {
                 return
             }
 
-            // Extract image URLs from attachments and message content
+            // Extract image URLs from message content and combine with image attachments
             const imageUrls: string[] = []
-            if (originalMessage?.attachments) {
-                imageUrls.push(...originalMessage.attachments.map(att => att.url))
+            
+            // Add provided image attachments
+            if (options.imageAttachments?.length) {
+                imageUrls.push(...options.imageAttachments)
             }
 
             // Add any image URLs from the message content

@@ -71,17 +71,30 @@ export default function onMessageCreate(client: Client) {
             targetText: (await message.channel.messages.fetch(message.reference.messageId)).content
         } : undefined
 
-        const attachments = message.attachments.map(att => att.url)
+        // Separate image attachments from other attachments
+        const imageAttachments: string[] = []
+        const otherAttachments: string[] = []
+
+        message.attachments.forEach(att => {
+            // Check for image MIME types and common image extensions
+            const isImage = att.contentType?.startsWith('image/') || 
+                /\.(jpg|jpeg|png|gif|webp)$/i.test(att.name)
+            
+            if (isImage) {
+                imageAttachments.push(att.url)
+            } else {
+                otherAttachments.push(att.url)
+            }
+        })
 
         if (!content.length && message.stickers.first()) content = `< sticker: ${message.stickers.first()!.name} >`
-        if (attachments.length) {
-            for (const attachment of attachments) {
+        if (otherAttachments.length) {
+            for (const attachment of otherAttachments) {
                 content += `\n< attachment: ${attachment} >`
             }
         }
         if (message.embeds.length) {
             const embed = message.embeds[0]
-            // Describe the entirety of the embed
             content += `\n< embed: ${JSON.stringify(embed)} >`
         }
 
@@ -100,7 +113,8 @@ export default function onMessageCreate(client: Client) {
                 username: message.author.username,
                 displayName: message.member!.displayName,
                 serverDisplayName: message.member?.displayName ?? message.author.displayName,
-                respondingTo
+                respondingTo,
+                imageAttachments // Pass image attachments separately
             }, message)
         } finally {
             // Always clear the interval when done
