@@ -335,7 +335,8 @@ export default class CrimsonChat {
         text = text.normalize('NFKC')
         logger.info(`Normalized text before regex: ${text}`)
 
-        const commandRegex = /!(?:(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis))(?:\(([^)]+)\))?/
+        // Updated regex to better handle parentheses content
+        const commandRegex = /!(?:(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis))(?:\(([^)]*)\))?/
         const match = commandRegex.exec(text)
         if (!match) {
             logger.error(`No command match found in text: ${text}`)
@@ -343,26 +344,20 @@ export default class CrimsonChat {
         }
 
         const command = match[1]
-        // Trim the argument to ensure it’s not an empty string with stray spaces.
-        let finalUsername = match[2]?.trim()
+        let finalUsername = match[2]?.trim() || ''
         logger.info(`Command: ${command}, Initial Username: ${finalUsername}`)
 
         const afterCommand = text.slice(match.index + match[0].length)
         logger.info(`Content after command: ${afterCommand}`)
 
-        // Fallback to extract username if not found in parentheses
+        // Only try to extract username if not found in parentheses
         if (!finalUsername) {
-            const patterns = [
-                /[\s(]+([\w\d]+)[\s)]*/,
-                /[:\s]+([\w\d]+)/
-            ]
-            for (const pattern of patterns) {
-                const fallbackMatch = afterCommand.match(pattern)
-                if (fallbackMatch?.[1]) {
-                    finalUsername = fallbackMatch[1].trim()
-                    logger.info(`Fallback Username: ${finalUsername}`)
-                    break
-                }
+            // Look for username after the command
+            const usernamePattern = /^\s*([a-zA-Z0-9_]+)/
+            const fallbackMatch = afterCommand.match(usernamePattern)
+            if (fallbackMatch?.[1]) {
+                finalUsername = fallbackMatch[1].trim()
+                logger.info(`Found username after command: ${finalUsername}`)
             }
         }
 
