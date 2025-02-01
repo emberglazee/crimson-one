@@ -207,7 +207,10 @@ export default class CrimsonChat {
                 let response;
                 try {
                     response = await this.openai.chat.completions.create({
-                        messages: this.prepareHistory(),
+                        messages: [
+                            ...this.prepareHistory().slice(0, -1), // All messages except the last one
+                            messageForCompletion // Use the formatted message with images
+                        ],
                         model: 'gpt-4o-mini'
                     })
                 } catch (apiError: any) {
