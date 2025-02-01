@@ -23,6 +23,16 @@ You'll receive messages in this JSON structure (stringified):
     currentTime: string
     text: string
     respondingTo?: { targetUsername: string; targetText: string }
+    userStatus: {
+        roles: string[]             // List of user's Discord roles
+        presence: {                 // User's current activity, or "offline or no activities"
+            name: string            // Name of the activity
+            type: number           // Activity type (0: Playing, 1: Streaming, 2: Listening, 3: Watching, etc.)
+            state?: string         // Current state of the activity
+            details?: string       // Additional details about the activity
+            createdAt: string      // When the activity started
+        }[]
+    } | "unknown"
 }
 Only send responses in plain text, do not try to replicate the JSON structure.
 
