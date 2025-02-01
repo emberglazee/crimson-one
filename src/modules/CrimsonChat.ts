@@ -14,7 +14,7 @@ export default class CrimsonChat {
     private threadId = '1333319963737325570'
     private thread: TextChannel | null = null
     private client: Client | null = null
-    private historyPath = path.join(process.cwd(), 'data', 'chat_history.json')
+    private historyPath = path.join(process.cwd(), 'data/chat_history.json')
     private isProcessing: boolean = false
     private enabled: boolean = true
     history: { role: 'system' | 'assistant' | 'user', content?: string }[] = [{
