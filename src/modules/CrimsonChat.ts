@@ -472,39 +472,54 @@ export default class CrimsonChat {
     private async extractFirstFrameFromGif(url: string): Promise<Buffer | null> {
         const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gif-frame-'))
         const outputPath = path.join(tmpDir, 'frame.png')
+        const gifPath = path.join(tmpDir, 'temp.gif')
 
         try {
             // Download GIF to temp file
             const response = await fetch(url)
+            if (!response.ok) throw new Error(`Failed to fetch GIF: ${response.statusText}`)
+
             const buffer = Buffer.from(await response.arrayBuffer())
-            const gifPath = path.join(tmpDir, 'temp.gif')
             await fs.writeFile(gifPath, buffer)
+
+            // Verify the file exists before running FFmpeg
+            const stats = await fs.stat(gifPath)
+            if (stats.size === 0) throw new Error('Downloaded GIF is empty')
+
+            logger.info(`Downloaded GIF to ${gifPath} (${stats.size} bytes)`)
 
             // Extract first frame using FFmpeg
             return new Promise((resolve, reject) => {
+                let stderr = ''
                 const ffmpeg = spawn('ffmpeg', [
+                    '-y', // Overwrite output file
+                    '-loglevel', 'info', // More verbose logging
                     '-i', gifPath,
                     '-vframes', '1',
+                    '-vf', 'scale=-1:-1', // Maintain aspect ratio
                     '-f', 'image2',
                     outputPath
                 ])
 
-                let stderr = ''
                 ffmpeg.stderr.on('data', data => {
                     stderr += data.toString()
+                    logger.info(`FFmpeg: ${data.toString().trim()}`)
                 })
 
                 ffmpeg.on('close', async (code) => {
                     if (code === 0) {
                         try {
                             const frameBuffer = await fs.readFile(outputPath)
+                            if (frameBuffer.length === 0) {
+                                reject(new Error('Generated frame is empty'))
+                                return
+                            }
                             resolve(frameBuffer)
                         } catch (error) {
-                            reject(error)
+                            reject(new Error(`Failed to read output file: ${error}`))
                         }
                     } else {
-                        logger.error(`FFmpeg stderr: ${stderr}`)
-                        reject(new Error(`FFmpeg exited with code ${code}: ${stderr}`))
+                        reject(new Error(`FFmpeg exited with code ${code}:\n${stderr}`))
                     }
                 })
 
@@ -518,7 +533,12 @@ export default class CrimsonChat {
             return null
         } finally {
             // Cleanup temp directory
-            fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+            try {
+                await fs.rm(tmpDir, { recursive: true, force: true })
+                logger.info(`Cleaned up temp directory: ${tmpDir}`)
+            } catch (error) {
+                logger.error(`Failed to cleanup temp directory: ${error}`)
+            }
         }
     }
 
