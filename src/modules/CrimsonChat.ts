@@ -17,6 +17,8 @@ export default class CrimsonChat {
     private historyPath = path.join(process.cwd(), 'data/chat_history.json')
     private isProcessing: boolean = false
     private enabled: boolean = true
+    private bannedUsers: Set<string> = new Set()
+    private bannedUsersPath = path.join(process.cwd(), 'data/banned_users.json')
     history: { role: 'system' | 'assistant' | 'user', content?: string }[] = [{
         role: 'system',
         content: CRIMSON_CHAT_SYSTEM_PROMPT
@@ -89,6 +91,24 @@ export default class CrimsonChat {
         }
     }
 
+    private async loadBannedUsers(): Promise<void> {
+        try {
+            const data = await fs.readFile(this.bannedUsersPath, 'utf-8')
+            this.bannedUsers = new Set(JSON.parse(data))
+        } catch (error) {
+            this.bannedUsers = new Set()
+        }
+    }
+
+    private async saveBannedUsers(): Promise<void> {
+        try {
+            await fs.mkdir(path.dirname(this.bannedUsersPath), { recursive: true })
+            await fs.writeFile(this.bannedUsersPath, JSON.stringify([...this.bannedUsers]))
+        } catch (error) {
+            console.error('Failed to save banned users:', error)
+        }
+    }
+
     public async init(): Promise<void> {
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
@@ -100,6 +120,7 @@ export default class CrimsonChat {
         }
 
         await this.loadHistory()
+        await this.loadBannedUsers()
         await Vision.getInstance().init()
         logger.ok('CrimsonChat initialized successfully')
     }
@@ -232,7 +253,7 @@ export default class CrimsonChat {
             if (!content) return { content: null, hadCommands: false }
 
             // Look for commands in the message
-            const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage)\([^)]*\)/g
+            const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)/g
             const commands = content.match(commandRegex)
 
             if (!commands) return { content, hadCommands: false }
@@ -311,7 +332,7 @@ export default class CrimsonChat {
 
     private async parseCommand(text: string): Promise<string | null> {
         // Command regex with argument capture
-        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)\(([^)]*)\)/
+        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)/g
         const match = text.match(commandRegex)
 
         if (!match) return null
@@ -445,5 +466,21 @@ export default class CrimsonChat {
             attachments,
             respondingTo
         })
+    }
+
+    public isBanned(userId: string): boolean {
+        return this.bannedUsers.has(userId)
+    }
+
+    public async banUser(userId: string): Promise<void> {
+        this.bannedUsers.add(userId)
+        await this.saveBannedUsers()
+        logger.info(`Banned user ${userId} from CrimsonChat`)
+    }
+
+    public async unbanUser(userId: string): Promise<void> {
+        this.bannedUsers.delete(userId)
+        await this.saveBannedUsers()
+        logger.info(`Unbanned user ${userId} from CrimsonChat`)
     }
 }
