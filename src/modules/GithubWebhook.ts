@@ -107,7 +107,7 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
 
                 const parsedPayload = JSON.parse(payload)
                 this.emit(event as keyof WebhookEvents, parsedPayload)
-                
+
                 res.writeHead(200, { 'Content-Type': 'text/plain' })
                 res.end('OK')
             } catch (error) {
