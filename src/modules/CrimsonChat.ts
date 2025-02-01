@@ -5,7 +5,6 @@ import type { ChatCompletionMessage } from 'openai/resources/index.mjs'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { Logger } from '../util/logger'
-import Vision from './Vision'
 const logger = new Logger('CrimsonChat')
 
 export default class CrimsonChat {
@@ -123,7 +122,6 @@ export default class CrimsonChat {
 
         await this.loadHistory()
         await this.loadBannedUsers()
-        await Vision.getInstance().init()
         logger.ok('CrimsonChat initialized successfully')
     }
 
@@ -170,7 +168,17 @@ export default class CrimsonChat {
                 return
             }
 
-            // Only continue with normal response if no breakdown occurred
+            // Extract image URLs from attachments and message content
+            const imageUrls: string[] = []
+            if (originalMessage?.attachments) {
+                imageUrls.push(...originalMessage.attachments.map(att => att.url))
+            }
+
+            // Add any image URLs from the message content
+            const urlRegex = /https?:\/\/\S+?(?:jpg|jpeg|png|gif|webp)(?:\?\S*)?(?=\s|$)/gi
+            const contentImageUrls = content.match(urlRegex) || []
+            imageUrls.push(...contentImageUrls)
+
             const formattedMessage = await this.formatUserMessage(
                 options.username,
                 options.displayName,
@@ -179,7 +187,11 @@ export default class CrimsonChat {
                 options.respondingTo
             )
 
-            this.appendMessage('user', formattedMessage)
+            const messageForCompletion = await this.parseMessagesForChatCompletion(formattedMessage, imageUrls)
+            this.appendMessage('user', typeof messageForCompletion.content === 'string' 
+                ? messageForCompletion.content 
+                : JSON.stringify(messageForCompletion.content))
+
             this.trimHistory()
 
             let hasMoreCommands = true
@@ -264,7 +276,7 @@ export default class CrimsonChat {
             if (!content) return { content: null, hadCommands: false }
 
             // Updated regex to match entire command with parameters
-            const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)(?:\(([^)]+)\))?/g
+            const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]+)\))?/g
             const commands = Array.from(content.matchAll(commandRegex))
 
             if (!commands.length) return { content, hadCommands: false }
@@ -346,7 +358,7 @@ export default class CrimsonChat {
         text = text.normalize('NFKC')
         logger.info(`Normalized text before regex: ${text}`)
 
-        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)(?:\(([^)]+)\))?/
+        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]+)\))?/
         const match = commandRegex.exec(text)
         if (!match) {
             logger.error(`No command match found in text: ${text}`)
@@ -428,17 +440,6 @@ export default class CrimsonChat {
                     return `Error fetching presence data: ${error instanceof Error ? error.message : 'Unknown error'}`
                 }
 
-            case 'describeImage':
-                const urlInParens = match[2]
-                const imageMatch = urlInParens || afterCommand.match(/https?:\/\/\S+/i)?.[0]
-                if (!imageMatch) return 'Error: Image URL required for describeImage'
-                try {
-                    const description = await Vision.getInstance().captionImage(imageMatch)
-                    return `Image Description: ${description}`
-                } catch (error) {
-                    return `Error describing image: ${error instanceof Error ? error.message : 'Unknown error'}`
-                }
-
             case 'getEmojis':
                 try {
                     const emojisPath = path.join(process.cwd(), 'data', 'emojis.json')
@@ -455,6 +456,28 @@ export default class CrimsonChat {
             default:
                 return `Unknown command: !${command}`
         }
+    }
+
+    private async parseMessagesForChatCompletion(content: string, attachments: string[] = []): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam> {
+        // If there are no attachments, return a simple text message
+        if (!attachments.length) {
+            return { role: 'user', content: content };
+        }
+
+        // If there are attachments, create a message with both text and images
+        const messageContent: Array<OpenAI.Chat.Completions.ChatCompletionContentPart> = [
+            { type: 'text', text: content || '' }
+        ];
+
+        // Add each image attachment
+        for (const attachmentUrl of attachments) {
+            messageContent.push({
+                type: 'image_url',
+                image_url: { url: attachmentUrl }
+            });
+        }
+
+        return { role: 'user', content: messageContent };
     }
 
     // History Management Methods
