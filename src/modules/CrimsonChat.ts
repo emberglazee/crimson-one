@@ -461,26 +461,44 @@ export default class CrimsonChat {
         }
     }
 
+    private async fetchAndConvertToBase64(url: string): Promise<string | null> {
+        try {
+            logger.info(`Fetching image from URL: ${url}`)
+            const response = await fetch(url)
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+            const buffer = await response.arrayBuffer()
+            const base64 = Buffer.from(buffer).toString('base64')
+            const mimeType = response.headers.get('content-type') || 'image/jpeg'
+            return `data:${mimeType};base64,${base64}`
+        } catch (error) {
+            logger.error(`Failed to fetch and convert image: ${error}`)
+            return null
+        }
+    }
+
     private async parseMessagesForChatCompletion(content: string, attachments: string[] = []): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam> {
-        // If there are no attachments, return a simple text message
         if (!attachments.length) {
             logger.info('Creating message with text only')
             return { role: 'user', content: content }
         }
 
-        // If there are attachments, create a message with both text and images
         logger.info('Creating message with text and images')
         const messageContent: Array<OpenAI.Chat.Completions.ChatCompletionContentPart> = [
             { type: 'text', text: content || '' }
         ]
 
-        // Add each image attachment
+        // Fetch and convert each image
         for (const attachmentUrl of attachments) {
-            logger.info(`Adding image attachment: ${attachmentUrl}`)
-            messageContent.push({
-                type: 'image_url',
-                image_url: { url: attachmentUrl }
-            })
+            const base64Image = await this.fetchAndConvertToBase64(attachmentUrl)
+            if (base64Image) {
+                logger.info('Successfully converted image to base64')
+                messageContent.push({
+                    type: 'image_url',
+                    image_url: { url: base64Image }
+                })
+            } else {
+                logger.warn(`Failed to process image: ${attachmentUrl}`)
+            }
         }
 
         return { role: 'user', content: messageContent }
