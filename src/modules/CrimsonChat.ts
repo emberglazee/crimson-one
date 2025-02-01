@@ -172,17 +172,17 @@ export default class CrimsonChat {
             }
 
             // Extract image URLs from message content and combine with image attachments
-            const imageUrls: string[] = []
+            const imageUrls = new Set<string>() // Use Set to automatically deduplicate URLs
             
             // Add provided image attachments
             if (options.imageAttachments?.length) {
-                imageUrls.push(...options.imageAttachments)
+                options.imageAttachments.forEach(url => imageUrls.add(url))
             }
 
             // Add any image URLs from the message content
             const urlRegex = /https?:\/\/\S+?(?:jpg|jpeg|png|gif|webp)(?:\?\S*)?(?=\s|$)/gi
             const contentImageUrls = content.match(urlRegex) || []
-            imageUrls.push(...contentImageUrls)
+            contentImageUrls.forEach(url => imageUrls.add(url))
 
             const formattedMessage = await this.formatUserMessage(
                 options.username,
@@ -192,11 +192,14 @@ export default class CrimsonChat {
                 options.respondingTo
             )
 
-            const messageForCompletion = await this.parseMessagesForChatCompletion(formattedMessage, imageUrls)
+            const messageForCompletion = await this.parseMessagesForChatCompletion(
+                formattedMessage, 
+                Array.from(imageUrls) // Convert Set back to array
+            )
 
             // Only store text content in history, with a note about images if present
-            const historyContent = formattedMessage + (imageUrls.length ? 
-                `\n[Message included ${imageUrls.length} image${imageUrls.length > 1 ? 's' : ''}]` : '')
+            const historyContent = formattedMessage + (imageUrls.size ? 
+                `\n[Message included ${imageUrls.size} image${imageUrls.size > 1 ? 's' : ''}]` : '')
 
             this.appendMessage('user', historyContent)
 
