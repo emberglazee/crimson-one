@@ -577,16 +577,7 @@ export default class CrimsonChat {
 
     private cleanImageUrl(url: string): string {
         try {
-            // Check if the URL is wrapped in JSON
-            if (url.includes('","type":"image"')) {
-                // Include the query parameters in the match for Discord attachments
-                const match = url.match(/https?:\/\/[^"]+?(?:\?[^"]*)?/)
-                if (match) {
-                    return match[0]
-                }
-            }
-            
-            // Always return the full URL - no cleaning needed as Discord's URLs require their parameters
+            // Keep the entire URL, including query parameters
             return url
         } catch (error) {
             logger.error(`Failed to clean image URL: ${error}`)
