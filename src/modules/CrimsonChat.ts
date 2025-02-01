@@ -191,9 +191,12 @@ export default class CrimsonChat {
             )
 
             const messageForCompletion = await this.parseMessagesForChatCompletion(formattedMessage, imageUrls)
-            this.appendMessage('user', typeof messageForCompletion.content === 'string' 
-                ? messageForCompletion.content 
-                : JSON.stringify(messageForCompletion.content))
+
+            // Only store text content in history, with a note about images if present
+            const historyContent = formattedMessage + (imageUrls.length ? 
+                `\n[Message included ${imageUrls.length} image${imageUrls.length > 1 ? 's' : ''}]` : '')
+
+            this.appendMessage('user', historyContent)
 
             this.trimHistory()
 
@@ -482,7 +485,7 @@ export default class CrimsonChat {
             return { role: 'user', content: content }
         }
 
-        logger.info('Creating message with text and images')
+        logger.info(`Creating message with text and ${attachments.length} images`)
         const messageContent: Array<OpenAI.Chat.Completions.ChatCompletionContentPart> = [
             { type: 'text', text: content || '' }
         ]
@@ -501,6 +504,7 @@ export default class CrimsonChat {
             }
         }
 
+        // Don't stringify this for history storage - it's only for the API call
         return { role: 'user', content: messageContent }
     }
 
