@@ -21,10 +21,27 @@ export default function onMessageCreate(client: Client) {
                 await message.react(crimsonChat.isEnabled() ? '✅' : '🔴')
                 return
             }
+
+            if (message.content.startsWith('!ban ')) {
+                const userId = message.content.split(' ')[1]
+                await crimsonChat.banUser(userId)
+                await message.react('✅')
+                return
+            }
+            if (message.content.startsWith('!unban ')) {
+                const userId = message.content.split(' ')[1]
+                await crimsonChat.unbanUser(userId)
+                await message.react('✅')
+                return
+            }
         }
 
-        // Skip processing if chat is disabled
+        // Skip processing if chat is disabled or user is banned
         if (!crimsonChat.isEnabled()) return
+        if (crimsonChat.isBanned(message.author.id)) {
+            await message.react('❌')
+            return
+        }
 
         let { content } = message
         const respondingTo = message.reference?.messageId ? {
