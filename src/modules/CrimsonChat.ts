@@ -331,6 +331,10 @@ export default class CrimsonChat {
     }
 
     private async parseCommand(text: string): Promise<string | null> {
+        // Normalize text to handle possible fancy parentheses or hidden chars
+        text = text.normalize('NFKC')
+        logger.info(`Normalized text before regex: ${text}`)
+
         const commandRegex = /!(?:(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis))(?:\(([^)]+)\))?/
         const match = commandRegex.exec(text)
         if (!match) {
