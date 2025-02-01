@@ -483,4 +483,34 @@ export default class CrimsonChat {
         await this.saveBannedUsers()
         logger.info(`Unbanned user ${userId} from CrimsonChat`)
     }
+
+    public async handleStartup(): Promise<void> {
+        if (!this.thread) return
+
+        const bootMessage = await this.thread.messages.fetch({ limit: 1 })
+        const lastMessage = bootMessage.first()
+
+        if (lastMessage?.content.includes('Crimson is shutting down...')) {
+            const formattedMessage = await this.formatUserMessage(
+                'System',
+                'System',
+                'System',
+                'I am back online after a restart.'
+            )
+
+            this.appendMessage('user', formattedMessage)
+            await this.sendMessage('You\'re back online, Crimson 1.', {
+                username: 'System',
+                displayName: 'System',
+                serverDisplayName: 'System'
+            })
+        }
+    }
+
+    public async handleShutdown(): Promise<void> {
+        if (!this.thread) return
+
+        // Send shutdown message without triggering a response
+        await this.thread.send('Crimson is shutting down...')
+    }
 }
