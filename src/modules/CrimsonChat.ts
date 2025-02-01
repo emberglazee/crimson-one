@@ -342,21 +342,37 @@ export default class CrimsonChat {
         const args = text.slice(match.index + command.length)
         logger.info(`Executing command ${command} with raw text after command: ${args}`)
 
+        // Enhanced username pattern that handles parentheses and various formats
+        const getUsernamePattern = (text: string): string | null => {
+            // Try different patterns in order of preference
+            const patterns = [
+                /\(([^)]+)\)/, // Matches username in parentheses
+                /[\s(]+([\w\d]+)[\s)]*/, // Matches username with spaces or parentheses
+                /[:\s]+([\w\d]+)/, // Matches username after colon or space
+            ]
+
+            for (const pattern of patterns) {
+                const match = text.match(pattern)
+                if (match?.[1]) return match[1].trim()
+            }
+            return null
+        }
+
         switch (command) {
             case '!fetchRoles':
-                const rolesMatch = args.match(/[\w\d]+/)
-                if (!rolesMatch) return 'Error: Username or ID required for fetchRoles'
-                const member = await this.thread?.guild?.members.fetch(rolesMatch[0])
-                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === rolesMatch[0]))
-                if (!member) return `Could not find user: ${rolesMatch[0]}`
+                const rolesUsername = getUsernamePattern(args)
+                if (!rolesUsername) return 'Error: Username or ID required for fetchRoles'
+                const member = await this.thread?.guild?.members.fetch(rolesUsername)
+                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === rolesUsername))
+                if (!member) return `Could not find user: ${rolesUsername}`
                 return member.roles.cache.map(role => role.name).join(', ')
 
             case '!fetchUser':
-                const userMatch = args.match(/[\w\d]+/)
-                if (!userMatch) return 'Error: Username or ID required for fetchUser'
-                const user = await this.client?.users.fetch(userMatch[0])
-                    .catch(() => this.client?.users.cache.find(u => u.username === userMatch[0]))
-                if (!user) return `Could not find user: ${userMatch[0]}`
+                const username = getUsernamePattern(args)
+                if (!username) return 'Error: Username or ID required for fetchUser'
+                const user = await this.client?.users.fetch(username)
+                    .catch(() => this.client?.users.cache.find(u => u.username === username))
+                if (!user) return `Could not find user: ${username}`
                 return JSON.stringify({
                     id: user.id,
                     username: user.username,
@@ -366,11 +382,11 @@ export default class CrimsonChat {
                 }, null, 2)
 
             case '!getRichPresence':
-                const presenceMatch = args.match(/[\w\d]+/)
-                if (!presenceMatch) return 'Error: Username or ID required for getRichPresence'
-                const presenceMember = await this.thread?.guild?.members.fetch(presenceMatch[0])
-                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === presenceMatch[0]))
-                if (!presenceMember) return `Could not find user: ${presenceMatch[0]}`
+                const presenceUsername = getUsernamePattern(args)
+                if (!presenceUsername) return 'Error: Username or ID required for getRichPresence'
+                const presenceMember = await this.thread?.guild?.members.fetch(presenceUsername)
+                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === presenceUsername))
+                if (!presenceMember) return `Could not find user: ${presenceUsername}`
                 const presence = presenceMember.presence
                 return presence ? JSON.stringify(presence.activities, null, 2) : 'No presence data available'
 
