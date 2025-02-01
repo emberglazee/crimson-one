@@ -550,23 +550,24 @@ export default class CrimsonChat {
             logger.info(`Fetching image from URL: ${url}`)
             let buffer: Buffer
 
-            // Check if the URL is a GIF and contains query parameters
-            const cleanUrl = url.split('?')[0] // Remove query parameters
-            if (cleanUrl.toLowerCase().endsWith('.gif')) {
+            // Check if the URL is a GIF (check the path part only, not query params)
+            const isGif = url.split('?')[0].toLowerCase().endsWith('.gif')
+
+            if (isGif) {
                 logger.info('GIF detected, extracting first frame...')
-                const frameBuffer = await this.extractFirstFrameFromGif(cleanUrl)
+                const frameBuffer = await this.extractFirstFrameFromGif(url) // Pass full URL with query params
                 if (!frameBuffer) {
                     throw new Error('Failed to extract first frame from GIF')
                 }
                 buffer = frameBuffer
             } else {
-                const response = await fetch(url)
+                const response = await fetch(url) // Use full URL with query params
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
                 buffer = Buffer.from(await response.arrayBuffer())
             }
 
             const base64 = buffer.toString('base64')
-            const mimeType = cleanUrl.toLowerCase().endsWith('.gif') ? 'image/png' : 'image/jpeg'
+            const mimeType = isGif ? 'image/png' : 'image/jpeg'
             return `data:${mimeType};base64,${base64}`
         } catch (error) {
             logger.error(`Failed to fetch and convert image: ${error}`)
@@ -583,7 +584,14 @@ export default class CrimsonChat {
                     return match[0]
                 }
             }
-            return url
+            
+            // For Discord attachments, preserve the query parameters
+            if (url.includes('cdn.discordapp.com/attachments/')) {
+                return url // Return the full URL with query parameters
+            }
+
+            // For other URLs, strip query parameters as before
+            return url.split('?')[0]
         } catch (error) {
             logger.error(`Failed to clean image URL: ${error}`)
             return url
