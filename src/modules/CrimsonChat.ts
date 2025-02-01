@@ -98,7 +98,7 @@ export default class CrimsonChat {
             logger.error('Could not find webhook thread')
             throw new Error('Could not find webhook thread')
         }
-        
+
         await this.loadHistory()
         await Vision.getInstance().init()
         logger.ok('CrimsonChat initialized successfully')
@@ -415,11 +415,11 @@ export default class CrimsonChat {
     // Utility Methods
     private async parseMentions(text: string): Promise<string> {
         if (!this.client) throw new Error('Client not set')
-        
+
         const mentionRegex = /<@!?(\d+)>/g
         let parsedText = text
         const mentions = text.matchAll(mentionRegex)
-        
+
         for (const match of mentions) {
             const userId = match[1]
             try {
@@ -430,7 +430,7 @@ export default class CrimsonChat {
                 console.error(`Could not fetch user ${userId}:`, error)
             }
         }
-        
+
         return parsedText
     }
 
