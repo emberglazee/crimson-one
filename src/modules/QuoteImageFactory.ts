@@ -194,7 +194,7 @@ export class QuoteImageFactory {
                     const delays = durations.map(d => d * 1000) // Convert to milliseconds
                     const frameFiles = await fs.readdir(outputDir)
                     const pngFiles = frameFiles.filter(f => f.startsWith('frame-') && f.endsWith('.png'))
-                    
+
                     for (const file of pngFiles.sort((a, b) => {
                         const numA = parseInt(a.match(/frame-(\d+)\.png/)?.[1] || '0')
                         const numB = parseInt(b.match(/frame-(\d+)\.png/)?.[1] || '0')
