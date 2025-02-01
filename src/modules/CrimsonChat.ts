@@ -1,6 +1,6 @@
 import type { Client, TextChannel, ChatInputCommandInteraction, CommandInteractionOption, CacheType, Message } from 'discord.js'
 import OpenAI from 'openai'
-import { CRIMSON_CHAT_SYSTEM_PROMPT } from '../util/constants'
+import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT } from '../util/constants'
 import type { ChatCompletionMessage } from 'openai/resources/index.mjs'
 import { promises as fs } from 'fs'
 import path from 'path'
@@ -19,6 +19,7 @@ export default class CrimsonChat {
     private enabled: boolean = true
     private bannedUsers: Set<string> = new Set()
     private bannedUsersPath = path.join(process.cwd(), 'data/banned_users.json')
+    private readonly BREAKDOWN_CHANCE = 0.01
     history: { role: 'system' | 'assistant' | 'user', content?: string }[] = [{
         role: 'system',
         content: CRIMSON_CHAT_SYSTEM_PROMPT
@@ -160,6 +161,12 @@ export default class CrimsonChat {
         this.isProcessing = true
 
         try {
+            // Add breakdown check before normal processing
+            const breakdown = await this.handleRandomBreakdown()
+            if (breakdown) {
+                await this.sendResponseToDiscord(breakdown, undefined, originalMessage)
+            }
+
             const formattedMessage = await this.formatUserMessage(
                 options.username,
                 options.displayName,
@@ -596,5 +603,25 @@ export default class CrimsonChat {
 
         // Send shutdown message without triggering a response
         await this.thread.send('Crimson is shutting down...')
+    }
+
+    private async handleRandomBreakdown(): Promise<string | null> {
+        if (Math.random() < this.BREAKDOWN_CHANCE) {
+            logger.info('Triggering random Crimson 1 breakdown')
+            const response = await this.openai.chat.completions.create({
+                messages: [{
+                    role: 'system',
+                    content: CRIMSON_BREAKDOWN_PROMPT
+                }],
+                model: 'gpt-4o-mini'
+            })
+
+            const breakdown = response.choices[0].message?.content
+            if (breakdown) {
+                this.appendMessage('assistant', breakdown)
+                return breakdown
+            }
+        }
+        return null
     }
 }
