@@ -73,16 +73,16 @@ export default function onMessageCreate(client: Client) {
 
         const attachments = message.attachments.map(att => att.url)
 
-        if (!content.length && message.stickers.first()) content = `<sticker: ${message.stickers.first()!.name}>`
+        if (!content.length && message.stickers.first()) content = `< sticker: ${message.stickers.first()!.name} >`
         if (attachments.length) {
             for (const attachment of attachments) {
-                content += `<attachment: ${attachment}>\n`
+                content += `\n< attachment: ${attachment} >`
             }
         }
         if (message.embeds.length) {
             const embed = message.embeds[0]
             // Describe the entirety of the embed
-            content += `<embed: ${JSON.stringify(embed)}>\n`
+            content += `\n< embed: ${JSON.stringify(embed)} >`
         }
 
         // Start typing indicator loop
