@@ -51,6 +51,11 @@ export default function onMessageCreate(client: Client) {
                 })
                 return
             }
+            if (message.content === '!forcebreak') {
+                crimsonChat.setForceNextBreakdown(true)
+                await message.react('✅')
+                return
+            }
         }
 
         // Skip processing if chat is disabled or user is banned

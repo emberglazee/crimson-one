@@ -20,6 +20,7 @@ export default class CrimsonChat {
     private bannedUsers: Set<string> = new Set()
     private bannedUsersPath = path.join(process.cwd(), 'data/banned_users.json')
     private readonly BREAKDOWN_CHANCE = 0.01
+    private forceNextBreakdown: boolean = false
     history: { role: 'system' | 'assistant' | 'user', content?: string }[] = [{
         role: 'system',
         content: CRIMSON_CHAT_SYSTEM_PROMPT
@@ -606,8 +607,9 @@ export default class CrimsonChat {
     }
 
     private async handleRandomBreakdown(): Promise<string | null> {
-        if (Math.random() < this.BREAKDOWN_CHANCE) {
-            logger.info('Triggering random Crimson 1 breakdown')
+        if (this.forceNextBreakdown || Math.random() < this.BREAKDOWN_CHANCE) {
+            logger.info(`Triggering ${this.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
+            this.forceNextBreakdown = false // Reset the flag after use
             const response = await this.openai.chat.completions.create({
                 messages: [{
                     role: 'system',
@@ -623,5 +625,10 @@ export default class CrimsonChat {
             }
         }
         return null
+    }
+
+    public setForceNextBreakdown(force: boolean): void {
+        this.forceNextBreakdown = force
+        logger.info(`Force next breakdown set to: ${force}`)
     }
 }
