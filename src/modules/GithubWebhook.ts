@@ -65,6 +65,7 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
                 .setTimestamp(new Date(payload.head_commit.timestamp))
 
             const chatInstance = CrimsonChat.getInstance()
+            await this.thread?.send({ embeds: [embed] })
             await chatInstance.sendMessage(`GitHub Webhook Event\n\`\`\`json\n${JSON.stringify({
                 type: 'push',
                 repo: payload.repository.name,
