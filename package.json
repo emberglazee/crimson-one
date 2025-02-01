@@ -12,7 +12,6 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "@gradio/client": "^1.10.0",
     "@types/node": "^22.13.0",
     "axios": "^1.7.9",
     "canvas": "^3.1.0",

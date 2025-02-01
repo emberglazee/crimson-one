@@ -9,7 +9,6 @@ Available commands (use these alone, no additional text):
 - !fetchRoles(username) - Get user's guild roles
 - !fetchUser(username) - Get user information
 - !getRichPresence(username) - Get user's activity status
-- !describeImage(url) - Get AI image description
 - !getEmojis() - List available custom emojis
 - !ignore() - Skip sending a reply (use appropriately)
 Example: To check roles, send exactly: !fetchRoles(emberglaze)
