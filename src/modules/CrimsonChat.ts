@@ -331,27 +331,22 @@ export default class CrimsonChat {
     }
 
     private async parseCommand(text: string): Promise<string | null> {
-        // Command regex - now includes parentheses pattern but captures command name without !
         const commandRegex = /!(?:(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis))(?:\(([^)]+)\))?/
         const match = commandRegex.exec(text)
-
         if (!match) return null
 
-        const command = match[1] // Get just the command name without the !
-        const username = match[2] // Get the argument from parentheses if it exists
-        
-        // Get everything after the command for parsing URLs or fallback username patterns
+        const command = match[1]
+        // Trim the argument to ensure it’s not an empty string with stray spaces.
+        let finalUsername = match[2]?.trim()
+                
         const afterCommand = text.slice(match.index + match[0].length)
         
-        // Try to get username from text after command if not found in parentheses
-        let finalUsername = username
+        // Fallback to extract username if not found in parentheses
         if (!finalUsername) {
-            // Try different patterns as fallback
             const patterns = [
-                /[\s(]+([\w\d]+)[\s)]*/, // Matches username with spaces or parentheses
-                /[:\s]+([\w\d]+)/, // Matches username after colon or space
+                /[\s(]+([\w\d]+)[\s)]*/,
+                /[:\s]+([\w\d]+)/
             ]
-
             for (const pattern of patterns) {
                 const fallbackMatch = afterCommand.match(pattern)
                 if (fallbackMatch?.[1]) {
@@ -393,7 +388,7 @@ export default class CrimsonChat {
                 return presence ? JSON.stringify(presence.activities, null, 2) : 'No presence data available'
 
             case 'describeImage':
-                const urlInParens = username // First try URL from parentheses
+                const urlInParens = match[2]
                 const imageMatch = urlInParens || afterCommand.match(/https?:\/\/\S+/i)?.[0]
                 if (!imageMatch) return 'Error: Image URL required for describeImage'
                 try {
