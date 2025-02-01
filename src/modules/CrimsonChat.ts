@@ -367,7 +367,7 @@ export default class CrimsonChat {
 
         const [fullMatch, command, params] = match
         let finalUsername = params?.trim() || ''
-        
+
         // Move afterCommand declaration here so it's available to all cases
         const afterCommand = text.slice(match.index + fullMatch.length).trim()
         logger.info(`Command: ${command}, Initial Username: ${finalUsername}`)
@@ -461,23 +461,26 @@ export default class CrimsonChat {
     private async parseMessagesForChatCompletion(content: string, attachments: string[] = []): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam> {
         // If there are no attachments, return a simple text message
         if (!attachments.length) {
-            return { role: 'user', content: content };
+            logger.info('Creating message with text only')
+            return { role: 'user', content: content }
         }
 
         // If there are attachments, create a message with both text and images
+        logger.info('Creating message with text and images')
         const messageContent: Array<OpenAI.Chat.Completions.ChatCompletionContentPart> = [
             { type: 'text', text: content || '' }
-        ];
+        ]
 
         // Add each image attachment
         for (const attachmentUrl of attachments) {
+            logger.info(`Adding image attachment: ${attachmentUrl}`)
             messageContent.push({
                 type: 'image_url',
                 image_url: { url: attachmentUrl }
-            });
+            })
         }
 
-        return { role: 'user', content: messageContent };
+        return { role: 'user', content: messageContent }
     }
 
     // History Management Methods
@@ -540,39 +543,39 @@ export default class CrimsonChat {
     }
 
     private async getUserPresenceAndRoles(userId: string) {
-        if (!this.thread?.guild) return null;
+        if (!this.thread?.guild) return null
         
         try {
-            const member = await this.thread.guild.members.fetch(userId);
-            if (!member) return null;
+            const member = await this.thread.guild.members.fetch(userId)
+            if (!member) return null
 
             // Force fetch presence
-            await member.fetch(true);
-            const presence = member.presence;
+            await member.fetch(true)
+            const presence = member.presence
 
-            const roles = member.roles.cache.map(role => role.name);
+            const roles = member.roles.cache.map(role => role.name)
             const activities = presence?.activities?.map(activity => ({
                 name: activity.name,
                 type: activity.type,
                 state: activity.state,
                 details: activity.details,
                 createdAt: activity.createdAt
-            })) || [];
+            })) || []
 
             return {
                 roles,
                 presence: activities.length ? activities : 'offline or no activities'
-            };
+            }
         } catch (error) {
-            logger.error(`Error fetching user presence/roles: ${error}`);
-            return null;
+            logger.error(`Error fetching user presence/roles: ${error}`)
+            return null
         }
     }
 
     private async formatUserMessage(username: string, displayName: string, serverDisplayName: string, text: string, respondingTo?: { targetUsername: string; targetText: string }, attachments?: string[]) {
-        const parsedText = await this.parseMentions(text);
-        const userId = this.client?.users.cache.find(u => u.username === username)?.id;
-        const userInfo = userId ? await this.getUserPresenceAndRoles(userId) : null;
+        const parsedText = await this.parseMentions(text)
+        const userId = this.client?.users.cache.find(u => u.username === username)?.id
+        const userInfo = userId ? await this.getUserPresenceAndRoles(userId) : null
 
         return JSON.stringify({
             username,
@@ -583,7 +586,7 @@ export default class CrimsonChat {
             attachments,
             respondingTo,
             userStatus: userInfo || 'unknown'
-        });
+        })
     }
 
     public isBanned(userId: string): boolean {
