@@ -331,29 +331,32 @@ export default class CrimsonChat {
     }
 
     private async parseCommand(text: string): Promise<string | null> {
-        // Command regex with argument capture
-        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)/g
-        const match = text.match(commandRegex)
+        // Command regex - simplified to just detect the command presence
+        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)/
+        const match = commandRegex.exec(text)
 
         if (!match) return null
 
-        const [_, command, args] = match
-        const argument = args.trim()
-        logger.info(`Executing command ${command} with args: ${argument}`)
+        const command = match[0]
+        // Get everything after the command as potential arguments
+        const args = text.slice(match.index + command.length)
+        logger.info(`Executing command ${command} with raw text after command: ${args}`)
 
         switch (command) {
-            case 'fetchRoles':
-                if (!argument) return 'Error: Username or ID required for fetchRoles'
-                const member = await this.thread?.guild?.members.fetch(argument)
-                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === argument))
-                if (!member) return `Could not find user: ${argument}`
+            case '!fetchRoles':
+                const rolesMatch = args.match(/[\w\d]+/)
+                if (!rolesMatch) return 'Error: Username or ID required for fetchRoles'
+                const member = await this.thread?.guild?.members.fetch(rolesMatch[0])
+                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === rolesMatch[0]))
+                if (!member) return `Could not find user: ${rolesMatch[0]}`
                 return member.roles.cache.map(role => role.name).join(', ')
 
-            case 'fetchUser':
-                if (!argument) return 'Error: Username or ID required for fetchUser'
-                const user = await this.client?.users.fetch(argument)
-                    .catch(() => this.client?.users.cache.find(u => u.username === argument))
-                if (!user) return `Could not find user: ${argument}`
+            case '!fetchUser':
+                const userMatch = args.match(/[\w\d]+/)
+                if (!userMatch) return 'Error: Username or ID required for fetchUser'
+                const user = await this.client?.users.fetch(userMatch[0])
+                    .catch(() => this.client?.users.cache.find(u => u.username === userMatch[0]))
+                if (!user) return `Could not find user: ${userMatch[0]}`
                 return JSON.stringify({
                     id: user.id,
                     username: user.username,
@@ -362,24 +365,26 @@ export default class CrimsonChat {
                     bot: user.bot
                 }, null, 2)
 
-            case 'getRichPresence':
-                if (!argument) return 'Error: Username or ID required for getRichPresence'
-                const presenceMember = await this.thread?.guild?.members.fetch(argument)
-                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === argument))
-                if (!presenceMember) return `Could not find user: ${argument}`
+            case '!getRichPresence':
+                const presenceMatch = args.match(/[\w\d]+/)
+                if (!presenceMatch) return 'Error: Username or ID required for getRichPresence'
+                const presenceMember = await this.thread?.guild?.members.fetch(presenceMatch[0])
+                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === presenceMatch[0]))
+                if (!presenceMember) return `Could not find user: ${presenceMatch[0]}`
                 const presence = presenceMember.presence
                 return presence ? JSON.stringify(presence.activities, null, 2) : 'No presence data available'
 
-            case 'describeImage':
-                if (!argument) return 'Error: Image URL required for describeImage'
+            case '!describeImage':
+                const imageMatch = args.match(/https?:\/\/\S+/i)
+                if (!imageMatch) return 'Error: Image URL required for describeImage'
                 try {
-                    const description = await Vision.getInstance().captionImage(argument)
+                    const description = await Vision.getInstance().captionImage(imageMatch[0])
                     return `Image Description: ${description}`
                 } catch (error) {
                     return `Error describing image: ${error instanceof Error ? error.message : 'Unknown error'}`
                 }
 
-            case 'getEmojis':
+            case '!getEmojis':
                 try {
                     const emojisPath = path.join(process.cwd(), 'data', 'emojis.json')
                     const emojisData = await fs.readFile(emojisPath, 'utf-8')
@@ -389,7 +394,7 @@ export default class CrimsonChat {
                     return `Error reading emojis: ${error instanceof Error ? error.message : 'Unknown error'}`
                 }
 
-            case 'ignore':
+            case '!ignore':
                 return null
 
             default:
