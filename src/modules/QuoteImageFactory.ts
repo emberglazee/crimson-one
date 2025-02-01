@@ -417,20 +417,20 @@ export class QuoteImageFactory {
                         // Split long word into chunks
                         let remainingWord = word
                         let remainingIndex = currentIndex
-                        
+
                         while (remainingWord.length > 0) {
                             let chunkLength = remainingWord.length
                             while (chunkLength > 0 && measureWordWidth(remainingWord.slice(0, chunkLength), remainingIndex, speakerEmojis) > effectiveMaxWidth) {
                                 chunkLength--
                             }
-                            
+
                             // If we couldn't fit even one character, force at least one
                             if (chunkLength === 0) chunkLength = 1
-                            
+
                             const chunk = remainingWord.slice(0, chunkLength)
                             speakerLines.push(chunk)
                             speakerStartIndices.push(remainingIndex)
-                            
+
                             remainingWord = remainingWord.slice(chunkLength)
                             remainingIndex += chunkLength
                         }
@@ -457,7 +457,7 @@ export class QuoteImageFactory {
             let lineStartIndices: number[] = []
             currentIndex = 0
             const textLines = quote.split('\n')
-            
+
             for (const textLine of textLines) {
                 const words = textLine.split(' ')
                 for (let i = 0; i < words.length; i++) {
@@ -476,19 +476,19 @@ export class QuoteImageFactory {
                                         // If part is still too long, do character-by-character splitting
                                         let remainingWord = part
                                         let remainingIndex = currentIndex
-                                        
+
                                         while (remainingWord.length > 0) {
                                             let chunkLength = remainingWord.length
                                             while (chunkLength > 0 && measureWordWidth(remainingWord.slice(0, chunkLength), remainingIndex, quoteEmojis) > effectiveMaxWidth) {
                                                 chunkLength--
                                             }
-                                            
+
                                             if (chunkLength === 0) chunkLength = 1
-                                            
+
                                             const chunk = remainingWord.slice(0, chunkLength)
                                             quoteLines.push(chunk)
                                             lineStartIndices.push(remainingIndex)
-                                            
+
                                             remainingWord = remainingWord.slice(chunkLength)
                                             remainingIndex += chunkLength
                                         }
@@ -498,7 +498,7 @@ export class QuoteImageFactory {
                                     }
                                     currentIndex += part.length + 1
                                 }
-                                
+
                                 // Add slash back except for last part
                                 if (part !== slashParts[slashParts.length - 1]) {
                                     quoteLines[quoteLines.length - 1] += '/'
@@ -508,19 +508,19 @@ export class QuoteImageFactory {
                             // No slashes, fall back to character-by-character splitting
                             let remainingWord = word
                             let remainingIndex = currentIndex
-                            
+
                             while (remainingWord.length > 0) {
                                 let chunkLength = remainingWord.length
                                 while (chunkLength > 0 && measureWordWidth(remainingWord.slice(0, chunkLength), remainingIndex, quoteEmojis) > effectiveMaxWidth) {
                                     chunkLength--
                                 }
-                                
+
                                 if (chunkLength === 0) chunkLength = 1
-                                
+
                                 const chunk = remainingWord.slice(0, chunkLength)
                                 quoteLines.push(chunk)
                                 lineStartIndices.push(remainingIndex)
-                                
+
                                 remainingWord = remainingWord.slice(chunkLength)
                                 remainingIndex += chunkLength
                             }
@@ -550,7 +550,7 @@ export class QuoteImageFactory {
             const renderFrame = async (frameIndex: number) => {
                 logger.info(`Rendering frame ${frameIndex + 1}`)
                 const startTime = performance.now()
-                
+
                 // Create canvas and context for this frame
                 const canvas = createCanvas(width, height)
                 const ctx = canvas.getContext('2d')
@@ -569,10 +569,10 @@ export class QuoteImageFactory {
                     if (isPing) {
                         // Save context state
                         ctx.save()
-                        
+
                         const username = this.usernames.get(pingId!) || text
                         text = '@' + username
-                        
+
                         // Draw background with lighter ping color
                         const textWidth = ctx.measureText(text).width
                         ctx.fillStyle = '#7289DA30' // Discord ping color with 30% opacity
@@ -589,11 +589,11 @@ export class QuoteImageFactory {
                             bgHeight/2
                         )
                         ctx.fill()
-                        
+
                         // Draw text
                         ctx.fillStyle = '#7289DA'
                         ctx.fillText(text, x, y)
-                        
+
                         // Restore context state
                         ctx.restore()
                     } else {
@@ -710,7 +710,7 @@ export class QuoteImageFactory {
                     const line = quoteLines[i]
                     const lineStart = lineStartIndices[i]
                     const nextLineStart = lineStartIndices[i + 1] || quote.length
-                    
+
                     const lineEmojis = quoteEmojis.filter(e => 
                         e.index >= lineStart && e.index < nextLineStart
                     ).sort((a, b) => a.index - b.index)
@@ -819,17 +819,17 @@ export class QuoteImageFactory {
 
                 const maxFrames = Math.max(...animatedEmojis.map(e => (e as any).frames.length))
                 logger.info(`Creating animated image with ${maxFrames} frames at ${targetFramerate}fps`)
-                
+
                 const tmpDir = await this.createTempDir()
                 const outputPath = path.join(tmpDir, 'output.gif')
-                
+
                 try {
                     // Render frames to PNG files
                     for (let i = 0; i < maxFrames; i++) {
                         const canvas = await renderFrame(i)
                         const framePath = path.join(tmpDir, `frame-${i + 1}.png`)
                         await fs.writeFile(framePath, new Uint8Array(canvas.toBuffer()))
-                        
+
                         if (i % 10 === 0) {
                             const progress = ((i + 1) / maxFrames * 100).toFixed(1)
                             logger.info(`Frame progress: ${progress}% (${i + 1}/${maxFrames})`)
@@ -840,7 +840,7 @@ export class QuoteImageFactory {
                     logger.info(`Creating GIF with FFmpeg at ${targetFramerate}fps...`)
                     const buffer = await this.ffmpegCreateGif(tmpDir, outputPath, targetFramerate)
                     logger.info(`GIF generation complete. Final size: ${(buffer.length / 1024).toFixed(2)}KB`)
-                    
+
                     return {
                         buffer,
                         type: 'image/gif'
