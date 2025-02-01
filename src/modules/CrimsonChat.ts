@@ -162,12 +162,15 @@ export default class CrimsonChat {
         this.isProcessing = true
 
         try {
-            // Add breakdown check before normal processing
+            // Check for breakdown first
             const breakdown = await this.handleRandomBreakdown()
             if (breakdown) {
+                // If breakdown occurs, only send that and return
                 await this.sendResponseToDiscord(breakdown, undefined, originalMessage)
+                return
             }
 
+            // Only continue with normal response if no breakdown occurred
             const formattedMessage = await this.formatUserMessage(
                 options.username,
                 options.displayName,
