@@ -333,14 +333,19 @@ export default class CrimsonChat {
     private async parseCommand(text: string): Promise<string | null> {
         const commandRegex = /!(?:(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis))(?:\(([^)]+)\))?/
         const match = commandRegex.exec(text)
-        if (!match) return null
+        if (!match) {
+            logger.error(`No command match found in text: ${text}`)
+            return null
+        }
 
         const command = match[1]
         // Trim the argument to ensure it’s not an empty string with stray spaces.
         let finalUsername = match[2]?.trim()
-                
+        logger.info(`Command: ${command}, Initial Username: ${finalUsername}`)
+
         const afterCommand = text.slice(match.index + match[0].length)
-        
+        logger.info(`Content after command: ${afterCommand}`)
+
         // Fallback to extract username if not found in parentheses
         if (!finalUsername) {
             const patterns = [
@@ -351,12 +356,13 @@ export default class CrimsonChat {
                 const fallbackMatch = afterCommand.match(pattern)
                 if (fallbackMatch?.[1]) {
                     finalUsername = fallbackMatch[1].trim()
+                    logger.info(`Fallback Username: ${finalUsername}`)
                     break
                 }
             }
         }
 
-        logger.info(`Executing command ${command} with content after command: ${afterCommand}`)
+        logger.info(`Executing command ${command} with final username: ${finalUsername}`)
 
         switch (command) {
             case 'fetchRoles':
