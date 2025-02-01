@@ -480,6 +480,7 @@ export default class CrimsonChat {
     private prepareHistory() {
         this.history = this.history.map(({ role, content }) => ({ role, content: content || '' }))
         return this.history as { role: 'system' | 'assistant' | 'user', content: string }[]
+
     }
 
     // Utility Methods
@@ -504,8 +505,41 @@ export default class CrimsonChat {
         return parsedText
     }
 
+    private async getUserPresenceAndRoles(userId: string) {
+        if (!this.thread?.guild) return null;
+        
+        try {
+            const member = await this.thread.guild.members.fetch(userId);
+            if (!member) return null;
+
+            // Force fetch presence
+            await member.fetch(true);
+            const presence = member.presence;
+
+            const roles = member.roles.cache.map(role => role.name);
+            const activities = presence?.activities?.map(activity => ({
+                name: activity.name,
+                type: activity.type,
+                state: activity.state,
+                details: activity.details,
+                createdAt: activity.createdAt
+            })) || [];
+
+            return {
+                roles,
+                presence: activities.length ? activities : 'offline or no activities'
+            };
+        } catch (error) {
+            logger.error(`Error fetching user presence/roles: ${error}`);
+            return null;
+        }
+    }
+
     private async formatUserMessage(username: string, displayName: string, serverDisplayName: string, text: string, respondingTo?: { targetUsername: string; targetText: string }, attachments?: string[]) {
-        const parsedText = await this.parseMentions(text)
+        const parsedText = await this.parseMentions(text);
+        const userId = this.client?.users.cache.find(u => u.username === username)?.id;
+        const userInfo = userId ? await this.getUserPresenceAndRoles(userId) : null;
+
         return JSON.stringify({
             username,
             displayName,
@@ -513,8 +547,9 @@ export default class CrimsonChat {
             currentTime: new Date().toISOString(),
             text: parsedText,
             attachments,
-            respondingTo
-        })
+            respondingTo,
+            userStatus: userInfo || 'unknown'
+        });
     }
 
     public isBanned(userId: string): boolean {
