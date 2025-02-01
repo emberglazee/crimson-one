@@ -541,6 +541,22 @@ export default class CrimsonChat {
         }
     }
 
+    private cleanImageUrl(url: string): string {
+        try {
+            // Check if the URL is wrapped in JSON
+            if (url.includes('","type":"image"')) {
+                const match = url.match(/https?:\/\/[^"]+/)
+                if (match) {
+                    return match[0]
+                }
+            }
+            return url
+        } catch (error) {
+            logger.error(`Failed to clean image URL: ${error}`)
+            return url
+        }
+    }
+
     private async parseMessagesForChatCompletion(content: string, attachments: string[] = []): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam> {
         if (!attachments.length) {
             logger.info('Creating message with text only')
@@ -554,7 +570,9 @@ export default class CrimsonChat {
 
         // Fetch and convert each image
         for (const attachmentUrl of attachments) {
-            const base64Image = await this.fetchAndConvertToBase64(attachmentUrl)
+            const cleanUrl = this.cleanImageUrl(attachmentUrl)
+            logger.info(`Processing image URL: ${cleanUrl}`)
+            const base64Image = await this.fetchAndConvertToBase64(cleanUrl)
             if (base64Image) {
                 logger.info('Successfully converted image to base64')
                 messageContent.push({
@@ -562,7 +580,7 @@ export default class CrimsonChat {
                     image_url: { url: base64Image }
                 })
             } else {
-                logger.warn(`Failed to process image: ${attachmentUrl}`)
+                logger.warn(`Failed to process image: ${cleanUrl}`)
             }
         }
 
