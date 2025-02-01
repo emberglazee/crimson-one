@@ -489,6 +489,11 @@ export default class CrimsonChat {
                     outputPath
                 ])
 
+                let stderr = ''
+                ffmpeg.stderr.on('data', data => {
+                    stderr += data.toString()
+                })
+
                 ffmpeg.on('close', async (code) => {
                     if (code === 0) {
                         try {
@@ -498,11 +503,15 @@ export default class CrimsonChat {
                             reject(error)
                         }
                     } else {
-                        reject(new Error(`FFmpeg exited with code ${code}`))
+                        logger.error(`FFmpeg stderr: ${stderr}`)
+                        reject(new Error(`FFmpeg exited with code ${code}: ${stderr}`))
                     }
                 })
 
-                ffmpeg.on('error', reject)
+                ffmpeg.on('error', error => {
+                    logger.error(`FFmpeg spawn error: ${error}`)
+                    reject(error)
+                })
             })
         } catch (error) {
             logger.error(`Failed to extract first frame: ${error}`)
@@ -518,10 +527,11 @@ export default class CrimsonChat {
             logger.info(`Fetching image from URL: ${url}`)
             let buffer: Buffer
 
-            // Check if the URL is a GIF
-            if (url.toLowerCase().endsWith('.gif')) {
+            // Check if the URL is a GIF and contains query parameters
+            const cleanUrl = url.split('?')[0] // Remove query parameters
+            if (cleanUrl.toLowerCase().endsWith('.gif')) {
                 logger.info('GIF detected, extracting first frame...')
-                const frameBuffer = await this.extractFirstFrameFromGif(url)
+                const frameBuffer = await this.extractFirstFrameFromGif(cleanUrl)
                 if (!frameBuffer) {
                     throw new Error('Failed to extract first frame from GIF')
                 }
@@ -533,7 +543,7 @@ export default class CrimsonChat {
             }
 
             const base64 = buffer.toString('base64')
-            const mimeType = url.toLowerCase().endsWith('.gif') ? 'image/png' : 'image/jpeg'
+            const mimeType = cleanUrl.toLowerCase().endsWith('.gif') ? 'image/png' : 'image/jpeg'
             return `data:${mimeType};base64,${base64}`
         } catch (error) {
             logger.error(`Failed to fetch and convert image: ${error}`)
