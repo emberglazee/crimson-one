@@ -21,9 +21,9 @@ const bot = new Client({
     intents: new IntentsBitField([
         IntentsBitField.Flags.Guilds,
         IntentsBitField.Flags.GuildMembers,
+        IntentsBitField.Flags.GuildPresences,
         IntentsBitField.Flags.GuildMessages,
-        IntentsBitField.Flags.MessageContent,
-        IntentsBitField.Flags.GuildPresences
+        IntentsBitField.Flags.MessageContent
     ]),
     partials: [
         Partials.Channel,
