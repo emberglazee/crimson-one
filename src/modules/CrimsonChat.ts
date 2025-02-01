@@ -331,44 +331,47 @@ export default class CrimsonChat {
     }
 
     private async parseCommand(text: string): Promise<string | null> {
-        // Command regex - simplified to just detect the command presence
-        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)/
+        // Command regex - now includes parentheses pattern
+        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|describeImage|getEmojis)(?:\(([^)]+)\))?/
         const match = commandRegex.exec(text)
 
         if (!match) return null
 
         const command = match[0]
-        // Get everything after the command as potential arguments
-        const args = text.slice(match.index + command.length)
-        logger.info(`Executing command ${command} with raw text after command: ${args}`)
-
-        // Enhanced username pattern that handles parentheses and various formats
-        const getUsernamePattern = (text: string): string | null => {
-            // Try different patterns in order of preference
+        // First try to get username from parentheses (preferred method)
+        let username = match[2]
+        
+        // Get everything after the command for parsing URLs or fallback username patterns
+        const afterCommand = text.slice(match.index + match[1].length)
+        
+        // If no username in parentheses, fall back to getting it from trailing text
+        if (!username) {
+            // Try different patterns as fallback
             const patterns = [
-                /\(([^)]+)\)/, // Matches username in parentheses
                 /[\s(]+([\w\d]+)[\s)]*/, // Matches username with spaces or parentheses
                 /[:\s]+([\w\d]+)/, // Matches username after colon or space
             ]
 
             for (const pattern of patterns) {
-                const match = text.match(pattern)
-                if (match?.[1]) return match[1].trim()
+                const fallbackMatch = afterCommand.match(pattern)
+                if (fallbackMatch?.[1]) {
+                    username = fallbackMatch[1].trim()
+                    break
+                }
             }
-            return null
         }
 
-        switch (command) {
+        logger.info(`Executing command ${match[1]} with content after command: ${afterCommand}`)
+
+        switch (match[1]) {
             case '!fetchRoles':
-                const rolesUsername = getUsernamePattern(args)
-                if (!rolesUsername) return 'Error: Username or ID required for fetchRoles'
-                const member = await this.thread?.guild?.members.fetch(rolesUsername)
-                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === rolesUsername))
-                if (!member) return `Could not find user: ${rolesUsername}`
+                if (!username) return 'Error: Username or ID required for fetchRoles'
+                const member = await this.thread?.guild?.members.fetch(username)
+                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === username))
+                if (!member) return `Could not find user: ${username}`
                 return member.roles.cache.map(role => role.name).join(', ')
 
             case '!fetchUser':
-                const username = getUsernamePattern(args)
                 if (!username) return 'Error: Username or ID required for fetchUser'
                 const user = await this.client?.users.fetch(username)
                     .catch(() => this.client?.users.cache.find(u => u.username === username))
@@ -382,19 +385,19 @@ export default class CrimsonChat {
                 }, null, 2)
 
             case '!getRichPresence':
-                const presenceUsername = getUsernamePattern(args)
-                if (!presenceUsername) return 'Error: Username or ID required for getRichPresence'
-                const presenceMember = await this.thread?.guild?.members.fetch(presenceUsername)
-                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === presenceUsername))
-                if (!presenceMember) return `Could not find user: ${presenceUsername}`
+                if (!username) return 'Error: Username or ID required for getRichPresence'
+                const presenceMember = await this.thread?.guild?.members.fetch(username)
+                    .catch(() => this.thread?.guild?.members.cache.find(m => m.user.username === username))
+                if (!presenceMember) return `Could not find user: ${username}`
                 const presence = presenceMember.presence
                 return presence ? JSON.stringify(presence.activities, null, 2) : 'No presence data available'
 
             case '!describeImage':
-                const imageMatch = args.match(/https?:\/\/\S+/i)
+                const urlInParens = username // First try URL from parentheses
+                const imageMatch = urlInParens || afterCommand.match(/https?:\/\/\S+/i)?.[0]
                 if (!imageMatch) return 'Error: Image URL required for describeImage'
                 try {
-                    const description = await Vision.getInstance().captionImage(imageMatch[0])
+                    const description = await Vision.getInstance().captionImage(imageMatch)
                     return `Image Description: ${description}`
                 } catch (error) {
                     return `Error describing image: ${error instanceof Error ? error.message : 'Unknown error'}`
