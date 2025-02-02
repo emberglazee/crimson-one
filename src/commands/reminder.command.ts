@@ -37,17 +37,36 @@ export default {
             return
         }
 
-        const triggerTime = fixedTime ? new Date(fixedTime).getTime() : Date.now() + parse(relativeTime!)[0].start.date().getTime()
+        let parsedDate: Date | null = null
+        if (fixedTime) {
+            parsedDate = reminder.parseTime(fixedTime)
+        } else if (relativeTime) {
+            parsedDate = reminder.parseTime(relativeTime)
+        }
 
-        await reminder.createReminder({
-            id: interaction.id,
-            userId: interaction.user.id,
-            username: interaction.user.username,
-            message,
-            triggerTime
-        })
+        if (!parsedDate) {
+            await interaction.reply({ content: 'Could not understand the time format. Please try again with a different format.', ephemeral: true })
+            return
+        }
 
-        await interaction.reply({ content: 'Reminder set!', ephemeral: true })
+        const triggerTime = parsedDate.getTime()
+
+        try {
+            await reminder.createReminder({
+                id: interaction.id,
+                userId: interaction.user.id,
+                username: interaction.user.username,
+                message,
+                triggerTime
+            })
+
+            await interaction.reply({ content: 'Reminder set!', ephemeral: true })
+        } catch (error) {
+            await interaction.reply({ 
+                content: error instanceof Error ? error.message : 'Failed to set reminder', 
+                ephemeral: true 
+            })
+        }
     },
     guildId: '958518067690868796'
 } satisfies GuildSlashCommand
