@@ -104,6 +104,10 @@ export default class CommandHandler {
                     command.data.setType(command.type)
                     this.contextMenuCommands.push(command)
                     commands.push(command)
+                } else if (CommandHandler.isGuildSlashCommand(command)) {
+                    logger.ok(`{importCommand} Found guild slash command /${command.data.name} for guild ${command.guildId}`)
+                    this.guildCommands.push(command)
+                    commands.push(command)
                 } else if (CommandHandler.isGlobalSlashCommand(command)) {
                     logger.ok(`{importCommand} Found slash command /${command.data.name}`)
                     this.globalCommands.push(command)
@@ -158,9 +162,16 @@ export default class CommandHandler {
 
     private findMatchingCommand(interaction: CommandInteraction | ContextMenuCommandInteraction) {
         if (interaction.isChatInputCommand()) {
+            // First check guild commands
+            const guildCommand = this.guildCommands.find(
+                command => command.data.name === interaction.commandName && 
+                command.guildId === interaction.guildId
+            )
+            if (guildCommand) return guildCommand
+
+            // Then check global commands
             return this.globalCommands.find(
                 command => command.data.name === interaction.commandName
-                && CommandHandler.isGlobalSlashCommand(command)
             )
         } else if (interaction.isContextMenuCommand()) {
             return this.contextMenuCommands.find(
