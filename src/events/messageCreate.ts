@@ -71,29 +71,58 @@ export default function onMessageCreate(client: Client) {
             targetText: (await message.channel.messages.fetch(message.reference.messageId)).content
         } : undefined
 
+        // Utility function to normalize URLs
+        const normalizeUrl = (url: string) => {
+            try {
+                const urlObj = new URL(url)
+                return urlObj.protocol + '//' + urlObj.host + urlObj.pathname
+            } catch {
+                return url
+            }
+        }
+
         // Separate image attachments from other attachments
         const imageAttachments: Set<string> = new Set()
         const otherAttachments: string[] = []
 
+        // Process attachments
         message.attachments.forEach(att => {
-            // Check for image MIME types and common image extensions
             const isImage = att.contentType?.startsWith('image/') || 
                 /\.(jpg|jpeg|png|gif|webp)$/i.test(att.name)
 
             if (isImage) {
-                imageAttachments.add(att.url)
+                imageAttachments.add(normalizeUrl(att.url))
             } else {
                 otherAttachments.push(att.url)
             }
         })
 
-        // Add image URLs from embeds
+        // Process embeds, avoiding duplicate URLs
         message.embeds.forEach(embed => {
+            // Only add the main URL if it's not already represented by a thumbnail
             if (embed.url && /\.(jpg|jpeg|png|gif|webp)$/i.test(embed.url)) {
-                imageAttachments.add(embed.url)
+                const normalizedUrl = normalizeUrl(embed.url)
+                if (!imageAttachments.has(normalizedUrl)) {
+                    imageAttachments.add(normalizedUrl)
+                }
             }
-            if (embed.thumbnail?.url && /\.(jpg|jpeg|png|gif|webp)$/i.test(embed.thumbnail.url)) {
-                imageAttachments.add(embed.thumbnail.url)
+
+            // Add thumbnail URL if it exists and is different from the main URL
+            if (embed.thumbnail?.url) {
+                const normalizedThumbUrl = normalizeUrl(embed.thumbnail.url)
+                if (!imageAttachments.has(normalizedThumbUrl)) {
+                    imageAttachments.add(normalizedThumbUrl)
+                }
+            }
+        })
+
+        // Extract image URLs from content and add them if they're not already included
+        const urlRegex = /https?:\/\/\S+?\.(?:jpg|jpeg|png|gif|webp)(?:\?\S*)?(?=\s|$)/gi
+        const contentUrls = content.match(urlRegex) || []
+        contentUrls.forEach(url => {
+            const normalizedUrl = normalizeUrl(url)
+            if (!imageAttachments.has(normalizedUrl)) {
+                imageAttachments.add(normalizedUrl)
             }
         })
 
