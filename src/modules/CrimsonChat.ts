@@ -575,7 +575,8 @@ export default class CrimsonChat {
 
     private cleanImageUrl(url: string): string {
         try {
-            const re = /^(https?:\/\/[^\s]+?\.(?:gif|png|jpe?g|webp)(\?[^"'\s]+)?)/i
+            // Update regex to be more precise and handle query parameters better
+            const re = /^(https?:\/\/[^\s]+?\.(?:gif|png|jpe?g|webp))(?:\?[^"'\s]*)?$/i
             const match = url.match(re)
             if (match) {
                 return match[1]
@@ -583,6 +584,15 @@ export default class CrimsonChat {
             return url
         } catch (error) {
             logger.error(`Failed to clean image URL: ${error}`)
+            return url
+        }
+    }
+
+    private normalizeUrl(url: string): string {
+        try {
+            const urlObj = new URL(url)
+            return urlObj.protocol + '//' + urlObj.host + urlObj.pathname
+        } catch {
             return url
         }
     }
@@ -598,13 +608,30 @@ export default class CrimsonChat {
             { type: 'text', text: content || '' }
         ]
 
-        // Use a Set to avoid duplicate URLs
-        const uniqueAttachments = new Set(attachments)
+        // Normalize URLs and store in Set for deduplication
+        const processedUrls = new Set<string>()
+        const uniqueAttachments = new Set<string>()
 
-        // Fetch and convert each image
+        for (const url of attachments) {
+            const normalizedUrl = this.normalizeUrl(url)
+            if (!processedUrls.has(normalizedUrl)) {
+                processedUrls.add(normalizedUrl)
+                uniqueAttachments.add(url)
+            }
+        }
+
+        // Process each unique attachment
         for (const attachmentUrl of uniqueAttachments) {
             const cleanUrl = this.cleanImageUrl(attachmentUrl)
             logger.info(`Processing image URL: ${cleanUrl}`)
+            
+            // Skip if we already processed this URL (after cleaning)
+            const normalizedCleanUrl = this.normalizeUrl(cleanUrl)
+            if (processedUrls.has(normalizedCleanUrl)) {
+                logger.info(`Skipping duplicate URL: ${cleanUrl}`)
+                continue
+            }
+
             const base64Image = await this.fetchAndConvertToBase64(cleanUrl)
             if (base64Image) {
                 logger.info('Successfully converted image to base64')
@@ -617,7 +644,6 @@ export default class CrimsonChat {
             }
         }
 
-        // Don't stringify this for history storage - it's only for the API call
         return { role: 'user', content: messageContent }
     }
 
