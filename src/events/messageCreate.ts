@@ -17,6 +17,14 @@ export default function onMessageCreate(client: Client) {
                     await crimsonChat.clearHistory()
                     await message.react('✅')
                     return
+                case '!updateprompt':
+                    await crimsonChat.updateSystemPrompt()
+                    await message.react('✅')
+                    await crimsonChat.sendMessage(
+                        'System prompt has been updated to latest version.',
+                        { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                    )
+                    return
                 case '!toggle':
                     crimsonChat.setEnabled(!crimsonChat.isEnabled())
                     await message.react(crimsonChat.isEnabled() ? '✅' : '🔴')

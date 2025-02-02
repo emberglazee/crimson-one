@@ -14,7 +14,7 @@ export async function formatUserMessage(
     attachments?: string[]
 ): Promise<string> {
     let userStatus: UserStatus | 'unknown' = 'unknown'
-    
+
     if (client) {
         const user = client.users.cache.find(u => u.username === username)
         if (user) {
