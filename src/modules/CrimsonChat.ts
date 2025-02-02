@@ -608,39 +608,33 @@ export default class CrimsonChat {
             { type: 'text', text: content || '' }
         ]
 
-        // Normalize URLs and store in Set for deduplication
+        // Use Set for tracking processed URLs
         const processedUrls = new Set<string>()
-        const uniqueAttachments = new Set<string>()
 
-        for (const url of attachments) {
-            const normalizedUrl = this.normalizeUrl(url)
-            if (!processedUrls.has(normalizedUrl)) {
-                processedUrls.add(normalizedUrl)
-                uniqueAttachments.add(url)
-            }
-        }
-
-        // Process each unique attachment
-        for (const attachmentUrl of uniqueAttachments) {
+        // Process each attachment
+        for (const attachmentUrl of attachments) {
             const cleanUrl = this.cleanImageUrl(attachmentUrl)
+            const normalizedUrl = this.normalizeUrl(cleanUrl)
+            
+            // Log URL status
             logger.info(`Processing image URL: ${cleanUrl}`)
             
-            // Skip if we already processed this URL (after cleaning)
-            const normalizedCleanUrl = this.normalizeUrl(cleanUrl)
-            if (processedUrls.has(normalizedCleanUrl)) {
-                logger.info(`Skipping duplicate URL: ${cleanUrl}`)
-                continue
-            }
-
-            const base64Image = await this.fetchAndConvertToBase64(cleanUrl)
-            if (base64Image) {
-                logger.info('Successfully converted image to base64')
-                messageContent.push({
-                    type: 'image_url',
-                    image_url: { url: base64Image }
-                })
+            // Only process each unique URL once
+            if (!processedUrls.has(normalizedUrl)) {
+                processedUrls.add(normalizedUrl)
+                
+                const base64Image = await this.fetchAndConvertToBase64(cleanUrl)
+                if (base64Image) {
+                    logger.info('Successfully converted image to base64')
+                    messageContent.push({
+                        type: 'image_url',
+                        image_url: { url: base64Image }
+                    })
+                } else {
+                    logger.warn(`Failed to process image: ${cleanUrl}`)
+                }
             } else {
-                logger.warn(`Failed to process image: ${cleanUrl}`)
+                logger.info(`Skipping duplicate URL (already processed): ${cleanUrl}`)
             }
         }
 
