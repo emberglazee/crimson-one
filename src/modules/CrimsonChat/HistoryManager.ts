@@ -77,4 +77,14 @@ export class HistoryManager {
     prepareHistory(): ChatMessage[] {
         return this.history.map(({ role, content }) => ({ role, content: content || '' }))
     }
+
+    async updateSystemPrompt(): Promise<void> {
+        if (this.history[0].role === 'system') {
+            this.history[0].content = CRIMSON_CHAT_SYSTEM_PROMPT
+        } else {
+            this.history.unshift({ role: 'system', content: CRIMSON_CHAT_SYSTEM_PROMPT })
+        }
+        await this.saveHistory()
+        logger.info('System prompt updated to latest version')
+    }
 }

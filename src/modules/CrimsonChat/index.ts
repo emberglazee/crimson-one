@@ -272,4 +272,9 @@ export default class CrimsonChat {
         }
         return null
     }
+
+    public async updateSystemPrompt(): Promise<void> {
+        await this.historyManager.updateSystemPrompt()
+        logger.info('System prompt updated to latest version')
+    }
 }
