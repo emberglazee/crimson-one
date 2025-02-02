@@ -61,11 +61,11 @@ export class HistoryManager {
 
     async trimHistory(): Promise<void> {
         const originalLength = this.history.length
-        let historyTokens = this.history.reduce((acc, curr) => acc + (curr.content || '').split(' ').length, 0)
+        let historyTokens = this.history.reduce((acc, curr) => acc + (typeof curr.content === 'string' ? curr.content.split(' ').length : 0), 0)
 
         while (historyTokens > 128000 && this.history.length > 2) {
             this.history.splice(1, 1)
-            historyTokens = this.history.reduce((acc, curr) => acc + (curr.content || '').split(' ').length, 0)
+            historyTokens = this.history.reduce((acc, curr) => acc + (typeof curr.content === 'string' ? curr.content.split(' ').length : 0), 0)
         }
 
         if (originalLength !== this.history.length) {

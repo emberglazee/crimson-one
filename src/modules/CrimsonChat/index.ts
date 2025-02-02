@@ -1,10 +1,12 @@
-import { Client, TextChannel, Message } from 'discord.js'
+import { Client, TextChannel, Message, ChatInputCommandInteraction } from 'discord.js'
 import { MessageProcessor } from './MessageProcessor'
 import { HistoryManager } from './HistoryManager'
 import { Logger } from '../../util/logger'
 import { promises as fs } from 'fs'
 import type { UserMessageOptions } from '../../types/types'
 import path from 'path'
+import { formatUserMessage } from './utils/formatters'
+import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
 
 const logger = new Logger('CrimsonChat')
 
@@ -18,10 +20,12 @@ export default class CrimsonChat {
     private bannedUsers: Set<string> = new Set()
     private messageProcessor: MessageProcessor
     private historyManager: HistoryManager
+    private historyPath = path.join(process.cwd(), 'data/chat_history.json')
+    private history: any[] = []
 
     private constructor() {
-        this.messageProcessor = new MessageProcessor()
         this.historyManager = new HistoryManager()
+        this.messageProcessor = new MessageProcessor(this.historyManager)
     }
 
     public static getInstance(): CrimsonChat {
@@ -180,6 +184,35 @@ export default class CrimsonChat {
         }
     }
 
+    private async loadHistory(): Promise<void> {
+        try {
+            const data = await fs.readFile(this.historyPath, 'utf-8')
+            const savedHistory = JSON.parse(data)
+            // Always ensure system prompt is first
+            this.history = [{
+                role: 'system',
+                content: CRIMSON_CHAT_SYSTEM_PROMPT
+            }]
+            // Add saved messages after system prompt
+            this.history.push(...savedHistory.filter((msg: any) => msg.role !== 'system'))
+        } catch (error) {
+            // If file doesn't exist or is invalid, start with just the system prompt
+            this.history = [{
+                role: 'system',
+                content: CRIMSON_CHAT_SYSTEM_PROMPT
+            }]
+        }
+    }
+
+    private async saveHistory(): Promise<void> {
+        try {
+            await fs.mkdir(path.dirname(this.historyPath), { recursive: true })
+            await fs.writeFile(this.historyPath, JSON.stringify(this.history, null, 2))
+        } catch (error) {
+            console.error('Failed to save chat history:', error)
+        }
+    }
+
     public isBanned(userId: string): boolean {
         return this.bannedUsers.has(userId)
     }
@@ -198,5 +231,44 @@ export default class CrimsonChat {
 
     public async clearHistory(): Promise<void> {
         await this.historyManager.clearHistory()
+    }
+
+    public async trackCommandUsage(interaction: ChatInputCommandInteraction) {
+        const command = `/${interaction.commandName}`
+        const options = interaction.options.data
+        const optionStr = options.length > 0 
+            ? ' ' + options.map((opt) => `${opt.name}:${opt.value ?? '[no value]'}`).join(' ')
+            : ''
+
+        const message = await formatUserMessage(
+            interaction.user.username,
+            interaction.user.displayName,
+            interaction.user.displayName,
+            `Used command: ${command}${optionStr}`
+        )
+
+        this.historyManager.appendMessage('user', message)
+        await this.historyManager.trimHistory()
+    }
+
+    private async handleRandomBreakdown(): Promise<string | null> {
+        if (this.messageProcessor.forceNextBreakdown || Math.random() < this.messageProcessor.BREAKDOWN_CHANCE) {
+            logger.info(`Triggering ${this.messageProcessor.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
+            this.messageProcessor.forceNextBreakdown = false
+            const response = await this.messageProcessor.openai.chat.completions.create({
+                messages: [{
+                    role: 'system',
+                    content: CRIMSON_BREAKDOWN_PROMPT
+                }],
+                model: 'gpt-4o-mini'
+            })
+
+            const breakdown = response.choices[0].message?.content
+            if (breakdown) {
+                await this.historyManager.appendMessage('assistant', breakdown)
+                return breakdown
+            }
+        }
+        return null
     }
 }
