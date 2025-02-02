@@ -5,6 +5,7 @@ import type { FormattedUserMessage, UserStatus } from '../../../types/types'
 const logger = new Logger('Formatters')
 
 export async function formatUserMessage(
+    client: Client | null,
     username: string,
     displayName: string,
     serverDisplayName: string,
@@ -12,15 +13,50 @@ export async function formatUserMessage(
     respondingTo?: { targetUsername: string; targetText: string },
     attachments?: string[]
 ): Promise<string> {
+    let userStatus: UserStatus | 'unknown' = 'unknown'
+    
+    if (client) {
+        const user = client.users.cache.find(u => u.username === username)
+        if (user) {
+            try {
+                const guild = client.guilds.cache.first()
+                if (guild) {
+                    const member = await guild.members.fetch(user.id)
+                    if (member) {
+                        // Force fetch presence
+                        await member.fetch(true)
+                        const presence = member.presence
+
+                        const roles = member.roles.cache.map(role => role.name)
+                        const activities = presence?.activities?.map(activity => ({
+                            name: activity.name,
+                            type: activity.type,
+                            state: activity.state ?? undefined,
+                            details: activity.details ?? undefined,
+                            createdAt: activity.createdAt.toISOString()
+                        })) || []
+
+                        userStatus = {
+                            roles,
+                            presence: activities.length ? activities : 'offline or no activities'
+                        }
+                    }
+                }
+            } catch (error) {
+                logger.error(`Error fetching user status: ${error}`)
+            }
+        }
+    }
+
     const formattedMessage: FormattedUserMessage = {
         username,
         displayName,
         serverDisplayName,
         currentTime: new Date().toISOString(),
-        text,
+        text: client ? await parseMentions(client, text) : text,
         attachments,
         respondingTo,
-        userStatus: 'unknown'
+        userStatus
     }
 
     return JSON.stringify(formattedMessage)
