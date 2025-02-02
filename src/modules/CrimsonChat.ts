@@ -578,7 +578,11 @@ export default class CrimsonChat {
 
     private cleanImageUrl(url: string): string {
         try {
-            // Keep the entire URL, including query parameters
+            const re = /^(https?:\/\/[^\s]+?\.(?:gif|png|jpe?g|webp)(\?[^"'\s]+)?)/i
+            const match = url.match(re)
+            if (match) {
+                return match[1]
+            }
             return url
         } catch (error) {
             logger.error(`Failed to clean image URL: ${error}`)
