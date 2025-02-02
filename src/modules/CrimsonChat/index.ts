@@ -5,7 +5,7 @@ import { Logger } from '../../util/logger'
 import { promises as fs } from 'fs'
 import type { UserMessageOptions } from '../../types/types'
 import path from 'path'
-import { formatUserMessage } from './utils/formatters'
+import { formatUserMessage, usernamesToMentions } from './utils/formatters'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
 
 const logger = new Logger('CrimsonChat')
@@ -98,10 +98,10 @@ export default class CrimsonChat {
     }
 
     private async sendResponseToDiscord(content: string, message?: any, originalMessage?: Message): Promise<void> {
-        if (!this.thread) throw new Error('Thread not set')
+        if (!this.thread || !this.client) throw new Error('Thread or client not set')
 
         try {
-            let finalContent = content
+            let finalContent = await usernamesToMentions(this.client, content)
 
             if (finalContent.length > 2000) {
                 const buffer = Buffer.from(finalContent, 'utf-8')
@@ -118,10 +118,14 @@ export default class CrimsonChat {
                     await this.thread.send(messageOptions)
                 }
             } else {
+                const messageOptions = {
+                    content: finalContent
+                }
+
                 if (originalMessage?.reply) {
-                    await originalMessage.reply(finalContent)
+                    await originalMessage.reply(messageOptions)
                 } else {
-                    await this.thread.send(finalContent)
+                    await this.thread.send(messageOptions)
                 }
             }
         } catch (error: any) {

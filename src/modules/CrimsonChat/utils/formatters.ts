@@ -81,6 +81,22 @@ export async function parseMentions(client: Client, text: string): Promise<strin
     return parsedText
 }
 
+export async function usernamesToMentions(client: Client, text: string): Promise<string> {
+    const usernameRegex = /@(\w+)/g
+    let modifiedText = text
+    const matches = text.matchAll(usernameRegex)
+
+    for (const match of matches) {
+        const username = match[1]
+        const user = client.users.cache.find(u => u.username === username)
+        if (user) {
+            modifiedText = modifiedText.replace(`@${username}`, `<@${user.id}>`)
+        }
+    }
+
+    return modifiedText
+}
+
 export async function formatUserStatus(client: Client, username: string): Promise<UserStatus | 'unknown'> {
     const userId = client.users.cache.find(u => u.username === username)?.id
     if (!userId) return 'unknown'
