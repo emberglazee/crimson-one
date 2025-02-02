@@ -27,6 +27,13 @@ export abstract class SlashCommand implements ISlashCommand {
     execute!: (interaction: ChatInputCommandInteraction) => Promise<void>
 }
 
+export interface IGuildSlashCommand extends ISlashCommand {
+    guildId: string
+}
+export abstract class GuildSlashCommand extends SlashCommand implements IGuildSlashCommand {
+    guildId!: string
+}
+
 type ContextMenuInteractionType<T extends 2 | 3> = T extends 2 
     ? UserContextMenuCommandInteraction 
     : MessageContextMenuCommandInteraction
@@ -46,8 +53,8 @@ export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements ICo
 export default class CommandHandler {
     private static instance: CommandHandler
     private globalCommands: SlashCommand[] = []
+    private guildCommands: GuildSlashCommand[] = []
     private contextMenuCommands: ContextMenuCommand[] = []
-    private files: Dirent[] = []
     private initialized = false
     private client: Client | null = null
 
@@ -169,7 +176,7 @@ export default class CommandHandler {
         if (!command.execute) {
             throw new Error(`Command ${interaction.commandName} does not have an execute method`)
         }
-        
+
         if (interaction.isChatInputCommand() && CommandHandler.isSlashCommand(command)) {
             await command.execute(interaction)
         } else if (interaction.isContextMenuCommand() && CommandHandler.isContextMenuCommand(command)) {
@@ -202,13 +209,34 @@ export default class CommandHandler {
         ].map(command => command.data))
     }
 
-    public static isGlobalSlashCommand = (obj: any): obj is SlashCommand => {
-        return CommandHandler.isSlashCommand(obj) && !('guildId' in obj)
+    public async refreshGuildCommands(guildId: string) {
+        if (!this.initialized) throw new ClassNotInitializedError()
+        if (!this.client) throw new Error('Client not set. Call setClient() first.')
+
+        logger.info(`{refreshGuildCommands} Refreshing guild commands for ${guildId}...`)
+        const guild = await this.client.guilds.fetch(guildId)
+        const guildCommands = this.guildCommands.filter(command => command.guildId === guildId)
+        await guild.commands.set(guildCommands.map(command => command.data))
     }
+    public async refreshAllGuildCommands() {
+        if (!this.initialized) throw new ClassNotInitializedError()
+        if (!this.client) throw new Error('Client not set. Call setClient() first.')
+
+        logger.info('{refreshAllGuildCommands} Refreshing all guild commands...')
+        for (const command of this.guildCommands) {
+            await this.refreshGuildCommands(command.guildId)
+        }
+    }
+
     public static isSlashCommand = (obj: any): obj is SlashCommand => {
         return obj.data instanceof SlashCommandBuilder
     }
-
+    public static isGuildSlashCommand = (obj: any): obj is GuildSlashCommand => {
+        return CommandHandler.isSlashCommand(obj) && 'guildId' in obj
+    }
+    public static isGlobalSlashCommand = (obj: any): obj is SlashCommand => {
+        return CommandHandler.isSlashCommand(obj) && !('guildId' in obj)
+    }
     public static isContextMenuCommand = (obj: any): obj is ContextMenuCommand => {
         return obj.data instanceof ContextMenuCommandBuilder && (obj.type === 2 || obj.type === 3)
     }

@@ -7,6 +7,8 @@ import type { UserMessageOptions } from '../../types/types'
 import path from 'path'
 import { formatUserMessage, usernamesToMentions } from './utils/formatters'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
+import { ReminderManager, type ReminderData } from './utils/Reminder'
+import { randomUUID } from 'crypto'
 
 const logger = new Logger('CrimsonChat')
 
@@ -22,10 +24,12 @@ export default class CrimsonChat {
     private historyManager: HistoryManager
     private historyPath = path.join(process.cwd(), 'data/chat_history.json')
     private history: any[] = []
+    private reminderManager: ReminderManager
 
     private constructor() {
         this.historyManager = new HistoryManager()
         this.messageProcessor = new MessageProcessor(this.historyManager)
+        this.reminderManager = ReminderManager.getInstance()
     }
 
     public static getInstance(): CrimsonChat {
@@ -38,6 +42,7 @@ export default class CrimsonChat {
     public setClient(client: Client) {
         this.client = client
         this.messageProcessor.setClient(client)
+        this.reminderManager.setClient(client)
     }
 
     public async init(): Promise<void> {
@@ -280,5 +285,31 @@ export default class CrimsonChat {
     public async updateSystemPrompt(): Promise<void> {
         await this.historyManager.updateSystemPrompt()
         logger.info('System prompt updated to latest version')
+    }
+
+    public async createReminder(
+        userId: string,
+        username: string,
+        message: string,
+        timeStr: string,
+        timezone?: string
+    ): Promise<Date> {
+        if (!this.thread) throw new Error('Thread not set')
+
+        const parsedTime = this.reminderManager.parseTime(timeStr, timezone)
+        if (!parsedTime) {
+            throw new Error('Could not parse reminder time')
+        }
+
+        const reminderData: ReminderData = {
+            id: randomUUID(),
+            userId,
+            username,
+            message,
+            triggerTime: parsedTime.getTime()
+        }
+
+        await this.reminderManager.createReminder(reminderData)
+        return parsedTime
     }
 }
