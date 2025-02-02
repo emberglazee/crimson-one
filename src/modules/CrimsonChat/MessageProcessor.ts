@@ -47,6 +47,7 @@ export class MessageProcessor {
         }
 
         const formattedMessage = await formatUserMessage(
+            this.client,
             options.username,
             options.displayName,
             options.serverDisplayName,
