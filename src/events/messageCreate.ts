@@ -79,11 +79,21 @@ export default function onMessageCreate(client: Client) {
             // Check for image MIME types and common image extensions
             const isImage = att.contentType?.startsWith('image/') || 
                 /\.(jpg|jpeg|png|gif|webp)$/i.test(att.name)
-            
+
             if (isImage) {
                 imageAttachments.add(att.url)
             } else {
                 otherAttachments.push(att.url)
+            }
+        })
+
+        // Add image URLs from embeds
+        message.embeds.forEach(embed => {
+            if (embed.url && /\.(jpg|jpeg|png|gif|webp)$/i.test(embed.url)) {
+                imageAttachments.add(embed.url)
+            }
+            if (embed.thumbnail?.url && /\.(jpg|jpeg|png|gif|webp)$/i.test(embed.thumbnail.url)) {
+                imageAttachments.add(embed.thumbnail.url)
             }
         })
 
@@ -102,11 +112,11 @@ export default function onMessageCreate(client: Client) {
         const typingInterval = setInterval(() => {
             message.channel.sendTyping().catch(() => {
                 // Ignore errors from sending typing indicator
-            });
-        }, 8000);
+            })
+        }, 8000)
 
         // Initial typing indicator
-        await message.channel.sendTyping();
+        await message.channel.sendTyping()
 
         try {
             await crimsonChat.sendMessage(content, {
