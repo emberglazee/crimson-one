@@ -482,21 +482,35 @@ export default class CrimsonChat {
             const buffer = Buffer.from(await response.arrayBuffer())
             await fs.writeFile(gifPath, buffer)
 
-            // Verify the file exists before running FFmpeg
-            const stats = await fs.stat(gifPath)
-            if (stats.size === 0) throw new Error('Downloaded GIF is empty')
+            // Verify the file exists and wait for it to be fully written
+            const verifyFile = async (retries = 3, delay = 100): Promise<void> => {
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        const stats = await fs.stat(gifPath)
+                        if (stats.size === 0) throw new Error('File is empty')
+                        if (stats.size === buffer.length) {
+                            logger.info(`Downloaded GIF to ${gifPath} (${stats.size} bytes)`)
+                            return
+                        }
+                    } catch (error) {
+                        if (i === retries - 1) throw error
+                    }
+                    await new Promise(resolve => setTimeout(resolve, delay))
+                }
+                throw new Error('Failed to verify file after retries')
+            }
 
-            logger.info(`Downloaded GIF to ${gifPath} (${stats.size} bytes)`)
+            await verifyFile()
 
             // Extract first frame using FFmpeg
             return new Promise((resolve, reject) => {
                 let stderr = ''
                 const ffmpeg = spawn('ffmpeg', [
-                    '-y', // Overwrite output file
-                    '-loglevel', 'info', // More verbose logging
+                    '-y',
+                    '-loglevel', 'info',
                     '-i', gifPath,
                     '-vframes', '1',
-                    '-vf', 'scale=-1:-1', // Maintain aspect ratio
+                    '-vf', 'scale=-1:-1',
                     '-f', 'image2',
                     outputPath
                 ])
@@ -509,6 +523,8 @@ export default class CrimsonChat {
                 ffmpeg.on('close', async (code) => {
                     if (code === 0) {
                         try {
+                            // Add verification for output file as well
+                            await verifyFile(3, 100)
                             const frameBuffer = await fs.readFile(outputPath)
                             if (frameBuffer.length === 0) {
                                 reject(new Error('Generated frame is empty'))
@@ -532,7 +548,6 @@ export default class CrimsonChat {
             logger.error(`Failed to extract first frame: ${error}`)
             return null
         } finally {
-            // Cleanup temp directory
             try {
                 await fs.rm(tmpDir, { recursive: true, force: true })
                 logger.info(`Cleaned up temp directory: ${tmpDir}`)
