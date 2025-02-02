@@ -5,24 +5,27 @@ import { CommandParser } from './CommandParser'
 import { formatUserMessage } from './utils/formatters'
 import { Logger } from '../../util/logger'
 import { CRIMSON_BREAKDOWN_PROMPT } from '../../util/constants'
-import type { UserMessageOptions } from '../../types/types'
+import type { ChatMessage, UserMessageOptions } from '../../types/types'
+import { HistoryManager } from './HistoryManager'
 
 const logger = new Logger('MessageProcessor')
 
 export class MessageProcessor {
     private client: Client | null = null
-    private openai: OpenAI
+    openai: OpenAI
     private imageProcessor: ImageProcessor
     private commandParser: CommandParser
-    private forceNextBreakdown: boolean = false
-    private readonly BREAKDOWN_CHANCE = 0.01
+    private historyManager: HistoryManager
+    forceNextBreakdown: boolean = false
+    readonly BREAKDOWN_CHANCE = 0.01
 
-    constructor() {
+    constructor(historyManager: HistoryManager) {
         this.openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY
         })
         this.imageProcessor = new ImageProcessor()
         this.commandParser = new CommandParser()
+        this.historyManager = historyManager
     }
 
     setClient(client: Client) {
@@ -56,12 +59,26 @@ export class MessageProcessor {
             Array.from(imageUrls)
         )
 
+        // Get conversation history and properly map it for OpenAI API
+        const history = this.historyManager.prepareHistory().map(msg => ({
+            role: msg.role,
+            content: msg.content || '',
+        })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[]
+        history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
+
         let response = await this.openai.chat.completions.create({
-            messages: [messageForCompletion],
+            messages: history,
             model: 'gpt-4o-mini'
         })
 
         const { content: parsedResponse, hadCommands } = await this.parseAssistantReply(response.choices[0].message)
+
+        // Save the exchange to history
+        await this.historyManager.appendMessage('user', formattedMessage)
+        if (parsedResponse) {
+            await this.historyManager.appendMessage('assistant', parsedResponse)
+        }
+
         return parsedResponse || 'Error processing message'
     }
 
@@ -106,9 +123,9 @@ export class MessageProcessor {
         }
     }
 
-    private async parseMessagesForChatCompletion(content: string, attachments: string[] = []): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam> {
+    private async parseMessagesForChatCompletion(content: string, attachments: string[] = []): Promise<ChatMessage> {
         if (!attachments.length) {
-            return { role: 'user', content }
+            return { role: 'user', content: [{ type: 'text', text: content || '' }] }
         }
 
         const messageContent: Array<OpenAI.Chat.Completions.ChatCompletionContentPart> = [
@@ -138,5 +155,56 @@ export class MessageProcessor {
 
     public setForceNextBreakdown(force: boolean): void {
         this.forceNextBreakdown = force
+    }
+
+    private async getUserPresenceAndRoles(userId: string) {
+        if (!this.client) return null
+        const guild = this.client.guilds.cache.first()
+        if (!guild) return null
+        
+        try {
+            const member = await guild.members.fetch(userId)
+            if (!member) return null
+
+            await member.fetch(true)
+            const presence = member.presence
+
+            const roles = member.roles.cache.map(role => role.name)
+            const activities = presence?.activities?.map(activity => ({
+                name: activity.name,
+                type: activity.type,
+                state: activity.state,
+                details: activity.details,
+                createdAt: activity.createdAt
+            })) || []
+
+            return {
+                roles,
+                presence: activities.length ? activities : 'offline or no activities'
+            }
+        } catch (error) {
+            logger.error(`Error fetching user presence/roles: ${error}`)
+            return null
+        }
+    }
+
+    private async parseMentions(text: string): Promise<string> {
+        if (!this.client) throw new Error('Client not set')
+
+        const mentionRegex = /<@!?(\d+)>/g
+        let parsedText = text
+        const mentions = text.matchAll(mentionRegex)
+
+        for (const match of mentions) {
+            const userId = match[1]
+            try {
+                const user = await this.client.users.fetch(userId)
+                parsedText = parsedText.replace(match[0], `@${user.username}`)
+            } catch (error) {
+                console.error(`Could not fetch user ${userId}:`, error)
+            }
+        }
+
+        return parsedText
     }
 }

@@ -2,7 +2,8 @@ import {
     Guild, BaseInteraction, GuildChannel, Message, GuildMember, CommandInteraction,
     ChatInputCommandInteraction, type APIInteractionDataResolvedChannel, Client, User
 } from 'discord.js'
-import type { ChatCompletionMessage } from 'openai/resources/index.mjs'
+import type { ChatCompletionContentPart, ChatCompletionMessage } from 'openai/resources/index.mjs'
+import type { ChatCompletionMessageParam } from 'openai/src/resources/index.js'
 
 export type GuildIdResolvable = string | Guild | BaseInteraction | GuildChannel | Message
 export type UserIdResolvable = GuildMember | User | string | Message
@@ -72,7 +73,24 @@ export interface FormattedUserMessage {
     userStatus: UserStatus | 'unknown'
 }
 
+// Additional types needed for message processing
 export interface ChatMessage {
     role: 'system' | 'assistant' | 'user'
-    content?: string
+    content?: string | ChatCompletionContentPart[]
+}
+
+export interface ProcessedCommand {
+    content: string | null
+    hadCommands: boolean
+}
+
+export interface UserPresenceInfo {
+    roles: string[]
+    presence: {
+        name: string
+        type: number
+        state?: string
+        details?: string
+        createdAt: string
+    }[] | 'offline or no activities'
 }
