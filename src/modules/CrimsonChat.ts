@@ -550,18 +550,19 @@ export default class CrimsonChat {
             logger.info(`Fetching image from URL: ${url}`)
             let buffer: Buffer
 
-            // Check if the URL is a GIF (check the path part only, not query params)
-            const isGif = url.split('?')[0].toLowerCase().endsWith('.gif')
+            // Use an URL object to check if path ends with '.gif' without removing query params
+            const urlObj = new URL(url)
+            const isGif = urlObj.pathname.toLowerCase().endsWith('.gif')
 
             if (isGif) {
                 logger.info('GIF detected, extracting first frame...')
-                const frameBuffer = await this.extractFirstFrameFromGif(url) // Pass full URL with query params
+                const frameBuffer = await this.extractFirstFrameFromGif(url)
                 if (!frameBuffer) {
                     throw new Error('Failed to extract first frame from GIF')
                 }
                 buffer = frameBuffer
             } else {
-                const response = await fetch(url) // Use full URL with query params
+                const response = await fetch(url)
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
                 buffer = Buffer.from(await response.arrayBuffer())
             }
