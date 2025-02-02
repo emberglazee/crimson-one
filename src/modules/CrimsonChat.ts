@@ -575,13 +575,21 @@ export default class CrimsonChat {
 
     private cleanImageUrl(url: string): string {
         try {
-            // Update regex to be more precise and handle query parameters better
-            const re = /^(https?:\/\/[^\s]+?\.(?:gif|png|jpe?g|webp))(?:\?[^"'\s]*)?$/i
-            const match = url.match(re)
-            if (match) {
-                return match[1]
+            // First, try to extract a clean URL from any JSON-like content
+            const urlMatch = url.match(/https?:\/\/[^\s"]+?\.(?:gif|png|jpe?g|webp)(?:\?[^"\s}]+)?/i)
+            if (!urlMatch) return url
+
+            const extractedUrl = urlMatch[0]
+            
+            // Parse the URL to properly handle Discord CDN links
+            const urlObj = new URL(extractedUrl)
+            if (urlObj.hostname === 'cdn.discordapp.com' || urlObj.hostname === 'media.discordapp.net') {
+                // For Discord CDN, preserve all query parameters
+                return extractedUrl
             }
-            return url
+
+            // For other URLs, only keep the path and essential query params
+            return urlObj.protocol + '//' + urlObj.host + urlObj.pathname
         } catch (error) {
             logger.error(`Failed to clean image URL: ${error}`)
             return url
@@ -591,6 +599,11 @@ export default class CrimsonChat {
     private normalizeUrl(url: string): string {
         try {
             const urlObj = new URL(url)
+            // For Discord CDN, use the full URL (including query params) as the key
+            if (urlObj.hostname === 'cdn.discordapp.com' || urlObj.hostname === 'media.discordapp.net') {
+                return url
+            }
+            // For other URLs, just use the pathname as before
             return urlObj.protocol + '//' + urlObj.host + urlObj.pathname
         } catch {
             return url
