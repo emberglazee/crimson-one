@@ -324,9 +324,6 @@ export default class CrimsonChat {
 
         try {
             let finalContent = content
-            if (message?.refusal) {
-                finalContent += '\n-# ⚠️ note: this chatgpt response is `message.refusal`, what the FUCK is wrong with yall what have yall done to it 😭\n-# - emberglaze'
-            }
 
             // If content is over 2000 characters, send as a file
             if (finalContent.length > 2000) {
@@ -601,8 +598,11 @@ export default class CrimsonChat {
             { type: 'text', text: content || '' }
         ]
 
+        // Use a Set to avoid duplicate URLs
+        const uniqueAttachments = new Set(attachments)
+
         // Fetch and convert each image
-        for (const attachmentUrl of attachments) {
+        for (const attachmentUrl of uniqueAttachments) {
             const cleanUrl = this.cleanImageUrl(attachmentUrl)
             logger.info(`Processing image URL: ${cleanUrl}`)
             const base64Image = await this.fetchAndConvertToBase64(cleanUrl)

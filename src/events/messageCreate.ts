@@ -72,7 +72,7 @@ export default function onMessageCreate(client: Client) {
         } : undefined
 
         // Separate image attachments from other attachments
-        const imageAttachments: string[] = []
+        const imageAttachments: Set<string> = new Set()
         const otherAttachments: string[] = []
 
         message.attachments.forEach(att => {
@@ -81,7 +81,7 @@ export default function onMessageCreate(client: Client) {
                 /\.(jpg|jpeg|png|gif|webp)$/i.test(att.name)
             
             if (isImage) {
-                imageAttachments.push(att.url)
+                imageAttachments.add(att.url)
             } else {
                 otherAttachments.push(att.url)
             }
@@ -114,7 +114,7 @@ export default function onMessageCreate(client: Client) {
                 displayName: message.member!.displayName,
                 serverDisplayName: message.member?.displayName ?? message.author.displayName,
                 respondingTo,
-                imageAttachments // Pass image attachments separately
+                imageAttachments: Array.from(imageAttachments) // Pass image attachments separately
             }, message)
         } finally {
             // Always clear the interval when done
