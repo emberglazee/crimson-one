@@ -50,6 +50,7 @@ bot.once('ready', async () => {
     commandHandler.setClient(bot)
     await commandHandler.init()
     await commandHandler.refreshGlobalCommands()
+    await commandHandler.refreshAllGuildCommands()
 
     // initialize CrimsonChat
     crimsonChat.setClient(bot)
