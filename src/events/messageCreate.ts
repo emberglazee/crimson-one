@@ -1,5 +1,6 @@
 import { Client } from 'discord.js'
 import CrimsonChat from '../modules/CrimsonChat'
+import { normalizeUrl } from '../modules/CrimsonChat/utils/urlUtils'
 
 export default function onMessageCreate(client: Client) {
     const crimsonChat = CrimsonChat.getInstance()
@@ -11,20 +12,23 @@ export default function onMessageCreate(client: Client) {
 
         // Handle admin commands for specific user
         if (message.author.id === '341123308844220447') {
-            if (message.content === '!reset') {
-                await crimsonChat.clearHistory()
-                await message.react('✅')
-                return
-            }
-            if (message.content === '!toggle') {
-                crimsonChat.setEnabled(!crimsonChat.isEnabled())
-                await message.react(crimsonChat.isEnabled() ? '✅' : '🔴')
-                await crimsonChat.sendMessage('Chat is now ' + (crimsonChat.isEnabled() ? 'enabled' : 'disabled') + ', you will' + (crimsonChat.isEnabled() ? ' ' : ' not') + ' be able to see and reply to users messages now.', {
-                    username: 'System',
-                    displayName: 'System',
-                    serverDisplayName: 'System'
-                })
-                return
+            switch (message.content) {
+                case '!reset':
+                    await crimsonChat.clearHistory()
+                    await message.react('✅')
+                    return
+                case '!toggle':
+                    crimsonChat.setEnabled(!crimsonChat.isEnabled())
+                    await message.react(crimsonChat.isEnabled() ? '✅' : '🔴')
+                    await crimsonChat.sendMessage(
+                        `Chat is now ${crimsonChat.isEnabled() ? 'enabled' : 'disabled'}`,
+                        { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                    )
+                    return
+                case '!forcebreak':
+                    crimsonChat.setForceNextBreakdown(true)
+                    await message.react('✅')
+                    return
             }
 
             if (message.content.startsWith('!ban ')) {
@@ -32,28 +36,22 @@ export default function onMessageCreate(client: Client) {
                 await crimsonChat.banUser(userId)
                 await message.react('✅')
                 const user = await client.users.fetch(userId)
-                await crimsonChat.sendMessage(`User ${user.username} has been banned, you are now not able to see their messages.`, {
-                    username: 'System',
-                    displayName: 'System',
-                    serverDisplayName: 'System'
-                })
+                await crimsonChat.sendMessage(
+                    `User ${user.username} has been banned, you are now not able to see their messages.`,
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                )
                 return
             }
+
             if (message.content.startsWith('!unban ')) {
                 const userId = message.content.split(' ')[1]
                 await crimsonChat.unbanUser(userId)
                 await message.react('✅')
                 const user = await client.users.fetch(userId)
-                await crimsonChat.sendMessage(`User ${user.username} has been unbanned, you are now able to see their messages.`, {
-                    username: 'System',
-                    displayName: 'System',
-                    serverDisplayName: 'System'
-                })
-                return
-            }
-            if (message.content === '!forcebreak') {
-                crimsonChat.setForceNextBreakdown(true)
-                await message.react('✅')
+                await crimsonChat.sendMessage(
+                    `User ${user.username} has been unbanned, you are now able to see their messages.`,
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                )
                 return
             }
         }
@@ -66,102 +64,49 @@ export default function onMessageCreate(client: Client) {
         }
 
         let { content } = message
+        
+        // Get reply context if message is a reply
         const respondingTo = message.reference?.messageId ? {
             targetUsername: (await message.channel.messages.fetch(message.reference.messageId)).author.username,
             targetText: (await message.channel.messages.fetch(message.reference.messageId)).content
         } : undefined
 
-        // Utility function to normalize URLs
-        const normalizeUrl = (url: string) => {
-            try {
-                const urlObj = new URL(url)
-                // For Discord CDN, preserve all query parameters
-                if (urlObj.hostname === 'cdn.discordapp.com' || urlObj.hostname === 'media.discordapp.net') {
-                    return url
-                }
-                return urlObj.protocol + '//' + urlObj.host + urlObj.pathname
-            } catch {
-                return url
-            }
-        }
+        // Collect all image URLs
+        const imageAttachments = new Set<string>()
 
-        // Separate image attachments from other attachments
-        const imageAttachments: Set<string> = new Set()
-        const otherAttachments: string[] = []
-
-        // Process attachments
+        // Add attachment images
         message.attachments.forEach(att => {
-            const isImage = att.contentType?.startsWith('image/') || 
-                /\.(jpg|jpeg|png|gif|webp)$/i.test(att.name)
-
-            if (isImage) {
+            if (att.contentType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.name)) {
                 imageAttachments.add(normalizeUrl(att.url))
             } else {
-                otherAttachments.push(att.url)
+                content += `\n< attachment: ${att.url} >`
             }
         })
 
-        // Process embeds, avoiding duplicate URLs
+        // Add embed images
         message.embeds.forEach(embed => {
-            // Only add the main URL if it's not already represented by a thumbnail
             if (embed.url && /\.(jpg|jpeg|png|gif|webp)$/i.test(embed.url)) {
-                const normalizedUrl = normalizeUrl(embed.url)
-                if (!imageAttachments.has(normalizedUrl)) {
-                    imageAttachments.add(normalizedUrl)
-                }
+                imageAttachments.add(normalizeUrl(embed.url))
             }
-
-            // Add thumbnail URL if it exists and is different from the main URL
             if (embed.thumbnail?.url) {
-                const normalizedThumbUrl = normalizeUrl(embed.thumbnail.url)
-                if (!imageAttachments.has(normalizedThumbUrl)) {
-                    imageAttachments.add(normalizedThumbUrl)
-                }
+                imageAttachments.add(normalizeUrl(embed.thumbnail.url))
             }
         })
 
-        // Extract image URLs from content and add them if they're not already included
-        const urlRegex = /https?:\/\/\S+?\.(?:jpg|jpeg|png|gif|webp)(?:\?\S*)?(?=\s|$)/gi
-        const contentUrls = content.match(urlRegex) || []
-        contentUrls.forEach(url => {
-            const normalizedUrl = normalizeUrl(url)
-            if (!imageAttachments.has(normalizedUrl)) {
-                imageAttachments.add(normalizedUrl)
-            }
-        })
-
-        if (!content.length && message.stickers.first()) content = `< sticker: ${message.stickers.first()!.name} >`
-        if (otherAttachments.length) {
-            for (const attachment of otherAttachments) {
-                content += `\n< attachment: ${attachment} >`
-            }
+        // Handle stickers and other embeds
+        if (!content.length && message.stickers.first()) {
+            content = `< sticker: ${message.stickers.first()!.name} >`
         }
         if (message.embeds.length) {
-            const embed = message.embeds[0]
-            content += `\n< embed: ${JSON.stringify(embed)} >`
+            content += `\n< embed: ${JSON.stringify(message.embeds[0])} >`
         }
 
-        // Start typing indicator loop
-        const typingInterval = setInterval(() => {
-            message.channel.sendTyping().catch(() => {
-                // Ignore errors from sending typing indicator
-            })
-        }, 8000)
-
-        // Initial typing indicator
-        await message.channel.sendTyping()
-
-        try {
-            await crimsonChat.sendMessage(content, {
-                username: message.author.username,
-                displayName: message.member!.displayName,
-                serverDisplayName: message.member?.displayName ?? message.author.displayName,
-                respondingTo,
-                imageAttachments: Array.from(imageAttachments) // Pass image attachments separately
-            }, message)
-        } finally {
-            // Always clear the interval when done
-            clearInterval(typingInterval)
-        }
+        await crimsonChat.sendMessage(content, {
+            username: message.author.username,
+            displayName: message.member!.displayName,
+            serverDisplayName: message.member?.displayName ?? message.author.displayName,
+            respondingTo,
+            imageAttachments: Array.from(imageAttachments)
+        }, message)
     })
 }
