@@ -75,6 +75,10 @@ export default function onMessageCreate(client: Client) {
         const normalizeUrl = (url: string) => {
             try {
                 const urlObj = new URL(url)
+                // For Discord CDN, preserve all query parameters
+                if (urlObj.hostname === 'cdn.discordapp.com' || urlObj.hostname === 'media.discordapp.net') {
+                    return url
+                }
                 return urlObj.protocol + '//' + urlObj.host + urlObj.pathname
             } catch {
                 return url
