@@ -30,12 +30,20 @@ export class HistoryManager {
         try {
             const data = await fs.readFile(this.historyPath, 'utf-8')
             const savedHistory = JSON.parse(data)
-            this.history = [{
-                role: 'system',
-                content: CRIMSON_CHAT_SYSTEM_PROMPT
-            }]
-            this.history.push(...savedHistory.filter((msg: any) => msg.role !== 'system'))
-            logger.info('Chat history loaded successfully')
+            
+            // Initialize with system prompt only if saved history doesn't start with one
+            if (!savedHistory.length || savedHistory[0].role !== 'system') {
+                this.history = [{
+                    role: 'system',
+                    content: CRIMSON_CHAT_SYSTEM_PROMPT
+                }]
+                this.history.push(...savedHistory)
+            } else {
+                // Use saved history as-is if it already has system prompt
+                this.history = savedHistory
+            }
+            
+            logger.info(`Chat history loaded successfully with ${this.history.length} messages`)
         } catch (error) {
             this.history = [{
                 role: 'system',
