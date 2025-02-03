@@ -8,7 +8,7 @@ import { VM } from 'vm2'
 import OpenAI from 'openai'
 // Both below are for the JSON schema.
 import { z } from 'zod'
-import { zodResponseFormat } from 'openai/src/helpers/zod.js' // Yes, 'openai/src/helpers/zod.js' specifically
+import { zodResponseFormat } from 'openai/helpers/zod.mjs'
 
 const logger = new Logger('PermissionManager')
 
