@@ -1,17 +1,14 @@
-import { Client, PermissionsBitField, ChannelType } from 'discord.js'
+import { PermissionsBitField, ChannelType } from 'discord.js'
 import { Logger } from '../../util/logger'
 import { ASSISTANT_COMMANDS } from '../../util/constants'
+import CrimsonChat from '.'
 const logger = new Logger('CommandParser')
 
 export class CommandParser {
-    private client: Client | null = null
-
-    setClient(client: Client) {
-        this.client = client
-    }
+    private crimsonChat = CrimsonChat.getInstance()
 
     async parseCommand(text: string): Promise<string | null> {
-        if (!this.client) {
+        if (!this.crimsonChat.client) {
             logger.error('[Command Parser] Client not set')
             throw new Error('Client not set')
         }
@@ -32,7 +29,7 @@ export class CommandParser {
         let finalUsername = params?.trim() || ''
 
         try {
-            const guild = this.client.guilds.cache.first()
+            const guild = this.crimsonChat.client.guilds.cache.first()
             if (!guild) {
                 logger.error('[Command Parser] No guild available')
                 return 'Error: No guild available'
@@ -61,7 +58,7 @@ export class CommandParser {
             switch (command) {
                 case ASSISTANT_COMMANDS.FETCH_ROLES:
                     if (!finalUsername) return 'Error: Username required'
-                    const user = this.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
+                    const user = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
                     if (!user) return `Error: Could not find user "${finalUsername}"`
 
                     const guildMember = await guild.members.fetch(user.id)
@@ -81,7 +78,7 @@ export class CommandParser {
 
                 case ASSISTANT_COMMANDS.FETCH_USER:
                     if (!finalUsername) return 'Error: Username required'
-                    const targetUser = this.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
+                    const targetUser = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
                     if (!targetUser) return `Error: Could not find user "${finalUsername}"`
 
                     return JSON.stringify({
@@ -93,7 +90,7 @@ export class CommandParser {
 
                 case ASSISTANT_COMMANDS.GET_RICH_PRESENCE:
                     if (!finalUsername) return 'Error: Username required'
-                    const presenceUser = this.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
+                    const presenceUser = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
                     if (!presenceUser) return `Error: Could not find user "${finalUsername}"`
 
                     const member = await guild.members.fetch(presenceUser.id)
@@ -107,7 +104,7 @@ export class CommandParser {
                     })), null, 2)
 
                 case ASSISTANT_COMMANDS.GET_EMOJIS:
-                    const emojis = Array.from(this.client.emojis.cache.values())
+                    const emojis = Array.from(this.crimsonChat.client.emojis.cache.values())
                         .map(e => ({ name: e.name, id: e.id }))
                     return JSON.stringify({ emojis }, null, 2)
 

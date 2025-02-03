@@ -1,4 +1,4 @@
-import { Client, Message } from 'discord.js'
+import { Message } from 'discord.js'
 import OpenAI from 'openai'
 import { ImageProcessor } from './ImageProcessor'
 import { CommandParser } from './CommandParser'
@@ -6,30 +6,28 @@ import { Logger } from '../../util/logger'
 import { CRIMSON_BREAKDOWN_PROMPT } from '../../util/constants'
 import type { ChatMessage, UserMessageOptions, UserStatus } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
+import CrimsonChat from '.'
 
 const logger = new Logger('MessageProcessor')
 
 export class MessageProcessor {
-    private client: Client | null = null
-    openai: OpenAI
-    private imageProcessor: ImageProcessor
-    commandParser: CommandParser
-    private historyManager: HistoryManager
-    forceNextBreakdown: boolean = false
+    private static instance: MessageProcessor
+    private crimsonChat = CrimsonChat.getInstance()
+    private historyManager = HistoryManager.getInstance()
+    private imageProcessor = new ImageProcessor()
+
+    commandParser = new CommandParser()
+    forceNextBreakdown = false
+    openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+    })
     readonly BREAKDOWN_CHANCE = 0.01
 
-    constructor(historyManager: HistoryManager) {
-        this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY
-        })
-        this.imageProcessor = new ImageProcessor()
-        this.commandParser = new CommandParser()
-        this.historyManager = historyManager
-    }
-
-    setClient(client: Client) {
-        this.client = client
-        this.commandParser.setClient(client)
+    public static getInstance(): MessageProcessor {
+        if (!MessageProcessor.instance) {
+            MessageProcessor.instance = new MessageProcessor()
+        }
+        return MessageProcessor.instance
     }
 
     async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string> {
@@ -242,7 +240,7 @@ export class MessageProcessor {
     }
 
     private async parseMentions(text: string): Promise<string> {
-        if (!this.client) throw new Error('Client not set')
+        if (!this.crimsonChat.client) throw new Error('Client not set')
 
         const mentionRegex = /<@!?(\d+)>/g
         let parsedText = text
@@ -251,7 +249,7 @@ export class MessageProcessor {
         for (const match of mentions) {
             const userId = match[1]
             try {
-                const user = await this.client.users.fetch(userId)
+                const user = await this.crimsonChat.client.users.fetch(userId)
                 parsedText = parsedText.replace(match[0], `@${user.username}`)
             } catch (error) {
                 console.error(`Could not fetch user ${userId}:`, error)
@@ -262,12 +260,12 @@ export class MessageProcessor {
     }
 
     private async getUserPresenceAndRoles(username: string): Promise<UserStatus | 'unknown'> {
-        if (!this.client) return 'unknown'
+        if (!this.crimsonChat.client) return 'unknown'
         
-        const user = this.client.users.cache.find(u => u.username === username)
+        const user = this.crimsonChat.client.users.cache.find(u => u.username === username)
         if (!user) return 'unknown'
 
-        const guild = this.client.guilds.cache.first()
+        const guild = this.crimsonChat.client.guilds.cache.first()
         if (!guild) return 'unknown'
 
         try {

@@ -1,4 +1,4 @@
-import { Client, TextChannel, Message, ChatInputCommandInteraction, ChannelType } from 'discord.js'
+import { Client, TextChannel, Message, ChatInputCommandInteraction } from 'discord.js'
 import { MessageProcessor } from './MessageProcessor'
 import { HistoryManager } from './HistoryManager'
 import { Logger } from '../../util/logger'
@@ -6,25 +6,19 @@ import { promises as fs } from 'fs'
 import type { UserMessageOptions } from '../../types/types'
 import path from 'path'
 import { formatUserMessage, usernamesToMentions } from './utils/formatters'
-import { randomUUID } from 'crypto'
 
 const logger = new Logger('CrimsonChat')
 
 export default class CrimsonChat {
     private static instance: CrimsonChat
-    private client: Client | null = null
+    private historyManager = HistoryManager.getInstance()
+    private messageProcessor = MessageProcessor.getInstance()
     private channel: TextChannel | null = null
     private channelId = '1335992675459141632'
     private enabled: boolean = true
     private isProcessing: boolean = false
     private bannedUsers: Set<string> = new Set()
-    private messageProcessor: MessageProcessor
-    private historyManager: HistoryManager
-
-    private constructor() {
-        this.historyManager = new HistoryManager()
-        this.messageProcessor = new MessageProcessor(this.historyManager)
-    }
+    client: Client | null = null
 
     public static getInstance(): CrimsonChat {
         if (!CrimsonChat.instance) {
@@ -35,7 +29,6 @@ export default class CrimsonChat {
 
     public setClient(client: Client) {
         this.client = client
-        this.messageProcessor.setClient(client)
     }
 
     public async init(): Promise<void> {
