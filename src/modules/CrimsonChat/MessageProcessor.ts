@@ -3,7 +3,7 @@ import OpenAI from 'openai'
 import { ImageProcessor } from './ImageProcessor'
 import { CommandParser } from './CommandParser'
 import { Logger } from '../../util/logger'
-import { CRIMSON_BREAKDOWN_PROMPT } from '../../util/constants'
+import { CRIMSON_BREAKDOWN_PROMPT, getAssistantCommandRegex } from '../../util/constants'
 import type { ChatMessage, UserMessageOptions, UserStatus } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
@@ -188,7 +188,7 @@ export class MessageProcessor {
     private async checkForCommands(content: string, originalMessage?: Message): Promise<string | null> {
         logger.info(`[Command Check] Checking content for commands: ${content}`)
 
-        const commandRegex = /^!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|getEmojis|createChannel|timeoutMember)(?:\(([^)]*)\))?$/
+        const commandRegex = getAssistantCommandRegex()
         const match = commandRegex.exec(content.trim())
 
         if (!match) {

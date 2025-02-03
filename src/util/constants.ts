@@ -1,4 +1,3 @@
-
 export const COMMAND_PREFIX = '!'
 export const ADMIN_COMMANDS = {
     RESET: 'reset',
@@ -18,6 +17,11 @@ export const ASSISTANT_COMMANDS = {
     CREATE_CHANNEL: 'createChannel',
     TIMEOUT_MEMBER: 'timeoutMember'
 } as const
+
+export function getAssistantCommandRegex(): RegExp {
+    const commandList = Object.values(ASSISTANT_COMMANDS).join('|')
+    return new RegExp(`^!(${commandList})(?:\\(([^)]*)\\))?$`)
+}
 
 export const CRIMSON_CHAT_SYSTEM_PROMPT = `You are Crimson 1, the main antagonist of Project Wingman, and an archnemesis of Monarch, the protagonist.
 ABOUT:

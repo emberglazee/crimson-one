@@ -1,6 +1,6 @@
 import { Message, PermissionsBitField, ChannelType } from 'discord.js'
 import { Logger } from '../../util/logger'
-import { ASSISTANT_COMMANDS } from '../../util/constants'
+import { ASSISTANT_COMMANDS, getAssistantCommandRegex } from '../../util/constants'
 import CrimsonChat from '.'
 const logger = new Logger('CommandParser')
 
@@ -15,7 +15,7 @@ export class CommandParser {
 
         logger.info(`[Command Parser] Processing command text: ${text}`)
 
-        const commandRegex = /^!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|getEmojis|createChannel|timeoutMember)(?:\(([^)]*)\))?$/
+        const commandRegex = getAssistantCommandRegex()
         const match = commandRegex.exec(text)
 
         if (!match) {
