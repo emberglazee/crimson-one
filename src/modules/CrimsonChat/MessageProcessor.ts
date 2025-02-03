@@ -117,27 +117,28 @@ export class MessageProcessor {
             // Check if AI's response is a command
             if (responseContent.trim().startsWith('!')) {
                 logger.info('[Command Check] AI response is a command, executing internally')
-                
+
                 // Save the command to history
                 await this.historyManager.appendMessage('assistant', responseContent)
 
-                // Execute command with permission check
-                const guild = this.client?.guilds.cache.first()
-                if (!guild) {
-                    return 'Error: No guild available'
-                }
+                // `createChannel` specific checks
+                if (responseContent.startsWith('!createChannel')) {
+                    const guild = this.client?.guilds.cache.first()
+                    if (!guild) {
+                        return 'Error: No guild available.'
+                    }
 
-                // Check bot permissions before executing command
-                const member = await guild.members.fetchMe()
-                if (!member.permissions.has('ManageChannels')) {
-                    return 'I do not have permission to manage channels in this server.'
+                    const member = await guild.members.fetchMe()
+                    if (!member.permissions.has('ManageChannels')) {
+                        return 'Error: Lacking required permission: ManageChannels'
+                    }
                 }
 
                 const commandResult = await this.checkForCommands(responseContent)
                 if (commandResult) {
                     // Feed command result back as a System message
                     const systemFeedback = `!${responseContent.split('!')[1].trim()} -> ${commandResult}`
-                    
+
                     return await this.processMessage(
                         systemFeedback,
                         {
