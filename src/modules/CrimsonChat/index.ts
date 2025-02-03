@@ -8,27 +8,28 @@ import path from 'path'
 import { formatUserMessage, usernamesToMentions } from './utils/formatters'
 import { ReminderManager, type ReminderData } from './utils/Reminder'
 import { randomUUID } from 'crypto'
+import { PermissionManager } from './PermissionManager'
 
 const logger = new Logger('CrimsonChat')
 
 export default class CrimsonChat {
     private static instance: CrimsonChat
     private client: Client | null = null
-    private thread: TextChannel | null = null
+    private channel: TextChannel | null = null
     private channelId = '1335992675459141632'
     private enabled: boolean = true
     private isProcessing: boolean = false
     private bannedUsers: Set<string> = new Set()
     private messageProcessor: MessageProcessor
     private historyManager: HistoryManager
-    private historyPath = path.join(process.cwd(), 'data/chat_history.json')
-    private history: any[] = []
     private reminderManager: ReminderManager
+    private permissionManager: PermissionManager
 
     private constructor() {
         this.historyManager = new HistoryManager()
         this.messageProcessor = new MessageProcessor(this.historyManager)
         this.reminderManager = ReminderManager.getInstance()
+        this.permissionManager = PermissionManager.getInstance()
     }
 
     public static getInstance(): CrimsonChat {
@@ -42,16 +43,17 @@ export default class CrimsonChat {
         this.client = client
         this.messageProcessor.setClient(client)
         this.reminderManager.setClient(client)
+        this.permissionManager.setClient(client)
     }
 
     public async init(): Promise<void> {
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
         logger.info('Initializing CrimsonChat...')
-        this.thread = await this.client.channels.fetch(this.channelId) as TextChannel
-        if (!this.thread) {
-            logger.error('Could not find webhook thread')
-            throw new Error('Could not find webhook thread')
+        this.channel = await this.client.channels.fetch(this.channelId) as TextChannel
+        if (!this.channel) {
+            logger.error('Could not find webhook channel')
+            throw new Error('Could not find webhook channel')
         }
 
         await this.historyManager.init()
@@ -59,11 +61,11 @@ export default class CrimsonChat {
         logger.ok('CrimsonChat initialized successfully')
     }
 
-    public async sendMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<void> {
-        if (!this.thread) throw new Error('Thread not set. Call init() first.')
+    public async sendMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string | null | undefined> {
+        if (!this.channel) throw new Error('Channel not set. Call init() first.')
         if (!this.enabled) return
 
-        const targetChannel = options.targetChannel || this.thread
+        const targetChannel = options.targetChannel || this.channel
 
         if (this.isProcessing && originalMessage) {
             logger.warn(`Message from ${options.username} ignored - already processing another message`)
@@ -85,11 +87,13 @@ export default class CrimsonChat {
 
         // Initial typing indicator
         await targetChannel.sendTyping()
+        let response = ''
 
         try {
-            const response = await this.messageProcessor.processMessage(content, options, originalMessage)
+            response = await this.messageProcessor.processMessage(content, options, originalMessage)
             await this.sendResponseToDiscord(response, null, originalMessage)
-        } catch (error: any) {
+        } catch (e) {
+            const error = e as Error
             logger.error(`Error processing message: ${error.message}`)
             try {
                 await this.sendResponseToDiscord('Sorry, something went wrong while processing your message. Please try again later.')
@@ -100,11 +104,12 @@ export default class CrimsonChat {
             clearInterval(typingInterval)
             this.isProcessing = false
             logger.info('Message processing completed')
+            return response
         }
     }
 
     private async sendResponseToDiscord(content: string, message?: any, originalMessage?: Message): Promise<void> {
-        if (!this.thread || !this.client) throw new Error('Thread or client not set')
+        if (!this.channel || !this.client) throw new Error('Channel or client not set')
 
         try {
             let finalContent = await usernamesToMentions(this.client, content)
@@ -121,7 +126,7 @@ export default class CrimsonChat {
                 if (originalMessage?.reply) {
                     await originalMessage.reply(messageOptions)
                 } else {
-                    await this.thread.send(messageOptions)
+                    await this.channel.send(messageOptions)
                 }
             } else {
                 const messageOptions = {
@@ -131,7 +136,7 @@ export default class CrimsonChat {
                 if (originalMessage?.reply) {
                     await originalMessage.reply(messageOptions)
                 } else {
-                    await this.thread.send(messageOptions)
+                    await this.channel.send(messageOptions)
                 }
             }
         } catch (error: any) {
@@ -141,9 +146,9 @@ export default class CrimsonChat {
     }
 
     public async handleStartup(): Promise<void> {
-        if (!this.thread) return
+        if (!this.channel) return
 
-        const bootMessage = await this.thread.messages.fetch({ limit: 1 })
+        const bootMessage = await this.channel.messages.fetch({ limit: 1 })
         const lastMessage = bootMessage.first()
 
         if (lastMessage?.content.includes('Crimson is shutting down...')) {
@@ -156,8 +161,31 @@ export default class CrimsonChat {
     }
 
     public async handleShutdown(): Promise<void> {
-        if (!this.thread) return
+        if (!this.channel) return
         await this.sendResponseToDiscord('Crimson is shutting down...')
+    }
+
+    // Looks at all messages sent by CrimsonChat and determines whether any moderation related action is needed
+    public async handleModeration(content: string) {
+        if (!this.client || !this.channel) return
+
+        const response = await this.permissionManager.evaluatePermissionQuery(content, this.channel.guildId)
+        if (!response.success) {
+            await this.sendMessage(response.message, {
+                username: 'PermissionManager',
+                displayName: 'System: PermissionManager',
+                serverDisplayName: 'System: PermissionManager'
+            })
+            return
+        }
+        if (response.execution) {
+            await response.execution()
+        }
+        await this.sendMessage('Moderation action completed', {
+            username: 'System',
+            displayName: 'System: handleModeration()',
+            serverDisplayName: 'System: handleModeration()'
+        })
     }
 
     public setForceNextBreakdown(force: boolean): void {
@@ -245,7 +273,7 @@ export default class CrimsonChat {
         timeStr: string,
         timezone?: string
     ): Promise<Date> {
-        if (!this.thread) throw new Error('Thread not set')
+        if (!this.channel) throw new Error('Channel not set')
 
         const parsedTime = this.reminderManager.parseTime(timeStr, timezone)
         if (!parsedTime) {
