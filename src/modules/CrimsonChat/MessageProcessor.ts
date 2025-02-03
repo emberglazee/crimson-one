@@ -34,9 +34,23 @@ export class MessageProcessor {
     }
 
     async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string> {
+        const formattedMessage = await formatUserMessage(
+            this.client,
+            options.username,
+            options.displayName,
+            options.serverDisplayName,
+            content,
+            options.respondingTo
+        )
+
         // Check for commands first in user message
         const commandResult = await this.checkForCommands(content)
-        if (commandResult) return commandResult
+        if (commandResult) {
+            // Save the command exchange to history
+            await this.historyManager.appendMessage('user', formattedMessage)
+            await this.historyManager.appendMessage('assistant', content)
+            return commandResult
+        }
 
         // Check for breakdown first
         const breakdown = await this.handleRandomBreakdown()
@@ -49,15 +63,6 @@ export class MessageProcessor {
         if (options.imageAttachments?.length) {
             options.imageAttachments.forEach(url => imageUrls.add(url))
         }
-
-        const formattedMessage = await formatUserMessage(
-            this.client,
-            options.username,
-            options.displayName,
-            options.serverDisplayName,
-            content,
-            options.respondingTo
-        )
 
         // Get conversation history and properly map it for OpenAI API
         const history = this.historyManager.prepareHistory().map(msg => ({
@@ -156,6 +161,11 @@ export class MessageProcessor {
             return null
         }
 
+        // Save the command execution to history if it's an AI response
+        if (content !== fullMatch) {
+            await this.historyManager.appendMessage('assistant', fullMatch)
+        }
+
         // Format command result for better readability
         try {
             const parsedResult = JSON.parse(commandResult)
@@ -181,7 +191,7 @@ export class MessageProcessor {
         for (const attachmentUrl of attachments) {
             const cleanUrl = this.imageProcessor.cleanImageUrl(attachmentUrl)
             const normalizedUrl = this.imageProcessor.normalizeUrl(cleanUrl)
-            
+
             if (!processedUrls.has(normalizedUrl)) {
                 processedUrls.add(normalizedUrl)
                 const base64Image = await this.imageProcessor.fetchAndConvertToBase64(cleanUrl)
