@@ -135,14 +135,13 @@ export default function onMessageCreate(client: Client) {
                 content += `\n< embed: ${JSON.stringify(message.embeds[0])} >`
             }
 
-            const answer = await crimsonChat.sendMessage(content, {
+            await crimsonChat.sendMessage(content, {
                 username: message.author.username,
                 displayName: message.member!.displayName,
                 serverDisplayName: message.member?.displayName ?? message.author.displayName,
                 respondingTo,
                 imageAttachments: Array.from(imageAttachments)
             }, message)
-            if (answer && answer.length) await crimsonChat.handleModeration(answer)
             return
         }
 
