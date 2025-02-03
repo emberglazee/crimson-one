@@ -49,9 +49,17 @@ export class MessageProcessor {
         // Check for commands in user message
         const commandResult = await this.checkForCommands(content)
         if (commandResult) {
-            // Save the command execution message
+            // Feed command result back into processing
+            logger.info('[Command Check] Feeding command result back into processing')
+            const aiResponse = await this.generateAIResponse([
+                { role: 'user', content: formattedMessage },
+                { role: 'assistant', content: content }, // The command itself
+                { role: 'system', content: `Command result: ${commandResult}` } // Feed result as system message
+            ])
+            await this.historyManager.appendMessage('assistant', content)
             await this.historyManager.appendMessage('assistant', commandResult)
-            return commandResult
+            await this.historyManager.appendMessage('assistant', aiResponse)
+            return aiResponse
         }
 
         // Check for breakdown first
@@ -122,6 +130,14 @@ export class MessageProcessor {
         // Save the normal response to history
         await this.historyManager.appendMessage('assistant', responseContent)
         return responseContent
+    }
+
+    private async generateAIResponse(messages: Array<{ role: 'system' | 'user' | 'assistant', content: string }>): Promise<string> {
+        const response = await this.openai.chat.completions.create({
+            messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+            model: 'gpt-4o-mini'
+        })
+        return response.choices[0].message?.content || 'Error processing message'
     }
 
     private async handleRandomBreakdown(): Promise<string | null> {
