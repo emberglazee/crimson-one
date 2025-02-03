@@ -16,7 +16,7 @@ export default class CrimsonChat {
     private static instance: CrimsonChat
     private client: Client | null = null
     private thread: TextChannel | null = null
-    private threadId = '1333319963737325570'
+    private channelId = '1335992675459141632'
     private enabled: boolean = true
     private isProcessing: boolean = false
     private bannedUsers: Set<string> = new Set()
@@ -49,7 +49,7 @@ export default class CrimsonChat {
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
         logger.info('Initializing CrimsonChat...')
-        this.thread = await this.client.channels.fetch(this.threadId) as TextChannel
+        this.thread = await this.client.channels.fetch(this.channelId) as TextChannel
         if (!this.thread) {
             logger.error('Could not find webhook thread')
             throw new Error('Could not find webhook thread')

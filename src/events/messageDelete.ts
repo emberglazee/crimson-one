@@ -3,8 +3,8 @@ import CrimsonChat from '../modules/CrimsonChat'
 
 export default function onMessageDelete(client: Client) {
     client.on('messageDelete', async (message) => {
-        // Check if message is in CrimsonChat thread
-        if (message.channel.id !== '1333319963737325570') return
+        // Check if message is in CrimsonChat channel
+        if (message.channel.id !== '1335992675459141632') return
         
         // Ensure message is cached and not partial
         if (!message.partial) {
