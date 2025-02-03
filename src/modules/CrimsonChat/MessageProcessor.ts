@@ -34,7 +34,7 @@ export class MessageProcessor {
     }
 
     async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string> {
-        // Check for commands first
+        // Check for commands first in user message
         const commandResult = await this.checkForCommands(content)
         if (commandResult) return commandResult
 
@@ -102,6 +102,13 @@ export class MessageProcessor {
 
         const responseContent = response.choices[0].message?.content || 'Error processing message'
 
+        // Check if AI's response is a command
+        const aiCommandResult = await this.checkForCommands(responseContent)
+        if (aiCommandResult) {
+            logger.info('[Command Check] AI response contained a command, executing it')
+            return aiCommandResult
+        }
+
         // Save the exchange to history
         await this.historyManager.appendMessage('user', formattedMessage)
         await this.historyManager.appendMessage('assistant', responseContent)
@@ -128,11 +135,11 @@ export class MessageProcessor {
 
     private async checkForCommands(content: string): Promise<string | null> {
         logger.info(`[Command Check] Checking content for commands: ${content}`)
-        
+
         // Check if the content contains any command pattern
-        const commandRegex = /!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]*)\))?/
-        const match = commandRegex.exec(content)
-        
+        const commandRegex = /^!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]*)\))?$/
+        const match = commandRegex.exec(content.trim())
+
         if (!match) {
             logger.info(`[Command Check] No command pattern found in content`)
             return null
