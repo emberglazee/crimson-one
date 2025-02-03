@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js'
+import { SlashCommandBuilder, MessageFlags, AttachmentBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 
 export default {
@@ -19,11 +19,20 @@ export default {
         const outputText = drunkWrite(inputText)
         const ephermal = interaction.options.getBoolean('ephermal') || false
 
-        if (ephermal) await interaction.reply({
-            content: outputText,
-            flags: ephermal ? MessageFlags.Ephemeral : undefined
-        })
-        else await interaction.reply(outputText)
+        if (outputText.length > 2000) {
+            const buffer = Buffer.from(outputText, 'utf-8')
+            const attachment = new AttachmentBuilder(buffer, { name: 'drunk-text.txt' })
+            
+            await interaction.reply({
+                files: [attachment],
+                flags: ephermal ? MessageFlags.Ephemeral : undefined
+            })
+        } else {
+            await interaction.reply({
+                content: outputText,
+                flags: ephermal ? MessageFlags.Ephemeral : undefined
+            })
+        }
     }
 } satisfies SlashCommand
 
