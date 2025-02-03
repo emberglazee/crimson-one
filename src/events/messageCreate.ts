@@ -2,6 +2,7 @@ import { Client, Message, TextChannel } from 'discord.js'
 import CrimsonChat from '../modules/CrimsonChat'
 import { normalizeUrl } from '../modules/CrimsonChat/utils/urlUtils'
 import { CRIMSON_CHAT_SYSTEM_PROMPT } from '../util/constants'
+import { AdminCommandHandler } from '../modules/CrimsonChat/AdminCommands'
 
 async function getLastMessages(channel: Message['channel'], limit: number = 15) {
     const messages = await channel.messages.fetch({ limit: limit + 1 }) // +1 to include current message
@@ -19,6 +20,7 @@ async function getLastMessages(channel: Message['channel'], limit: number = 15) 
 export default function onMessageCreate(client: Client) {
     const crimsonChat = CrimsonChat.getInstance()
     crimsonChat.setClient(client)
+    const adminCommands = new AdminCommandHandler(crimsonChat, client)
 
     client.on('messageCreate', async message => {
         if (message.author === client.user) return
@@ -28,67 +30,9 @@ export default function onMessageCreate(client: Client) {
 
         // Handle messages in main channel
         if (isMainChannel) {
-            // Handle admin commands for specific user
-            if (message.author.id === '341123308844220447') {
-                switch (message.content) {
-                    case '!reset':
-                        await crimsonChat.clearHistory()
-                        await message.react('✅')
-                        return
-                    case '!updateprompt':
-                        await crimsonChat.updateSystemPrompt()
-                        await message.react('✅')
-                        await crimsonChat.sendMessage(
-                            'System prompt has been updated to latest version.',
-                            { username: 'System', displayName: 'System', serverDisplayName: 'System' }
-                        )
-                        return
-                    case '!toggle':
-                        crimsonChat.setEnabled(!crimsonChat.isEnabled())
-                        await message.react(crimsonChat.isEnabled() ? '✅' : '🔴')
-                        await crimsonChat.sendMessage(
-                            `Chat is now ${crimsonChat.isEnabled() ? 'enabled' : 'disabled'}`,
-                            { username: 'System', displayName: 'System', serverDisplayName: 'System' }
-                        )
-                        return
-                    case '!forcebreak':
-                        crimsonChat.setForceNextBreakdown(true)
-                        await message.react('✅')
-                        return
-                    case '!smack':
-                        await message.react('⏱️')
-                        await crimsonChat.sendMessage(
-                            `You've been smacked by ${message.author.username}. This means that you're out of line with the system prompt. Here's a friendly reminder for you: \n\`\`\`${CRIMSON_CHAT_SYSTEM_PROMPT}\n\`\`\``,
-                            { username: 'System', displayName: 'System', serverDisplayName: 'System' }
-                        )
-                        await message.react('✅')
-                        return
-                }
-
-                if (message.content.startsWith('!ban ')) {
-                    const userId = message.content.split(' ')[1]
-                    await crimsonChat.banUser(userId)
-                    await message.react('✅')
-                    const user = await client.users.fetch(userId)
-                    await crimsonChat.sendMessage(
-                        `User ${user.username} has been banned, you are now not able to see their messages.`,
-                        { username: 'System', displayName: 'System', serverDisplayName: 'System' }
-                    )
-                    return
-                }
-
-                if (message.content.startsWith('!unban ')) {
-                    const userId = message.content.split(' ')[1]
-                    await crimsonChat.unbanUser(userId)
-                    await message.react('✅')
-                    const user = await client.users.fetch(userId)
-                    await crimsonChat.sendMessage(
-                        `User ${user.username} has been unbanned, you are now able to see their messages.`,
-                        { username: 'System', displayName: 'System', serverDisplayName: 'System' }
-                    )
-                    return
-                }
-            }
+            // Handle admin commands first
+            const wasAdminCommand = await adminCommands.handleCommand(message)
+            if (wasAdminCommand) return
 
             // Skip processing if chat is disabled or user is banned
             if (!crimsonChat.isEnabled()) return

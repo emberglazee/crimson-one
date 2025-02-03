@@ -1,7 +1,7 @@
 import { Client } from 'discord.js'
 import { Logger } from '../../../util/logger'
 import { parse as chronoParse } from 'chrono-node'
-import CrimsonChat from '../index'
+import CrimsonChat from '..'
 
 const logger = new Logger('Reminder')
 
@@ -17,9 +17,11 @@ export class ReminderManager {
     private static instance: ReminderManager
     private reminders: Map<string, NodeJS.Timer>
     private client: Client | null = null
+    private crimsonChat: CrimsonChat
 
     private constructor() {
         this.reminders = new Map()
+        this.crimsonChat = CrimsonChat.getInstance()
     }
 
     public static getInstance(): ReminderManager {
@@ -45,10 +47,9 @@ export class ReminderManager {
 
         const timeout = setTimeout(async () => {
             try {
-                const crimsonChat = CrimsonChat.getInstance()
                 const reminderMessage = `A reminder has been triggered for the user ${data.username}: \`${data.message}\``
 
-                await crimsonChat.sendMessage(reminderMessage, {
+                await this.crimsonChat.sendMessage(reminderMessage, {
                     username: 'Reminder System',
                     displayName: 'Reminder',
                     serverDisplayName: 'Reminder'
@@ -64,8 +65,7 @@ export class ReminderManager {
         logger.info(`Created reminder ${data.id} for ${new Date(data.triggerTime).toISOString()}`)
 
         // Notify that reminder was set
-        const crimsonChat = CrimsonChat.getInstance()
-        await crimsonChat.sendMessage(
+        await this.crimsonChat.sendMessage(
             `⏰ Set a reminder for <@${data.userId}> at ${new Date(data.triggerTime).toLocaleString()}: ${data.message}`,
             {
                 username: 'Reminder System',
