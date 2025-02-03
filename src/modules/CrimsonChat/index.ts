@@ -6,7 +6,6 @@ import { promises as fs } from 'fs'
 import type { UserMessageOptions } from '../../types/types'
 import path from 'path'
 import { formatUserMessage, usernamesToMentions } from './utils/formatters'
-import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
 import { ReminderManager, type ReminderData } from './utils/Reminder'
 import { randomUUID } from 'crypto'
 
@@ -89,21 +88,11 @@ export default class CrimsonChat {
 
         try {
             const response = await this.messageProcessor.processMessage(content, options, originalMessage)
-            
-            // Send response to the target channel
-            const messageOptions = {
-                content: await usernamesToMentions(this.client!, response)
-            }
-
-            if (originalMessage?.reply) {
-                await originalMessage.reply(messageOptions)
-            } else {
-                await targetChannel.send(messageOptions)
-            }
+            await this.sendResponseToDiscord(response, null, originalMessage)
         } catch (error: any) {
             logger.error(`Error processing message: ${error.message}`)
             try {
-                await targetChannel.send('Sorry, something went wrong while processing your message. Please try again later.')
+                await this.sendResponseToDiscord('Sorry, something went wrong while processing your message. Please try again later.')
             } catch (sendError) {
                 logger.error(`Failed to send error message: ${sendError}`)
             }
@@ -168,7 +157,7 @@ export default class CrimsonChat {
 
     public async handleShutdown(): Promise<void> {
         if (!this.thread) return
-        await this.thread.send('Crimson is shutting down...')
+        await this.sendResponseToDiscord('Crimson is shutting down...')
     }
 
     public setForceNextBreakdown(force: boolean): void {
@@ -202,35 +191,6 @@ export default class CrimsonChat {
             await fs.writeFile(bannedUsersPath, JSON.stringify([...this.bannedUsers]))
         } catch (error) {
             console.error('Failed to save banned users:', error)
-        }
-    }
-
-    private async loadHistory(): Promise<void> {
-        try {
-            const data = await fs.readFile(this.historyPath, 'utf-8')
-            const savedHistory = JSON.parse(data)
-            // Always ensure system prompt is first
-            this.history = [{
-                role: 'system',
-                content: CRIMSON_CHAT_SYSTEM_PROMPT
-            }]
-            // Add saved messages after system prompt
-            this.history.push(...savedHistory.filter((msg: any) => msg.role !== 'system'))
-        } catch (error) {
-            // If file doesn't exist or is invalid, start with just the system prompt
-            this.history = [{
-                role: 'system',
-                content: CRIMSON_CHAT_SYSTEM_PROMPT
-            }]
-        }
-    }
-
-    private async saveHistory(): Promise<void> {
-        try {
-            await fs.mkdir(path.dirname(this.historyPath), { recursive: true })
-            await fs.writeFile(this.historyPath, JSON.stringify(this.history, null, 2))
-        } catch (error) {
-            console.error('Failed to save chat history:', error)
         }
     }
 
@@ -271,27 +231,6 @@ export default class CrimsonChat {
 
         this.historyManager.appendMessage('user', message)
         await this.historyManager.trimHistory()
-    }
-
-    private async handleRandomBreakdown(): Promise<string | null> {
-        if (this.messageProcessor.forceNextBreakdown || Math.random() < this.messageProcessor.BREAKDOWN_CHANCE) {
-            logger.info(`Triggering ${this.messageProcessor.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
-            this.messageProcessor.forceNextBreakdown = false
-            const response = await this.messageProcessor.openai.chat.completions.create({
-                messages: [{
-                    role: 'system',
-                    content: CRIMSON_BREAKDOWN_PROMPT
-                }],
-                model: 'gpt-4o-mini'
-            })
-
-            const breakdown = response.choices[0].message?.content
-            if (breakdown) {
-                await this.historyManager.appendMessage('assistant', breakdown)
-                return breakdown
-            }
-        }
-        return null
     }
 
     public async updateSystemPrompt(): Promise<void> {
