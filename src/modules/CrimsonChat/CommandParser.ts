@@ -1,8 +1,5 @@
-import { Client } from 'discord.js'
+import { Client, PermissionsBitField } from 'discord.js'
 import { Logger } from '../../util/logger'
-import { promises as fs } from 'fs'
-import path from 'path'
-
 const logger = new Logger('CommandParser')
 
 export class CommandParser {
@@ -15,7 +12,7 @@ export class CommandParser {
     async parseCommand(text: string): Promise<string | null> {
         if (!this.client) throw new Error('Client not set')
 
-        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]+)\))?/
+        const commandRegex = /!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]+)\))?/
         const match = commandRegex.exec(text)
         if (!match) return null
 
@@ -33,6 +30,17 @@ export class CommandParser {
                     .first()
                     ?.members.fetch(member)
                 return guildMember?.roles.cache.map(r => r.name).join(', ') || 'No roles found'
+
+            case 'fetchBotRoles':
+                const guild = this.client.guilds.cache.first()
+                if (!guild) return 'No guild found'
+                const botMember = await guild.members.fetchMe()
+                const permissions = botMember.permissions
+                const permissionNames = new PermissionsBitField(permissions).toArray()
+                return JSON.stringify({
+                    roles: botMember.roles.cache.map(r => r.name),
+                    permissions: permissionNames
+                }, null, 2)
 
             case 'fetchUser':
                 if (!finalUsername) return 'Error: Username required'
