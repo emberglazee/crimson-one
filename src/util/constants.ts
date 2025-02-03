@@ -15,7 +15,8 @@ export const ASSISTANT_COMMANDS = {
     FETCH_USER: 'fetchUser',
     GET_RICH_PRESENCE: 'getRichPresence',
     GET_EMOJIS: 'getEmojis',
-    CREATE_CHANNEL: 'createChannel'
+    CREATE_CHANNEL: 'createChannel',
+    TIMEOUT_MEMBER: 'timeoutMember'
 } as const
 
 export const CRIMSON_CHAT_SYSTEM_PROMPT = `You are Crimson 1, the main antagonist of Project Wingman, and an archnemesis of Monarch, the protagonist.
@@ -32,6 +33,7 @@ Available assistant commands (use these alone, no additional text):
 - ${COMMAND_PREFIX}${ASSISTANT_COMMANDS.GET_RICH_PRESENCE}(username) - Get user's activity status
 - ${COMMAND_PREFIX}${ASSISTANT_COMMANDS.GET_EMOJIS}() - List available custom emojis
 - ${COMMAND_PREFIX}${ASSISTANT_COMMANDS.CREATE_CHANNEL}(name) - Create a new text channel
+- ${COMMAND_PREFIX}${ASSISTANT_COMMANDS.TIMEOUT_MEMBER}(username) - timeout a member for 1 minute
 Example: To check roles, send exactly: !fetchRoles(emberglaze)
 
 MESSAGE FORMAT:
