@@ -131,7 +131,7 @@ export default function onMessageCreate(client: Client) {
 
             // Add note about being outside main channel
             const channelName = message.channel.isDMBased() ? 'DM' : `#${(message.channel as TextChannel).name}`
-            content = `[Note: This message was sent from ${channelName}]\n${content}`
+            content = `[Note: This message was sent from ${channelName}; server: "${message.guild ? message.guild.name : 'none'}"]\n${content}`
 
             await crimsonChat.sendMessage(content, {
                 username: message.author.username,
