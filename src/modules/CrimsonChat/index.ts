@@ -64,6 +64,8 @@ export default class CrimsonChat {
         if (!this.thread) throw new Error('Thread not set. Call init() first.')
         if (!this.enabled) return
 
+        const targetChannel = options.targetChannel || this.thread
+
         if (this.isProcessing && originalMessage) {
             logger.warn(`Message from ${options.username} ignored - already processing another message`)
             await originalMessage.react('❌').catch(err => {
@@ -77,21 +79,31 @@ export default class CrimsonChat {
 
         // Start typing indicator loop
         const typingInterval = setInterval(() => {
-            this.thread?.sendTyping().catch(() => {
+            targetChannel.sendTyping().catch(() => {
                 // Ignore errors from sending typing indicator
             })
         }, 8000)
 
         // Initial typing indicator
-        await this.thread.sendTyping()
+        await targetChannel.sendTyping()
 
         try {
             const response = await this.messageProcessor.processMessage(content, options, originalMessage)
-            await this.sendResponseToDiscord(response, undefined, originalMessage)
+            
+            // Send response to the target channel
+            const messageOptions = {
+                content: await usernamesToMentions(this.client!, response)
+            }
+
+            if (originalMessage?.reply) {
+                await originalMessage.reply(messageOptions)
+            } else {
+                await targetChannel.send(messageOptions)
+            }
         } catch (error: any) {
             logger.error(`Error processing message: ${error.message}`)
             try {
-                await this.thread.send('Sorry, something went wrong while processing your message. Please try again later.')
+                await targetChannel.send('Sorry, something went wrong while processing your message. Please try again later.')
             } catch (sendError) {
                 logger.error(`Failed to send error message: ${sendError}`)
             }
