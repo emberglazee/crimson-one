@@ -127,6 +127,20 @@ export class CommandParser {
                         `Successfully created text channel #${channelName}`
                     )
 
+                case ASSISTANT_COMMANDS.TIMEOUT_MEMBER:
+                    if (!finalUsername) return 'Error: Username required'
+                    const timeoutUser = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
+                    if (!timeoutUser) return `Error: Could not find user "${finalUsername}"`
+
+                    return await moderationCommand(
+                        new PermissionsBitField(PermissionsBitField.Flags.ModerateMembers),
+                        async () => {
+                            const member = await guild.members.fetch(timeoutUser.id)
+                            await member.timeout(60000, 'Timeout requested by Crimson 1')
+                        },
+                        `Successfully timed out user ${finalUsername}`
+                    )
+
                 default:
                     logger.warn(`[Command Parser] Unknown command: ${command}`)
                     return `Error: Unknown command "${command}"`
