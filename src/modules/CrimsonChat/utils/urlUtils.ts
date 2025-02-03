@@ -17,7 +17,7 @@ export function cleanImageUrl(url: string): string {
 
         const extractedUrl = urlMatch[0]
         const urlObj = new URL(extractedUrl)
-        
+
         if (urlObj.hostname === 'cdn.discordapp.com' || urlObj.hostname === 'media.discordapp.net') {
             return extractedUrl
         }

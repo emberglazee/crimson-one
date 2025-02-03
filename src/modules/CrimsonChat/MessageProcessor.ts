@@ -34,6 +34,10 @@ export class MessageProcessor {
     }
 
     async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string> {
+        // Check for random breakdown before normal processing
+        const breakdown = await this.handleRandomBreakdown()
+        if (breakdown) return breakdown
+
         const formattedMessage = await formatUserMessage(
             this.client,
             options.username,
