@@ -83,6 +83,10 @@ export default class CrimsonChat {
 
         try {
             response = await this.messageProcessor.processMessage(content, options, originalMessage)
+            if (response === null) {
+                logger.info('Received ignore command, skipping message send')
+                return null
+            }
             await this.sendResponseToDiscord(response, null, originalMessage)
         } catch (e) {
             const error = e as Error
