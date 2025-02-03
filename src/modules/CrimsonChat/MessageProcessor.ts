@@ -34,6 +34,13 @@ export class MessageProcessor {
     }
 
     async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string> {
+        // Check for commands first
+        const commandResult = await this.checkForCommands(content)
+        if (commandResult) {
+            // If there was a command, process its result as a normal message
+            return this.processMessage(commandResult, options, originalMessage)
+        }
+
         // Check for breakdown first
         const breakdown = await this.handleRandomBreakdown()
         if (breakdown) {
@@ -96,15 +103,13 @@ export class MessageProcessor {
             model: 'gpt-4o-mini'
         })
 
-        const { content: parsedResponse, hadCommands } = await this.parseAssistantReply(response.choices[0].message)
+        const responseContent = response.choices[0].message?.content || 'Error processing message'
 
         // Save the exchange to history
         await this.historyManager.appendMessage('user', formattedMessage)
-        if (parsedResponse) {
-            await this.historyManager.appendMessage('assistant', parsedResponse)
-        }
+        await this.historyManager.appendMessage('assistant', responseContent)
 
-        return parsedResponse || 'Error processing message'
+        return responseContent
     }
 
     private async handleRandomBreakdown(): Promise<string | null> {
@@ -124,28 +129,20 @@ export class MessageProcessor {
         return null
     }
 
-    private async parseAssistantReply(message: OpenAI.Chat.Completions.ChatCompletionMessage): Promise<{ content: string | null; hadCommands: boolean }> {
-        try {
-            const content = message.content
-            if (!content) return { content: null, hadCommands: false }
+    private async checkForCommands(content: string): Promise<string | null> {
+        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]+)\))?/g
+        const commands = Array.from(content.matchAll(commandRegex))
 
-            const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]+)\))?/g
-            const commands = Array.from(content.matchAll(commandRegex))
+        if (!commands.length) return null
 
-            if (!commands.length) return { content, hadCommands: false }
-
-            let modifiedContent = content
-            for (const [fullMatch, command, params] of commands) {
-                const response = await this.commandParser.parseCommand(fullMatch)
-                if (response === null) return { content: null, hadCommands: true }
-                modifiedContent = modifiedContent.replace(fullMatch, `${fullMatch} -> ${response}`)
-            }
-
-            return { content: modifiedContent, hadCommands: true }
-        } catch (error: any) {
-            logger.error(`Error in parseAssistantReply: ${error.message}`)
-            throw error
+        let modifiedContent = content
+        for (const [fullMatch, command, params] of commands) {
+            const response = await this.commandParser.parseCommand(fullMatch)
+            if (response === null) return null
+            modifiedContent = modifiedContent.replace(fullMatch, response)
         }
+
+        return modifiedContent
     }
 
     private async parseMessagesForChatCompletion(content: string, attachments: string[] = []): Promise<ChatMessage> {
