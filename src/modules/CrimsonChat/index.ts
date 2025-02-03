@@ -12,7 +12,7 @@ const logger = new Logger('CrimsonChat')
 export default class CrimsonChat {
     private static instance: CrimsonChat
     private historyManager = new HistoryManager()
-    private messageProcessor = new MessageProcessor()
+    private messageProcessor: MessageProcessor | null = null
     private channel: TextChannel | null = null
     private channelId = '1335992675459141632'
     private enabled: boolean = true
@@ -25,6 +25,13 @@ export default class CrimsonChat {
             CrimsonChat.instance = new CrimsonChat()
         }
         return CrimsonChat.instance
+    }
+
+    private getMessageProcessor(): MessageProcessor {
+        if (!this.messageProcessor) {
+            this.messageProcessor = new MessageProcessor(this)
+        }
+        return this.messageProcessor
     }
 
     public setClient(client: Client) {
@@ -75,7 +82,7 @@ export default class CrimsonChat {
         let response = ''
 
         try {
-            response = await this.messageProcessor.processMessage(content, options, originalMessage)
+            response = await this.getMessageProcessor().processMessage(content, options, originalMessage)
             if (response === null) {
                 logger.info('Received ignore command, skipping message send')
                 return null
@@ -155,7 +162,7 @@ export default class CrimsonChat {
     }
 
     public setForceNextBreakdown(force: boolean): void {
-        this.messageProcessor.setForceNextBreakdown(force)
+        this.messageProcessor!.setForceNextBreakdown(force)
         logger.info(`Force next breakdown set to: ${force}`)
     }
 
