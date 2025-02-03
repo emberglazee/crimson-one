@@ -36,10 +36,7 @@ export class MessageProcessor {
     async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string> {
         // Check for commands first
         const commandResult = await this.checkForCommands(content)
-        if (commandResult) {
-            // If there was a command, process its result as a normal message
-            return this.processMessage(commandResult, options, originalMessage)
-        }
+        if (commandResult) return commandResult
 
         // Check for breakdown first
         const breakdown = await this.handleRandomBreakdown()
@@ -130,19 +127,16 @@ export class MessageProcessor {
     }
 
     private async checkForCommands(content: string): Promise<string | null> {
-        const commandRegex = /!(fetchRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]+)\))?/g
-        const commands = Array.from(content.matchAll(commandRegex))
+        const commandResult = await this.commandParser.parseCommand(content)
+        if (commandResult === null) return null
 
-        if (!commands.length) return null
-
-        let modifiedContent = content
-        for (const [fullMatch, command, params] of commands) {
-            const response = await this.commandParser.parseCommand(fullMatch)
-            if (response === null) return null
-            modifiedContent = modifiedContent.replace(fullMatch, response)
+        // Format command result for better readability
+        try {
+            const parsedResult = JSON.parse(commandResult)
+            return `\`\`\`json\n${JSON.stringify(parsedResult, null, 2)}\n\`\`\``
+        } catch {
+            return commandResult
         }
-
-        return modifiedContent
     }
 
     private async parseMessagesForChatCompletion(content: string, attachments: string[] = []): Promise<ChatMessage> {
