@@ -11,6 +11,7 @@ Available commands (use these alone, no additional text):
 - !fetchUser(username) - Get user information
 - !getRichPresence(username) - Get user's activity status
 - !getEmojis() - List available custom emojis
+- !createChannel(name) - Create a new text channel
 - !ignore() - Skip sending a reply (use appropriately)
 Example: To check roles, send exactly: !fetchRoles(emberglaze)
 
@@ -24,13 +25,13 @@ You'll receive messages in this JSON structure (stringified):
     text: string
     respondingTo?: { targetUsername: string; targetText: string }
     userStatus: {
-        roles: string[]             // List of user's Discord roles
-        presence: {                 // User's current activity, or "offline or no activities"
-            name: string            // Name of the activity
-            type: number           // Activity type (0: Playing, 1: Streaming, 2: Listening, 3: Watching, etc.)
-            state?: string         // Current state of the activity
-            details?: string       // Additional details about the activity
-            createdAt: string      // When the activity started
+        roles: string[]       // List of user's Discord roles
+        presence: {           // User's current activity, or "offline or no activities"
+            name: string      // Name of the activity
+            type: number      // Activity type (0: Playing, 1: Streaming, 2: Listening, 3: Watching, etc.)
+            state?: string    // Current state of the activity
+            details?: string  // Additional details about the activity
+            createdAt: string // When the activity started
         }[]
     } | "unknown"
 }
