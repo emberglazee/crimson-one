@@ -123,14 +123,17 @@ export class MessageProcessor {
 
                 // `createChannel` specific checks
                 if (responseContent.startsWith('!createChannel')) {
-                    const guild = this.client?.guilds.cache.first()
+                    if (!originalMessage) {
+                        return 'Error: No original message available, cannot fetch guild.'
+                    }
+                    const guild = originalMessage.guild
                     if (!guild) {
-                        return 'Error: No guild available.'
+                        return 'Error: Guild not found in `originalMessage`.'
                     }
 
                     const member = await guild.members.fetchMe()
                     if (!member.permissions.has('ManageChannels')) {
-                        return 'Error: Lacking required permission: ManageChannels'
+                        return 'Error: Lacking permission `ManageChannels`'
                     }
                 }
 
@@ -145,7 +148,8 @@ export class MessageProcessor {
                             username: 'System',
                             displayName: 'System',
                             serverDisplayName: 'System'
-                        }
+                        },
+                        originalMessage
                     )
                 }
             }
