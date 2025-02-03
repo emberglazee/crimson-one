@@ -43,12 +43,14 @@ export class MessageProcessor {
             options.respondingTo
         )
 
-        // Check for commands first in user message
+        // Always save user's message first
+        await this.historyManager.appendMessage('user', formattedMessage)
+
+        // Check for commands in user message
         const commandResult = await this.checkForCommands(content)
         if (commandResult) {
-            // Save the command exchange to history
-            await this.historyManager.appendMessage('user', formattedMessage)
-            await this.historyManager.appendMessage('assistant', content)
+            // Save the command execution message
+            await this.historyManager.appendMessage('assistant', commandResult)
             return commandResult
         }
 
@@ -111,13 +113,14 @@ export class MessageProcessor {
         const aiCommandResult = await this.checkForCommands(responseContent)
         if (aiCommandResult) {
             logger.info('[Command Check] AI response contained a command, executing it')
+            // Save both the command and its result to history
+            await this.historyManager.appendMessage('assistant', responseContent)
+            await this.historyManager.appendMessage('assistant', aiCommandResult)
             return aiCommandResult
         }
 
-        // Save the exchange to history
-        await this.historyManager.appendMessage('user', formattedMessage)
+        // Save the normal response to history
         await this.historyManager.appendMessage('assistant', responseContent)
-
         return responseContent
     }
 
@@ -152,18 +155,13 @@ export class MessageProcessor {
 
         const [fullMatch] = match
         logger.info(`[Command Check] Found command pattern: ${fullMatch}`)
-        
+
         const commandResult = await this.commandParser.parseCommand(fullMatch)
         logger.info(`[Command Check] Command parser returned: ${commandResult}`)
-        
+
         if (commandResult === null) {
             logger.info(`[Command Check] Command parser returned null, skipping command processing`)
             return null
-        }
-
-        // Save the command execution to history if it's an AI response
-        if (content !== fullMatch) {
-            await this.historyManager.appendMessage('assistant', fullMatch)
         }
 
         // Format command result for better readability
