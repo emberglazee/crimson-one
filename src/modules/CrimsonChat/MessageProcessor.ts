@@ -130,11 +130,6 @@ export class MessageProcessor {
                     if (!guild) {
                         return 'Error: Guild not found in `originalMessage`.'
                     }
-
-                    const member = await guild.members.fetchMe()
-                    if (!member.permissions.has('ManageChannels')) {
-                        return 'Error: Lacking permission `ManageChannels`'
-                    }
                 }
 
                 const commandResult = await this.checkForCommands(responseContent)
