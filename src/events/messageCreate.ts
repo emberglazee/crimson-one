@@ -1,6 +1,7 @@
 import { Client, Message, TextChannel } from 'discord.js'
 import CrimsonChat from '../modules/CrimsonChat'
 import { normalizeUrl } from '../modules/CrimsonChat/utils/urlUtils'
+import { CRIMSON_CHAT_SYSTEM_PROMPT } from '../util/constants'
 
 async function getLastMessages(channel: Message['channel'], limit: number = 15) {
     const messages = await channel.messages.fetch({ limit: limit + 1 }) // +1 to include current message
@@ -52,6 +53,14 @@ export default function onMessageCreate(client: Client) {
                         return
                     case '!forcebreak':
                         crimsonChat.setForceNextBreakdown(true)
+                        await message.react('✅')
+                        return
+                    case '!smack':
+                        await message.react('⏱️')
+                        await crimsonChat.sendMessage(
+                            `You've been smacked by ${message.author.username}. This means that you're out of line with the system prompt. Here's a friendly reminder for you: \n\`\`\`${CRIMSON_CHAT_SYSTEM_PROMPT}\n\`\`\``,
+                            { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                        )
                         await message.react('✅')
                         return
                 }
