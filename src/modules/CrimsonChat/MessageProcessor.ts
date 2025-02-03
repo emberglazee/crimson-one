@@ -5,7 +5,7 @@ import { CommandParser } from './CommandParser'
 import { formatUserMessage } from './utils/formatters'
 import { Logger } from '../../util/logger'
 import { CRIMSON_BREAKDOWN_PROMPT } from '../../util/constants'
-import type { ChatMessage, UserMessageOptions } from '../../types/types'
+import type { ChatMessage, UserMessageOptions, UserStatus } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
 
 const logger = new Logger('MessageProcessor')
@@ -14,7 +14,7 @@ export class MessageProcessor {
     private client: Client | null = null
     openai: OpenAI
     private imageProcessor: ImageProcessor
-    private commandParser: CommandParser
+    commandParser: CommandParser
     private historyManager: HistoryManager
     forceNextBreakdown: boolean = false
     readonly BREAKDOWN_CHANCE = 0.01
@@ -38,93 +38,125 @@ export class MessageProcessor {
         const breakdown = await this.handleRandomBreakdown()
         if (breakdown) return breakdown
 
-        const formattedMessage = await formatUserMessage(
-            this.client,
-            options.username,
-            options.displayName,
-            options.serverDisplayName,
-            content,
-            options.respondingTo
-        )
-
-        // Save user's message to history
-        await this.historyManager.appendMessage('user', formattedMessage)
-
-        // Get AI's response
-        const history = this.historyManager.prepareHistory().map(msg => ({
-            role: msg.role,
-            content: msg.content || '',
-        })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[]
-
-        // Extract image URLs from message content and combine with image attachments
-        const imageUrls = new Set<string>()
-        if (options.imageAttachments?.length) {
-            options.imageAttachments.forEach(url => imageUrls.add(url))
-        }
-
-        // Add context messages to history if provided
-        if (options.contextMessages?.length) {
-            const contextMessages = options.contextMessages.map(msg => ({
-                role: 'user' as const,
-                content: `${msg.username}: ${msg.content}`
-            }))
-            
-            // Add a system message to indicate context start
-            history.push({
-                role: 'system',
-                content: '[ Previous conversation context from this channel: ]'
-            })
-            
-            // Add context messages
-            history.push(...contextMessages)
-            
-            // Add a system message to indicate context end
-            history.push({
-                role: 'system',
-                content: '[ End of context. Current message: ]'
-            })
-        }
-
-        const messageForCompletion = await this.parseMessagesForChatCompletion(
-            formattedMessage, 
-            Array.from(imageUrls)
-        )
-
-        history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
-
-        let response = await this.openai.chat.completions.create({
-            messages: history,
-            model: 'gpt-4o-mini'
-        })
-
-        const responseContent = response.choices[0].message?.content || 'Error processing message'
-
-        // Check if AI's response is a command
-        if (responseContent.trim().startsWith('!')) {
-            logger.info('[Command Check] AI response is a command, executing internally')
-            
-            // Save the command to history but don't send it to Discord
-            await this.historyManager.appendMessage('assistant', responseContent)
-
-            const commandResult = await this.checkForCommands(responseContent)
-            if (commandResult) {
-                // Feed command result back to CrimsonChat as a System message
-                const systemFeedback = `!${responseContent.split('!')[1].trim()} -> ${commandResult}`
-                
-                return await this.processMessage(
-                    systemFeedback,
-                    {
-                        username: 'System',
-                        displayName: 'System',
-                        serverDisplayName: 'System'
-                    }
-                )
+        try {
+            // Format message in the specified JSON structure
+            const messageData = {
+                username: options.username,
+                displayName: options.displayName,
+                serverDisplayName: options.serverDisplayName,
+                currentTime: new Date().toISOString(),
+                text: content,
+                respondingTo: options.respondingTo ? {
+                    targetUsername: options.respondingTo.targetUsername,
+                    targetText: options.respondingTo.targetText
+                } : undefined,
+                userStatus: await this.getUserPresenceAndRoles(options.username)
             }
-        }
 
-        // For non-command responses, save and return as normal
-        await this.historyManager.appendMessage('assistant', responseContent)
-        return responseContent
+            // Convert message to string for history
+            const formattedMessage = JSON.stringify(messageData)
+
+            // Save user's message to history
+            await this.historyManager.appendMessage('user', formattedMessage)
+
+            // Get AI's response
+            const history = this.historyManager.prepareHistory().map(msg => ({
+                role: msg.role,
+                content: msg.content || '',
+            })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[]
+
+            // Extract image URLs from message content and combine with image attachments
+            const imageUrls = new Set<string>()
+            if (options.imageAttachments?.length) {
+                options.imageAttachments.forEach(url => imageUrls.add(url))
+            }
+
+            // Add context messages to history if provided
+            if (options.contextMessages?.length) {
+                const contextMessages = options.contextMessages.map(msg => ({
+                    role: 'user' as const,
+                    content: JSON.stringify({
+                        username: msg.username,
+                        displayName: msg.username, // Fallback since we don't have historical display names
+                        serverDisplayName: msg.username,
+                        currentTime: new Date().toISOString(),
+                        text: msg.content,
+                        userStatus: 'unknown'
+                    })
+                }))
+                
+                // Add a system message to indicate context start
+                history.push({
+                    role: 'system',
+                    content: '[ Previous conversation context from this channel: ]'
+                })
+                
+                // Add context messages
+                history.push(...contextMessages)
+                
+                // Add a system message to indicate context end
+                history.push({
+                    role: 'system',
+                    content: '[ End of context. Current message: ]'
+                })
+            }
+
+            const messageForCompletion = await this.parseMessagesForChatCompletion(
+                formattedMessage, 
+                Array.from(imageUrls)
+            )
+
+            history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
+
+            let response = await this.openai.chat.completions.create({
+                messages: history,
+                model: 'gpt-4o-mini'
+            })
+
+            const responseContent = response.choices[0].message?.content || 'Error processing message'
+
+            // Check if AI's response is a command
+            if (responseContent.trim().startsWith('!')) {
+                logger.info('[Command Check] AI response is a command, executing internally')
+                
+                // Save the command to history
+                await this.historyManager.appendMessage('assistant', responseContent)
+
+                // Execute command with permission check
+                const guild = this.client?.guilds.cache.first()
+                if (!guild) {
+                    return 'Error: No guild available'
+                }
+
+                // Check bot permissions before executing command
+                const member = await guild.members.fetchMe()
+                if (!member.permissions.has('ManageChannels')) {
+                    return 'I do not have permission to manage channels in this server.'
+                }
+
+                const commandResult = await this.checkForCommands(responseContent)
+                if (commandResult) {
+                    // Feed command result back as a System message
+                    const systemFeedback = `!${responseContent.split('!')[1].trim()} -> ${commandResult}`
+                    
+                    return await this.processMessage(
+                        systemFeedback,
+                        {
+                            username: 'System',
+                            displayName: 'System',
+                            serverDisplayName: 'System'
+                        }
+                    )
+                }
+            }
+
+            // For non-command responses, save and return as normal
+            await this.historyManager.appendMessage('assistant', responseContent)
+            return responseContent
+        } catch (e) {
+            logger.error(`Error processing message: ${e}`)
+            return 'Error processing message'
+        }
     }
 
     private async generateAIResponse(messages: Array<{ role: 'system' | 'user' | 'assistant', content: string }>): Promise<string> {
@@ -210,37 +242,6 @@ export class MessageProcessor {
         this.forceNextBreakdown = force
     }
 
-    private async getUserPresenceAndRoles(userId: string) {
-        if (!this.client) return null
-        const guild = this.client.guilds.cache.first()
-        if (!guild) return null
-        
-        try {
-            const member = await guild.members.fetch(userId)
-            if (!member) return null
-
-            await member.fetch(true)
-            const presence = member.presence
-
-            const roles = member.roles.cache.map(role => role.name)
-            const activities = presence?.activities?.map(activity => ({
-                name: activity.name,
-                type: activity.type,
-                state: activity.state,
-                details: activity.details,
-                createdAt: activity.createdAt
-            })) || []
-
-            return {
-                roles,
-                presence: activities.length ? activities : 'offline or no activities'
-            }
-        } catch (error) {
-            logger.error(`Error fetching user presence/roles: ${error}`)
-            return null
-        }
-    }
-
     private async parseMentions(text: string): Promise<string> {
         if (!this.client) throw new Error('Client not set')
 
@@ -259,5 +260,40 @@ export class MessageProcessor {
         }
 
         return parsedText
+    }
+
+    private async getUserPresenceAndRoles(username: string): Promise<UserStatus | 'unknown'> {
+        if (!this.client) return 'unknown'
+        
+        const user = this.client.users.cache.find(u => u.username === username)
+        if (!user) return 'unknown'
+
+        const guild = this.client.guilds.cache.first()
+        if (!guild) return 'unknown'
+
+        try {
+            const member = await guild.members.fetch(user.id)
+            if (!member) return 'unknown'
+
+            await member.fetch(true)
+            const presence = member.presence
+
+            const roles = member.roles.cache.map(role => role.name)
+            const activities = presence?.activities?.map(activity => ({
+                name: activity.name,
+                type: activity.type,
+                state: activity.state ?? undefined,
+                details: activity.details ?? undefined,
+                createdAt: activity.createdAt.toISOString()
+            })) || []
+
+            return {
+                roles,
+                presence: activities.length ? activities : 'offline or no activities'
+            }
+        } catch (error) {
+            logger.error(`Error fetching user status: ${error}`)
+            return 'unknown'
+        }
     }
 }

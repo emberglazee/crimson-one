@@ -1,4 +1,4 @@
-import { Client, PermissionsBitField } from 'discord.js'
+import { Client, PermissionsBitField, ChannelType } from 'discord.js'
 import { Logger } from '../../util/logger'
 const logger = new Logger('CommandParser')
 
@@ -17,9 +17,9 @@ export class CommandParser {
 
         logger.info(`[Command Parser] Processing command text: ${text}`)
 
-        const commandRegex = /!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]*)\))?/
+        const commandRegex = /!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis|createChannel)(?:\(([^)]*)\))?/
         const match = commandRegex.exec(text)
-        
+
         if (!match) {
             logger.info('[Command Parser] No command pattern found')
             return null
@@ -38,6 +38,24 @@ export class CommandParser {
             }
 
             logger.info(`[Command Parser] Processing command ${command} with username: ${finalUsername}`)
+
+            const moderationCommand = async (
+                permissionRequired: PermissionsBitField,
+                action: () => Promise<any>,
+                successMessage: string
+            ) => {
+                const member = await guild.members.fetchMe()
+                if (!member.permissions.has(permissionRequired)) {
+                    return `Error: Missing required permission: ${permissionRequired}`
+                }
+
+                try {
+                    await action()
+                    return successMessage
+                } catch (error) {
+                    return `Error executing command: ${error instanceof Error ? error.message : 'Unknown error'}`
+                }
+            }
 
             switch (command) {
                 case 'fetchRoles':
@@ -92,6 +110,21 @@ export class CommandParser {
                         .map(e => ({ name: e.name, id: e.id }))
                     return JSON.stringify({ emojis }, null, 2)
 
+                case 'createChannel':
+                    if (!params) return 'Error: Channel name required'
+                    const channelName = params.trim()
+                    
+                    return await moderationCommand(
+                        new PermissionsBitField(PermissionsBitField.Flags.ManageChannels),
+                        async () => {
+                            await guild.channels.create({
+                                name: channelName,
+                                type: ChannelType.GuildText
+                            })
+                        },
+                        `Successfully created text channel #${channelName}`
+                    )
+
                 case 'ignore':
                     return null
 
@@ -102,6 +135,7 @@ export class CommandParser {
         } catch (error) {
             logger.error(`[Command Parser] Error processing command ${command}: ${error}`)
             return `Error processing command "${command}": ${error instanceof Error ? error.message : 'Unknown error'}`
+
         }
     }
 }

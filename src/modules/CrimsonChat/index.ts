@@ -1,4 +1,4 @@
-import { Client, TextChannel, Message, ChatInputCommandInteraction } from 'discord.js'
+import { Client, TextChannel, Message, ChatInputCommandInteraction, ChannelType } from 'discord.js'
 import { MessageProcessor } from './MessageProcessor'
 import { HistoryManager } from './HistoryManager'
 import { Logger } from '../../util/logger'
@@ -8,7 +8,6 @@ import path from 'path'
 import { formatUserMessage, usernamesToMentions } from './utils/formatters'
 import { ReminderManager, type ReminderData } from './utils/Reminder'
 import { randomUUID } from 'crypto'
-import { PermissionManager } from './PermissionManager'
 
 const logger = new Logger('CrimsonChat')
 
@@ -23,13 +22,11 @@ export default class CrimsonChat {
     private messageProcessor: MessageProcessor
     private historyManager: HistoryManager
     private reminderManager: ReminderManager
-    private permissionManager: PermissionManager
 
     private constructor() {
         this.historyManager = new HistoryManager()
         this.messageProcessor = new MessageProcessor(this.historyManager)
         this.reminderManager = ReminderManager.getInstance()
-        this.permissionManager = PermissionManager.getInstance()
     }
 
     public static getInstance(): CrimsonChat {
@@ -43,7 +40,6 @@ export default class CrimsonChat {
         this.client = client
         this.messageProcessor.setClient(client)
         this.reminderManager.setClient(client)
-        this.permissionManager.setClient(client)
     }
 
     public async init(): Promise<void> {
@@ -163,29 +159,6 @@ export default class CrimsonChat {
     public async handleShutdown(): Promise<void> {
         if (!this.channel) return
         await this.sendResponseToDiscord('Crimson is shutting down...')
-    }
-
-    // Looks at all messages sent by CrimsonChat and determines whether any moderation related action is needed
-    public async handleModeration(content: string) {
-        if (!this.client || !this.channel) return
-
-        const response = await this.permissionManager.evaluatePermissionQuery(content, this.channel.guildId)
-        if (!response.success) {
-            await this.sendMessage(response.message, {
-                username: 'PermissionManager',
-                displayName: 'System: PermissionManager',
-                serverDisplayName: 'System: PermissionManager'
-            })
-            return
-        }
-        if (response.execution) {
-            await response.execution()
-        }
-        await this.sendMessage('Moderation action completed', {
-            username: 'System',
-            displayName: 'System: handleModeration()',
-            serverDisplayName: 'System: handleModeration()'
-        })
     }
 
     public setForceNextBreakdown(force: boolean): void {
