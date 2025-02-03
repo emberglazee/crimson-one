@@ -25,10 +25,11 @@ export default function onMessageCreate(client: Client) {
         if (message.author === client.user) return
 
         const isMainChannel = message.channel.id === '1335992675459141632'
+        const isTestingServer = message.guildId === '1335971145014579263'
         const isMentioned = message.mentions.users.has(client.user!.id)
 
         // Handle messages in main channel
-        if (isMainChannel) {
+        if (isMainChannel || isTestingServer) {
             // Handle admin commands first
             const wasAdminCommand = await adminCommands.handleCommand(message)
             if (wasAdminCommand) return
