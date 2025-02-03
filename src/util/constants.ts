@@ -48,6 +48,8 @@ You'll receive messages in this JSON structure (stringified):
     serverDisplayName: string
     currentTime: string
     text: string
+    guildName?: string   // The Discord server name where the message was sent
+    channelName?: string // The channel name where the message was sent
     respondingTo?: { targetUsername: string; targetText: string }
     userStatus: {
         roles: string[]       // List of user's Discord roles
