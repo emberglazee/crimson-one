@@ -12,6 +12,9 @@ export class CommandParser {
     async parseCommand(text: string): Promise<string | null> {
         if (!this.client) throw new Error('Client not set')
 
+        // Check if text is a command or contains one
+        if (!text.includes('!')) return null
+
         const commandRegex = /!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]+)\))?/
         const match = commandRegex.exec(text)
         if (!match) return null
@@ -20,68 +23,68 @@ export class CommandParser {
         let finalUsername = params?.trim() || ''
 
         try {
+            const guild = this.client.guilds.cache.first()
+            if (!guild) return 'Error: No guild available'
+
             switch (command) {
                 case 'fetchRoles':
                     if (!finalUsername) return 'Error: Username required'
-                    const member = await this.client.users.cache
-                        .find(u => u.username === finalUsername)
-                        ?.fetch()
-                    if (!member) return `Could not find user: ${finalUsername}`
-                    const guildMember = await this.client.guilds.cache
-                        .first()
-                        ?.members.fetch(member)
-                    return guildMember?.roles.cache.map(r => r.name).join(', ') || 'No roles found'
+                    const user = this.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
+                    if (!user) return `Error: Could not find user "${finalUsername}"`
+                    
+                    const guildMember = await guild.members.fetch(user.id)
+                    const roles = guildMember?.roles.cache.map(r => r.name) || []
+                    return JSON.stringify({ roles }, null, 2)
 
                 case 'fetchBotRoles':
-                    const guild = this.client.guilds.cache.first()
-                    if (!guild) return 'No guild found'
                     const botMember = await guild.members.fetchMe()
-                    const permissions = botMember.permissions
-                    const permissionNames = new PermissionsBitField(permissions).toArray()
+                    const permissions = new PermissionsBitField(botMember.permissions).toArray()
                     return JSON.stringify({
                         roles: botMember.roles.cache.map(r => r.name),
-                        permissions: permissionNames
+                        permissions
                     }, null, 2)
 
                 case 'fetchUser':
                     if (!finalUsername) return 'Error: Username required'
-                    const user = await this.client.users.cache
-                        .find(u => u.username === finalUsername)
-                        ?.fetch()
-                    if (!user) return `Could not find user: ${finalUsername}`
+                    const targetUser = this.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
+                    if (!targetUser) return `Error: Could not find user "${finalUsername}"`
+                    
                     return JSON.stringify({
-                        username: user.username,
-                        displayName: user.displayName,
-                        createdAt: user.createdAt
-                    })
+                        username: targetUser.username,
+                        displayName: targetUser.displayName,
+                        createdAt: targetUser.createdAt,
+                        id: targetUser.id
+                    }, null, 2)
 
                 case 'getRichPresence':
                     if (!finalUsername) return 'Error: Username required'
-                    const presenceUser = await this.client.users.cache
-                        .find(u => u.username === finalUsername)
-                        ?.fetch()
-                    if (!presenceUser) return `Could not find user: ${finalUsername}`
-                    const presence = await this.client.guilds.cache
-                        .first()
-                        ?.members.fetch(presenceUser)
-                        ?.then(m => m.presence)
-                    return presence ? JSON.stringify(presence.activities) : 'User is offline'
+                    const presenceUser = this.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
+                    if (!presenceUser) return `Error: Could not find user "${finalUsername}"`
+                    
+                    const member = await guild.members.fetch(presenceUser.id)
+                    const activities = member.presence?.activities || []
+                    return JSON.stringify(activities.map(a => ({
+                        name: a.name,
+                        type: a.type,
+                        state: a.state,
+                        details: a.details,
+                        createdAt: a.createdAt
+                    })), null, 2)
 
                 case 'getEmojis':
-                    return JSON.stringify(
-                        Array.from(this.client.emojis.cache.values())
-                            .map(e => ({ name: e.name, id: e.id }))
-                    )
+                    const emojis = Array.from(this.client.emojis.cache.values())
+                        .map(e => ({ name: e.name, id: e.id }))
+                    return JSON.stringify({ emojis }, null, 2)
 
                 case 'ignore':
                     return null
 
                 default:
-                    return `Unknown command: ${command}`
+                    return `Error: Unknown command "${command}"`
             }
         } catch (error) {
             logger.error(`Error processing command ${command}: ${error}`)
-            return `Error processing command ${command}`
+            return `Error processing command "${command}": ${error instanceof Error ? error.message : 'Unknown error'}`
         }
     }
 }
