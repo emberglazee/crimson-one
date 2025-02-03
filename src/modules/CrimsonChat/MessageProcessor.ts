@@ -134,7 +134,7 @@ export class MessageProcessor {
                     }
                 }
 
-                const commandResult = await this.checkForCommands(responseContent)
+                const commandResult = await this.checkForCommands(responseContent, originalMessage)
                 if (commandResult) {
                     // Feed command result back as a System message
                     const systemFeedback = `!${responseContent.split('!')[1].trim()} -> ${commandResult}`
@@ -185,7 +185,7 @@ export class MessageProcessor {
         return null
     }
 
-    private async checkForCommands(content: string): Promise<string | null> {
+    private async checkForCommands(content: string, originalMessage?: Message): Promise<string | null> {
         logger.info(`[Command Check] Checking content for commands: ${content}`)
 
         const commandRegex = /^!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]*)\))?$/
@@ -199,7 +199,7 @@ export class MessageProcessor {
         const [fullMatch] = match
         logger.info(`[Command Check] Found command pattern: ${fullMatch}`)
         
-        const commandResult = await this.commandParser.parseCommand(fullMatch)
+        const commandResult = await this.commandParser.parseCommand(fullMatch, originalMessage)
         if (!commandResult) {
             logger.info(`[Command Check] Command parser returned null`)
             return null
