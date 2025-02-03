@@ -46,6 +46,12 @@ export interface UserMessageOptions {
         targetText: string
     }
     imageAttachments?: string[]
+    contextMessages?: Array<{
+        content: string
+        username: string
+        displayName: string
+        serverDisplayName: string
+    }>
 }
 
 export interface UserStatus {

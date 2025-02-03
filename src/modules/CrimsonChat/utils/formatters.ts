@@ -9,57 +9,17 @@ export async function formatUserMessage(
     username: string,
     displayName: string,
     serverDisplayName: string,
-    text: string,
-    respondingTo?: { targetUsername: string; targetText: string },
-    attachments?: string[]
+    content: string,
+    respondingTo?: { targetUsername: string; targetText: string }
 ): Promise<string> {
-    let userStatus: UserStatus | 'unknown' = 'unknown'
+    let formattedMessage = ''
 
-    if (client) {
-        const user = client.users.cache.find(u => u.username === username)
-        if (user) {
-            try {
-                const guild = client.guilds.cache.first()
-                if (guild) {
-                    const member = await guild.members.fetch(user.id)
-                    if (member) {
-                        // Force fetch presence
-                        await member.fetch(true)
-                        const presence = member.presence
-
-                        const roles = member.roles.cache.map(role => role.name)
-                        const activities = presence?.activities?.map(activity => ({
-                            name: activity.name,
-                            type: activity.type,
-                            state: activity.state ?? undefined,
-                            details: activity.details ?? undefined,
-                            createdAt: activity.createdAt.toISOString()
-                        })) || []
-
-                        userStatus = {
-                            roles,
-                            presence: activities.length ? activities : 'offline or no activities'
-                        }
-                    }
-                }
-            } catch (error) {
-                logger.error(`Error fetching user status: ${error}`)
-            }
-        }
+    if (respondingTo) {
+        formattedMessage += `[ Replying to ${respondingTo.targetUsername}: "${respondingTo.targetText}" ]\n`
     }
 
-    const formattedMessage: FormattedUserMessage = {
-        username,
-        displayName,
-        serverDisplayName,
-        currentTime: new Date().toISOString(),
-        text: client ? await parseMentions(client, text) : text,
-        attachments,
-        respondingTo,
-        userStatus
-    }
-
-    return JSON.stringify(formattedMessage)
+    formattedMessage += `${username} (display: ${displayName}, server: ${serverDisplayName}): ${content}`
+    return formattedMessage
 }
 
 export async function parseMentions(client: Client, text: string): Promise<string> {
