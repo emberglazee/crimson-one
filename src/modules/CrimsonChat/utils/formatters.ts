@@ -9,7 +9,9 @@ export async function formatUserMessage(
     displayName: string,
     serverDisplayName: string,
     content: string,
-    respondingTo?: { targetUsername: string; targetText: string }
+    respondingTo?: { targetUsername: string; targetText: string },
+    guildName?: string,
+    channelName?: string
 ): Promise<string> {
     let formattedMessage = ''
 
@@ -17,7 +19,12 @@ export async function formatUserMessage(
         formattedMessage += `[ Replying to ${respondingTo.targetUsername}: "${respondingTo.targetText}" ]\n`
     }
 
-    formattedMessage += `${username} (display: ${displayName}, server: ${serverDisplayName}): ${content}`
+    let locationInfo = ''
+    if (guildName || channelName) {
+        locationInfo = `[from: ${[guildName, channelName].filter(Boolean).join(' / ')}] `
+    }
+
+    formattedMessage += `${locationInfo}${username} (display: ${displayName}, server: ${serverDisplayName}): ${content}`
     return formattedMessage
 }
 

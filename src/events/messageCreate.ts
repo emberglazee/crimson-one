@@ -12,7 +12,9 @@ async function getLastMessages(channel: Message['channel'], limit = 15) {
             content: msg.content,
             username: msg.author.username,
             displayName: msg.member?.displayName ?? msg.author.displayName,
-            serverDisplayName: msg.member?.displayName ?? msg.author.displayName
+            serverDisplayName: msg.member?.displayName ?? msg.author.displayName,
+            guildName: msg.guild?.name,
+            channelName: msg.channel instanceof TextChannel ? msg.channel.name : undefined
         }))
 }
 
@@ -84,7 +86,9 @@ export default function onMessageCreate(client: Client) {
                 displayName: message.member!.displayName,
                 serverDisplayName: message.member?.displayName ?? message.author.displayName,
                 respondingTo,
-                imageAttachments: Array.from(imageAttachments)
+                imageAttachments: Array.from(imageAttachments),
+                guildName: message.guild?.name,
+                channelName: message.channel instanceof TextChannel ? message.channel.name : undefined
             }, message)
             return
         }
@@ -130,10 +134,7 @@ export default function onMessageCreate(client: Client) {
             // Get recent message context
             const contextMessages = await getLastMessages(message.channel)
 
-            // Add note about being outside main channel
-            const channelName = message.channel.isDMBased() ? 'DM' : `#${(message.channel as TextChannel).name}`
-            content = `[Note: This message was sent from ${channelName}; server: "${message.guild ? message.guild.name : 'none'}"]\n${content}`
-
+            // Remove the explicit channel note since it's now included in the message format
             await crimsonChat.sendMessage(content, {
                 username: message.author.username,
                 displayName: message.member!.displayName,
@@ -141,7 +142,9 @@ export default function onMessageCreate(client: Client) {
                 respondingTo,
                 imageAttachments: Array.from(imageAttachments),
                 contextMessages,
-                targetChannel: message.channel as TextChannel
+                targetChannel: message.channel as TextChannel,
+                guildName: message.guild?.name,
+                channelName: message.channel instanceof TextChannel ? message.channel.name : undefined
             }, message)
         }
     })

@@ -52,8 +52,12 @@ export interface UserMessageOptions {
         username: string
         displayName: string
         serverDisplayName: string
+        guildName?: string
+        channelName?: string
     }>
     targetChannel?: TextChannel
+    guildName?: string
+    channelName?: string
 }
 
 export interface UserStatus {
