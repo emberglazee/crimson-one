@@ -12,9 +12,20 @@ const logger = new Logger('MessageProcessor')
 
 export class MessageProcessor {
     private static instance: MessageProcessor
-    private crimsonChat = CrimsonChat.getInstance()
+    private crimsonChat: CrimsonChat
     private historyManager = HistoryManager.getInstance()
     private imageProcessor = new ImageProcessor()
+
+    constructor(crimsonChat: CrimsonChat) {
+        this.crimsonChat = crimsonChat
+    }
+
+    public static getInstance(crimsonChat: CrimsonChat): MessageProcessor {
+        if (!MessageProcessor.instance) {
+            MessageProcessor.instance = new MessageProcessor(crimsonChat)
+        }
+        return MessageProcessor.instance
+    }
 
     commandParser = new CommandParser()
     forceNextBreakdown = false
@@ -22,13 +33,6 @@ export class MessageProcessor {
         apiKey: process.env.OPENAI_API_KEY
     })
     readonly BREAKDOWN_CHANCE = 0.01
-
-    public static getInstance(): MessageProcessor {
-        if (!MessageProcessor.instance) {
-            MessageProcessor.instance = new MessageProcessor()
-        }
-        return MessageProcessor.instance
-    }
 
     async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string> {
         // Check for random breakdown before normal processing
