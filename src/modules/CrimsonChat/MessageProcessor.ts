@@ -127,7 +127,13 @@ export class MessageProcessor {
     }
 
     private async checkForCommands(content: string): Promise<string | null> {
-        const commandResult = await this.commandParser.parseCommand(content)
+        // Check if the content contains any command pattern
+        const commandRegex = /!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]*)\))?/
+        const match = commandRegex.exec(content)
+        if (!match) return null
+
+        const [fullMatch] = match
+        const commandResult = await this.commandParser.parseCommand(fullMatch)
         if (commandResult === null) return null
 
         // Format command result for better readability
