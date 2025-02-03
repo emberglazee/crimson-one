@@ -223,7 +223,6 @@ export default class CrimsonChat {
             : ''
 
         const message = await formatUserMessage(
-            this.client,
             interaction.user.username,
             interaction.user.displayName,
             interaction.user.displayName,

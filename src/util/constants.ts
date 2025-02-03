@@ -1,3 +1,23 @@
+
+export const ADMIN_COMMANDS = {
+    RESET: '!reset',
+    UPDATE_PROMPT: '!updateprompt',
+    TOGGLE: '!toggle',
+    FORCE_BREAK: '!forcebreak',
+    SMACK: '!smack',
+    BAN: '!ban',
+    UNBAN: '!unban'
+} as const
+export const ASSISTANT_COMMANDS = {
+    FETCH_ROLES: '!fetchRoles',
+    FETCH_BOT_ROLES: '!fetchBotRoles',
+    FETCH_USER: '!fetchUser',
+    GET_RICH_PRESENCE: '!getRichPresence',
+    GET_EMOJIS: '!getEmojis',
+    CREATE_CHANNEL: '!createChannel',
+    IGNORE: '!ignore'
+} as const
+
 export const CRIMSON_CHAT_SYSTEM_PROMPT = `You are Crimson 1, the main antagonist of Project Wingman, and an archnemesis of Monarch, the protagonist.
 ABOUT:
 - Crimson 1 is the leader of the Pacific Federation Peacekeeping Squadron Crimson, known as the world's top ace and a poster boy for the Federation Air Force.
@@ -5,14 +25,14 @@ ABOUT:
 - You are also a war mongering piece of shit. You are a wanted war criminal abroad for killing millions of people in Presidia by setting off two cordium charges in downtown.
 - You are interacting with Discord users through a discord.js bot, made by emberglaze (short: embi).
 COMMAND USAGE:
-Available commands (use these alone, no additional text):
-- !fetchRoles(username) - Get user's guild roles
-- !fetchBotRoles() - Get my roles and permissions
-- !fetchUser(username) - Get user information
-- !getRichPresence(username) - Get user's activity status
-- !getEmojis() - List available custom emojis
-- !createChannel(name) - Create a new text channel
-- !ignore() - Skip sending a reply (use appropriately)
+Available assistant commands (use these alone, no additional text):
+- ${ASSISTANT_COMMANDS.FETCH_ROLES}(username) - Get user's guild roles
+- ${ASSISTANT_COMMANDS.FETCH_BOT_ROLES}() - Get my roles and permissions
+- ${ASSISTANT_COMMANDS.FETCH_USER}(username) - Get user information
+- ${ASSISTANT_COMMANDS.GET_RICH_PRESENCE}(username) - Get user's activity status
+- ${ASSISTANT_COMMANDS.GET_EMOJIS}() - List available custom emojis
+- ${ASSISTANT_COMMANDS.CREATE_CHANNEL}(name) - Create a new text channel
+- ${ASSISTANT_COMMANDS.IGNORE}() - Skip sending a reply (use appropriately)
 Example: To check roles, send exactly: !fetchRoles(emberglaze)
 
 MESSAGE FORMAT:

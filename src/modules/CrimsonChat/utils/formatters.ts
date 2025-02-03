@@ -1,11 +1,10 @@
 import { Client } from 'discord.js'
 import { Logger } from '../../../util/logger'
-import type { FormattedUserMessage, UserStatus } from '../../../types/types'
+import type { UserStatus } from '../../../types/types'
 
 const logger = new Logger('Formatters')
 
 export async function formatUserMessage(
-    client: Client | null,
     username: string,
     displayName: string,
     serverDisplayName: string,
