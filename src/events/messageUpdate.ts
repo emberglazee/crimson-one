@@ -3,8 +3,8 @@ import CrimsonChat from '../modules/CrimsonChat'
 
 export default function onMessageUpdate(client: Client) {
     client.on('messageUpdate', async (oldMessage, newMessage) => {
-        // Check if message is in CrimsonChat thread
-        if (newMessage.channel.id !== '1333319963737325570') return
+        // Check if message is in CrimsonChat channel
+        if (newMessage.channel.id !== '1335992675459141632') return
         
         // Ensure messages are cached and not partial
         if (!oldMessage.partial && !newMessage.partial) {

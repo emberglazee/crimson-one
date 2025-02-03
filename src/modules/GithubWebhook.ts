@@ -24,7 +24,7 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
     private secret: string
     private port: number
     private client: Client | null = null
-    private thread: TextChannel | null = null
+    private channel: TextChannel | null = null
 
     private constructor(options: {
         port: number
@@ -48,9 +48,9 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
 
     public async init(client: Client) {
         this.client = client
-        this.thread = await client.channels.fetch('1333319963737325570') as TextChannel
-        if (!this.thread) {
-            throw new Error('Could not find webhook thread')
+        this.channel = await client.channels.fetch('1335992675459141632') as TextChannel
+        if (!this.channel) {
+            throw new Error('Could not find webhook channel')
         }
 
         // Set up event handlers for different types of webhook events
@@ -65,8 +65,8 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
                 .setTimestamp(new Date(payload.head_commit.timestamp))
 
             const chatInstance = CrimsonChat.getInstance()
-            await this.thread?.send({ embeds: [embed] })
-            await this.thread?.sendTyping()
+            await this.channel?.send({ embeds: [embed] })
+            await this.channel?.sendTyping()
             await chatInstance.sendMessage(`GitHub Webhook Event\n\`\`\`json\n${JSON.stringify({
                 type: 'push',
                 repo: payload.repository.name,

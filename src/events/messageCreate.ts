@@ -23,7 +23,7 @@ export default function onMessageCreate(client: Client) {
     client.on('messageCreate', async message => {
         if (message.author === client.user) return
 
-        const isMainChannel = message.channel.id === '1333319963737325570'
+        const isMainChannel = message.channel.id === '1335992675459141632'
         const isMentioned = message.mentions.users.has(client.user!.id)
 
         // Handle messages in main channel
