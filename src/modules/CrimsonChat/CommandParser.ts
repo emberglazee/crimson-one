@@ -1,4 +1,4 @@
-import { PermissionsBitField, ChannelType } from 'discord.js'
+import { Message, PermissionsBitField, ChannelType } from 'discord.js'
 import { Logger } from '../../util/logger'
 import { ASSISTANT_COMMANDS } from '../../util/constants'
 import CrimsonChat from '.'
@@ -7,7 +7,7 @@ const logger = new Logger('CommandParser')
 export class CommandParser {
     private crimsonChat = CrimsonChat.getInstance()
 
-    async parseCommand(text: string): Promise<string | null> {
+    async parseCommand(text: string, originalMessage?: Message): Promise<string | null> {
         if (!this.crimsonChat.client) {
             logger.error('[Command Parser] Client not set')
             throw new Error('Client not set')
@@ -29,13 +29,14 @@ export class CommandParser {
         let finalUsername = params?.trim() || ''
 
         try {
-            const guild = this.crimsonChat.client.guilds.cache.first()
+            // Get guild from original message, fallback to first available guild
+            const guild = originalMessage?.guild || this.crimsonChat.client.guilds.cache.first()
             if (!guild) {
                 logger.error('[Command Parser] No guild available')
                 return 'Error: No guild available'
             }
 
-            logger.info(`[Command Parser] Processing command ${command} with username: ${finalUsername}`)
+            logger.info(`[Command Parser] Processing command ${command} with username: ${finalUsername} in guild: ${guild.name}`)
 
             const moderationCommand = async (
                 permissionRequired: PermissionsBitField,
@@ -81,10 +82,13 @@ export class CommandParser {
                     const targetUser = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
                     if (!targetUser) return `Error: Could not find user "${finalUsername}"`
 
+                    const targetGuildMember = await guild.members.fetch(targetUser.id)
                     return JSON.stringify({
                         username: targetUser.username,
                         displayName: targetUser.displayName,
+                        serverDisplayName: targetGuildMember?.displayName,
                         createdAt: targetUser.createdAt,
+                        joinedAt: targetGuildMember?.joinedAt,
                         id: targetUser.id
                     }, null, 2)
 
@@ -133,7 +137,6 @@ export class CommandParser {
         } catch (error) {
             logger.error(`[Command Parser] Error processing command ${command}: ${error}`)
             return `Error processing command "${command}": ${error instanceof Error ? error.message : 'Unknown error'}`
-
         }
     }
 }
