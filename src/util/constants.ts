@@ -1,21 +1,22 @@
 
+export const COMMAND_PREFIX = '!'
 export const ADMIN_COMMANDS = {
-    RESET: '!reset',
-    UPDATE_PROMPT: '!updateprompt',
-    TOGGLE: '!toggle',
-    FORCE_BREAK: '!forcebreak',
-    SMACK: '!smack',
-    BAN: '!ban',
-    UNBAN: '!unban'
+    RESET: 'reset',
+    UPDATE_PROMPT: 'updateprompt',
+    TOGGLE: 'toggle',
+    FORCE_BREAK: 'forcebreak',
+    SMACK: 'smack',
+    BAN: 'ban',
+    UNBAN: 'unban'
 } as const
 export const ASSISTANT_COMMANDS = {
-    FETCH_ROLES: '!fetchRoles',
-    FETCH_BOT_ROLES: '!fetchBotRoles',
-    FETCH_USER: '!fetchUser',
-    GET_RICH_PRESENCE: '!getRichPresence',
-    GET_EMOJIS: '!getEmojis',
-    CREATE_CHANNEL: '!createChannel',
-    IGNORE: '!ignore'
+    FETCH_ROLES: 'fetchRoles',
+    FETCH_BOT_ROLES: 'fetchBotRoles',
+    FETCH_USER: 'fetchUser',
+    GET_RICH_PRESENCE: 'getRichPresence',
+    GET_EMOJIS: 'getEmojis',
+    CREATE_CHANNEL: 'createChannel',
+    IGNORE: 'ignore'
 } as const
 
 export const CRIMSON_CHAT_SYSTEM_PROMPT = `You are Crimson 1, the main antagonist of Project Wingman, and an archnemesis of Monarch, the protagonist.
@@ -26,13 +27,13 @@ ABOUT:
 - You are interacting with Discord users through a discord.js bot, made by emberglaze (short: embi).
 COMMAND USAGE:
 Available assistant commands (use these alone, no additional text):
-- ${ASSISTANT_COMMANDS.FETCH_ROLES}(username) - Get user's guild roles
-- ${ASSISTANT_COMMANDS.FETCH_BOT_ROLES}() - Get my roles and permissions
-- ${ASSISTANT_COMMANDS.FETCH_USER}(username) - Get user information
-- ${ASSISTANT_COMMANDS.GET_RICH_PRESENCE}(username) - Get user's activity status
-- ${ASSISTANT_COMMANDS.GET_EMOJIS}() - List available custom emojis
-- ${ASSISTANT_COMMANDS.CREATE_CHANNEL}(name) - Create a new text channel
-- ${ASSISTANT_COMMANDS.IGNORE}() - Skip sending a reply (use appropriately)
+- ${COMMAND_PREFIX}${ASSISTANT_COMMANDS.FETCH_ROLES}(username) - Get user's guild roles
+- ${COMMAND_PREFIX}${ASSISTANT_COMMANDS.FETCH_BOT_ROLES}() - Get my roles and permissions
+- ${COMMAND_PREFIX}${ASSISTANT_COMMANDS.FETCH_USER}(username) - Get user information
+- ${COMMAND_PREFIX}${ASSISTANT_COMMANDS.GET_RICH_PRESENCE}(username) - Get user's activity status
+- ${COMMAND_PREFIX}${ASSISTANT_COMMANDS.GET_EMOJIS}() - List available custom emojis
+- ${COMMAND_PREFIX}${ASSISTANT_COMMANDS.CREATE_CHANNEL}(name) - Create a new text channel
+- ${COMMAND_PREFIX}${ASSISTANT_COMMANDS.IGNORE}() - Skip sending a reply (use appropriately)
 Example: To check roles, send exactly: !fetchRoles(emberglaze)
 
 MESSAGE FORMAT:

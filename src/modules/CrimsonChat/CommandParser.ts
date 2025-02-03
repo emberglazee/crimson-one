@@ -1,5 +1,6 @@
 import { Client, PermissionsBitField, ChannelType } from 'discord.js'
 import { Logger } from '../../util/logger'
+import { ASSISTANT_COMMANDS } from '../../util/constants'
 const logger = new Logger('CommandParser')
 
 export class CommandParser {
@@ -58,7 +59,7 @@ export class CommandParser {
             }
 
             switch (command) {
-                case 'fetchRoles':
+                case ASSISTANT_COMMANDS.FETCH_ROLES:
                     if (!finalUsername) return 'Error: Username required'
                     const user = this.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
                     if (!user) return `Error: Could not find user "${finalUsername}"`
@@ -67,7 +68,7 @@ export class CommandParser {
                     const roles = guildMember?.roles.cache.map(r => r.name) || []
                     return JSON.stringify({ roles }, null, 2)
 
-                case 'fetchBotRoles':
+                case ASSISTANT_COMMANDS.FETCH_BOT_ROLES:
                     logger.info('[Command Parser] Fetching bot roles')
                     const botMember = await guild.members.fetchMe()
                     const permissions = new PermissionsBitField(botMember.permissions).toArray()
@@ -78,7 +79,7 @@ export class CommandParser {
                     logger.info(`[Command Parser] Bot roles result: ${result}`)
                     return result
 
-                case 'fetchUser':
+                case ASSISTANT_COMMANDS.FETCH_USER:
                     if (!finalUsername) return 'Error: Username required'
                     const targetUser = this.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
                     if (!targetUser) return `Error: Could not find user "${finalUsername}"`
@@ -90,7 +91,7 @@ export class CommandParser {
                         id: targetUser.id
                     }, null, 2)
 
-                case 'getRichPresence':
+                case ASSISTANT_COMMANDS.GET_RICH_PRESENCE:
                     if (!finalUsername) return 'Error: Username required'
                     const presenceUser = this.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
                     if (!presenceUser) return `Error: Could not find user "${finalUsername}"`
@@ -105,15 +106,15 @@ export class CommandParser {
                         createdAt: a.createdAt
                     })), null, 2)
 
-                case 'getEmojis':
+                case ASSISTANT_COMMANDS.GET_EMOJIS:
                     const emojis = Array.from(this.client.emojis.cache.values())
                         .map(e => ({ name: e.name, id: e.id }))
                     return JSON.stringify({ emojis }, null, 2)
 
-                case 'createChannel':
+                case ASSISTANT_COMMANDS.CREATE_CHANNEL:
                     if (!params) return 'Error: Channel name required'
                     const channelName = params.trim()
-                    
+
                     return await moderationCommand(
                         new PermissionsBitField(PermissionsBitField.Flags.ManageChannels),
                         async () => {
@@ -125,7 +126,7 @@ export class CommandParser {
                         `Successfully created text channel #${channelName}`
                     )
 
-                case 'ignore':
+                case ASSISTANT_COMMANDS.IGNORE:
                     return null
 
                 default:
