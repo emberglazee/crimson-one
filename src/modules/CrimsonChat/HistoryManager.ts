@@ -53,12 +53,21 @@ export class HistoryManager {
     }
 
     async appendMessage(role: 'system' | 'assistant' | 'user', content: string): Promise<void> {
+        // Ensure system prompt exists at start of history
+        if (this.history.length === 0 || this.history[0].role !== 'system') {
+            this.history.unshift({
+                role: 'system',
+                content: CRIMSON_CHAT_SYSTEM_PROMPT
+            })
+        }
+
         this.history.push({ role, content })
         await this.saveHistory()
         logger.info(`Appended ${role} message to history`)
     }
 
     async clearHistory(): Promise<void> {
+        // Always keep system prompt when clearing
         this.history = [{
             role: 'system',
             content: CRIMSON_CHAT_SYSTEM_PROMPT
@@ -71,7 +80,9 @@ export class HistoryManager {
         const originalLength = this.history.length
         let historyTokens = this.history.reduce((acc, curr) => acc + (typeof curr.content === 'string' ? curr.content.split(' ').length : 0), 0)
 
+        // Never remove system prompt during trimming
         while (historyTokens > 128000 && this.history.length > 2) {
+            // Start removing from index 1 to preserve system prompt
             this.history.splice(1, 1)
             historyTokens = this.history.reduce((acc, curr) => acc + (typeof curr.content === 'string' ? curr.content.split(' ').length : 0), 0)
         }
@@ -83,6 +94,13 @@ export class HistoryManager {
     }
 
     prepareHistory(): ChatMessage[] {
+        // Ensure system prompt exists before preparing history
+        if (this.history.length === 0 || this.history[0].role !== 'system') {
+            this.history.unshift({
+                role: 'system',
+                content: CRIMSON_CHAT_SYSTEM_PROMPT
+            })
+        }
         return this.history.map(({ role, content }) => ({ role, content: content || '' }))
     }
 
