@@ -15,7 +15,7 @@ export class CommandParser {
 
         logger.info(`[Command Parser] Processing command text: ${text}`)
 
-        const commandRegex = /!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|getEmojis|createChannel)(?:\(([^)]*)\))?/
+        const commandRegex = /^!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|getEmojis|createChannel)(?:\(([^)]*)\))?$/
         const match = commandRegex.exec(text)
 
         if (!match) {
