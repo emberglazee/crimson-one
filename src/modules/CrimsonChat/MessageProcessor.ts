@@ -51,7 +51,9 @@ export class MessageProcessor {
                     targetUsername: options.respondingTo.targetUsername,
                     targetText: options.respondingTo.targetText
                 } : undefined,
-                userStatus: await this.getUserPresenceAndRoles(options.username)
+                userStatus: await this.getUserPresenceAndRoles(options.username),
+                guildName: options.guildName,
+                channelName: options.channelName,
             }
 
             // Convert message to string for history
