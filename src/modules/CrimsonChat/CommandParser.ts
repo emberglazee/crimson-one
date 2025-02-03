@@ -12,10 +12,7 @@ export class CommandParser {
     async parseCommand(text: string): Promise<string | null> {
         if (!this.client) throw new Error('Client not set')
 
-        // Check if text is a command or contains one
-        if (!text.includes('!')) return null
-
-        const commandRegex = /!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]+)\))?/
+        const commandRegex = /!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]*)\))?/
         const match = commandRegex.exec(text)
         if (!match) return null
 
@@ -31,7 +28,7 @@ export class CommandParser {
                     if (!finalUsername) return 'Error: Username required'
                     const user = this.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
                     if (!user) return `Error: Could not find user "${finalUsername}"`
-                    
+
                     const guildMember = await guild.members.fetch(user.id)
                     const roles = guildMember?.roles.cache.map(r => r.name) || []
                     return JSON.stringify({ roles }, null, 2)
@@ -48,7 +45,7 @@ export class CommandParser {
                     if (!finalUsername) return 'Error: Username required'
                     const targetUser = this.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
                     if (!targetUser) return `Error: Could not find user "${finalUsername}"`
-                    
+
                     return JSON.stringify({
                         username: targetUser.username,
                         displayName: targetUser.displayName,
@@ -60,7 +57,7 @@ export class CommandParser {
                     if (!finalUsername) return 'Error: Username required'
                     const presenceUser = this.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
                     if (!presenceUser) return `Error: Could not find user "${finalUsername}"`
-                    
+
                     const member = await guild.members.fetch(presenceUser.id)
                     const activities = member.presence?.activities || []
                     return JSON.stringify(activities.map(a => ({
