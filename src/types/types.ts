@@ -1,6 +1,7 @@
 import {
     Guild, BaseInteraction, GuildChannel, Message, GuildMember, CommandInteraction,
-    ChatInputCommandInteraction, type APIInteractionDataResolvedChannel, Client, User
+    ChatInputCommandInteraction, type APIInteractionDataResolvedChannel, Client, User,
+    TextChannel
 } from 'discord.js'
 import type { ChatCompletionContentPart, ChatCompletionMessage } from 'openai/resources/index.mjs'
 import type { ChatCompletionMessageParam } from 'openai/src/resources/index.js'
@@ -52,6 +53,7 @@ export interface UserMessageOptions {
         displayName: string
         serverDisplayName: string
     }>
+    targetChannel?: TextChannel
 }
 
 export interface UserStatus {

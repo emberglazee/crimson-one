@@ -187,7 +187,8 @@ export default function onMessageCreate(client: Client) {
                 serverDisplayName: message.member?.displayName ?? message.author.displayName,
                 respondingTo,
                 imageAttachments: Array.from(imageAttachments),
-                contextMessages
+                contextMessages,
+                targetChannel: message.channel as TextChannel
             }, message)
         }
     })
