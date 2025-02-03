@@ -10,18 +10,34 @@ export class CommandParser {
     }
 
     async parseCommand(text: string): Promise<string | null> {
-        if (!this.client) throw new Error('Client not set')
+        if (!this.client) {
+            logger.error('[Command Parser] Client not set')
+            throw new Error('Client not set')
+        }
+
+        logger.info(`[Command Parser] Processing command text: ${text}`)
 
         const commandRegex = /!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]*)\))?/
         const match = commandRegex.exec(text)
-        if (!match) return null
+        
+        if (!match) {
+            logger.info('[Command Parser] No command pattern found')
+            return null
+        }
 
         const [fullMatch, command, params] = match
+        logger.info(`[Command Parser] Matched command: ${command}, params: ${params}`)
+        
         let finalUsername = params?.trim() || ''
 
         try {
             const guild = this.client.guilds.cache.first()
-            if (!guild) return 'Error: No guild available'
+            if (!guild) {
+                logger.error('[Command Parser] No guild available')
+                return 'Error: No guild available'
+            }
+
+            logger.info(`[Command Parser] Processing command ${command} with username: ${finalUsername}`)
 
             switch (command) {
                 case 'fetchRoles':
@@ -34,12 +50,15 @@ export class CommandParser {
                     return JSON.stringify({ roles }, null, 2)
 
                 case 'fetchBotRoles':
+                    logger.info('[Command Parser] Fetching bot roles')
                     const botMember = await guild.members.fetchMe()
                     const permissions = new PermissionsBitField(botMember.permissions).toArray()
-                    return JSON.stringify({
+                    const result = JSON.stringify({
                         roles: botMember.roles.cache.map(r => r.name),
                         permissions
                     }, null, 2)
+                    logger.info(`[Command Parser] Bot roles result: ${result}`)
+                    return result
 
                 case 'fetchUser':
                     if (!finalUsername) return 'Error: Username required'
@@ -77,10 +96,11 @@ export class CommandParser {
                     return null
 
                 default:
+                    logger.warn(`[Command Parser] Unknown command: ${command}`)
                     return `Error: Unknown command "${command}"`
             }
         } catch (error) {
-            logger.error(`Error processing command ${command}: ${error}`)
+            logger.error(`[Command Parser] Error processing command ${command}: ${error}`)
             return `Error processing command "${command}": ${error instanceof Error ? error.message : 'Unknown error'}`
         }
     }

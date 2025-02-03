@@ -127,20 +127,35 @@ export class MessageProcessor {
     }
 
     private async checkForCommands(content: string): Promise<string | null> {
+        logger.info(`[Command Check] Checking content for commands: ${content}`)
+        
         // Check if the content contains any command pattern
         const commandRegex = /!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]*)\))?/
         const match = commandRegex.exec(content)
-        if (!match) return null
+        
+        if (!match) {
+            logger.info(`[Command Check] No command pattern found in content`)
+            return null
+        }
 
         const [fullMatch] = match
+        logger.info(`[Command Check] Found command pattern: ${fullMatch}`)
+        
         const commandResult = await this.commandParser.parseCommand(fullMatch)
-        if (commandResult === null) return null
+        logger.info(`[Command Check] Command parser returned: ${commandResult}`)
+        
+        if (commandResult === null) {
+            logger.info(`[Command Check] Command parser returned null, skipping command processing`)
+            return null
+        }
 
         // Format command result for better readability
         try {
             const parsedResult = JSON.parse(commandResult)
+            logger.info(`[Command Check] Successfully parsed JSON result`)
             return `\`\`\`json\n${JSON.stringify(parsedResult, null, 2)}\n\`\`\``
-        } catch {
+        } catch (error) {
+            logger.warn(`[Command Check] Failed to parse JSON result, returning raw: ${error}`)
             return commandResult
         }
     }
