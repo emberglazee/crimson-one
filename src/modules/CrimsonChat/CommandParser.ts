@@ -15,7 +15,7 @@ export class CommandParser {
 
         logger.info(`[Command Parser] Processing command text: ${text}`)
 
-        const commandRegex = /!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis|createChannel)(?:\(([^)]*)\))?/
+        const commandRegex = /!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|getEmojis|createChannel)(?:\(([^)]*)\))?/
         const match = commandRegex.exec(text)
 
         if (!match) {
@@ -126,9 +126,6 @@ export class CommandParser {
                         },
                         `Successfully created text channel #${channelName}`
                     )
-
-                case ASSISTANT_COMMANDS.IGNORE:
-                    return null
 
                 default:
                     logger.warn(`[Command Parser] Unknown command: ${command}`)

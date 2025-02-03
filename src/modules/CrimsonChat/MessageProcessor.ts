@@ -188,7 +188,7 @@ export class MessageProcessor {
     private async checkForCommands(content: string, originalMessage?: Message): Promise<string | null> {
         logger.info(`[Command Check] Checking content for commands: ${content}`)
 
-        const commandRegex = /^!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]*)\))?$/
+        const commandRegex = /^!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|getEmojis)(?:\(([^)]*)\))?$/
         const match = commandRegex.exec(content.trim())
 
         if (!match) {
