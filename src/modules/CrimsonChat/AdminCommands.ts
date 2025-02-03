@@ -1,25 +1,21 @@
-import { Message, Client } from 'discord.js'
+import { Message } from 'discord.js'
+import { COMMAND_PREFIX, ADMIN_COMMANDS, CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
+import CrimsonChat from '../CrimsonChat'
 import { Logger } from '../../util/logger'
-import { ADMIN_COMMANDS, CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
-import CrimsonChat from './index'
 
 const logger = new Logger('AdminCommands')
 const ADMIN_USER_ID = '341123308844220447'
 
 export class AdminCommandHandler {
-    private crimsonChat: CrimsonChat
-    private client: Client
-
-    constructor(crimsonChat: CrimsonChat, client: Client) {
-        this.crimsonChat = crimsonChat
-        this.client = client
+    crimsonChat: CrimsonChat
+    constructor() {
+        this.crimsonChat = CrimsonChat.getInstance()
     }
 
     public async handleCommand(message: Message): Promise<boolean> {
         if (message.author.id !== ADMIN_USER_ID) return false
 
-        const command = message.content.split(' ')[0]
-
+        const command = message.content.slice(COMMAND_PREFIX.length)
         try {
             switch (command) {
                 case ADMIN_COMMANDS.RESET:
@@ -71,7 +67,7 @@ export class AdminCommandHandler {
                     }
 
                     await message.react('✅')
-                    const user = await this.client.users.fetch(userId)
+                    const user = await this.crimsonChat.client!.users.fetch(userId)
                     await this.crimsonChat.sendMessage(
                         `User ${user.username} has been ${command === ADMIN_COMMANDS.BAN ? 'banned' : 'unbanned'}, you are now ${command === ADMIN_COMMANDS.BAN ? 'not ' : ''}able to see their messages.`,
                         { username: 'System', displayName: 'System', serverDisplayName: 'System' }

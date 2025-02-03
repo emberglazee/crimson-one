@@ -7,8 +7,16 @@ import type { ChatMessage } from '../../types/types'
 const logger = new Logger('HistoryManager')
 
 export class HistoryManager {
+    private static instance: HistoryManager
     private historyPath = path.join(process.cwd(), 'data/chat_history.json')
     private history: ChatMessage[] = []
+
+    public static getInstance(): HistoryManager {
+        if (!HistoryManager.instance) {
+            HistoryManager.instance = new HistoryManager()
+        }
+        return HistoryManager.instance
+    }
 
     async init(): Promise<void> {
         await this.loadHistory()

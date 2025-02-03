@@ -1,10 +1,9 @@
 import { Client, Message, TextChannel } from 'discord.js'
 import CrimsonChat from '../modules/CrimsonChat'
 import { normalizeUrl } from '../modules/CrimsonChat/utils/urlUtils'
-import { CRIMSON_CHAT_SYSTEM_PROMPT } from '../util/constants'
 import { AdminCommandHandler } from '../modules/CrimsonChat/AdminCommands'
 
-async function getLastMessages(channel: Message['channel'], limit: number = 15) {
+async function getLastMessages(channel: Message['channel'], limit = 15) {
     const messages = await channel.messages.fetch({ limit: limit + 1 }) // +1 to include current message
     return Array.from(messages.values())
         .reverse()
@@ -20,7 +19,7 @@ async function getLastMessages(channel: Message['channel'], limit: number = 15) 
 export default function onMessageCreate(client: Client) {
     const crimsonChat = CrimsonChat.getInstance()
     crimsonChat.setClient(client)
-    const adminCommands = new AdminCommandHandler(crimsonChat, client)
+    const adminCommands = new AdminCommandHandler()
 
     client.on('messageCreate', async message => {
         if (message.author === client.user) return
