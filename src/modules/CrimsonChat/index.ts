@@ -79,12 +79,12 @@ export default class CrimsonChat {
 
         // Initial typing indicator
         await targetChannel.sendTyping()
-        let response = ''
+        let response: string | null | undefined = ''
 
         try {
             response = await this.getMessageProcessor().processMessage(content, options, originalMessage)
-            if (response === null) {
-                logger.info('Received null response from message processor, ignoring')
+            if (!response) {
+                logger.info('Received null/undefined response from message processor, ignoring')
                 return null
             }
             await this.sendResponseToDiscord(response, null, originalMessage)

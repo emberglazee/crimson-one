@@ -34,12 +34,44 @@ export class MessageProcessor {
     })
     readonly BREAKDOWN_CHANCE = 0.01
 
-    async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string> {
+    async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string | null | undefined> {
         // Check for random breakdown before normal processing
         const breakdown = await this.handleRandomBreakdown()
         if (breakdown) return breakdown
 
         try {
+            // Check for any assistant commands within the response before normal processing
+            const commandRegex = getAssistantCommandRegex()
+            const possibleCommand = content.split('\n').find(line => commandRegex.test(line.trim()))
+
+            if (possibleCommand) {
+                logger.info(`[Command Check] Found potential command within response: ${possibleCommand}`)
+
+                // Save the command to history
+                await this.historyManager.appendMessage('assistant', possibleCommand)
+
+                // Execute the command
+                if (!originalMessage) {
+                    return 'Error: No original message available for command execution.'
+                }
+
+                const commandResult = await this.checkForCommands(possibleCommand, originalMessage)
+                if (commandResult) {
+                    // Feed command result back as a System message
+                    const systemFeedback = `!${possibleCommand.split('!')[1].trim()} -> ${commandResult}`
+
+                    return await this.processMessage(
+                        systemFeedback,
+                        {
+                            username: 'System',
+                            displayName: 'System',
+                            serverDisplayName: 'System'
+                        },
+                        originalMessage
+                    )
+                }
+            }
+
             // Format message in the specified JSON structure
             const messageData = {
                 username: options.username,
