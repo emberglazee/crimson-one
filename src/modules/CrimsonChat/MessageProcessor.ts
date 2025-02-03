@@ -43,42 +43,20 @@ export class MessageProcessor {
             options.respondingTo
         )
 
-        // Always save user's message first
+        // Save user's message to history
         await this.historyManager.appendMessage('user', formattedMessage)
 
-        // Check for commands in user message
-        const commandResult = await this.checkForCommands(content)
-        if (commandResult) {
-            // Feed command result back into processing
-            logger.info('[Command Check] Feeding command result back into processing')
-            const aiResponse = await this.generateAIResponse([
-                { role: 'user', content: formattedMessage },
-                { role: 'assistant', content: content }, // The command itself
-                { role: 'system', content: `Command result: ${commandResult}` } // Feed result as system message
-            ])
-            await this.historyManager.appendMessage('assistant', content)
-            await this.historyManager.appendMessage('assistant', commandResult)
-            await this.historyManager.appendMessage('assistant', aiResponse)
-            return aiResponse
-        }
-
-        // Check for breakdown first
-        const breakdown = await this.handleRandomBreakdown()
-        if (breakdown) {
-            return breakdown
-        }
+        // Get AI's response
+        const history = this.historyManager.prepareHistory().map(msg => ({
+            role: msg.role,
+            content: msg.content || '',
+        })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[]
 
         // Extract image URLs from message content and combine with image attachments
         const imageUrls = new Set<string>()
         if (options.imageAttachments?.length) {
             options.imageAttachments.forEach(url => imageUrls.add(url))
         }
-
-        // Get conversation history and properly map it for OpenAI API
-        const history = this.historyManager.prepareHistory().map(msg => ({
-            role: msg.role,
-            content: msg.content || '',
-        })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[]
 
         // Add context messages to history if provided
         if (options.contextMessages?.length) {
@@ -118,16 +96,29 @@ export class MessageProcessor {
         const responseContent = response.choices[0].message?.content || 'Error processing message'
 
         // Check if AI's response is a command
-        const aiCommandResult = await this.checkForCommands(responseContent)
-        if (aiCommandResult) {
-            logger.info('[Command Check] AI response contained a command, executing it')
-            // Save both the command and its result to history
+        if (responseContent.trim().startsWith('!')) {
+            logger.info('[Command Check] AI response is a command, executing internally')
+            
+            // Save the command to history but don't send it to Discord
             await this.historyManager.appendMessage('assistant', responseContent)
-            await this.historyManager.appendMessage('assistant', aiCommandResult)
-            return aiCommandResult
+
+            const commandResult = await this.checkForCommands(responseContent)
+            if (commandResult) {
+                // Feed command result back to CrimsonChat as a System message
+                const systemFeedback = `!${responseContent.split('!')[1].trim()} -> ${commandResult}`
+                
+                return await this.processMessage(
+                    systemFeedback,
+                    {
+                        username: 'System',
+                        displayName: 'System',
+                        serverDisplayName: 'System'
+                    }
+                )
+            }
         }
 
-        // Save the normal response to history
+        // For non-command responses, save and return as normal
         await this.historyManager.appendMessage('assistant', responseContent)
         return responseContent
     }
@@ -160,7 +151,6 @@ export class MessageProcessor {
     private async checkForCommands(content: string): Promise<string | null> {
         logger.info(`[Command Check] Checking content for commands: ${content}`)
 
-        // Check if the content contains any command pattern
         const commandRegex = /^!(fetchRoles|fetchBotRoles|fetchUser|getRichPresence|ignore|getEmojis)(?:\(([^)]*)\))?$/
         const match = commandRegex.exec(content.trim())
 
@@ -171,24 +161,15 @@ export class MessageProcessor {
 
         const [fullMatch] = match
         logger.info(`[Command Check] Found command pattern: ${fullMatch}`)
-
+        
         const commandResult = await this.commandParser.parseCommand(fullMatch)
-        logger.info(`[Command Check] Command parser returned: ${commandResult}`)
-
-        if (commandResult === null) {
-            logger.info(`[Command Check] Command parser returned null, skipping command processing`)
+        if (!commandResult) {
+            logger.info(`[Command Check] Command parser returned null`)
             return null
         }
 
-        // Format command result for better readability
-        try {
-            const parsedResult = JSON.parse(commandResult)
-            logger.info(`[Command Check] Successfully parsed JSON result`)
-            return `\`\`\`json\n${JSON.stringify(parsedResult, null, 2)}\n\`\`\``
-        } catch (error) {
-            logger.warn(`[Command Check] Failed to parse JSON result, returning raw: ${error}`)
-            return commandResult
-        }
+        logger.info(`[Command Check] Command executed successfully`)
+        return commandResult
     }
 
     private async parseMessagesForChatCompletion(content: string, attachments: string[] = []): Promise<ChatMessage> {
