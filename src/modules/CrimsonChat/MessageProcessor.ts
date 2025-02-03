@@ -55,16 +55,40 @@ export class MessageProcessor {
             options.respondingTo
         )
 
-        const messageForCompletion = await this.parseMessagesForChatCompletion(
-            formattedMessage, 
-            Array.from(imageUrls)
-        )
-
         // Get conversation history and properly map it for OpenAI API
         const history = this.historyManager.prepareHistory().map(msg => ({
             role: msg.role,
             content: msg.content || '',
         })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[]
+
+        // Add context messages to history if provided
+        if (options.contextMessages?.length) {
+            const contextMessages = options.contextMessages.map(msg => ({
+                role: 'user' as const,
+                content: `${msg.username}: ${msg.content}`
+            }))
+            
+            // Add a system message to indicate context start
+            history.push({
+                role: 'system',
+                content: '[ Previous conversation context from this channel: ]'
+            })
+            
+            // Add context messages
+            history.push(...contextMessages)
+            
+            // Add a system message to indicate context end
+            history.push({
+                role: 'system',
+                content: '[ End of context. Current message: ]'
+            })
+        }
+
+        const messageForCompletion = await this.parseMessagesForChatCompletion(
+            formattedMessage, 
+            Array.from(imageUrls)
+        )
+
         history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
 
         let response = await this.openai.chat.completions.create({
