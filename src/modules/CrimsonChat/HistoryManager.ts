@@ -18,6 +18,10 @@ export class HistoryManager {
         return HistoryManager.instance
     }
 
+    public static forceClearInstance(): void {
+        HistoryManager.instance = undefined as any;
+    }
+
     async init(): Promise<void> {
         await this.loadHistory()
     }
@@ -67,13 +71,22 @@ export class HistoryManager {
     }
 
     async clearHistory(): Promise<void> {
-        // Always keep system prompt when clearing
+        // Clear the singleton instance first
+        HistoryManager.forceClearInstance();
+        
+        // Reset history array
         this.history = [{
             role: 'system',
             content: CRIMSON_CHAT_SYSTEM_PROMPT
         }]
+        
+        // Save empty history to file
         await this.saveHistory()
-        logger.info('Chat history cleared')
+        
+        // Reload history to ensure clean state
+        await this.loadHistory()
+        
+        logger.info('Chat history cleared and instance reset')
     }
 
     async trimHistory(): Promise<void> {

@@ -213,6 +213,9 @@ export default class CrimsonChat {
 
     public async clearHistory(): Promise<void> {
         await this.historyManager.clearHistory()
+        // Reinitialize the history manager
+        this.historyManager = HistoryManager.getInstance()
+        await this.historyManager.init()
     }
 
     public async trackCommandUsage(interaction: ChatInputCommandInteraction) {
