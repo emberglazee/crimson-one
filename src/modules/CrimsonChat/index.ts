@@ -11,8 +11,8 @@ const logger = new Logger('CrimsonChat')
 
 export default class CrimsonChat {
     private static instance: CrimsonChat
-    private historyManager = HistoryManager.getInstance()
-    private messageProcessor = MessageProcessor.getInstance()
+    private historyManager = new HistoryManager()
+    private messageProcessor = new MessageProcessor()
     private channel: TextChannel | null = null
     private channelId = '1335992675459141632'
     private enabled: boolean = true
