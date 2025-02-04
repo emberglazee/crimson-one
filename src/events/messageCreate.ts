@@ -147,5 +147,8 @@ export default function onMessageCreate(client: Client) {
                 channelName: message.channel instanceof TextChannel ? message.channel.name : undefined
             }, message)
         }
+        if ((isMainChannel || isTestingServer || isMentioned) && message.content.toLowerCase() === 'activation word: ronald mcdonald') {
+            await message.reply('https://cdn.discordapp.com/attachments/1125900471924699178/1303877939049402409/cachedVideo.mov?ex=67a2aff5&is=67a15e75&hm=437bf3939f3eee36a52a0fbf74c379fd25bd9a64db6c4763195266000c9cc8b2&')
+        }
     })
 }
