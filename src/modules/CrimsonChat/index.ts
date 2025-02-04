@@ -17,8 +17,12 @@ export default class CrimsonChat {
     private isProcessing: boolean = false
     private bannedUsers: Set<string> = new Set()
     messageProcessor: MessageProcessor | null = null
-    historyManager = new HistoryManager()
+    historyManager: HistoryManager
     client: Client | null = null
+
+    private constructor() {
+        this.historyManager = HistoryManager.getInstance()
+    }
 
     public static getInstance(): CrimsonChat {
         if (!CrimsonChat.instance) {
@@ -144,15 +148,24 @@ export default class CrimsonChat {
     public async handleStartup(): Promise<void> {
         if (!this.channel) return
 
-        const bootMessage = await this.channel.messages.fetch({ limit: 1 })
-        const lastMessage = bootMessage.first()
+        try {
+            const bootMessage = await this.channel.messages.fetch({ limit: 1 })
+            const lastMessage = bootMessage.first()
+            const historyMessages = this.historyManager.prepareHistory()
+            const lastHistoryMessage = historyMessages[historyMessages.length - 1]
 
-        if (lastMessage?.content.includes('Crimson is shutting down...')) {
-            await this.sendMessage('I am back online after a restart.', {
-                username: 'System',
-                displayName: 'System',
-                serverDisplayName: 'System'
-            })
+            // Only send back online message if last Discord message was shutdown message
+            // and it's not already in our history
+            if (lastMessage?.content.includes('Crimson is shutting down...') && 
+                (!lastHistoryMessage || (typeof lastHistoryMessage.content === 'string' && !lastHistoryMessage.content.includes('I am back online after a restart')))) {
+                await this.sendMessage('I am back online after a restart.', {
+                    username: 'System',
+                    displayName: 'System',
+                    serverDisplayName: 'System'
+                })
+            }
+        } catch (error) {
+            logger.error(`Error in handleStartup: ${error}`)
         }
     }
 
