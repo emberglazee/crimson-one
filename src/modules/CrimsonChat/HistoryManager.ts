@@ -26,11 +26,18 @@ export class HistoryManager {
         await this.loadHistory()
     }
 
+    public get tokenCount(): number {
+        return this.history.reduce((acc, curr) => acc + (typeof curr.content === 'string' ? curr.content.split(' ').length : 0), 0)
+    }
+    public get messageCount(): number {
+        return this.history.length
+    }
+
     async loadHistory(): Promise<void> {
         try {
             const data = await fs.readFile(this.historyPath, 'utf-8')
             const savedHistory = JSON.parse(data)
-            
+
             // Initialize with system prompt only if saved history doesn't start with one
             if (!savedHistory.length || savedHistory[0].role !== 'system') {
                 this.history = [{
@@ -42,7 +49,7 @@ export class HistoryManager {
                 // Use saved history as-is if it already has system prompt
                 this.history = savedHistory
             }
-            
+
             logger.info(`Chat history loaded successfully with ${this.history.length} messages`)
         } catch (error) {
             this.history = [{
@@ -99,13 +106,13 @@ export class HistoryManager {
 
     async trimHistory(): Promise<void> {
         const originalLength = this.history.length
-        let historyTokens = this.history.reduce((acc, curr) => acc + (typeof curr.content === 'string' ? curr.content.split(' ').length : 0), 0)
+        let historyTokens = this.tokenCount
 
         // Never remove system prompt during trimming
         while (historyTokens > 128000 && this.history.length > 2) {
             // Start removing from index 1 to preserve system prompt
             this.history.splice(1, 1)
-            historyTokens = this.history.reduce((acc, curr) => acc + (typeof curr.content === 'string' ? curr.content.split(' ').length : 0), 0)
+            historyTokens = this.tokenCount
         }
 
         if (originalLength !== this.history.length) {
