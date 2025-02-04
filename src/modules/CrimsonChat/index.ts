@@ -11,13 +11,13 @@ const logger = new Logger('CrimsonChat')
 
 export default class CrimsonChat {
     private static instance: CrimsonChat
-    private historyManager = new HistoryManager()
-    private messageProcessor: MessageProcessor | null = null
     private channel: TextChannel | null = null
     private channelId = '1335992675459141632'
     private enabled: boolean = true
     private isProcessing: boolean = false
     private bannedUsers: Set<string> = new Set()
+    messageProcessor: MessageProcessor | null = null
+    historyManager = new HistoryManager()
     client: Client | null = null
 
     public static getInstance(): CrimsonChat {
