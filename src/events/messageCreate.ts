@@ -18,9 +18,10 @@ async function getLastMessages(channel: Message['channel'], limit = 15) {
         }))
 }
 
-export default function onMessageCreate(client: Client) {
+export default async function onMessageCreate(client: Client) {
     const crimsonChat = CrimsonChat.getInstance()
     crimsonChat.setClient(client)
+    await crimsonChat.init() // Ensure CrimsonChat is properly initialized with history
     const adminCommands = new AdminCommandHandler()
 
     client.on('messageCreate', async message => {
