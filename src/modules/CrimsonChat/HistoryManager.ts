@@ -3,6 +3,7 @@ import path from 'path'
 import { Logger } from '../../util/logger'
 import { CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
 import type { ChatMessage } from '../../types/types'
+import { encoding_for_model } from 'tiktoken'
 
 const logger = new Logger('HistoryManager')
 
@@ -27,7 +28,13 @@ export class HistoryManager {
     }
 
     public get tokenCount(): number {
-        return this.history.reduce((acc, curr) => acc + (typeof curr.content === 'string' ? curr.content.split(' ').length : 0), 0)
+        const enc = encoding_for_model('gpt-4o-mini')
+        const totalTokens = this.history.reduce((acc, curr) => {
+            const tokens = enc.encode(typeof curr.content === 'string' ? curr.content : '')
+            return acc + tokens.length
+        }, 0)
+        enc.free()
+        return totalTokens
     }
     public get messageCount(): number {
         return this.history.length
