@@ -2,7 +2,8 @@ import { Message, PermissionsBitField, ChannelType } from 'discord.js'
 import { Logger } from '../../util/logger'
 import { ASSISTANT_COMMANDS, getAssistantCommandRegex } from '../../util/constants'
 import CrimsonChat from '.'
-const logger = new Logger('CommandParser')
+
+const logger = new Logger('CrimsonChat | CommandParser')
 
 export class CommandParser {
     private crimsonChat = CrimsonChat.getInstance()

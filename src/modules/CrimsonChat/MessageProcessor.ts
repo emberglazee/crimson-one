@@ -8,7 +8,7 @@ import type { ChatMessage, UserMessageOptions, UserStatus } from '../../types/ty
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
 
-const logger = new Logger('MessageProcessor')
+const logger = new Logger('CrimsonChat | MessageProcessor')
 
 export class MessageProcessor {
     private static instance: MessageProcessor

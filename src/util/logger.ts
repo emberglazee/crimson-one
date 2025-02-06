@@ -3,6 +3,10 @@ import chalk from 'chalk'
 import fs from 'fs'
 import path from 'path'
 import url from 'url'
+
+// Force colors to be enabled
+chalk.level = 2
+
 const esmodules = !!import.meta.url
 
 export class Logger extends EventEmitter<{

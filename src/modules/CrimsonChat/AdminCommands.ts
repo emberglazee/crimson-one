@@ -3,7 +3,7 @@ import { COMMAND_PREFIX, ADMIN_COMMANDS, CRIMSON_CHAT_SYSTEM_PROMPT } from '../.
 import CrimsonChat from '../CrimsonChat'
 import { Logger } from '../../util/logger'
 
-const logger = new Logger('AdminCommands')
+const logger = new Logger('CrimsonChat | AdminCommands')
 const ADMIN_USER_ID = '341123308844220447'
 
 export class AdminCommandHandler {

@@ -2,7 +2,7 @@ import { Client } from 'discord.js'
 import { Logger } from '../../../util/logger'
 import type { UserStatus } from '../../../types/types'
 
-const logger = new Logger('Formatters')
+const logger = new Logger('CrimsonChat | Formatters')
 
 export async function formatUserMessage(
     username: string,
