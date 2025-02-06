@@ -40,7 +40,7 @@ export class ImageProcessor {
         const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gif-frame-'))
         const outputPath = path.join(tmpDir, 'frame.png')
         const gifPath = path.join(tmpDir, 'temp.gif')
-    
+
         try {
             const buffer = await this.fetchImageBuffer(url)
             await fs.writeFile(gifPath, buffer)
