@@ -36,7 +36,7 @@ export class MessageProcessor {
 
     async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string | null | undefined> {
         // Check for random breakdown before normal processing
-        const breakdown = await this.handleRandomBreakdown()
+        const breakdown = await this.handleRandomBreakdown(content, options)
         if (breakdown) return breakdown
 
         try {
@@ -197,14 +197,33 @@ export class MessageProcessor {
         return response.choices[0].message?.content || 'Error processing message'
     }
 
-    private async handleRandomBreakdown(): Promise<string | null> {
+    private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<string | null> {
         if (this.forceNextBreakdown || Math.random() < this.BREAKDOWN_CHANCE) {
             logger.info(`Triggering ${this.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
-            return await this.generateAIResponse([{
+
+            // Save the user's message that triggered the breakdown
+            const messageData = {
+                username: options.username,
+                displayName: options.displayName,
+                serverDisplayName: options.serverDisplayName,
+                currentTime: new Date().toISOString(),
+                text: userContent,
+                respondingTo: options.respondingTo,
+                userStatus: await this.getUserPresenceAndRoles(options.username),
+                guildName: options.guildName,
+                channelName: options.channelName,
+            }
+            await this.historyManager.appendMessage('user', JSON.stringify(messageData))
+
+            // Generate and save the breakdown response
+            const breakdown = await this.generateAIResponse([{
                 role: 'system',
                 content: CRIMSON_BREAKDOWN_PROMPT
             }])
+            await this.historyManager.appendMessage('assistant', breakdown)
+
+            return breakdown
         }
         return null
     }
