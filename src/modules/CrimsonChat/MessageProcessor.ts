@@ -119,16 +119,16 @@ export class MessageProcessor {
                         userStatus: 'unknown'
                     })
                 }))
-                
+
                 // Add a system message to indicate context start
                 history.push({
                     role: 'system',
                     content: '[ Previous conversation context from this channel: ]'
                 })
-                
+
                 // Add context messages
                 history.push(...contextMessages)
-                
+
                 // Add a system message to indicate context end
                 history.push({
                     role: 'system',
@@ -143,12 +143,7 @@ export class MessageProcessor {
 
             history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
 
-            let response = await this.openai.chat.completions.create({
-                messages: history,
-                model: 'gpt-4o-mini'
-            })
-
-            const responseContent = response.choices[0].message?.content || 'Error processing message'
+            const responseContent = await this.generateAIResponse(history)
 
             // Check if AI's response is a command
             if (responseContent.trim().startsWith('!')) {
@@ -194,9 +189,9 @@ export class MessageProcessor {
         }
     }
 
-    private async generateAIResponse(messages: Array<{ role: 'system' | 'user' | 'assistant', content: string }>): Promise<string> {
+    private async generateAIResponse(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]): Promise<string> {
         const response = await this.openai.chat.completions.create({
-            messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+            messages,
             model: 'gpt-4o-mini'
         })
         return response.choices[0].message?.content || 'Error processing message'
@@ -206,15 +201,10 @@ export class MessageProcessor {
         if (this.forceNextBreakdown || Math.random() < this.BREAKDOWN_CHANCE) {
             logger.info(`Triggering ${this.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
-            const response = await this.openai.chat.completions.create({
-                messages: [{
-                    role: 'system',
-                    content: CRIMSON_BREAKDOWN_PROMPT
-                }],
-                model: 'gpt-4o-mini'
-            })
-
-            return response.choices[0].message?.content || null
+            return await this.generateAIResponse([{
+                role: 'system',
+                content: CRIMSON_BREAKDOWN_PROMPT
+            }])
         }
         return null
     }
@@ -232,7 +222,7 @@ export class MessageProcessor {
 
         const [fullMatch] = match
         logger.info(`[Command Check] Found command pattern: ${fullMatch}`)
-        
+
         const commandResult = await this.commandParser.parseCommand(fullMatch, originalMessage)
         if (!commandResult) {
             logger.info(`[Command Check] Command parser returned null`)
