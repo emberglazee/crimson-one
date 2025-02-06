@@ -286,26 +286,6 @@ export class MessageProcessor {
         this.forceNextBreakdown = force
     }
 
-    private async parseMentions(text: string): Promise<string> {
-        if (!this.crimsonChat.client) throw new Error('Client not set')
-
-        const mentionRegex = /<@!?(\d+)>/g
-        let parsedText = text
-        const mentions = text.matchAll(mentionRegex)
-
-        for (const match of mentions) {
-            const userId = match[1]
-            try {
-                const user = await this.crimsonChat.client.users.fetch(userId)
-                parsedText = parsedText.replace(match[0], `@${user.username}`)
-            } catch (error) {
-                console.error(`Could not fetch user ${userId}:`, error)
-            }
-        }
-
-        return parsedText
-    }
-
     private async getUserPresenceAndRoles(username: string): Promise<UserStatus | 'unknown'> {
         if (!this.crimsonChat.client) return 'unknown'
         
