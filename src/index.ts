@@ -5,6 +5,7 @@ logger.info('Starting bot')
 import { readdir } from 'fs/promises'
 import path from 'path'
 import { Client, IntentsBitField, Partials } from 'discord.js'
+import chalk from 'chalk'
 
 import CommandHandler from './modules/CommandManager'
 import CrimsonChat from './modules/CrimsonChat'
@@ -41,7 +42,7 @@ const crimsonChat = CrimsonChat.getInstance()
 export const quoteFactory = new QuoteFactory(bot)
 
 bot.once('ready', async () => {
-    logger.ok(`Logged in as ${bot.user!.tag}`)
+    logger.info(`Logged in as ${chalk.yellow(bot.user!.tag)}`)
 
     // Set client on QuoteImageFactory
     QuoteImageFactory.getInstance().setClient(bot)
@@ -80,7 +81,7 @@ bot.once('ready', async () => {
 
 // Add shutdown handlers
 const handleShutdown = async () => {
-    logger.info('Shutting down...')
+    logger.warn('Shutting down...')
     bot.user!.setStatus('dnd')
     await crimsonChat.handleShutdown()
     await bot.destroy()
@@ -91,17 +92,17 @@ process.on('SIGINT', handleShutdown)
 process.on('SIGTERM', handleShutdown)
 process.on('SIGUSR2', handleShutdown) // For pm2 restarts
 process.on('uncaughtException', async err => {
-    logger.error(`Uncaught exception: ${err.message}`)
+    logger.error(`Uncaught exception! -> ${chalk.red(err.message)}`)
     await handleShutdown()
 })
 
 bot.rest.on('rateLimited', rateLimitInfo => {
     logger.warn(
-        'Rate limit:\n'+
-        `  Timeout: ${rateLimitInfo.sublimitTimeout}\n`+
-        `  Limit: ${rateLimitInfo.limit}\n`+
-        `  Method: ${rateLimitInfo.method}\n`+
-        `  Retry after: ${rateLimitInfo.retryAfter}`
+        'REST rate limit!\n'+
+        `  Timeout:     ${chalk.yellow(rateLimitInfo.sublimitTimeout)}\n`+
+        `  Limit:       ${chalk.yellow(rateLimitInfo.limit)}\n`+
+        `  Method:      ${chalk.yellow(rateLimitInfo.method)}\n`+
+        `  Retry after: ${chalk.yellow(rateLimitInfo.retryAfter)}`
     )
 })
 

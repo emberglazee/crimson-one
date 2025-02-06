@@ -9,6 +9,7 @@ import {
     UserContextMenuCommandInteraction,
     MessageContextMenuCommandInteraction
 } from 'discord.js'
+import chalk from 'chalk'
 
 import { readdir } from 'fs/promises'
 import type { Dirent } from 'fs'
@@ -79,11 +80,11 @@ export default class CommandHandler {
         this.initialized = true
         const initEndTime = Date.now()
         const totalTime = (initEndTime - initStartTime) / 1000
-        logger.ok(`{init} Total time: ${totalTime}s`)
+        logger.ok(`{init} Total time: ${chalk.yellow(totalTime)}s`)
     }
 
     private async importCommand(file: Dirent) {
-        logger.info(`{importCommand} Importing ${file.name}...`)
+        logger.info(`{importCommand} Importing ${chalk.yellow(file.name)}...`)
         const startTime = Date.now()
         try {
             const importedModule = await import(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, `../commands/${file.name}`))
@@ -100,27 +101,27 @@ export default class CommandHandler {
 
                 if (CommandHandler.isContextMenuCommand(command)) {
                     const type = command.type === 2 ? 'user' : 'message'
-                    logger.ok(`{importCommand} Found ${type} context menu command ${command.data.name}`)
+                    logger.ok(`{importCommand} Found ${chalk.yellow(type)} context menu command ${chalk.yellow(command.data.name)}`)
                     command.data.setType(command.type)
                     this.contextMenuCommands.push(command)
                     commands.push(command)
                 } else if (CommandHandler.isGuildSlashCommand(command)) {
-                    logger.ok(`{importCommand} Found guild slash command /${command.data.name} for guild ${command.guildId}`)
+                    logger.ok(`{importCommand} Found guild slash command /${chalk.yellow(command.data.name)} for guild ${chalk.yellow(command.guildId)}`)
                     this.guildCommands.push(command)
                     commands.push(command)
                 } else if (CommandHandler.isGlobalSlashCommand(command)) {
-                    logger.ok(`{importCommand} Found slash command /${command.data.name}`)
+                    logger.ok(`{importCommand} Found slash command /${chalk.yellow(command.data.name)}`)
                     this.globalCommands.push(command)
                     commands.push(command)
                 }
             }
 
             if (commands.length === 0) {
-                logger.warn(`{importCommand} No valid commands found in ${file.name}`)
+                logger.warn(`{importCommand} No valid commands found in ${chalk.yellow(file.name)}`)
                 return null
             }
 
-            logger.ok(`{importCommand} Imported ${commands.length} commands from file ${file.name} in ${(Date.now() - startTime) / 1000}s`)
+            logger.ok(`{importCommand} Imported ${chalk.yellow(commands.length)} commands from file ${chalk.yellow(file.name)} in ${chalk.yellow((Date.now() - startTime) / 1000)}s`)
             return commands
         } catch (err) {
             console.log(err)
@@ -129,9 +130,9 @@ export default class CommandHandler {
     }
 
     private async loadCommands(dir: string) {
-        logger.info(`{loadCommands} Reading commands from ${dir}...`)
+        logger.info(`{loadCommands} Reading commands from ${chalk.yellow(dir)}...`)
         const files = await readdir(dir, { withFileTypes: true })
-        logger.info(`{loadCommands} Found ${files.length} files in ${dir}`)
+        logger.info(`{loadCommands} Found ${chalk.yellow(files.length)} files in ${chalk.yellow(dir)}`)
         for (const file of files) {
             if (file.isDirectory()) {
                 await this.loadCommands(path.join(dir, file.name))
@@ -139,7 +140,7 @@ export default class CommandHandler {
                 await this.importCommand(file)
             }
         }
-        logger.ok(`{loadCommands} Finished loading commands in ${dir}`)
+        logger.ok(`{loadCommands} Finished loading commands in ${chalk.yellow(dir)}`)
     }
 
     public async handleInteraction(interaction: CommandInteraction | ContextMenuCommandInteraction): Promise<void> {
@@ -147,7 +148,7 @@ export default class CommandHandler {
         const matchingCommand = this.findMatchingCommand(interaction)
         if (!matchingCommand) {
             const errorMessage = `Command ${interaction.commandName} not found`
-            logger.warn(`{handleInteraction} Unknown command /${interaction.commandName}`)
+            logger.warn(`{handleInteraction} Unknown command /${chalk.yellow(interaction.commandName)}`)
             const error = new Error(errorMessage)
             this.handleError(error, interaction)
             return
@@ -206,37 +207,45 @@ export default class CommandHandler {
     private handleError(e: Error, interaction: CommandInteraction | ContextMenuCommandInteraction) {
         if (!interaction.deferred) interaction.reply(`❌ Deferred interraction error: \`${e.message}\``)
         else interaction.editReply(`❌ Interaction error: \`${e.message}\``)
-        logger.error(`{handleInteraction} Error while executing command ${interaction.commandName}: ${e.message}\n${e.stack}`)
+        logger.error(`{handleInteraction} Error in ${chalk.yellow(interaction.commandName)}: ${chalk.red(e.message)}`)
     }
 
     public async refreshGlobalCommands() {
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
-        logger.info('{refreshGlobalCommands} Refreshing global commands...')
+        logger.info('{refreshGlobalCommands}...')
         await this.client.application!.commands.set([
             ...this.globalCommands,
             ...this.contextMenuCommands
         ].map(command => command.data))
+        logger.ok('{refreshGlobalCommands}')
     }
 
     public async refreshGuildCommands(guildId: string) {
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
-        logger.info(`{refreshGuildCommands} Refreshing guild commands for ${guildId}...`)
+        logger.info(`{refreshGuildCommands}...`)
         const guild = await this.client.guilds.fetch(guildId)
+        if (!guild) {
+            logger.error(`{refreshGuildCommands} ${chalk.yellow(guildId)}!`)
+            return
+        }
+        logger.info(`{refreshGuildCommands} ${chalk.yellow(guildId)} - ${chalk.yellow(guild.name)}`)
         const guildCommands = this.guildCommands.filter(command => command.guildId === guildId)
         await guild.commands.set(guildCommands.map(command => command.data))
+        logger.ok(`{refreshGuildCommands} ${chalk.yellow(guildId)} - ${chalk.yellow(guild.name)}`)
     }
     public async refreshAllGuildCommands() {
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
-        logger.info('{refreshAllGuildCommands} Refreshing all guild commands...')
+        logger.info('{refreshAllGuildCommands}...')
         for (const command of this.guildCommands) {
             await this.refreshGuildCommands(command.guildId)
         }
+        logger.ok('{refreshAllGuildCommands}')
     }
 
     public static isSlashCommand = (obj: any): obj is SlashCommand => {

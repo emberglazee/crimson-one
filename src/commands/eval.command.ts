@@ -1,8 +1,6 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
-import { Logger } from '../util/logger'
 import { inspect } from 'util'
-const logger = new Logger('command.eval')
 
 export default {
     data: new SlashCommandBuilder()
@@ -18,7 +16,6 @@ export default {
             .setRequired(false)
         ),
     async execute(interaction) {
-        logger.info('Command executed')
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
 
         const user = interaction.user

@@ -1,6 +1,7 @@
 import { Client } from 'discord.js'
 import { Logger } from '../../../util/logger'
 import type { UserStatus } from '../../../types/types'
+import chalk from 'chalk'
 
 const logger = new Logger('CrimsonChat | Formatters')
 
@@ -40,7 +41,7 @@ export async function parseMentions(client: Client, text: string): Promise<strin
             parsedText = parsedText.replace(match[0], `@${user.username}`)
         } catch (e) {
             const error = e as Error
-            logger.error(`Could not fetch user ${userId}: ${error.message}`)
+            logger.error(`Could not fetch user ${chalk.yellow(userId)}: ${chalk.red(error.message)}`)
         }
     }
 

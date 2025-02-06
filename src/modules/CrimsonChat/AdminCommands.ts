@@ -2,6 +2,7 @@ import { Message } from 'discord.js'
 import { COMMAND_PREFIX, ADMIN_COMMANDS, CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
 import CrimsonChat from '../CrimsonChat'
 import { Logger } from '../../util/logger'
+import chalk from 'chalk'
 
 const logger = new Logger('CrimsonChat | AdminCommands')
 const ADMIN_USER_ID = '341123308844220447'
@@ -74,8 +75,9 @@ export class AdminCommandHandler {
                     )
                     return true
             }
-        } catch (error) {
-            logger.error(`Error handling admin command ${command}: ${error}`)
+        } catch (e) {
+            const error = e as Error
+            logger.error(`Error handling admin command ${chalk.yellow(command)}! -> ${chalk.red(error.message)}`)
             await message.react('❌')
         }
 
