@@ -1,7 +1,5 @@
 import { MessageFlags, SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
-import { Logger } from '../util/logger'
-const logger = new Logger('command.setusername')
 
 const usageTracker = new Map<string, number[]>()
 const USAGE_LIMIT = 2
@@ -51,7 +49,6 @@ export default {
             .setRequired(false)
         ),
     async execute(interaction) {
-        logger.info('Command executed')
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
 
         const user = interaction.user
@@ -102,22 +99,17 @@ export default {
             return
         }
 
-        logger.info(`Changing username to ${username}...`)
         try {
             await interaction.client.user.setUsername(username)
             trackSuccessfulExecution()
         } catch (e) {
             if ((e as Error).message.includes('USERNAME_RATE_LIMIT')) {
-                logger.error('Hit the username change rate limit')
                 await interaction.editReply('❌ Hit the username change rate limit')
                 return
             }
-            logger.error(`Error changing username: ${(e as Error).message}`)
             await interaction.editReply(`❌ Error changing username: ${(e as Error).message}`)
             return
         }
-        logger.ok(`Username changed, current username is ${interaction.client.user.username}`)
         await interaction.editReply(`✅ Username changed to ${username}`)
-        logger.ok(`Command execution over`)
     }
 } satisfies SlashCommand

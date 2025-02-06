@@ -1,7 +1,5 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
-import { Logger } from '../util/logger'
-const logger = new Logger('command.hoi4hours')
 
 export default {
     data: new SlashCommandBuilder()
@@ -13,7 +11,6 @@ export default {
             .setRequired(false)
         ),
     async execute(interaction) {
-        logger.info('Command executed')
         const epheremal = interaction.options.getBoolean('ephemeral', false)
         await interaction.deferReply({
             flags: epheremal ? MessageFlags.Ephemeral : undefined
@@ -28,17 +25,13 @@ export default {
             }
         }
         const url: string = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${process.env.STEAM_API_KEY}&steamid=${process.env.STEAM_ID}&format=json`
-        logger.info(`Fetching ${url}...`)
         const response = await fetch(url)
-        logger.info('Fetched')
         const data: SteamAPIResponse = await response.json()
-        logger.info('Parsed')
         const games = data.response.games
         const hoi4 = games.find(game => game.appid === 394360)
         if (hoi4) {
             const totalHours = hoi4.playtime_forever / 60
             const hours = totalHours.toFixed(4)
-            logger.info(`Hours played: ${hours}`)
 
             const days = Math.floor(totalHours / 24)
             const months = Math.floor(days / 30)
@@ -56,9 +49,7 @@ export default {
 
             await interaction.editReply(`emberglaze has spent \`${hours}\` hours playing HOI4\nThat's approximately ${timeString.trim()}`)
         } else {
-            logger.info('HOI4 not found in the list of games')
             await interaction.editReply('❌ HOI4 not found in the list of games (did ember finally touch grass? check his steam profile directly or something)')
         }
-        logger.ok('Command execution over')
     }
 } satisfies SlashCommand

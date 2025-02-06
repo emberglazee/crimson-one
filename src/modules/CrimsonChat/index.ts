@@ -6,6 +6,7 @@ import { promises as fs } from 'fs'
 import type { UserMessageOptions } from '../../types/types'
 import path from 'path'
 import { formatUserMessage, usernamesToMentions } from './utils/formatters'
+import chalk from 'chalk'
 
 const logger = new Logger('CrimsonChat')
 
@@ -48,8 +49,8 @@ export default class CrimsonChat {
         logger.info('Initializing CrimsonChat...')
         this.channel = await this.client.channels.fetch(this.channelId) as TextChannel
         if (!this.channel) {
-            logger.error('Could not find webhook channel')
-            throw new Error('Could not find webhook channel')
+            logger.error(`Could not find text channel ${chalk.yellow(this.channelId)}`)
+            throw new Error(`Could not find text channel ${chalk.yellow(this.channelId)}`)
         }
 
         await this.historyManager.init()
@@ -64,14 +65,14 @@ export default class CrimsonChat {
         const targetChannel = options.targetChannel || this.channel
 
         if (this.isProcessing && originalMessage) {
-            logger.warn(`Message from ${options.username} ignored - already processing another message`)
+            logger.warn(`Message from ${chalk.yellow(options.username)} ignored - already processing another message`)
             await originalMessage.react('❌').catch(err => {
-                logger.error(`Failed to add reaction: ${err.message}`)
+                logger.error(`Failed to add reaction: ${chalk.red(err.message)}`)
             })
             return
         }
 
-        logger.info(`Processing message from ${options.username}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`)
+        logger.info(`Processing message from ${chalk.yellow(options.username)}: ${chalk.yellow(content.substring(0, 50) + (content.length > 50) ? '...' : '')}`)
         this.isProcessing = true
 
         // Start typing indicator loop
@@ -94,16 +95,17 @@ export default class CrimsonChat {
             await this.sendResponseToDiscord(response, null, originalMessage)
         } catch (e) {
             const error = e as Error
-            logger.error(`Error processing message: ${error.message}`)
+            logger.error(`Error processing message: ${chalk.red(error.message)}`)
             try {
                 await this.sendResponseToDiscord('Sorry, something went wrong while processing your message. Please try again later.')
-            } catch (sendError) {
-                logger.error(`Failed to send error message: ${sendError}`)
+            } catch (se) {
+                const sendError = se as Error
+                logger.error(`Failed to send error message: ${chalk.red(sendError.message)}`)
             }
         } finally {
             clearInterval(typingInterval)
             this.isProcessing = false
-            logger.info('Message processing completed')
+            logger.ok('Message processing completed')
             return response
         }
     }
@@ -139,8 +141,9 @@ export default class CrimsonChat {
                     await this.channel.send(messageOptions)
                 }
             }
-        } catch (error: any) {
-            logger.error(`Error sending response to Discord: ${error.message}`)
+        } catch (e) {
+            const error = e as Error
+            logger.error(`Error sending response to Discord: ${chalk.red(error.message)}`)
             throw error
         }
     }
@@ -164,8 +167,9 @@ export default class CrimsonChat {
                     serverDisplayName: 'System'
                 })
             }
-        } catch (error) {
-            logger.error(`Error in handleStartup: ${error}`)
+        } catch (e) {
+            const error = e as Error
+            logger.error(`Error in handleStartup: ${chalk.red(error.message)}`)
         }
     }
 
@@ -177,7 +181,7 @@ export default class CrimsonChat {
 
     public setForceNextBreakdown(force: boolean): void {
         this.messageProcessor!.setForceNextBreakdown(force)
-        logger.info(`Force next breakdown set to: ${force}`)
+        logger.ok(`Force next breakdown set to: ${chalk.yellow(force)}`)
     }
 
     public isEnabled(): boolean {
@@ -186,7 +190,7 @@ export default class CrimsonChat {
 
     public setEnabled(state: boolean): void {
         this.enabled = state
-        logger.info(`CrimsonChat ${state ? 'enabled' : 'disabled'}`)
+        logger.info(`CrimsonChat ${chalk.yellow(state ? 'enabled' : 'disabled')}`)
     }
 
     private async loadBannedUsers(): Promise<void> {
@@ -216,13 +220,13 @@ export default class CrimsonChat {
     public async banUser(userId: string): Promise<void> {
         this.bannedUsers.add(userId)
         await this.saveBannedUsers()
-        logger.info(`Banned user ${userId} from CrimsonChat`)
+        logger.ok(`Banned user ${chalk.yellow(userId)}`)
     }
 
     public async unbanUser(userId: string): Promise<void> {
         this.bannedUsers.delete(userId)
         await this.saveBannedUsers()
-        logger.info(`Unbanned user ${userId} from CrimsonChat`)
+        logger.ok(`Unbanned user ${chalk.yellow(userId)}`)
     }
 
     public async clearHistory(): Promise<void> {
@@ -252,6 +256,6 @@ export default class CrimsonChat {
 
     public async updateSystemPrompt(): Promise<void> {
         await this.historyManager.updateSystemPrompt()
-        logger.info('System prompt updated to latest version')
+        logger.ok('System prompt updated to latest version')
     }
 }

@@ -7,6 +7,7 @@ import { CRIMSON_BREAKDOWN_PROMPT, getAssistantCommandRegex } from '../../util/c
 import type { ChatMessage, UserMessageOptions, UserStatus } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
+import chalk from 'chalk'
 
 const logger = new Logger('CrimsonChat | MessageProcessor')
 
@@ -45,7 +46,7 @@ export class MessageProcessor {
             const possibleCommand = content.split('\n').find(line => commandRegex.test(line.trim()))
 
             if (possibleCommand) {
-                logger.info(`[Command Check] Found potential command within response: ${possibleCommand}`)
+                logger.info(`{processMessage} Found potential command within response: ${chalk.yellow(possibleCommand)}`)
 
                 // Save the command to history
                 await this.historyManager.appendMessage('assistant', possibleCommand)
@@ -147,7 +148,7 @@ export class MessageProcessor {
 
             // Check if AI's response is a command
             if (responseContent.trim().startsWith('!')) {
-                logger.info('[Command Check] AI response is a command, executing internally')
+                logger.info('{processMessage} AI response is a command, executing internally')
 
                 // Save the command to history
                 await this.historyManager.appendMessage('assistant', responseContent)
@@ -184,7 +185,8 @@ export class MessageProcessor {
             await this.historyManager.appendMessage('assistant', responseContent)
             return responseContent
         } catch (e) {
-            logger.error(`Error processing message: ${e}`)
+            const error = e as Error
+            logger.error(`Error processing message: ${chalk.red(error.message)}`)
             return 'Error processing message'
         }
     }
@@ -199,7 +201,7 @@ export class MessageProcessor {
 
     private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<string | null> {
         if (this.forceNextBreakdown || Math.random() < this.BREAKDOWN_CHANCE) {
-            logger.info(`Triggering ${this.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
+            logger.info(`Triggering ${chalk.yellow(this.forceNextBreakdown ? 'forced' : 'random')} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
 
             // Save the user's message that triggered the breakdown
@@ -229,26 +231,26 @@ export class MessageProcessor {
     }
 
     private async checkForCommands(content: string, originalMessage?: Message): Promise<string | null> {
-        logger.info(`[Command Check] Checking content for commands: ${content}`)
+        logger.info(`{processMessage} Checking content for commands: ${chalk.yellow(content)}`)
 
         const commandRegex = getAssistantCommandRegex()
         const match = commandRegex.exec(content.trim())
 
         if (!match) {
-            logger.info(`[Command Check] No command pattern found in content`)
+            logger.info(`{processMessage} No command pattern found in content`)
             return null
         }
 
         const [fullMatch] = match
-        logger.info(`[Command Check] Found command pattern: ${fullMatch}`)
+        logger.info(`{processMessage} Found command pattern: ${chalk.yellow(fullMatch)}`)
 
         const commandResult = await this.commandParser.parseCommand(fullMatch, originalMessage)
         if (!commandResult) {
-            logger.info(`[Command Check] Command parser returned null`)
+            logger.info(`{processMessage} Command parser returned null`)
             return null
         }
 
-        logger.info(`[Command Check] Command executed successfully`)
+        logger.info(`{processMessage} Command executed successfully`)
         return commandResult
     }
 
@@ -315,8 +317,9 @@ export class MessageProcessor {
                 roles,
                 presence: activities.length ? activities : 'offline or no activities'
             }
-        } catch (error) {
-            logger.error(`Error fetching user status: ${error}`)
+        } catch (e) {
+            const error = e as Error
+            logger.error(`Error fetching user status: ${chalk.red(error.message)}`)
             return 'unknown'
         }
     }

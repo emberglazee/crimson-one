@@ -2,6 +2,7 @@ import { Message, PermissionsBitField, ChannelType } from 'discord.js'
 import { Logger } from '../../util/logger'
 import { ASSISTANT_COMMANDS, getAssistantCommandRegex } from '../../util/constants'
 import CrimsonChat from '.'
+import chalk from 'chalk'
 
 const logger = new Logger('CrimsonChat | CommandParser')
 
@@ -10,34 +11,34 @@ export class CommandParser {
 
     async parseCommand(text: string, originalMessage?: Message): Promise<string | null> {
         if (!this.crimsonChat.client) {
-            logger.error('[Command Parser] Client not set')
+            logger.error('{parseCommand} Client not set')
             throw new Error('Client not set')
         }
 
-        logger.info(`[Command Parser] Processing command text: ${text}`)
+        logger.info(`{parseCommand} Processing command text: ${chalk.yellow(text)}`)
 
         const commandRegex = getAssistantCommandRegex()
         const match = commandRegex.exec(text)
 
         if (!match) {
-            logger.info('[Command Parser] No command pattern found')
+            logger.info('{parseCommand} No command pattern found')
             return null
         }
 
-        const [fullMatch, command, params] = match
-        logger.info(`[Command Parser] Matched command: ${command}, params: ${params}`)
-        
+        const [_, command, params] = match
+        logger.info(`{parseCommand} Matched command: ${chalk.yellow(command)}, params: ${chalk.yellow(params)}`)
+
         let finalUsername = params?.trim() || ''
 
         try {
             // Get guild from original message, fallback to first available guild
             const guild = originalMessage?.guild || this.crimsonChat.client.guilds.cache.first()
             if (!guild) {
-                logger.error('[Command Parser] No guild available')
+                logger.error('{parseCommand} No guild available (no original message, original message guild or cached guilds)')
                 return 'Error: No guild available'
             }
 
-            logger.info(`[Command Parser] Processing command ${command} with username: ${finalUsername} in guild: ${guild.name}`)
+            logger.info(`{parseCommand} Processing command ${chalk.yellow(command)} with username: ${chalk.yellow(finalUsername)} in guild: ${chalk.yellow(guild.name)}`)
 
             const moderationCommand = async (
                 permissionRequired: PermissionsBitField,
@@ -68,14 +69,14 @@ export class CommandParser {
                     return JSON.stringify({ roles }, null, 2)
 
                 case ASSISTANT_COMMANDS.FETCH_BOT_ROLES:
-                    logger.info('[Command Parser] Fetching bot roles')
+                    logger.info('{parseCommand} Fetching bot roles')
                     const botMember = await guild.members.fetchMe()
                     const permissions = new PermissionsBitField(botMember.permissions).toArray()
                     const result = JSON.stringify({
                         roles: botMember.roles.cache.map(r => r.name),
                         permissions
                     }, null, 2)
-                    logger.info(`[Command Parser] Bot roles result: ${result}`)
+                    logger.info(`{parseCommand} Bot roles result: ${chalk.yellow(result)}`)
                     return result
 
                 case ASSISTANT_COMMANDS.FETCH_USER:
@@ -143,12 +144,13 @@ export class CommandParser {
                     )
 
                 default:
-                    logger.warn(`[Command Parser] Unknown command: ${command}`)
+                    logger.warn(`{parseCommand} Unknown command: ${chalk.yellow(command)}`)
                     return `Error: Unknown command "${command}"`
             }
-        } catch (error) {
-            logger.error(`[Command Parser] Error processing command ${command}: ${error}`)
-            return `Error processing command "${command}": ${error instanceof Error ? error.message : 'Unknown error'}`
+        } catch (e) {
+            const error = e as Error
+            logger.error(`{parseCommand} Error processing command ${chalk.yellow(command)}: ${chalk.red(error.message)}`)
+            return `Error processing command "${command}": ${error instanceof Error ? error.message : error}`
         }
     }
 }

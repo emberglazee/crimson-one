@@ -6,6 +6,7 @@ import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
 import { Logger } from '../util/logger'
 import type { GitHubPushEvent } from '../types/types'
 import CrimsonChat from './CrimsonChat'
+import chalk from 'chalk'
 
 const logger = Logger.new('GithubWebhook')
 
@@ -84,7 +85,7 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
         })
 
         await this.start()
-        logger.ok('Github webhook initialized and listening on port ' + this.port)
+        logger.ok(`Github webhook initialized and listening on port ${chalk.yellow(this.port)}`)
     }
 
     private verifySignature(payload: string, signature: string): boolean {

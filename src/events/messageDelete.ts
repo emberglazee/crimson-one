@@ -2,10 +2,10 @@ import { Client, Message } from 'discord.js'
 import CrimsonChat from '../modules/CrimsonChat'
 
 export default function onMessageDelete(client: Client) {
-    client.on('messageDelete', async (message) => {
+    client.on('messageDelete', async message => {
         // Check if message is in CrimsonChat channel
         if (message.channel.id !== '1335992675459141632') return
-        
+
         // Ensure message is cached and not partial
         if (!message.partial) {
             const deletedMessage = message as Message

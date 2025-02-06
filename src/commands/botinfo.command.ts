@@ -1,9 +1,7 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
-import { Logger } from '../util/logger'
 import { formatBytes } from '../util/functions'
 import CrimsonChat from '../modules/CrimsonChat'
-const logger = new Logger('command.botinfo')
 
 export default {
     data: new SlashCommandBuilder()
@@ -36,6 +34,5 @@ export default {
             }],
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
-        logger.ok('Command executed')
     }
 } satisfies SlashCommand

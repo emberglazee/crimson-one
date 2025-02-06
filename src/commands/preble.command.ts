@@ -1,8 +1,6 @@
 import { MessageFlags, SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
-import { Logger } from '../util/logger'
 
-const logger = new Logger('command.preble')
 export default {
     data: new SlashCommandBuilder()
         .setName('preble')
@@ -13,7 +11,6 @@ export default {
             .setRequired(false)
         ),
     async execute(interaction) {
-        logger.info('Command executed')
         const epheremal = interaction.options.getBoolean('ephemeral', false)
         await interaction.deferReply({
             flags: epheremal ? MessageFlags.Ephemeral : undefined

@@ -4,6 +4,7 @@ import { Logger } from '../../util/logger'
 import { CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
 import type { ChatMessage } from '../../types/types'
 import { encoding_for_model } from 'tiktoken'
+import chalk from 'chalk'
 
 const logger = new Logger('CrimsonChat | HistoryManager')
 
@@ -65,7 +66,7 @@ export class HistoryManager {
                 }]
             }
 
-            logger.info(`Chat history loaded successfully with ${this.history.length} messages`)
+            logger.info(`Chat history loaded successfully with ${chalk.yellow(this.messageCount)} messages`)
         } catch (error) {
             // Only initialize with system prompt if file doesn't exist
             this.history = [{
@@ -83,7 +84,7 @@ export class HistoryManager {
             logger.info('Chat history saved successfully')
         } catch (e) {
             const error = e as Error
-            logger.error(`Failed to save chat history: ${error.message}`)
+            logger.error(`Failed to save chat history: ${chalk.red(error.message)}`)
         }
     }
 
@@ -98,25 +99,25 @@ export class HistoryManager {
 
         this.history.push({ role, content })
         await this.saveHistory()
-        logger.info(`Appended ${role} message to history`)
+        logger.info(`Appended ${chalk.yellow(role)} message to history`)
     }
 
     async clearHistory(): Promise<void> {
         // Clear the singleton instance first
-        HistoryManager.forceClearInstance();
-        
+        HistoryManager.forceClearInstance()
+
         // Reset history array
         this.history = [{
             role: 'system',
             content: CRIMSON_CHAT_SYSTEM_PROMPT
         }]
-        
+
         // Save empty history to file
         await this.saveHistory()
-        
+
         // Reload history to ensure clean state
         await this.loadHistory()
-        
+
         logger.info('Chat history cleared and instance reset')
     }
 
@@ -132,7 +133,7 @@ export class HistoryManager {
         }
 
         if (originalLength !== this.history.length) {
-            logger.info(`Trimmed history from ${originalLength} to ${this.history.length} messages`)
+            logger.info(`Trimmed history from ${chalk.yellow(originalLength)} to ${chalk.yellow(this.messageCount)} messages`)
             await this.saveHistory()
         }
     }
@@ -152,9 +153,10 @@ export class HistoryManager {
         if (this.history[0].role === 'system') {
             this.history[0].content = CRIMSON_CHAT_SYSTEM_PROMPT
         } else {
+            // Make sure the system prompt doesn't vanish for some reason (#TODO: investigate)
             this.history.unshift({ role: 'system', content: CRIMSON_CHAT_SYSTEM_PROMPT })
         }
         await this.saveHistory()
-        logger.info('System prompt updated to latest version')
+        logger.info('System prompt updated to current \`CRIMSON_CHAT_SYSTEM_PROMPT\`')
     }
 }

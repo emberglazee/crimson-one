@@ -5,7 +5,7 @@ export default function onMessageUpdate(client: Client) {
     client.on('messageUpdate', async (oldMessage, newMessage) => {
         // Check if message is in CrimsonChat channel
         if (newMessage.channel.id !== '1335992675459141632') return
-        
+
         // Ensure messages are cached and not partial
         if (!oldMessage.partial && !newMessage.partial) {
             const old = oldMessage as Message

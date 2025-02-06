@@ -7,6 +7,7 @@ import os from 'os'
 import path from 'path'
 import { TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS, type GradientType } from '../util/colors'
 import { type Client, type Guild } from 'discord.js'
+import chalk from 'chalk'
 
 const logger = Logger.new('QuoteImageFactory')
 
@@ -52,8 +53,9 @@ export class QuoteImageFactory {
             // Fall back to global username if not found in guild
             const user = await this.client.users.fetch(id)
             return user.displayName
-        } catch (error) {
-            logger.error(`Failed to fetch username for ID ${id}: ${error}`)
+        } catch (e) {
+            const error = e as Error
+            logger.error(`Failed to fetch username for ${chalk.yellow(id)}: ${chalk.red(error)}`)
             return id
         }
     }
@@ -92,8 +94,9 @@ export class QuoteImageFactory {
     private async cleanupTempDir(dir: string): Promise<void> {
         try {
             await fs.rm(dir, { recursive: true, force: true })
-        } catch (error) {
-            logger.error(`Failed to cleanup temp dir: ${error}`)
+        } catch (e) {
+            const error = e as Error
+            logger.error(`Failed to cleanup temp dir: ${chalk.red(error.message)}`)
         }
     }
 
@@ -221,7 +224,7 @@ export class QuoteImageFactory {
         stretchGradient = false,
         style: QuoteStyle = 'pw'
     ): Promise<QuoteImageResult> {
-        logger.info(`Creating quote image with params:\n${speaker}\n${quote}\n${color}\n${gradient}\n${stretchGradient}\n${style}`)
+        logger.info(`Creating quote image with params:\n${chalk.yellow(speaker)}\n${chalk.yellow(quote)}\n${chalk.yellow(color)}\n${chalk.yellow(gradient)}\n${chalk.yellow(stretchGradient)}\n${chalk.yellow(style)}`)
 
         const fontSize = 48
         const lineHeight = fontSize * 1.2
@@ -238,7 +241,7 @@ export class QuoteImageFactory {
 
         // Updated helper function to detect and parse both Discord and Unicode emoji
         const parseEmojis = (text: string) => {
-            logger.info(`Parsing emojis from text of length ${text.length}`)
+            logger.info(`Parsing emojis from text of length ${chalk.yellow(text.length)}`)
             const results: Array<{
                 full: string
                 id?: string
@@ -286,7 +289,7 @@ export class QuoteImageFactory {
                 url: `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${this.toCodePoint(match[0])}.png`
             })))
 
-            logger.info(`Found ${results.length} emojis/pings: ${results.map(e => e.full).join(', ')}`)
+            logger.info(`Found ${chalk.yellow(results.length)} emojis/pings: ${chalk.yellow(results.map(e => e.full).join(', '))}`)
             return results
         }
 
@@ -311,7 +314,7 @@ export class QuoteImageFactory {
             const allEmojis = [...speakerEmojis, ...quoteEmojis]
 
             const hasAnimatedEmojis = allEmojis.some(e => e.animated)
-            logger.info(`Animation status: ${hasAnimatedEmojis ? 'Animated' : 'Static'}`)
+            logger.info(`Animation status: ${chalk.yellow(hasAnimatedEmojis ? 'Animated' : 'Static')}`)
 
             // Load emoji frames
             logger.info('Loading emoji images...')
@@ -319,7 +322,7 @@ export class QuoteImageFactory {
                 allEmojis.map(async (emoji, index) => {
                     try {
                         if (emoji.animated) {
-                            logger.info(`Loading animated emoji ${index + 1}/${allEmojis.length}: ${emoji.name || emoji.id}`)
+                            logger.info(`Loading animated emoji ${chalk.yellow(index + 1)}/${chalk.yellow(allEmojis.length)}: ${chalk.yellow(emoji.name || emoji.id)}`)
                             const tmpDir = await this.createTempDir()
                             try {
                                 if (emoji.url) {
@@ -338,19 +341,20 @@ export class QuoteImageFactory {
                                 await this.cleanupTempDir(tmpDir)
                             }
                         } else {
-                            logger.info(`Loading static emoji ${index + 1}/${allEmojis.length}`)
+                            logger.info(`Loading static emoji ${chalk.yellow(index + 1)}/${chalk.yellow(allEmojis.length)}`)
                             return {
                                 ...emoji,
                                 image: emoji.url ? await loadImage(emoji.url) : null
                             }
                         }
-                    } catch (error) {
-                        logger.error(`Failed to load emoji: ${emoji.name || emoji.id}\n${error}\n${emoji.url}`)
+                    } catch (e) {
+                        const error = e as Error
+                        logger.error(`Failed to load emoji: ${chalk.yellow(emoji.name || emoji.id)}\n${chalk.red(error.message)}\n${chalk.yellow(emoji.url)}`)
                         return { ...emoji, image: null }
                     }
                 })
             )
-            logger.info('Finished loading emoji images')
+            logger.ok('Finished loading emoji images')
 
             const measureWordWidth = (word: string, startIndex: number, emojis: ReturnType<typeof parseEmojis>) => {
                 let width = measureCtx.measureText(word).width
@@ -548,7 +552,7 @@ export class QuoteImageFactory {
             const height = 50 + speakerHeight + 2 + (quoteLines.length * lineHeight) + padding
 
             const renderFrame = async (frameIndex: number) => {
-                logger.info(`Rendering frame ${frameIndex + 1}`)
+                logger.info(`Rendering frame ${chalk.yellow(frameIndex + 1)}`)
                 const startTime = performance.now()
 
                 // Create canvas and context for this frame
@@ -800,7 +804,7 @@ export class QuoteImageFactory {
                 }
 
                 const endTime = performance.now()
-                logger.info(`Frame ${frameIndex + 1} rendered in ${(endTime - startTime).toFixed(2)}ms`)
+                logger.info(`Frame ${chalk.yellow(frameIndex + 1)} rendered in ${chalk.yellow((endTime - startTime).toFixed(2))}ms`)
                 return canvas
             }
 
@@ -818,7 +822,7 @@ export class QuoteImageFactory {
                 }
 
                 const maxFrames = Math.max(...animatedEmojis.map(e => (e as any).frames.length))
-                logger.info(`Creating animated image with ${maxFrames} frames at ${targetFramerate}fps`)
+                logger.info(`Creating animated image with ${chalk.yellow(maxFrames)} frames at ${chalk.yellow(targetFramerate)}fps`)
 
                 const tmpDir = await this.createTempDir()
                 const outputPath = path.join(tmpDir, 'output.gif')
@@ -837,9 +841,9 @@ export class QuoteImageFactory {
                     }
 
                     // Create GIF using FFmpeg with detected framerate
-                    logger.info(`Creating GIF with FFmpeg at ${targetFramerate}fps...`)
+                    logger.info(`Creating GIF with FFmpeg at ${chalk.yellow(targetFramerate)}fps...`)
                     const buffer = await this.ffmpegCreateGif(tmpDir, outputPath, targetFramerate)
-                    logger.info(`GIF generation complete. Final size: ${(buffer.length / 1024).toFixed(2)}KB`)
+                    logger.ok(`GIF generation complete. Final size: ${chalk.yellow((buffer.length / 1024).toFixed(2))}KB`)
 
                     return {
                         buffer,
