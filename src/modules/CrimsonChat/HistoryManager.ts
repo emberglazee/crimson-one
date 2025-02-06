@@ -5,7 +5,7 @@ import { CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
 import type { ChatMessage } from '../../types/types'
 import { encoding_for_model } from 'tiktoken'
 
-const logger = new Logger('HistoryManager')
+const logger = new Logger('CrimsonChat | HistoryManager')
 
 export class HistoryManager {
     private static instance: HistoryManager
