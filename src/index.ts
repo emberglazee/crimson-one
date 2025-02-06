@@ -81,7 +81,9 @@ bot.once('ready', async () => {
 // Add shutdown handlers
 const handleShutdown = async () => {
     logger.info('Shutting down...')
+    bot.user!.setStatus('dnd')
     await crimsonChat.handleShutdown()
+    await bot.destroy()
     process.exit(0)
 }
 

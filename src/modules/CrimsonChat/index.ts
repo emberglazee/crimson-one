@@ -171,7 +171,8 @@ export default class CrimsonChat {
 
     public async handleShutdown(): Promise<void> {
         if (!this.channel) return
-        await this.sendResponseToDiscord('Crimson is shutting down...')
+        await this.sendResponseToDiscord('⚠️ Crimson is shutting down...')
+        await this.historyManager.appendMessage('system', `Shutting down. Time: ${new Date().toISOString()}`)
     }
 
     public setForceNextBreakdown(force: boolean): void {
