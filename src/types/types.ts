@@ -3,8 +3,7 @@ import {
     ChatInputCommandInteraction, type APIInteractionDataResolvedChannel, Client, User,
     TextChannel
 } from 'discord.js'
-import type { ChatCompletionContentPart, ChatCompletionMessage } from 'openai/resources/index.mjs'
-import type { ChatCompletionMessageParam } from 'openai/src/resources/index.js'
+import type { ChatCompletionContentPart } from 'openai/resources/index.mjs'
 
 export type GuildIdResolvable = string | Guild | BaseInteraction | GuildChannel | Message
 export type UserIdResolvable = GuildMember | User | string | Message
