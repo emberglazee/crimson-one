@@ -64,13 +64,13 @@ export default class CrimsonChat {
 
         const targetChannel = options.targetChannel || this.channel
 
-        if (this.isProcessing && originalMessage) {
-            logger.warn(`Message from ${chalk.yellow(options.username)} ignored - already processing another message`)
-            await originalMessage.react('❌').catch(err => {
-                logger.error(`Failed to add reaction: ${chalk.red(err.message)}`)
-            })
-            return
-        }
+        // if (this.isProcessing && originalMessage) {
+        //     logger.warn(`Message from ${chalk.yellow(options.username)} ignored - already processing another message`)
+        //     await originalMessage.react('❌').catch(err => {
+        //         logger.error(`Failed to add reaction: ${chalk.red(err.message)}`)
+        //     })
+        //     return
+        // }
 
         logger.info(`Processing message from ${chalk.yellow(options.username)}: ${chalk.yellow(content.substring(0, 50) + (content.length > 50) ? '...' : '')}`)
         this.isProcessing = true
