@@ -42,6 +42,10 @@ export const slashCommand = {
             .setName('stretch')
             .setDescription('Stretch gradient across entire name instead of repeating')
             .setRequired(false)
+        ).addBooleanOption(bo => bo
+            .setName('interpretnewlines')
+            .setDescription('Interpret <newline> as line breaks in text')
+            .setRequired(false)
         ).addBooleanOption(so => so
             .setName('ephemeral')
             .setDescription('Should the response only show up for you?')
@@ -60,6 +64,7 @@ export const slashCommand = {
                 ? COLORS.find(c => c.name === plainColor)?.hex ?? null
                 : null
         const stretchGradient = interaction.options.getBoolean('stretch') ?? false
+        const interpretNewlines = interaction.options.getBoolean('interpretNewlines') ?? true
 
         if (!color && gradient === 'none') {
             await interaction.reply({
@@ -75,7 +80,7 @@ export const slashCommand = {
         const factory = QuoteImageFactory.getInstance()
         factory.setGuild(interaction.guild!)
         try {
-            const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'ac7')
+            const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'ac7', interpretNewlines)
             await interaction.editReply({ 
                 files: [
                     new AttachmentBuilder(result.buffer)
@@ -102,7 +107,7 @@ export const contextMenuCommand = {
         const factory = QuoteImageFactory.getInstance()
         factory.setGuild(interaction.guild!)
         try {
-            const result = await factory.createQuoteImage(speaker, quote, color, 'none', false, 'ac7')
+            const result = await factory.createQuoteImage(speaker, quote, color, 'none', false, 'ac7', true)
             await interaction.editReply({ 
                 files: [
                     new AttachmentBuilder(result.buffer)

@@ -222,9 +222,16 @@ export class QuoteImageFactory {
         color: string | null,
         gradient: GradientType,
         stretchGradient = false,
-        style: QuoteStyle = 'pw'
+        style: QuoteStyle = 'pw',
+        interpretNewlines = false
     ): Promise<QuoteImageResult> {
-        logger.info(`Creating quote image with params:\n${chalk.yellow(speaker)}\n${chalk.yellow(quote)}\n${chalk.yellow(color)}\n${chalk.yellow(gradient)}\n${chalk.yellow(stretchGradient)}\n${chalk.yellow(style)}`)
+        logger.info(`Creating quote image with params:\n${chalk.yellow(speaker)}\n${chalk.yellow(quote)}\n${chalk.yellow(color)}\n${chalk.yellow(gradient)}\n${chalk.yellow(stretchGradient)}\n${chalk.yellow(style)}\n${chalk.yellow(interpretNewlines)}`)
+
+        // Process newlines before continuing
+        if (interpretNewlines) {
+            quote = quote.replace(/<newline>/g, '\n')
+            speaker = speaker.replace(/<newline>/g, '\n')
+        }
 
         const fontSize = 48
         const lineHeight = fontSize * 1.2
