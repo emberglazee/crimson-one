@@ -150,33 +150,21 @@ export default class CrimsonChat {
 
     public async handleStartup(): Promise<void> {
         if (!this.channel) return
-
-        try {
-            const bootMessage = await this.channel.messages.fetch({ limit: 1 })
-            const lastMessage = bootMessage.first()
-            const historyMessages = this.historyManager.prepareHistory()
-            const lastHistoryMessage = historyMessages[historyMessages.length - 1]
-
-            // Only send back online message if last Discord message was shutdown message
-            // and it's not already in our history
-            if (lastMessage?.content.includes('Crimson is shutting down...') && 
-                (!lastHistoryMessage || (typeof lastHistoryMessage.content === 'string' && !lastHistoryMessage.content.includes('I am back online after a restart')))) {
-                await this.sendMessage('I am back online after a restart.', {
-                    username: 'System',
-                    displayName: 'System',
-                    serverDisplayName: 'System'
-                })
-            }
-        } catch (e) {
-            const error = e as Error
-            logger.error(`Error in handleStartup: ${chalk.red(error.message)}`)
-        }
+        await this.sendMessage(`Discord bot initialized. Welcome back, Crimson 1! Time: ${new Date().toISOString()}`, {
+            username: 'system',
+            displayName: 'System',
+            serverDisplayName: 'System'
+        })
     }
 
     public async handleShutdown(): Promise<void> {
         if (!this.channel) return
         await this.sendResponseToDiscord('⚠️ Crimson is shutting down...')
-        await this.historyManager.appendMessage('system', `Shutting down. Time: ${new Date().toISOString()}`)
+        await this.sendMessage(`Discord bot is shutting down. Time: ${new Date().toISOString()}\nSee you in a bit, Crimson 1.`, {
+            username: 'system',
+            displayName: 'System',
+            serverDisplayName: 'System'
+        })
     }
 
     public setForceNextBreakdown(force: boolean): void {
