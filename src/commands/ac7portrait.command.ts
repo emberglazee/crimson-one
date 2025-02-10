@@ -49,7 +49,11 @@ export default {
      * @returns Promise<void>
      */
     async execute(interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
+        let ephemeral = interaction.options.getBoolean('ephemeral', false), forcedEphemeral = false
+        if (interaction.guildId === '311334325402599425') {
+            ephemeral = true
+            forcedEphemeral = true
+        }
         await interaction.deferReply({
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
@@ -65,11 +69,11 @@ export default {
         // Validate image source options
         const selectedOptions = [attachment, urlOption, user].filter(Boolean).length
         if (selectedOptions === 0) {
-            await interaction.editReply('❌ Please provide either an image attachment, URL, or user mention.')
+            await interaction.editReply('❌ Please provide either an image attachment, URL, or user mention.' + forcedEphemeral ? '\n-# ⚠️ Project Wingman server detected, forced ephemeral reply' : '')
             return
         }
         if (selectedOptions > 1) {
-            await interaction.editReply('❌ Please provide only one image source (attachment, URL, or user mention).')
+            await interaction.editReply('❌ Please provide only one image source (attachment, URL, or user mention).' + forcedEphemeral ? '\n-# ⚠️ Project Wingman server detected, forced ephemeral reply' : '')
             return
         }
 
@@ -81,7 +85,7 @@ export default {
         }
 
         if (!imageUrl) {
-            await interaction.editReply('❌ Invalid image URL provided.')
+            await interaction.editReply('❌ Invalid image URL provided.' + forcedEphemeral ? '\n-# ⚠️ Project Wingman server detected, forced ephemeral reply' : '')
             return
         }
 
@@ -135,9 +139,12 @@ export default {
             ctx.strokeRect(0, 0, canvas.width, canvas.height)
 
             const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'portrait.png' })
-            await interaction.editReply({ files: [attachment] })
+            await interaction.editReply({
+                content: forcedEphemeral ? '-# ⚠️ Project Wingman server detected, forced ephemeral reply' : null,
+                files: [attachment]
+            })
         } catch (error) {
-            await interaction.editReply('❌ Failed to generate portrait.')
+            await interaction.editReply('❌ Failed to generate portrait.' + forcedEphemeral ? '\n-# ⚠️ Project Wingman server detected, forced ephemeral reply' : '')
         }
     }
 } satisfies SlashCommand

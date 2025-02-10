@@ -52,7 +52,7 @@ export const slashCommand = {
             .setRequired(false)
         ),
     async execute(interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
+        let ephemeral = interaction.options.getBoolean('ephemeral', false), forcedEphemeral = false
         const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
         const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
@@ -66,9 +66,14 @@ export const slashCommand = {
         const stretchGradient = interaction.options.getBoolean('stretch') ?? false
         const interpretNewlines = interaction.options.getBoolean('interpretNewlines') ?? true
 
+        if (interaction.guildId === '311334325402599425') {
+            ephemeral = true
+            forcedEphemeral = true
+        }
+
         if (!color && gradient === 'none') {
             await interaction.reply({
-                content: '❌ Either color/role color or gradient must be provided',
+                content: '❌ Either color/role color or gradient must be provided' + forcedEphemeral ? '\n-# ⚠️ Project Wingman server detected, forced ephemeral reply' : '',
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
             return
@@ -81,14 +86,15 @@ export const slashCommand = {
         factory.setGuild(interaction.guild!)
         try {
             const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'ac7', interpretNewlines)
-            await interaction.editReply({ 
+            await interaction.editReply({
+                content: forcedEphemeral ? '-# ⚠️ Project Wingman server detected, forced ephemeral reply' : null,
                 files: [
                     new AttachmentBuilder(result.buffer)
                         .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
-                ] 
+                ]
             })
         } catch (error) {
-            await interaction.editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error'))
+            await interaction.editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error') + forcedEphemeral ? '\n-# ⚠️ Project Wingman server detected, forced ephemeral reply' : '')
         }
     }
 } satisfies SlashCommand
@@ -102,6 +108,7 @@ export const contextMenuCommand = {
         const speaker = interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const quote = interaction.targetMessage.content
+        const forcedEphemeral = interaction.guildId === '311334325402599425'
 
         await interaction.deferReply()
         const factory = QuoteImageFactory.getInstance()
@@ -115,7 +122,7 @@ export const contextMenuCommand = {
                 ]
             })
         } catch (error) {
-            await interaction.editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error'))
+            await interaction.editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error') + forcedEphemeral ? '\n-# ⚠️ Project Wingman server detected, forced ephemeral reply' : '')
         }
     }
 } satisfies ContextMenuCommand<ApplicationCommandType.Message>
