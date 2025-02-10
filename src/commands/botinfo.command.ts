@@ -14,13 +14,16 @@ export default {
         ),
     async execute(interaction) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
+        interaction.deferReply({
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined
+        })
         const { heapUsed, heapTotal, rss } = process.memoryUsage()
         const uptime = Math.floor(process.uptime())
         const uptimeStr = `${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`
         const crimsonChat = CrimsonChat.getInstance()
 
         const application = await interaction.client.application.fetch()
-        await interaction.reply({
+        await interaction.editReply({
             embeds: [{
                 title: '🤖 Bot Information',
                 fields: [
@@ -31,8 +34,7 @@ export default {
                 ],
                 color: 0x2B2D31,
                 timestamp: new Date().toISOString()
-            }],
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
+            }]
         })
     }
 } satisfies SlashCommand
