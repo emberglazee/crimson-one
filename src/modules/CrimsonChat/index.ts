@@ -244,7 +244,7 @@ export default class CrimsonChat {
             interaction.user.username,
             interaction.user.displayName,
             interaction.user.displayName,
-            `Used command: ${command}${optionStr}`
+            `Used command: ${command}${optionStr} (deferred: ${interaction.deferred})`
         )
 
         this.historyManager.appendMessage('user', message)
