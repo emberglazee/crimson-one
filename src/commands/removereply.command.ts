@@ -9,22 +9,21 @@ export const contextMenuCommand = {
     type: ApplicationCommandType.Message,
     async execute(interaction) {
         try {
-            const message = await interaction.channel!.messages.fetch(interaction.targetId)
-            if (message.author.id !== interaction.client.user.id) {
+            if (interaction.targetMessage.author.id !== interaction.client.user.id) {
                 await interaction.reply({
                     content: '❌ This command can only be used on this bot\'s interaction replies',
                     flags: MessageFlags.Ephemeral
                 })
                 return
             }
-            if (!message.interactionMetadata) {
+            if (!interaction.targetMessage.interactionMetadata) {
                 await interaction.reply({
                     content: '❌ This context command can only be used on interaction replies of this bot',
                     flags: MessageFlags.Ephemeral
                 })
                 return
             }
-            if (message.interactionMetadata.user.id !== interaction.user.id) {
+            if (interaction.targetMessage.interactionMetadata.user.id !== interaction.user.id) {
                 await interaction.reply({
                     content: '❌ You can only delete your own interaction replies',
                     flags: MessageFlags.Ephemeral
@@ -32,7 +31,7 @@ export const contextMenuCommand = {
                 return
             }
 
-            await message.delete()
+            await interaction.targetMessage.delete()
             await interaction.reply({
                 content: '✅ Deleted the bot reply',
                 flags: MessageFlags.Ephemeral
