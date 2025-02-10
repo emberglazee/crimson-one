@@ -41,7 +41,7 @@ export class HistoryManager {
         return this.history.length
     }
 
-    async loadHistory(): Promise<void> {
+    private async loadHistory(): Promise<void> {
         try {
             const data = await fs.readFile(this.historyPath, 'utf-8')
             const savedHistory = JSON.parse(data)
@@ -77,7 +77,7 @@ export class HistoryManager {
         }
     }
 
-    async saveHistory(): Promise<void> {
+    private async saveHistory(): Promise<void> {
         try {
             await fs.mkdir(path.dirname(this.historyPath), { recursive: true })
             await fs.writeFile(this.historyPath, JSON.stringify(this.history, null, 2))
@@ -88,7 +88,7 @@ export class HistoryManager {
         }
     }
 
-    async appendMessage(role: 'system' | 'assistant' | 'user', content: string): Promise<void> {
+    public async appendMessage(role: 'system' | 'assistant' | 'user', content: string): Promise<void> {
         // Ensure system prompt exists at start of history
         if (this.history.length === 0 || this.history[0].role !== 'system') {
             this.history.unshift({
@@ -102,30 +102,19 @@ export class HistoryManager {
         logger.info(`Appended ${chalk.yellow(role)} message to history`)
     }
 
-    async clearHistory(): Promise<void> {
-        // Clear the singleton instance first
-        HistoryManager.forceClearInstance()
-
-        // Reset history array
+    public async clearHistory(): Promise<void> {
         this.history = [{
             role: 'system',
             content: CRIMSON_CHAT_SYSTEM_PROMPT
         }]
-
-        // Save empty history to file
         await this.saveHistory()
-
-        // Reload history to ensure clean state
-        await this.loadHistory()
-
         logger.info('Chat history cleared and instance reset')
     }
 
-    async trimHistory(): Promise<void> {
+    public async trimHistory(): Promise<void> {
         const originalLength = this.history.length
         let historyTokens = this.tokenCount
 
-        // Never remove system prompt during trimming
         while (historyTokens > 128000 && this.history.length > 2) {
             // Start removing from index 1 to preserve system prompt
             this.history.splice(1, 1)
@@ -138,14 +127,7 @@ export class HistoryManager {
         }
     }
 
-    prepareHistory(): ChatMessage[] {
-        // Ensure system prompt exists before preparing history
-        if (this.history.length === 0 || this.history[0].role !== 'system') {
-            this.history.unshift({
-                role: 'system',
-                content: CRIMSON_CHAT_SYSTEM_PROMPT
-            })
-        }
+    public prepareHistory(): ChatMessage[] {
         return this.history.map(({ role, content }) => ({ role, content: content || '' }))
     }
 
@@ -153,10 +135,9 @@ export class HistoryManager {
         if (this.history[0].role === 'system') {
             this.history[0].content = CRIMSON_CHAT_SYSTEM_PROMPT
         } else {
-            // Make sure the system prompt doesn't vanish for some reason (#TODO: investigate)
             this.history.unshift({ role: 'system', content: CRIMSON_CHAT_SYSTEM_PROMPT })
         }
         await this.saveHistory()
-        logger.info('System prompt updated to current \`CRIMSON_CHAT_SYSTEM_PROMPT\`')
+        logger.info(`System prompt updated to current ${chalk.yellow('CRIMSON_CHAT_SYSTEM_PROMPT')}`)
     }
 }

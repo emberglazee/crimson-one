@@ -229,11 +229,8 @@ export default class CrimsonChat {
         logger.ok(`Unbanned user ${chalk.yellow(userId)}`)
     }
 
-    public async clearHistory(): Promise<void> {
-        await this.historyManager.clearHistory()
-        // Reinitialize the history manager
-        this.historyManager = HistoryManager.getInstance()
-        await this.historyManager.init()
+    public clearHistory(): Promise<void> {
+        return this.historyManager.clearHistory()
     }
 
     public async trackCommandUsage(interaction: ChatInputCommandInteraction) {
