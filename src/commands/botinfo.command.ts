@@ -14,7 +14,7 @@ export default {
         ),
     async execute(interaction) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
-        interaction.deferReply({
+        await interaction.deferReply({
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
         const { heapUsed, heapTotal, rss } = process.memoryUsage()
