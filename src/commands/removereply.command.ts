@@ -14,7 +14,14 @@ export const contextMenuCommand = {
             })
             return
         }
-        if (interaction.targetMessage.author.id !== interaction.user.id) {
+        if (!interaction.targetMessage.interactionMetadata) {
+            await interaction.reply({
+                content: '❌ This context command can only be used on interaction replies of this bot',
+                flags: MessageFlags.Ephemeral
+            })
+            return
+        }
+        if (interaction.targetMessage.interactionMetadata.user.id !== interaction.user.id) {
             await interaction.reply({
                 content: '❌ You can only delete your own interaction replies',
                 flags: MessageFlags.Ephemeral
