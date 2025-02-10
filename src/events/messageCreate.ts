@@ -79,9 +79,9 @@ export default async function onMessageCreate(client: Client) {
                 }
             })
 
-            // Handle stickers and other embeds
-            if (!content.length && message.stickers.first()) {
-                content = `< sticker: ${message.stickers.first()!.name} >`
+            // Handle other message content
+            if (message.stickers.first()) {
+                content += `\n< sticker: ${message.stickers.first()!.name} >`
             }
             if (message.embeds.length) {
                 content += `\n< embed: ${JSON.stringify(message.embeds[0])} >`
