@@ -41,14 +41,8 @@ export class MessageProcessor {
         if (breakdown) return breakdown
 
         try {
-            // Memory retrieval before processing
-            const relevantMemories = await this.crimsonChat.memoryManager.retrieveRelevantMemories(content)
-            let memoryContext = ''
-
-            if (relevantMemories.length > 0) {
-                memoryContext = this.formatMemoriesForContext(relevantMemories)
-                logger.info(`Retrieved ${chalk.cyan(relevantMemories.length)} relevant memories`)
-            }
+            // Start memory retrieval in parallel with other processing
+            const memoriesPromise = this.crimsonChat.memoryManager.retrieveRelevantMemories(content)
 
             // Check for any assistant commands within the response before normal processing
             const commandRegex = getAssistantCommandRegex()
@@ -80,6 +74,15 @@ export class MessageProcessor {
                         originalMessage
                     )
                 }
+            }
+
+            // Wait for memory retrieval only at this point
+            const relevantMemories = await memoriesPromise
+            let memoryContext = ''
+
+            if (relevantMemories.length > 0) {
+                memoryContext = this.formatMemoriesForContext(relevantMemories)
+                logger.info(`Retrieved ${chalk.cyan(relevantMemories.length)} relevant memories`)
             }
 
             // Format message in the specified JSON structure
@@ -196,6 +199,14 @@ export class MessageProcessor {
                 }
             }
 
+            // For non-command responses, save and process memory asynchronously
+            if (!responseContent.trim().startsWith('!')) {
+                await this.historyManager.appendMessage('assistant', responseContent)
+                // Don't await memory processing
+                void this.crimsonChat.memoryManager.evaluateAndStore(responseContent)
+                return responseContent
+            }
+
             // For non-command responses, save and return as normal
             await this.historyManager.appendMessage('assistant', responseContent)
             await this.crimsonChat.memoryManager.evaluateAndStore(responseContent)
@@ -306,7 +317,7 @@ export class MessageProcessor {
 
     private async getUserPresenceAndRoles(username: string): Promise<UserStatus | 'unknown'> {
         if (!this.crimsonChat.client) return 'unknown'
-        
+
         const user = this.crimsonChat.client.users.cache.find(u => u.username === username)
         if (!user) return 'unknown'
 
