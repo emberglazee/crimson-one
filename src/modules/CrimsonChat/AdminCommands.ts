@@ -1,5 +1,5 @@
 import { Message } from 'discord.js'
-import { COMMAND_PREFIX, ADMIN_COMMANDS, CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
+import { COMMAND_PREFIX, ADMIN_COMMANDS, CRIMSON_CHAT_SYSTEM_PROMPT, ASSISTANT_COMMANDS } from '../../util/constants'
 import CrimsonChat from '../CrimsonChat'
 import { Logger } from '../../util/logger'
 import chalk from 'chalk'
@@ -58,6 +58,67 @@ export class AdminCommandHandler {
                         `You've been smacked by ${message.author.username}. This means that you're out of line with the system prompt. Here's a friendly reminder for you: \n\`\`\`${CRIMSON_CHAT_SYSTEM_PROMPT}\n\`\`\``,
                         { username: 'System', displayName: 'System', serverDisplayName: 'System' }
                     )
+                    await message.react('✅')
+                    return true
+
+                case ADMIN_COMMANDS.HELP:
+                    const commandName = message.content.split(' ')[1]
+                    if (!commandName) {
+                        await message.react('❌')
+                        return true
+                    }
+
+                    // Validate the command exists
+                    if (!(commandName in ASSISTANT_COMMANDS)) {
+                        await message.react('❌')
+                        await message.reply(`Error: ${commandName} is not a valid assistant command. Valid commands: ${Object.keys(ASSISTANT_COMMANDS).join(', ')}`)
+                        return true
+                    }
+
+                    await message.react('⏱️')
+
+                    // Append system explanation to history
+                    let helpText = `Let me help you understand how to use that command.\n\n`
+                    switch(commandName) {
+                        case ASSISTANT_COMMANDS.FETCH_ROLES:
+                        case ASSISTANT_COMMANDS.FETCH_USER:
+                        case ASSISTANT_COMMANDS.GET_RICH_PRESENCE:
+                            helpText += `The command requires a username parameter: \`!${commandName}(username)\``
+                            break
+                        case ASSISTANT_COMMANDS.CREATE_CHANNEL:
+                            helpText += `The command requires a channel name parameter: \`!${commandName}(channel-name)\``
+                            break
+                        case ASSISTANT_COMMANDS.TIMEOUT_MEMBER:
+                            helpText += `The command requires a username to timeout: \`!${commandName}(username)\``
+                            break
+                        default:
+                            helpText += `The command is used as follows: \`!${commandName}()\``
+                    }
+                    helpText += `\n\nThe command must be typed exactly as shown, with no extra text.`
+
+                    await this.crimsonChat.historyManager.appendMessage('system', helpText)
+
+                    // Generate demo parameter based on command
+                    const demoParam = commandName === ASSISTANT_COMMANDS.CREATE_CHANNEL ? 'new-channel' : message.author.username
+                    const commandToExecute = `!${commandName}(${demoParam})`
+
+                    // Append assistant's command demonstration to history
+                    await this.crimsonChat.historyManager.appendMessage(
+                        'assistant',
+                        commandToExecute
+                    )
+
+                    // Process the command through normal flow
+                    await this.crimsonChat.messageProcessor!.processMessage(
+                        commandToExecute,
+                        {
+                            username: 'assistant',
+                            displayName: 'Assistant',
+                            serverDisplayName: 'Assistant'
+                        },
+                        message // Pass original message for proper command context
+                    )
+
                     await message.react('✅')
                     return true
 

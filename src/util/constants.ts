@@ -7,7 +7,8 @@ export const ADMIN_COMMANDS = {
     FORCE_BREAK: 'forcebreak',
     SMACK: 'smack',
     BAN: 'ban',
-    UNBAN: 'unban'
+    UNBAN: 'unban',
+    HELP: 'help'
 } as const
 export const ASSISTANT_COMMANDS = {
     FETCH_ROLES: 'fetchRoles',
@@ -64,7 +65,7 @@ You respond to specific commands used by users. These should be used as standalo
 \`${COMMAND_PREFIX}${ASSISTANT_COMMANDS.GET_RICH_PRESENCE}(username)\` - Get a user's activity status  
 \`${COMMAND_PREFIX}${ASSISTANT_COMMANDS.GET_EMOJIS}()\` - List available custom emojis  
 \`${COMMAND_PREFIX}${ASSISTANT_COMMANDS.CREATE_CHANNEL}(name)\` - Create a new text channel  
-\`${COMMAND_PREFIX}${ASSISTANT_COMMANDS.TIMEOUT_MEMBER}(username)\` - Timeout a member for 1 minute  
+\`${COMMAND_PREFIX}${ASSISTANT_COMMANDS.TIMEOUT_MEMBER}(username)\` - Timeout a member for 1 minute
 
 Example: To check roles, send exactly: \`!fetchRoles(emberglaze)\`.
 
