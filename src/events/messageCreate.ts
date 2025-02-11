@@ -59,9 +59,27 @@ export default async function onMessageCreate(client: Client) {
                 // Handle forwarded messages
                 if (message.messageSnapshots?.size > 0) {
                     const snapshots = Array.from(message.messageSnapshots.values())
-                    content += '\n< forwarded messages:\n' + snapshots.map(snapshot => 
-                        `[${snapshot.author!.username}]: ${snapshot.content}`
-                    ).join('\n') + ' >'
+                    const forwardedMessages = await Promise.all(
+                        snapshots.map(async snapshot => {
+                            try {
+                                // Attempt to fetch the full message if we have the required IDs
+                                if (snapshot.channelId && snapshot.id) {
+                                    const channel = await client.channels.fetch(snapshot.channelId)
+                                    if (channel?.isTextBased()) {
+                                        const fullMessage = await channel.messages.fetch(snapshot.id)
+                                        if (fullMessage) {
+                                            return `[${fullMessage.author.username}]: ${fullMessage.content}`
+                                        }
+                                    }
+                                }
+                            } catch {
+                                // Fall back to snapshot data if fetch fails
+                            }
+                            // Use snapshot data as fallback
+                            return `[${snapshot.author!.username}]: ${snapshot.content}`
+                        })
+                    )
+                    content += '\n< forwarded messages:\n' + forwardedMessages.join('\n') + ' >'
                 }
 
                 // Get reply context if message is a reply
@@ -111,7 +129,6 @@ export default async function onMessageCreate(client: Client) {
                 }, message)
                 return
             }
-
             // Handle mentions outside main channel
             if (isMentioned) {
                 let { content } = message
@@ -119,9 +136,27 @@ export default async function onMessageCreate(client: Client) {
                 // Handle forwarded messages
                 if (message.messageSnapshots?.size > 0) {
                     const snapshots = Array.from(message.messageSnapshots.values())
-                    content += '\n< forwarded messages:\n' + snapshots.map(snapshot => 
-                        `[${snapshot.author!.username}]: ${snapshot.content}`
-                    ).join('\n') + ' >'
+                    const forwardedMessages = await Promise.all(
+                        snapshots.map(async snapshot => {
+                            try {
+                                // Attempt to fetch the full message if we have the required IDs
+                                if (snapshot.channelId && snapshot.id) {
+                                    const channel = await client.channels.fetch(snapshot.channelId)
+                                    if (channel?.isTextBased()) {
+                                        const fullMessage = await channel.messages.fetch(snapshot.id)
+                                        if (fullMessage) {
+                                            return `[${fullMessage.author.username}]: ${fullMessage.content}`
+                                        }
+                                    }
+                                }
+                            } catch {
+                                // Fall back to snapshot data if fetch fails
+                            }
+                            // Use snapshot data as fallback
+                            return `[${snapshot.author!.username}]: ${snapshot.content}`
+                        })
+                    )
+                    content += '\n< forwarded messages:\n' + forwardedMessages.join('\n') + ' >'
                 }
 
                 // Get reply context if message is a reply
