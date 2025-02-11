@@ -36,7 +36,19 @@ export class MemoryManager {
     private async loadMemories(): Promise<void> {
         try {
             const data = await fs.readFile(this.memoryPath, 'utf-8')
-            this.memories = JSON.parse(data)
+            const allMemories = JSON.parse(data)
+
+            // Filter out memories that were marked as "don't store"
+            this.memories = allMemories.filter((memory: Memory) => 
+                !memory.evaluation?.toLowerCase().includes("don't store") &&
+                !memory.evaluation?.toLowerCase().includes("do not store")
+            )
+
+            if (allMemories.length !== this.memories.length) {
+                logger.info(`Filtered out ${chalk.yellow(allMemories.length - this.memories.length)} invalid memories during load`)
+                await this.saveMemories() // Save the cleaned memories
+            }
+
             logger.info(`Memories loaded successfully with ${chalk.yellow(this.memories.length)} entries`)
         } catch (error) {
             this.memories = []
@@ -92,11 +104,20 @@ Assistant's response: "${content}"`
 
             const response = evaluation.choices[0].message.content ?? ''
 
-            if (response.toLowerCase().includes('important') || 
+            // Don't store if evaluation explicitly says not to
+            if (response.toLowerCase().includes('don\'t store') || 
+                response.toLowerCase().includes('do not store')) {
+                logger.info('Skipping memory storage based on evaluation')
+                return
+            }
+
+            const hasImportanceKeyword = response.toLowerCase().includes('important') || 
                 response.toLowerCase().includes('remember') ||
                 response.toLowerCase().includes('critical') ||
                 response.toLowerCase().includes('useful') ||
-                response.toLowerCase().includes('relevant')) {
+                response.toLowerCase().includes('relevant')
+
+            if (hasImportanceKeyword) {
                 const importance = this.calculateImportance(response)
 
                 // Only store if importance is above BASIC (1)
