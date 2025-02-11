@@ -4,7 +4,7 @@ import { ImageProcessor } from './ImageProcessor'
 import { CommandParser } from './CommandParser'
 import { Logger } from '../../util/logger'
 import { CRIMSON_BREAKDOWN_PROMPT, getAssistantCommandRegex } from '../../util/constants'
-import type { ChatMessage, UserMessageOptions, UserStatus } from '../../types/types'
+import type { ChatMessage, Memory, UserMessageOptions, UserStatus } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
 import chalk from 'chalk'
@@ -41,6 +41,15 @@ export class MessageProcessor {
         if (breakdown) return breakdown
 
         try {
+            // Memory retrieval before processing
+            const relevantMemories = await this.crimsonChat.memoryManager.retrieveRelevantMemories(content)
+            let memoryContext = ''
+
+            if (relevantMemories.length > 0) {
+                memoryContext = this.formatMemoriesForContext(relevantMemories)
+                logger.info(`Retrieved ${chalk.cyan(relevantMemories.length)} relevant memories`)
+            }
+
             // Check for any assistant commands within the response before normal processing
             const commandRegex = getAssistantCommandRegex()
             const possibleCommand = content.split('\n').find(line => commandRegex.test(line.trim()))
@@ -92,14 +101,20 @@ export class MessageProcessor {
             // Convert message to string for history
             const formattedMessage = JSON.stringify(messageData)
 
-            // Save user's message to history
+            // Append user's message to history
             await this.historyManager.appendMessage('user', formattedMessage)
 
-            // Get AI's response
             const history = this.historyManager.prepareHistory().map(msg => ({
                 role: msg.role,
                 content: msg.content || '',
             })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[]
+            // Add memory context if available
+            if (memoryContext) {
+                history.unshift({
+                    role: 'system',
+                    content: memoryContext
+                })
+            }
 
             // Extract image URLs from message content and combine with image attachments
             const imageUrls = new Set<string>()
@@ -183,6 +198,7 @@ export class MessageProcessor {
 
             // For non-command responses, save and return as normal
             await this.historyManager.appendMessage('assistant', responseContent)
+            await this.crimsonChat.memoryManager.evaluateAndStore(responseContent)
             return responseContent
         } catch (e) {
             const error = e as Error
@@ -322,5 +338,36 @@ export class MessageProcessor {
             logger.error(`Error fetching user status: ${chalk.red(error.message)}`)
             return 'unknown'
         }
+    }
+    // Add new helper methods for memory handling
+    private formatMemoriesForContext(memories: Memory[]): string {
+        const formattedMemories = memories
+            .sort((a, b) => b.importance - a.importance)
+            .map(memory => {
+                const importanceLabel = this.getImportanceLabel(memory.importance)
+                const timeAgo = this.getTimeAgo(memory.timestamp)
+                return `[${importanceLabel}] ${timeAgo}: ${memory.content}`
+            })
+            .join('\n')
+
+        return `RELEVANT MEMORIES:\n${formattedMemories}\n\nUse these memories to maintain context and personality consistency in your response.`
+    }
+    private getImportanceLabel(importance: number): string {
+        switch (importance) {
+            case 5: return 'CRITICAL'
+            case 4: return 'IMPORTANT'
+            case 3: return 'USEFUL'
+            case 2: return 'RELEVANT'
+            default: return 'BASIC'
+        }
+    }
+    private getTimeAgo(timestamp: number): string {
+        const now = Date.now()
+        const seconds = Math.floor((now - timestamp) / 1000)
+
+        if (seconds < 60) return 'under a minute ago'
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
+        return `${Math.floor(seconds / 86400)}d ago`
     }
 }

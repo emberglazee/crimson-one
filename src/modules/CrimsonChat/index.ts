@@ -7,6 +7,7 @@ import type { UserMessageOptions } from '../../types/types'
 import path from 'path'
 import { formatUserMessage, usernamesToMentions } from './utils/formatters'
 import chalk from 'chalk'
+import { MemoryManager } from './MemoryManager'
 
 const logger = new Logger('CrimsonChat')
 
@@ -17,6 +18,8 @@ export default class CrimsonChat {
     private enabled: boolean = true
     private isProcessing: boolean = false
     private bannedUsers: Set<string> = new Set()
+
+    memoryManager: MemoryManager = MemoryManager.getInstance()
     messageProcessor: MessageProcessor | null = null
     historyManager: HistoryManager
     client: Client | null = null
@@ -77,9 +80,7 @@ export default class CrimsonChat {
 
         // Start typing indicator loop
         const typingInterval = setInterval(() => {
-            targetChannel.sendTyping().catch(() => {
-                // Ignore errors from sending typing indicator
-            })
+            targetChannel.sendTyping()
         }, 8000)
 
         // Initial typing indicator
@@ -92,16 +93,11 @@ export default class CrimsonChat {
                 logger.info('Received null/undefined response from message processor, ignoring')
                 return null
             }
-            await this.sendResponseToDiscord(response, null, originalMessage)
+            await this.sendResponseToDiscord(response, originalMessage)
         } catch (e) {
             const error = e as Error
             logger.error(`Error processing message: ${chalk.red(error.message)}`)
-            try {
-                await this.sendResponseToDiscord('Sorry, something went wrong while processing your message. Please try again later.')
-            } catch (se) {
-                const sendError = se as Error
-                logger.error(`Failed to send error message: ${chalk.red(sendError.message)}`)
-            }
+            await this.sendResponseToDiscord('Sorry, something went wrong while processing your message. Please try again later.')
         } finally {
             clearInterval(typingInterval)
             this.isProcessing = false
@@ -110,7 +106,7 @@ export default class CrimsonChat {
         }
     }
 
-    private async sendResponseToDiscord(content: string, message?: any, originalMessage?: Message): Promise<void> {
+    private async sendResponseToDiscord(content: string, originalMessage?: Message): Promise<void> {
         if (!this.channel || !this.client) throw new Error('Channel or client not set')
 
         try {
