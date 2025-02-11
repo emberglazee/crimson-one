@@ -105,3 +105,10 @@ export interface UserPresenceInfo {
         createdAt: string
     }[] | 'offline or no activities'
 }
+
+export interface Memory {
+    content: string
+    timestamp: number
+    context?: string
+    importance: 1 | 2 | 3 | 4 | 5
+}
