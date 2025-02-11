@@ -24,6 +24,11 @@ export class AdminCommandHandler {
                     await message.react('✅')
                     return true
 
+                case ADMIN_COMMANDS.RESET_MEMORIES:
+                    await this.crimsonChat.clearMemories()
+                    await message.react('✅')
+                    return true
+
                 case ADMIN_COMMANDS.UPDATE_PROMPT:
                     await this.crimsonChat.updateSystemPrompt()
                     await message.react('✅')

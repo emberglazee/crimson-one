@@ -3,6 +3,8 @@ import { Logger } from '../../util/logger'
 import OpenAI from 'openai'
 import { CRIMSON_LONG_TERM_MEMORY_PROMPT } from '../../util/constants'
 import type { Memory } from '../../types/types'
+import { promises as fs } from 'fs'
+import path from 'path'
 
 const logger = new Logger('CrimsonChat | MemoryManager')
 
@@ -10,7 +12,8 @@ export class MemoryManager {
     private static instance: MemoryManager
     private openai: OpenAI
     private memories: Memory[] = []
-    
+    private memoryPath = path.join(process.cwd(), 'data/memories.json')
+
     public static getInstance(): MemoryManager {
         if (!MemoryManager.instance) {
             MemoryManager.instance = new MemoryManager()
@@ -22,6 +25,32 @@ export class MemoryManager {
         this.openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY!
         })
+    }
+
+    async init(): Promise<void> {
+        await this.loadMemories()
+    }
+
+    private async loadMemories(): Promise<void> {
+        try {
+            const data = await fs.readFile(this.memoryPath, 'utf-8')
+            this.memories = JSON.parse(data)
+            logger.info(`Memories loaded successfully with ${chalk.yellow(this.memories.length)} entries`)
+        } catch (error) {
+            this.memories = []
+            logger.warn('No existing memories found, starting fresh')
+        }
+    }
+
+    private async saveMemories(): Promise<void> {
+        try {
+            await fs.mkdir(path.dirname(this.memoryPath), { recursive: true })
+            await fs.writeFile(this.memoryPath, JSON.stringify(this.memories, null, 2))
+            logger.info('Memories saved successfully')
+        } catch (e) {
+            const error = e as Error
+            logger.error(`Failed to save memories: ${chalk.red(error.message)}`)
+        }
     }
 
     public async evaluateAndStore(
@@ -76,7 +105,7 @@ export class MemoryManager {
                     { role: 'system', content: 'Return only the numbers of relevant memories, comma-separated.' },
                     { role: 'user', content: prompt }
                 ],
-                model: 'gpt-4-turbo-preview'
+                model: 'gpt-4o-mini'
             })
 
             const relevantIndices = (response.choices[0].message.content ?? '')
@@ -94,6 +123,13 @@ export class MemoryManager {
     private async storeMemory(memory: Memory): Promise<void> {
         this.memories.push(memory)
         this.memories.sort((a, b) => b.importance - a.importance)
+        await this.saveMemories()
+    }
+
+    public async clearMemories(): Promise<void> {
+        this.memories = []
+        await this.saveMemories()
+        logger.info('Memories cleared and saved')
     }
 
     private calculateImportance(aiResponse: string): 1 | 2 | 3 | 4 | 5 {
