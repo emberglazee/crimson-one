@@ -57,6 +57,7 @@ export default class CrimsonChat {
         }
 
         await this.historyManager.init()
+        await this.memoryManager.init()
         await this.loadBannedUsers()
         logger.ok('CrimsonChat initialized successfully')
     }
@@ -213,8 +214,14 @@ export default class CrimsonChat {
         logger.ok(`Unbanned user ${chalk.yellow(userId)}`)
     }
 
-    public clearHistory(): Promise<void> {
-        return this.historyManager.clearHistory()
+    public async clearHistory(): Promise<void> {
+        await this.historyManager.clearHistory()
+        logger.info('History cleared')
+    }
+
+    public async clearMemories(): Promise<void> {
+        await this.memoryManager.clearMemories()
+        logger.info('Memories cleared')
     }
 
     public async trackCommandUsage(interaction: ChatInputCommandInteraction) {

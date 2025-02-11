@@ -1,6 +1,7 @@
 export const COMMAND_PREFIX = '!'
 export const ADMIN_COMMANDS = {
     RESET: 'reset',
+    RESET_MEMORIES: 'resetmem',
     UPDATE_PROMPT: 'updateprompt',
     TOGGLE: 'toggle',
     FORCE_BREAK: 'forcebreak',
