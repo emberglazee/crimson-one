@@ -202,14 +202,13 @@ export class MessageProcessor {
             // For non-command responses, save and process memory asynchronously
             if (!responseContent.trim().startsWith('!')) {
                 await this.historyManager.appendMessage('assistant', responseContent)
-                // Don't await memory processing
-                void this.crimsonChat.memoryManager.evaluateAndStore(responseContent)
+                // Don't await memory processing, but still pass context from the user's message
+                void this.crimsonChat.memoryManager.evaluateAndStore(responseContent, content)
                 return responseContent
             }
 
-            // For non-command responses, save and return as normal
+            // For command responses, just save to history without memory processing
             await this.historyManager.appendMessage('assistant', responseContent)
-            await this.crimsonChat.memoryManager.evaluateAndStore(responseContent)
             return responseContent
         } catch (e) {
             const error = e as Error
