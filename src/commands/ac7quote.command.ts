@@ -110,7 +110,9 @@ export const contextMenuCommand = {
         const quote = interaction.targetMessage.content
         const forcedEphemeral = interaction.guildId === '311334325402599425'
 
-        await interaction.deferReply()
+        await interaction.deferReply({
+            flags: forcedEphemeral ? MessageFlags.Ephemeral : undefined
+        })
         const factory = QuoteImageFactory.getInstance()
         factory.setGuild(interaction.guild!)
         try {
