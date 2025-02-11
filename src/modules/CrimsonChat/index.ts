@@ -157,11 +157,8 @@ export default class CrimsonChat {
     public async handleShutdown(): Promise<void> {
         if (!this.channel) return
         await this.sendResponseToDiscord('⚠️ Crimson is shutting down...')
-        await this.sendMessage(`Discord bot is shutting down. Time: ${new Date().toISOString()}\nSee you in a bit, Crimson 1.`, {
-            username: 'system',
-            displayName: 'System',
-            serverDisplayName: 'System'
-        })
+        // Append message without sending it, it won't have time to respond so don't bother trying
+        await this.historyManager.appendMessage('system', `Discord bot is shutting down. See ya in a bit, Crimson 1. Time: ${new Date().toISOString()}`)
     }
 
     public setForceNextBreakdown(force: boolean): void {
