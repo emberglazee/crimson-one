@@ -106,9 +106,11 @@ export const contextMenuCommand = {
         const speaker = interaction.targetMessage.member?.displayName || interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const quote = interaction.targetMessage.content
-        let forcedEphemeral = interaction.guildId === '311334325402599425'
+        const forcedEphemeral = interaction.guildId === '311334325402599425'
 
-        await interaction.deferReply()
+        await interaction.deferReply({
+            flags: forcedEphemeral ? MessageFlags.Ephemeral : undefined
+        })
         const factory = QuoteImageFactory.getInstance()
         factory.setGuild(interaction.guild!)
         try {
