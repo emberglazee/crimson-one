@@ -13,6 +13,8 @@ export class MemoryManager {
     private openai: OpenAI
     private memories: Memory[] = []
     private memoryPath = path.join(process.cwd(), 'data/memories.json')
+    private memoryQueue: { content: string, context?: string }[] = []
+    private isProcessingMemory = false
 
     public static getInstance(): MemoryManager {
         if (!MemoryManager.instance) {
@@ -56,7 +58,20 @@ export class MemoryManager {
     public async evaluateAndStore(
         content: string, 
         context?: string
-    ): Promise<{ stored: boolean; response: string }> {
+    ): Promise<void> {
+        // Add to queue and process if not already processing
+        this.memoryQueue.push({ content, context })
+        this.processNextMemory()
+    }
+
+    private async processNextMemory(): Promise<void> {
+        if (this.isProcessingMemory || this.memoryQueue.length === 0) {
+            return
+        }
+
+        this.isProcessingMemory = true
+        const { content, context } = this.memoryQueue.shift()!
+
         try {
             const evaluation = await this.openai.chat.completions.create({
                 messages: [
@@ -85,14 +100,15 @@ export class MemoryManager {
                     timestamp: Date.now(),
                     importance
                 })
-
-                return { stored: true, response }
             }
-
-            return { stored: false, response }
         } catch (error) {
             logger.error(`Memory evaluation error:\n${chalk.red(error instanceof Error ? error.stack : error)}`)
-            throw error
+        } finally {
+            this.isProcessingMemory = false
+            // Process next memory if any
+            if (this.memoryQueue.length > 0) {
+                setTimeout(() => this.processNextMemory(), 100) // Small delay to prevent CPU hogging
+            }
         }
     }
 
@@ -149,5 +165,9 @@ export class MemoryManager {
         }
 
         return maxImportance as 1 | 2 | 3 | 4 | 5
+    }
+
+    public getQueueLength(): number {
+        return this.memoryQueue.length
     }
 }
