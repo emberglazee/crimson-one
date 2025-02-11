@@ -25,7 +25,7 @@ async function getLastMessages(channel: Message['channel'], limit = 15) {
 export default async function onMessageCreate(client: Client) {
     const crimsonChat = CrimsonChat.getInstance()
     crimsonChat.setClient(client)
-    await crimsonChat.init() // Ensure CrimsonChat is properly initialized with history
+    await crimsonChat.init()
     const adminCommands = new AdminCommandHandler()
 
     client.on('messageCreate', async message => {
@@ -55,6 +55,14 @@ export default async function onMessageCreate(client: Client) {
                 }
 
                 let { content } = message
+
+                // Handle forwarded messages
+                if (message.messageSnapshots?.size > 0) {
+                    const snapshots = Array.from(message.messageSnapshots.values())
+                    content += '\n< forwarded messages:\n' + snapshots.map(snapshot => 
+                        `[${snapshot.author!.username}]: ${snapshot.content}`
+                    ).join('\n') + ' >'
+                }
 
                 // Get reply context if message is a reply
                 const respondingTo = message.reference?.messageId ? {
@@ -107,6 +115,14 @@ export default async function onMessageCreate(client: Client) {
             // Handle mentions outside main channel
             if (isMentioned) {
                 let { content } = message
+
+                // Handle forwarded messages
+                if (message.messageSnapshots?.size > 0) {
+                    const snapshots = Array.from(message.messageSnapshots.values())
+                    content += '\n< forwarded messages:\n' + snapshots.map(snapshot => 
+                        `[${snapshot.author!.username}]: ${snapshot.content}`
+                    ).join('\n') + ' >'
+                }
 
                 // Get reply context if message is a reply
                 const respondingTo = message.reference?.messageId ? {
