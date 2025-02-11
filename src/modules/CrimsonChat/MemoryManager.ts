@@ -81,7 +81,9 @@ export class MemoryManager {
                     },
                     {
                         role: 'user',
-                        content: `Evaluate this information for storage: "${content}"`
+                        content: `Evaluate this information for storage.
+Context of conversation: "${context || 'No context provided'}"
+Assistant's response: "${content}"`
                     }
                 ],
                 model: 'gpt-4o-mini',
@@ -91,15 +93,23 @@ export class MemoryManager {
             const response = evaluation.choices[0].message.content ?? ''
 
             if (response.toLowerCase().includes('important') || 
-                response.toLowerCase().includes('remember')) {
+                response.toLowerCase().includes('remember') ||
+                response.toLowerCase().includes('critical') ||
+                response.toLowerCase().includes('useful') ||
+                response.toLowerCase().includes('relevant')) {
                 const importance = this.calculateImportance(response)
 
-                await this.storeMemory({
-                    content,
-                    context,
-                    timestamp: Date.now(),
-                    importance
-                })
+                // Only store if importance is above BASIC (1)
+                if (importance > 1) {
+                    await this.storeMemory({
+                        content,
+                        context,
+                        evaluation: response, // Store the AI's reasoning
+                        timestamp: Date.now(),
+                        importance
+                    })
+                    logger.info(`Stored memory with importance ${chalk.yellow(importance)}: ${chalk.cyan(content.substring(0, 50))}...`)
+                }
             }
         } catch (error) {
             logger.error(`Memory evaluation error:\n${chalk.red(error instanceof Error ? error.stack : error)}`)
@@ -137,9 +147,25 @@ export class MemoryManager {
     }
 
     private async storeMemory(memory: Memory): Promise<void> {
-        this.memories.push(memory)
-        this.memories.sort((a, b) => b.importance - a.importance)
-        await this.saveMemories()
+        // Check for duplicate or very similar memories
+        const isDuplicate = this.memories.some(m => 
+            m.content === memory.content || 
+            (m.content.length > 10 && memory.content.includes(m.content)) ||
+            (memory.content.length > 10 && m.content.includes(memory.content))
+        )
+
+        if (!isDuplicate) {
+            this.memories.push(memory)
+            // Keep only the top 1000 most important memories
+            this.memories.sort((a, b) => b.importance - a.importance)
+            if (this.memories.length > 1000) {
+                this.memories = this.memories.slice(0, 1000)
+            }
+            await this.saveMemories()
+            logger.info(`Memory stored successfully. Total memories: ${chalk.yellow(this.memories.length)}`)
+        } else {
+            logger.info('Skipped storing duplicate memory')
+        }
     }
 
     public async clearMemories(): Promise<void> {

@@ -108,7 +108,8 @@ export interface UserPresenceInfo {
 
 export interface Memory {
     content: string
-    timestamp: number
     context?: string
+    evaluation?: string
+    timestamp: number
     importance: 1 | 2 | 3 | 4 | 5
 }
