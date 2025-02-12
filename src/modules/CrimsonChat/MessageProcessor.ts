@@ -44,26 +44,16 @@ export class MessageProcessor {
             // Start memory retrieval in parallel with other processing
             const memoriesPromise = this.crimsonChat.memoryManager.retrieveRelevantMemories(content)
 
-            // Check for any assistant commands within the response
+            // Check for any commands in the text, not just at start of line
             const commandRegex = getAssistantCommandRegex()
-            const lines = content.split('\n')
-            const commandLine = lines.find(line => commandRegex.test(line.trim()))
+            const match = commandRegex.exec(content)
 
-            if (commandLine) {
-                logger.info(`{processMessage} Found potential command within response: ${chalk.yellow(commandLine)}`)
-
-                // Save the command to history
-                await this.historyManager.appendMessage('assistant', commandLine)
-
-                // Execute the command
-                if (!originalMessage) {
-                    return 'Error: No original message available for command execution.'
-                }
-
-                const commandResult = await this.checkForCommands(commandLine, originalMessage)
+            if (match) {
+                logger.info(`{processMessage} Found command: ${chalk.yellow(match[0])}`)
+                const commandResult = await this.checkForCommands(match[0], originalMessage)
                 if (commandResult) {
                     // Feed command result back as a System message
-                    const systemFeedback = `!${commandLine.split('!')[1].trim()} -> ${commandResult}`
+                    const systemFeedback = `!${match[0].split('!')[1].trim()} -> ${commandResult}`
 
                     return await this.processMessage(
                         systemFeedback,
