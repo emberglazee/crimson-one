@@ -44,25 +44,26 @@ export class MessageProcessor {
             // Start memory retrieval in parallel with other processing
             const memoriesPromise = this.crimsonChat.memoryManager.retrieveRelevantMemories(content)
 
-            // Check for any assistant commands within the response before normal processing
+            // Check for any assistant commands within the response
             const commandRegex = getAssistantCommandRegex()
-            const possibleCommand = content.split('\n').find(line => commandRegex.test(line.trim()))
+            const lines = content.split('\n')
+            const commandLine = lines.find(line => commandRegex.test(line.trim()))
 
-            if (possibleCommand) {
-                logger.info(`{processMessage} Found potential command within response: ${chalk.yellow(possibleCommand)}`)
+            if (commandLine) {
+                logger.info(`{processMessage} Found potential command within response: ${chalk.yellow(commandLine)}`)
 
                 // Save the command to history
-                await this.historyManager.appendMessage('assistant', possibleCommand)
+                await this.historyManager.appendMessage('assistant', commandLine)
 
                 // Execute the command
                 if (!originalMessage) {
                     return 'Error: No original message available for command execution.'
                 }
 
-                const commandResult = await this.checkForCommands(possibleCommand, originalMessage)
+                const commandResult = await this.checkForCommands(commandLine, originalMessage)
                 if (commandResult) {
                     // Feed command result back as a System message
-                    const systemFeedback = `!${possibleCommand.split('!')[1].trim()} -> ${commandResult}`
+                    const systemFeedback = `!${commandLine.split('!')[1].trim()} -> ${commandResult}`
 
                     return await this.processMessage(
                         systemFeedback,
