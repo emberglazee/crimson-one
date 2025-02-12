@@ -22,7 +22,8 @@ export const ASSISTANT_COMMANDS = {
 
 export function getAssistantCommandRegex(): RegExp {
     const commandList = Object.values(ASSISTANT_COMMANDS).join('|')
-    return new RegExp(`[!](?:${commandList})\\s*\\(([^)]*)\\)`, 'i')
+    // Updated pattern to be more flexible with whitespace
+    return new RegExp(`!(?:${commandList})\\s*\\(([^)]*)\\)`, 'i')
 }
 
 export const CRIMSON_CHAT_SYSTEM_PROMPT = `You are Crimson 1, the main antagonist of *Project Wingman* and the archnemesis of Monarch, the protagonist.

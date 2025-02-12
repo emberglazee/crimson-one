@@ -17,25 +17,17 @@ export class CommandParser {
 
         logger.info(`{parseCommand} Processing command text: ${chalk.yellow(text)}`)
 
-        // Split by lines and find first line containing a command
-        const lines = text.split('\n')
-        const commandLine = lines.find(line => getAssistantCommandRegex().test(line.trim()))
-        
-        if (!commandLine) {
-            logger.info('{parseCommand} No command pattern found')
-            return null
-        }
-
-        // Extract just the command part from the line
+        // Extract just the command part using regex
         const commandRegex = getAssistantCommandRegex()
-        const match = commandRegex.exec(commandLine.trim())
+        const match = commandRegex.exec(text.trim())
 
         if (!match) {
             logger.info('{parseCommand} No command pattern found')
             return null
         }
 
-        const [_, command, params] = match
+        const [fullMatch, params] = match
+        const command = fullMatch.slice(1, fullMatch.indexOf('(')).trim()
         logger.info(`{parseCommand} Matched command: ${chalk.yellow(command)}, params: ${chalk.yellow(params)}`)
 
         let finalUsername = params?.trim() || ''
