@@ -17,7 +17,7 @@ export class CommandParser {
 
         logger.info(`{parseCommand} Processing command text: ${chalk.yellow(text)}`)
 
-        // Extract just the command part using regex
+        // Extract command and parameters using improved regex
         const commandRegex = getAssistantCommandRegex()
         const match = commandRegex.exec(text.trim())
 
@@ -26,8 +26,7 @@ export class CommandParser {
             return null
         }
 
-        const [fullMatch, params] = match
-        const command = fullMatch.slice(1, fullMatch.indexOf('(')).trim()
+        const [_, command, params] = match
         logger.info(`{parseCommand} Matched command: ${chalk.yellow(command)}, params: ${chalk.yellow(params)}`)
 
         let finalUsername = params?.trim() || ''

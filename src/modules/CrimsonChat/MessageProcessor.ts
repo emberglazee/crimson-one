@@ -44,26 +44,28 @@ export class MessageProcessor {
             // Start memory retrieval in parallel with other processing
             const memoriesPromise = this.crimsonChat.memoryManager.retrieveRelevantMemories(content)
 
-            // Check for any commands in the text, not just at start of line
+            // Check entire content for commands
             const commandRegex = getAssistantCommandRegex()
-            const match = commandRegex.exec(content)
+            const commands = Array.from(content.matchAll(new RegExp(commandRegex, 'gi')))
 
-            if (match) {
-                logger.info(`{processMessage} Found command: ${chalk.yellow(match[0])}`)
-                const commandResult = await this.checkForCommands(match[0], originalMessage)
-                if (commandResult) {
-                    // Feed command result back as a System message
-                    const systemFeedback = `!${match[0].split('!')[1].trim()} -> ${commandResult}`
+            if (commands.length > 0) {
+                for (const match of commands) {
+                    logger.info(`{processMessage} Found command: ${chalk.yellow(match[0])}`)
+                    const commandResult = await this.checkForCommands(match[0], originalMessage)
+                    if (commandResult) {
+                        // Feed command result back as a System message
+                        const systemFeedback = `!${match[0].split('!')[1].trim()} -> ${commandResult}`
 
-                    return await this.processMessage(
-                        systemFeedback,
-                        {
-                            username: 'System',
-                            displayName: 'System',
-                            serverDisplayName: 'System'
-                        },
-                        originalMessage
-                    )
+                        return await this.processMessage(
+                            systemFeedback,
+                            {
+                                username: 'System',
+                                displayName: 'System',
+                                serverDisplayName: 'System'
+                            },
+                            originalMessage
+                        )
+                    }
                 }
             }
 
@@ -248,26 +250,28 @@ export class MessageProcessor {
     }
 
     private async checkForCommands(content: string, originalMessage?: Message): Promise<string | null> {
-        logger.info(`{processMessage} Checking content for commands: ${chalk.yellow(content)}`)
+        logger.info(`{checkForCommands} Checking content for commands: ${chalk.yellow(content)}`)
 
+        // Reset regex lastIndex to ensure we can reuse it
         const commandRegex = getAssistantCommandRegex()
-        const match = commandRegex.exec(content.trim())
-
+        commandRegex.lastIndex = 0
+        
+        const match = commandRegex.exec(content)
         if (!match) {
-            logger.info(`{processMessage} No command pattern found in content`)
+            logger.info(`{checkForCommands} No command pattern found in content`)
             return null
         }
 
-        const [fullMatch] = match
-        logger.info(`{processMessage} Found command pattern: ${chalk.yellow(fullMatch)}`)
+        const [fullMatch, command, params] = match
+        logger.info(`{checkForCommands} Found command: ${chalk.yellow(command)}, params: ${chalk.yellow(params)}`)
 
         const commandResult = await this.commandParser.parseCommand(fullMatch, originalMessage)
         if (!commandResult) {
-            logger.info(`{processMessage} Command parser returned null`)
+            logger.info(`{checkForCommands} Command parser returned null`)
             return null
         }
 
-        logger.info(`{processMessage} Command executed successfully`)
+        logger.info(`{checkForCommands} Command executed successfully`)
         return commandResult
     }
 
