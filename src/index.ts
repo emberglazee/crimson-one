@@ -106,4 +106,6 @@ bot.rest.on('rateLimited', rateLimitInfo => {
     )
 })
 
-bot.login(process.env.DISCORD_TOKEN)
+logger.info('Logging in...')
+await bot.login(process.env.DISCORD_TOKEN)
+logger.ok('Logged in')

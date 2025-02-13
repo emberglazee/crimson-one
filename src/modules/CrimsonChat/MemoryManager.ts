@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import { Logger } from '../../util/logger'
 import OpenAI from 'openai'
-import { CRIMSON_LONG_TERM_MEMORY_PROMPT } from '../../util/constants'
+import { CRIMSON_LONG_TERM_MEMORY_PROMPT, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
 import type { Memory } from '../../types/types'
 import { promises as fs } from 'fs'
 import path from 'path'
@@ -25,7 +25,8 @@ export class MemoryManager {
 
     constructor() {
         this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY!
+            apiKey: process.env.OPENAI_API_KEY!,
+            baseURL: OPENAI_BASE_URL
         })
     }
 
@@ -98,8 +99,8 @@ Context of conversation: "${context || 'No context provided'}"
 Assistant's response: "${content}"`
                     }
                 ],
-                model: 'gpt-4o-mini',
-                temperature: 0.7
+                model: OPENAI_MODEL,
+                temperature: 1
             })
 
             const response = evaluation.choices[0].message.content ?? ''
@@ -152,7 +153,7 @@ Assistant's response: "${content}"`
                     { role: 'system', content: 'Return only the numbers of relevant memories, comma-separated.' },
                     { role: 'user', content: prompt }
                 ],
-                model: 'gpt-4o-mini'
+                model: OPENAI_MODEL
             })
 
             const relevantIndices = (response.choices[0].message.content ?? '')
