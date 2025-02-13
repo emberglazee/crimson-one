@@ -50,10 +50,10 @@ export default {
      */
     async execute(interaction) {
         let ephemeral = interaction.options.getBoolean('ephemeral', false), forcedEphemeral = false
-        if (interaction.guildId === '311334325402599425') {
-            ephemeral = true
-            forcedEphemeral = true
-        }
+        // if (interaction.guildId === '311334325402599425') {
+        //     ephemeral = true
+        //     forcedEphemeral = true
+        // }
         await interaction.deferReply({
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })

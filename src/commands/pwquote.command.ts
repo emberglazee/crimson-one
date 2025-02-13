@@ -66,10 +66,10 @@ export const slashCommand = {
         const stretchGradient = interaction.options.getBoolean('stretch') ?? false
         const interpretNewlines = interaction.options.getBoolean('interpretNewlines') ?? true
 
-        if (interaction.guildId === '311334325402599425') {
-            ephemeral = true
-            forcedEphemeral = true
-        }
+        // if (interaction.guildId === '311334325402599425' && interaction.user.id !== '341123308844220447') {
+        //     ephemeral = true
+        //     forcedEphemeral = true
+        // }
 
         if (!color && gradient === 'none') {
             await interaction.reply({
@@ -106,10 +106,11 @@ export const contextMenuCommand = {
         const speaker = interaction.targetMessage.member?.displayName || interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const quote = interaction.targetMessage.content
-        const forcedEphemeral = interaction.guildId === '311334325402599425'
+        // const forcedEphemeral = interaction.guildId === '311334325402599425'
+        const forcedEphemeral = false
 
         await interaction.deferReply({
-            flags: forcedEphemeral ? MessageFlags.Ephemeral : undefined
+            // flags: forcedEphemeral ? MessageFlags.Ephemeral : undefined
         })
         const factory = QuoteImageFactory.getInstance()
         factory.setGuild(interaction.guild!)
