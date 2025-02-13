@@ -1,4 +1,4 @@
-import { Client, TextChannel, Message, ChatInputCommandInteraction } from 'discord.js'
+import { Client, TextChannel, Message, ChatInputCommandInteraction, type MessageReplyOptions, MessagePayload } from 'discord.js'
 import { MessageProcessor } from './MessageProcessor'
 import { HistoryManager } from './HistoryManager'
 import { Logger } from '../../util/logger'
@@ -115,11 +115,12 @@ export default class CrimsonChat {
 
             if (finalContent.length > 2000) {
                 const buffer = Buffer.from(finalContent, 'utf-8')
-                const messageOptions = {
+                const messageOptions: string | MessagePayload | MessageReplyOptions = {
                     files: [{
                         attachment: buffer,
                         name: 'response.txt'
-                    }]
+                    }],
+                    allowedMentions: { repliedUser: true }
                 }
 
                 if (originalMessage?.reply) {
