@@ -99,7 +99,8 @@ export class HistoryManager {
 
         this.history.push({ role, content })
         await this.saveHistory()
-        logger.info(`Appended ${chalk.yellow(role)} message to history`)
+        logger.ok(`Appended ${chalk.yellow(role)} message to history`)
+        console.log(chalk.cyan(content))
     }
 
     public async clearHistory(): Promise<void> {
@@ -108,7 +109,7 @@ export class HistoryManager {
             content: CRIMSON_CHAT_SYSTEM_PROMPT
         }]
         await this.saveHistory()
-        logger.info('Chat history cleared and instance reset')
+        logger.ok('Chat history cleared and instance reset')
     }
 
     public async trimHistory(): Promise<void> {
@@ -122,7 +123,7 @@ export class HistoryManager {
         }
 
         if (originalLength !== this.history.length) {
-            logger.info(`Trimmed history from ${chalk.yellow(originalLength)} to ${chalk.yellow(this.messageCount)} messages`)
+            logger.ok(`Trimmed history from ${chalk.yellow(originalLength)} to ${chalk.yellow(this.messageCount)} messages`)
             await this.saveHistory()
         }
     }
@@ -138,6 +139,6 @@ export class HistoryManager {
             this.history.unshift({ role: 'system', content: CRIMSON_CHAT_SYSTEM_PROMPT })
         }
         await this.saveHistory()
-        logger.info(`System prompt updated to current ${chalk.yellow('CRIMSON_CHAT_SYSTEM_PROMPT')}`)
+        logger.ok(`System prompt updated to current ${chalk.yellow('CRIMSON_CHAT_SYSTEM_PROMPT')}`)
     }
 }

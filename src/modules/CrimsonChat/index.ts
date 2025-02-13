@@ -85,7 +85,7 @@ export default class CrimsonChat {
         }, 8000)
 
         // Initial typing indicator
-        await targetChannel.sendTyping()
+        targetChannel.sendTyping()
         let response: string | null | undefined = ''
 
         try {
@@ -94,7 +94,7 @@ export default class CrimsonChat {
                 logger.info('Received null/undefined response from message processor, ignoring')
                 return null
             }
-            await this.sendResponseToDiscord(response, originalMessage)
+            await this.sendResponseToDiscord(this.cutOutThinkingPart(response), originalMessage)
         } catch (e) {
             const error = e as Error
             logger.error(`Error processing message: ${chalk.red(error.message)}`)
@@ -242,5 +242,26 @@ export default class CrimsonChat {
     public async updateSystemPrompt(): Promise<void> {
         await this.historyManager.updateSystemPrompt()
         logger.ok('System prompt updated to latest version')
+    }
+
+    // Method to cut out the thinking part of the answer between <think> and </think> (Deepseek R1 specific)
+    // example:
+    /*
+        <think>
+        here i think
+        </think>
+
+        here i answer!
+    */
+    private cutOutThinkingPart(response: string): string {
+        // const thinkingPartStart = response.indexOf('<think>')
+        // const thinkingPartEnd = response.indexOf('</think>')
+
+        // if (thinkingPartStart === -1 || thinkingPartEnd === -1) {
+        //     return response
+        // }
+
+        // return response.slice(thinkingPartEnd + 8)
+        return response
     }
 }

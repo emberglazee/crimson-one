@@ -3,7 +3,7 @@ import OpenAI from 'openai'
 import { ImageProcessor } from './ImageProcessor'
 import { CommandParser } from './CommandParser'
 import { Logger } from '../../util/logger'
-import { CRIMSON_BREAKDOWN_PROMPT, getAssistantCommandRegex } from '../../util/constants'
+import { CRIMSON_BREAKDOWN_PROMPT, getAssistantCommandRegex, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
 import type { ChatMessage, Memory, UserMessageOptions, UserStatus } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
@@ -31,7 +31,8 @@ export class MessageProcessor {
     commandParser = new CommandParser()
     forceNextBreakdown = false
     openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY
+        apiKey: process.env.OPENAI_API_KEY!,
+        baseURL: OPENAI_BASE_URL
     })
     readonly BREAKDOWN_CHANCE = 0.01
 
@@ -213,7 +214,7 @@ export class MessageProcessor {
     private async generateAIResponse(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]): Promise<string> {
         const response = await this.openai.chat.completions.create({
             messages,
-            model: 'gpt-4o-mini'
+            model: OPENAI_MODEL
         })
         return response.choices[0].message?.content || 'Error processing message'
     }
