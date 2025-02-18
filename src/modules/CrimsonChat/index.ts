@@ -82,15 +82,21 @@ export default class CrimsonChat {
 
             for (const line of lines) {
                 if (!line.trim()) continue
-                
+
+                // Extract just the content part after the command
+                const [command, ...contentParts] = line.split(' ')
+                const messageContent = contentParts.join(' ').trim()
+
+                if (!messageContent) continue
+
                 if (line.startsWith('!system')) {
-                    await this.historyManager.appendMessage('system', line.substring('!system'.length).trim())
+                    await this.historyManager.appendMessage('system', messageContent)
                     lastCommandLine = line
                 } else if (line.startsWith('!user')) {
-                    await this.historyManager.appendMessage('user', line.substring('!user'.length).trim())
+                    await this.historyManager.appendMessage('user', messageContent)
                     lastCommandLine = line
                 } else if (line.startsWith('!assistant')) {
-                    await this.historyManager.appendMessage('assistant', line.substring('!assistant'.length).trim())
+                    await this.historyManager.appendMessage('assistant', messageContent)
                     lastCommandLine = line
                 }
             }
