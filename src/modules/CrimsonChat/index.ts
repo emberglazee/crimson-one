@@ -16,7 +16,7 @@ export default class CrimsonChat {
     private channel: TextChannel | null = null
     private channelId = '1335992675459141632'
     private enabled: boolean = true
-    private isProcessing: boolean = false
+    // private isProcessing: boolean = false
     private bannedUsers: Set<string> = new Set()
 
     memoryManager: MemoryManager = MemoryManager.getInstance()
@@ -68,16 +68,90 @@ export default class CrimsonChat {
 
         const targetChannel = options.targetChannel || this.channel
 
-        // if (this.isProcessing && originalMessage) {
-        //     logger.warn(`Message from ${chalk.yellow(options.username)} ignored - already processing another message`)
-        //     await originalMessage.react('❌').catch(err => {
-        //         logger.error(`Failed to add reaction: ${chalk.red(err.message)}`)
-        //     })
-        //     return
-        // }
-
         logger.info(`Processing message from ${chalk.yellow(options.username)}: ${chalk.yellow(content.substring(0, 50) + (content.length > 50) ? '...' : '')}`)
-        this.isProcessing = true
+
+        // Handle message history injection commands
+        if (content.startsWith('!system') || content.startsWith('!user') || content.startsWith('!assistant')) {
+            const lines = content.split('\n')
+            let lastCommandLine = ''
+
+            // Add a waiting reaction if we have an original message
+            if (originalMessage) {
+                await originalMessage.react('⏱️')
+            }
+
+            for (const line of lines) {
+                if (!line.trim()) continue
+                
+                if (line.startsWith('!system')) {
+                    await this.historyManager.appendMessage('system', line.substring('!system'.length).trim())
+                    lastCommandLine = line
+                } else if (line.startsWith('!user')) {
+                    await this.historyManager.appendMessage('user', line.substring('!user'.length).trim())
+                    lastCommandLine = line
+                } else if (line.startsWith('!assistant')) {
+                    await this.historyManager.appendMessage('assistant', line.substring('!assistant'.length).trim())
+                    lastCommandLine = line
+                }
+            }
+
+            // If the last line was a command, trigger a response
+            if (lastCommandLine) {
+                // Start typing indicator loop
+                const typingInterval = setInterval(() => {
+                    targetChannel.sendTyping()
+                }, 8000)
+
+                // Initial typing indicator
+                targetChannel.sendTyping()
+                let response: string | null | undefined = ''
+
+                try {
+                    response = await this.getMessageProcessor().processMessage(
+                        content, 
+                        { 
+                            ...options,
+                            username: 'system',
+                            displayName: 'System',
+                            serverDisplayName: 'System'
+                        }, 
+                        originalMessage
+                    )
+                    if (!response) {
+                        logger.info('Received null/undefined response from message processor, ignoring')
+                        return null
+                    }
+                    await this.sendResponseToDiscord(this.cutOutThinkingPart(response), originalMessage)
+                    
+                    // Replace waiting reaction with success reaction
+                    if (originalMessage) {
+                        await originalMessage.reactions.removeAll()
+                        await originalMessage.react('✅')
+                    }
+                } catch (e) {
+                    const error = e as Error
+                    logger.error(`Error processing message: ${chalk.red(error.message)}`)
+                    await this.sendResponseToDiscord('Sorry, something went wrong while processing your message. Please try again later.')
+                    
+                    // Replace waiting reaction with error reaction
+                    if (originalMessage) {
+                        await originalMessage.reactions.removeAll()
+                        await originalMessage.react('❌')
+                    }
+                } finally {
+                    clearInterval(typingInterval)
+                    logger.ok('Message processing completed')
+                    return response
+                }
+            } else {
+                // If no commands were processed, just add a success reaction
+                if (originalMessage) {
+                    await originalMessage.reactions.removeAll()
+                    await originalMessage.react('✅')
+                }
+            }
+            return null
+        }
 
         // Start typing indicator loop
         const typingInterval = setInterval(() => {
@@ -101,7 +175,6 @@ export default class CrimsonChat {
             await this.sendResponseToDiscord('Sorry, something went wrong while processing your message. Please try again later.')
         } finally {
             clearInterval(typingInterval)
-            this.isProcessing = false
             logger.ok('Message processing completed')
             return response
         }
