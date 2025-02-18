@@ -158,13 +158,15 @@ export default class CrimsonChat {
             return null
         }
 
-        // Start typing indicator loop
+        // Start typing indicator loop - only for initial processing
         const typingInterval = setInterval(() => {
-            targetChannel.sendTyping()
+            targetChannel.sendTyping().catch(e => {
+                logger.warn(`Failed to send typing indicator: ${chalk.yellow(e.message)}`)
+            })
         }, 8000)
 
         // Initial typing indicator
-        targetChannel.sendTyping()
+        await targetChannel.sendTyping()
         let response: string[] = []
 
         try {
@@ -173,7 +175,11 @@ export default class CrimsonChat {
                 logger.info('Received null/undefined response from message processor, ignoring')
                 return null
             }
-            // Send messages serially to maintain order
+
+            // Clear typing indicators before sending messages
+            clearInterval(typingInterval)
+
+            // Send messages serially to maintain order, without typing indicators
             const responseMessages = Array.isArray(response) ? response : [response]
             for (const message of responseMessages) {
                 await this.sendResponseToDiscord(message, originalMessage)
