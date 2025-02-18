@@ -164,6 +164,6 @@ export let OPENAI_MODEL = DEEPSEEK_TOGGLE ? 'huggingface.co/bartowski/DeepSeek-R
 
 export const CRIMSONCHAT_RESPONSE_SCHEMA = z.object({
     replyMessages: z.array(
-        z.string().max(2000).describe('A single string response to be sent as a discord message.')
-    ).describe('Every string in the array will be sent as a separate discord message, hence the 2000 character limit.')
+        z.string().describe('A single string response to be sent as a discord message.')
+    ).describe('Every string in the array will be sent as a separate discord message. Use this to bypass discord\'s 2000 character limit.')
 })
