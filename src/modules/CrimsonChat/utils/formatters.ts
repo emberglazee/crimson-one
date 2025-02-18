@@ -78,7 +78,9 @@ export async function formatUserStatus(client: Client, username: string): Promis
         await member.fetch(true)
         const presence = member.presence
 
-        const roles = member.roles.cache.map(role => role.name)
+        const roles = member.roles.cache
+            .filter(role => role.name !== '@everyone')
+            .map(role => role.name)
         const activities = presence?.activities?.map(activity => ({
             name: activity.name,
             type: activity.type,
