@@ -160,7 +160,7 @@ export default class CrimsonChat {
             // Process each response message
             for (const msg of response) {
                 if (typeof msg === 'string') {
-                    await this.sendResponseToDiscord(msg, originalMessage)
+                    await this.sendResponseToDiscord(msg, targetChannel, originalMessage)
                 } else if (msg.embed) {
                     await this.sendResponseToDiscord({ 
                         embed: {
@@ -169,9 +169,9 @@ export default class CrimsonChat {
                             color: msg.embed.color,
                             fields: msg.embed.fields ?? []
                         }
-                    }, originalMessage)
+                    }, targetChannel, originalMessage)
                 }
-                // Only reply to the first message
+                // Only use reply functionality for first message
                 originalMessage = undefined
             }
 
@@ -179,7 +179,7 @@ export default class CrimsonChat {
         } catch (e) {
             const error = e as Error
             logger.error(`Error processing message: ${chalk.red(error.message)}`)
-            await this.sendResponseToDiscord('Sorry, something went wrong while processing your message. Please try again later.')
+            await this.sendResponseToDiscord('Sorry, something went wrong while processing your message. Please try again later.', targetChannel)
             return null
         } finally {
             clearInterval(typingInterval)
@@ -187,8 +187,8 @@ export default class CrimsonChat {
         }
     }
 
-    private async sendResponseToDiscord(response: ChatResponse, originalMessage?: Message): Promise<void> {
-        if (!this.channel || !this.client) throw new Error('Channel or client not set')
+    private async sendResponseToDiscord(response: ChatResponse, targetChannel: TextChannel, originalMessage?: Message): Promise<void> {
+        if (!this.client) throw new Error('Client not set')
 
         try {
             // Handle embed objects
@@ -210,7 +210,7 @@ export default class CrimsonChat {
                 if (originalMessage?.reply) {
                     await originalMessage.reply(messageOptions)
                 } else {
-                    await this.channel.send(messageOptions)
+                    await targetChannel.send(messageOptions)
                 }
                 return
             }
@@ -239,7 +239,7 @@ export default class CrimsonChat {
                     if (originalMessage?.reply) {
                         await originalMessage.reply(messageOptions)
                     } else {
-                        await this.channel.send(messageOptions)
+                        await targetChannel.send(messageOptions)
                     }
                 } else {
                     const messageOptions = {
@@ -250,10 +250,10 @@ export default class CrimsonChat {
                     if (originalMessage?.reply) {
                         await originalMessage.reply(messageOptions)
                     } else {
-                        await this.channel.send(messageOptions)
+                        await targetChannel.send(messageOptions)
                     }
                 }
-                // Only reply to the first split message
+                // Only use reply functionality for first message part
                 originalMessage = undefined
             }
         } catch (e) {
@@ -310,7 +310,7 @@ export default class CrimsonChat {
 
     public async handleShutdown(): Promise<void> {
         if (!this.channel) return
-        await this.sendResponseToDiscord('⚠️ Crimson is shutting down...')
+        await this.sendResponseToDiscord('⚠️ Crimson is shutting down...', this.channel)
         // Append message without sending it, it won't have time to respond so don't bother trying
         await this.historyManager.appendMessage('system', `Discord bot is shutting down. See ya in a bit, Crimson 1. Time: ${new Date().toISOString()}`)
     }
