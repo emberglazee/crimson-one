@@ -3,11 +3,12 @@ import OpenAI from 'openai'
 import { ImageProcessor } from './ImageProcessor'
 import { CommandParser } from './CommandParser'
 import { Logger } from '../../util/logger'
-import { CRIMSON_BREAKDOWN_PROMPT, getAssistantCommandRegex, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
+import { CRIMSON_BREAKDOWN_PROMPT, CRIMSONCHAT_RESPONSE_SCHEMA, getAssistantCommandRegex, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
 import type { ChatMessage, Memory, UserMessageOptions, UserStatus } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
 import chalk from 'chalk'
+import { zodResponseFormat } from 'openai/helpers/zod.mjs'
 
 const logger = new Logger('CrimsonChat | MessageProcessor')
 
@@ -36,10 +37,10 @@ export class MessageProcessor {
     })
     readonly BREAKDOWN_CHANCE = 0.01
 
-    async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string | null | undefined> {
+    async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string[]> {
         // Check for random breakdown before normal processing
         const breakdown = await this.handleRandomBreakdown(content, options)
-        if (breakdown) return breakdown
+        if (breakdown) return Array.isArray(breakdown) ? breakdown : [breakdown]
 
         try {
             // Start memory retrieval in parallel with other processing
@@ -57,7 +58,7 @@ export class MessageProcessor {
                         // Feed command result back as a System message
                         const systemFeedback = `!${match[0].split('!')[1].trim()} -> ${commandResult}`
 
-                        return await this.processMessage(
+                        const result = await this.processMessage(
                             systemFeedback,
                             {
                                 username: 'System',
@@ -66,6 +67,7 @@ export class MessageProcessor {
                             },
                             originalMessage
                         )
+                        return result
                     }
                 }
             }
@@ -105,6 +107,7 @@ export class MessageProcessor {
                 role: msg.role,
                 content: msg.content || '',
             })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[]
+
             // Add memory context if available
             if (memoryContext) {
                 history.unshift({
@@ -125,7 +128,7 @@ export class MessageProcessor {
                     role: 'user' as const,
                     content: JSON.stringify({
                         username: msg.username,
-                        displayName: msg.username, // Fallback since we don't have historical display names
+                        displayName: msg.username,
                         serverDisplayName: msg.username,
                         currentTime: new Date().toISOString(),
                         text: msg.content,
@@ -156,70 +159,27 @@ export class MessageProcessor {
 
             history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
 
-            const responseContent = await this.generateAIResponse(history)
+            const response = await this.generateAIResponse(history)
+            const processedResponse = await this.processResponse(response, options, originalMessage)
+            return processedResponse
 
-            // Check if AI's response is a command
-            if (responseContent.trim().startsWith('!')) {
-                logger.info('{processMessage} AI response is a command, executing internally')
-
-                // Save the command to history
-                await this.historyManager.appendMessage('assistant', responseContent)
-
-                // `createChannel` specific checks
-                if (responseContent.startsWith('!createChannel')) {
-                    if (!originalMessage) {
-                        return 'Error: No original message available, cannot fetch guild.'
-                    }
-                    const guild = originalMessage.guild
-                    if (!guild) {
-                        return 'Error: Guild not found in `originalMessage`.'
-                    }
-                }
-
-                const commandResult = await this.checkForCommands(responseContent, originalMessage)
-                if (commandResult) {
-                    // Feed command result back as a System message
-                    const systemFeedback = `!${responseContent.split('!')[1].trim()} -> ${commandResult}`
-
-                    return await this.processMessage(
-                        systemFeedback,
-                        {
-                            username: 'System',
-                            displayName: 'System',
-                            serverDisplayName: 'System'
-                        },
-                        originalMessage
-                    )
-                }
-            }
-
-            // For non-command responses, save and process memory asynchronously
-            if (!responseContent.trim().startsWith('!')) {
-                await this.historyManager.appendMessage('assistant', responseContent)
-                // Don't await memory processing, but still pass context from the user's message
-                void this.crimsonChat.memoryManager.evaluateAndStore(responseContent, content)
-                return responseContent
-            }
-
-            // For command responses, just save to history without memory processing
-            await this.historyManager.appendMessage('assistant', responseContent)
-            return responseContent
         } catch (e) {
             const error = e as Error
             logger.error(`Error processing message: ${chalk.red(error.message)}`)
-            return `Error processing message: "${error.message}"`
+            return [`Error processing message: "${error.message}"`]
         }
     }
 
-    private async generateAIResponse(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]): Promise<string> {
-        const response = await this.openai.chat.completions.create({
+    private async generateAIResponse(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]): Promise<string[]> {
+        const response = await this.openai.beta.chat.completions.parse({
             messages,
-            model: OPENAI_MODEL
+            model: OPENAI_MODEL,
+            response_format: zodResponseFormat(CRIMSONCHAT_RESPONSE_SCHEMA, 'response')
         })
-        return response.choices[0].message?.content || 'Error processing message'
+        return response.choices[0].message.parsed?.replyMessages ?? [response.choices[0].message.content ?? 'Could not get response from AI']
     }
 
-    private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<string | null> {
+    private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<string[] | null> {
         if (this.forceNextBreakdown || Math.random() < this.BREAKDOWN_CHANCE) {
             logger.info(`Triggering ${chalk.yellow(this.forceNextBreakdown ? 'forced' : 'random')} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
@@ -243,7 +203,11 @@ export class MessageProcessor {
                 role: 'system',
                 content: CRIMSON_BREAKDOWN_PROMPT
             }])
-            await this.historyManager.appendMessage('assistant', breakdown)
+            
+            // Save each breakdown message to history
+            for (const message of breakdown) {
+                await this.historyManager.appendMessage('assistant', message)
+            }
 
             return breakdown
         }
@@ -375,5 +339,62 @@ export class MessageProcessor {
         if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
         if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
         return `${Math.floor(seconds / 86400)}d ago`
+    }
+
+    private async processResponse(content: string[], options: UserMessageOptions, originalMessage?: Message): Promise<string[]> {
+        const processedResponses: string[] = []
+
+        for (const responseContent of content) {
+            // Check if response is a command
+            if (responseContent.trim().startsWith('!')) {
+                logger.info('{processMessage} AI response is a command, executing internally')
+
+                // Save the command to history
+                await this.historyManager.appendMessage('assistant', responseContent)
+
+                // `createChannel` specific checks
+                if (responseContent.startsWith('!createChannel')) {
+                    if (!originalMessage) {
+                        processedResponses.push('Error: No original message available, cannot fetch guild.')
+                        continue
+                    }
+                    const guild = originalMessage.guild
+                    if (!guild) {
+                        processedResponses.push('Error: Guild not found in `originalMessage`.')
+                        continue
+                    }
+                }
+
+                const commandResult = await this.checkForCommands(responseContent, originalMessage)
+                if (commandResult) {
+                    // Feed command result back as a System message
+                    const systemFeedback = `!${responseContent.split('!')[1].trim()} -> ${commandResult}`
+
+                    const systemResponse = await this.processMessage(
+                        systemFeedback,
+                        {
+                            username: 'System',
+                            displayName: 'System',
+                            serverDisplayName: 'System'
+                        },
+                        originalMessage
+                    )
+
+                    if (Array.isArray(systemResponse)) {
+                        processedResponses.push(...systemResponse)
+                    } else if (systemResponse) {
+                        processedResponses.push(systemResponse)
+                    }
+                }
+            } else {
+                // For non-command responses, save and process memory asynchronously
+                await this.historyManager.appendMessage('assistant', responseContent)
+                // Don't await memory processing, but still pass context from the user's message
+                void this.crimsonChat.memoryManager.evaluateAndStore(responseContent, options.respondingTo?.targetText)
+                processedResponses.push(responseContent)
+            }
+        }
+
+        return processedResponses
     }
 }
