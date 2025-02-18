@@ -81,13 +81,18 @@ export class MessageProcessor {
                 logger.info(`Retrieved ${chalk.cyan(relevantMemories.length)} relevant memories`)
             }
 
-            // Format message in the specified JSON structure
+            // Format message in the specified JSON structure, but strip command prefix if present
+            let messageText = content
+            if (content.startsWith('!system ') || content.startsWith('!user ') || content.startsWith('!assistant ')) {
+                messageText = content.split(' ').slice(1).join(' ').trim()
+            }
+
             const messageData = {
                 username: options.username,
                 displayName: options.displayName,
                 serverDisplayName: options.serverDisplayName,
                 currentTime: new Date().toISOString(),
-                text: content,
+                text: messageText,
                 respondingTo: options.respondingTo ? {
                     targetUsername: options.respondingTo.targetUsername,
                     targetText: options.respondingTo.targetText
