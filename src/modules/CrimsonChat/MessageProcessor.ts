@@ -185,21 +185,28 @@ export class MessageProcessor {
 
         const parsed = response.choices[0].message.parsed
         if (!parsed) return []
-        
-        const replyMessages = parsed.replyMessages ?? []
-        
+
+        // Construct response array maintaining the schema format
+        const responseArray: ChatResponseArray = []
+
+        // Add text messages first
+        if (parsed.replyMessages && parsed.replyMessages.length > 0) {
+            responseArray.push(...parsed.replyMessages)
+        }
+
+        // Add embed if present
         if (parsed.embed) {
-            return [...replyMessages, { 
+            responseArray.push({
                 embed: {
                     title: parsed.embed.title || '',
                     description: parsed.embed.description || '',
                     color: typeof parsed.embed.color === 'number' ? parsed.embed.color : 0xFF0000,
                     fields: Array.isArray(parsed.embed.fields) ? parsed.embed.fields : []
                 }
-            }]
+            })
         }
 
-        return replyMessages
+        return responseArray
     }
 
     private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<ChatResponseArray | null> {
@@ -369,21 +376,16 @@ export class MessageProcessor {
     }
 
     private async processResponse(content: ChatResponseArray, options: UserMessageOptions, originalMessage?: Message): Promise<ChatResponseArray> {
-        const processedResponses: ChatResponseArray = []
-        let embedMessage: ChatResponse | null = null
+        // Store all responses in history as a single structured entry
+        await this.historyManager.appendMessage('assistant', content)
 
+        const processedResponses: ChatResponseArray = []
+        
         for (const responseContent of content) {
             if (typeof responseContent === 'string') {
-                // Process normal messages first
+                // Process commands if present
                 if (responseContent.trim().startsWith('!')) {
-                    // Handle commands
                     logger.info('{processMessage} AI response is a command, executing internally')
-                    await this.historyManager.appendMessage('assistant', responseContent)
-
-                    if (responseContent.startsWith('!createChannel') && !originalMessage?.guild) {
-                        processedResponses.push('Error: Guild not found in `originalMessage`.')
-                        continue
-                    }
 
                     const commandResult = await this.checkForCommands(responseContent, originalMessage)
                     if (commandResult) {
@@ -400,20 +402,14 @@ export class MessageProcessor {
                         processedResponses.push(...systemResponse)
                     }
                 } else {
-                    // Process normal messages
-                    await this.historyManager.appendMessage('assistant', responseContent)
+                    // Store plain text responses
                     void this.crimsonChat.memoryManager.evaluateAndStore(responseContent, options.respondingTo?.targetText)
                     processedResponses.push(responseContent)
                 }
             } else if (responseContent.embed) {
-                // Store embed for last
-                embedMessage = responseContent
+                // Store embed responses as is
+                processedResponses.push(responseContent)
             }
-        }
-
-        // Add embed as the last message if it exists
-        if (embedMessage) {
-            processedResponses.push(embedMessage)
         }
 
         return processedResponses

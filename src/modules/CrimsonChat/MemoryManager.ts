@@ -2,7 +2,7 @@ import chalk from 'chalk'
 import { Logger } from '../../util/logger'
 import OpenAI from 'openai'
 import { CRIMSON_LONG_TERM_MEMORY_PROMPT, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
-import type { Memory, ChatResponse } from '../../types/types'
+import type { Memory, ChatResponse, ChatResponseArray } from '../../types/types'
 import { promises as fs } from 'fs'
 import path from 'path'
 
@@ -69,14 +69,33 @@ export class MemoryManager {
     }
 
     public async evaluateAndStore(
-        content: ChatResponse, 
+        content: ChatResponse | ChatResponseArray,
         context?: string
     ): Promise<void> {
-        // Convert embed objects to string representation for memory storage
-        const contentString = typeof content === 'object' ? JSON.stringify(content) : content
+        if (Array.isArray(content)) {
+            // For arrays, convert to a single string for memory storage
+            const textContent = content
+                .map(item => {
+                    if (typeof item === 'string') return item
+                    if (item.embed) {
+                        return `[Embed: ${item.embed.title || ''}\n${item.embed.description || ''}]`
+                    }
+                    return ''
+                })
+                .filter(Boolean)
+                .join('\n')
+
+            // Add to queue and process if not already processing
+            this.memoryQueue.push({ content: textContent, context })
+        } else {
+            // Convert single response to string format
+            const contentString = typeof content === 'object' 
+                ? `[Embed: ${content.embed?.title || ''}\n${content.embed?.description || ''}]`
+                : content
+            
+            this.memoryQueue.push({ content: contentString, context })
+        }
         
-        // Add to queue and process if not already processing
-        this.memoryQueue.push({ content: contentString, context })
         this.processNextMemory()
     }
 

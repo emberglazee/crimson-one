@@ -2,7 +2,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { Logger } from '../../util/logger'
 import { CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
-import type { ChatMessage, ChatResponse } from '../../types/types'
+import type { ChatMessage, ChatResponse, ChatResponseArray } from '../../types/types'
 import { encoding_for_model } from 'tiktoken'
 import chalk from 'chalk'
 
@@ -88,7 +88,7 @@ export class HistoryManager {
         }
     }
 
-    public async appendMessage(role: 'system' | 'assistant' | 'user', content: ChatResponse): Promise<void> {
+    public async appendMessage(role: 'system' | 'assistant' | 'user', content: ChatResponse | ChatResponseArray): Promise<void> {
         // Ensure system prompt exists at start of history
         if (this.history.length === 0 || this.history[0].role !== 'system') {
             this.history.unshift({
@@ -97,12 +97,25 @@ export class HistoryManager {
             })
         }
 
-        // Convert embed objects to string for storage
-        const finalContent = typeof content === 'object' ? JSON.stringify(content) : content
-        this.history.push({ role, content: finalContent })
+        // For assistant messages, ensure they're in the schema format
+        if (role === 'assistant') {
+            // Convert single response to array format
+            const responses = Array.isArray(content) ? content : [content]
+            // Store as structured response
+            const structuredResponse = {
+                replyMessages: responses.filter(msg => typeof msg === 'string'),
+                embed: responses.find(msg => typeof msg === 'object' && 'embed' in msg)?.embed
+            }
+            this.history.push({ role, content: JSON.stringify(structuredResponse) })
+        } else {
+            // For system and user messages, keep as is but ensure string format
+            const finalContent = typeof content === 'object' ? JSON.stringify(content) : content
+            this.history.push({ role, content: finalContent })
+        }
+
         await this.saveHistory()
         logger.ok(`Appended ${chalk.yellow(role)} message to history`)
-        console.log(chalk.cyan(finalContent))
+        console.log(chalk.cyan(typeof content === 'object' ? JSON.stringify(content, null, 2) : content))
     }
 
     public async clearHistory(): Promise<void> {
@@ -131,7 +144,20 @@ export class HistoryManager {
     }
 
     public prepareHistory(): ChatMessage[] {
-        return this.history.map(({ role, content }) => ({ role, content: content || '' }))
+        // Special handling for assistant messages to maintain schema consistency
+        return this.history.map(({ role, content }) => {
+            if (role === 'assistant' && typeof content === 'string') {
+                try {
+                    // Parse stored JSON to maintain structure
+                    const parsedContent = JSON.parse(content)
+                    return { role, content: JSON.stringify(parsedContent) }
+                } catch (e) {
+                    // Fallback for legacy messages
+                    return { role, content: JSON.stringify({ replyMessages: [content], embed: null }) }
+                }
+            }
+            return { role, content: typeof content === 'string' ? content : '' }
+        })
     }
 
     async updateSystemPrompt(): Promise<void> {
