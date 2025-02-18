@@ -80,6 +80,7 @@ export default class CrimsonChat {
                 await originalMessage.react('⏱️')
             }
 
+            // Don't append the command message to history, only append the processed content
             for (const line of lines) {
                 if (!line.trim()) continue
 
@@ -89,16 +90,10 @@ export default class CrimsonChat {
 
                 if (!messageContent) continue
 
-                if (line.startsWith('!system')) {
-                    await this.historyManager.appendMessage('system', messageContent)
-                    lastCommandLine = line
-                } else if (line.startsWith('!user')) {
-                    await this.historyManager.appendMessage('user', messageContent)
-                    lastCommandLine = line
-                } else if (line.startsWith('!assistant')) {
-                    await this.historyManager.appendMessage('assistant', messageContent)
-                    lastCommandLine = line
-                }
+                // Save role based on command type
+                const role = command.substring(1) as 'system' | 'user' | 'assistant'
+                await this.historyManager.appendMessage(role, messageContent)
+                lastCommandLine = line
             }
 
             // If the last line was a command, trigger a response
@@ -114,7 +109,7 @@ export default class CrimsonChat {
 
                 try {
                     response = await this.getMessageProcessor().processMessage(
-                        content, 
+                        'Processing history modification command...',  // Send neutral message instead of the command
                         { 
                             ...options,
                             username: 'system',
