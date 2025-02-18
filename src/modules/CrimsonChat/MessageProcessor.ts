@@ -207,7 +207,7 @@ export class MessageProcessor {
         } catch (e) {
             const error = e as Error
             logger.error(`Error processing message: ${chalk.red(error.message)}`)
-            return 'Error processing message'
+            return `Error processing message: "${error.message}"`
         }
     }
 
