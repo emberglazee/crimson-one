@@ -176,7 +176,15 @@ export class MessageProcessor {
             model: OPENAI_MODEL,
             response_format: zodResponseFormat(CRIMSONCHAT_RESPONSE_SCHEMA, 'response')
         })
-        return response.choices[0].message.parsed?.replyMessages ?? [response.choices[0].message.content ?? 'Could not get response from AI']
+
+        if (response.choices[0].message.parsed?.embed) {
+            // If we have an embed, send it as a stringified JSON object
+            return [JSON.stringify({ embed: response.choices[0].message.parsed.embed })]
+        }
+        
+        // If no embed and no replyMessages, treat as an empty reply
+        const content = response.choices[0].message.parsed?.replyMessages ?? [response.choices[0].message.content ?? ''] 
+        return content.length ? content : ['']
     }
 
     private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<string[] | null> {
@@ -391,6 +399,18 @@ export class MessageProcessor {
                 await this.historyManager.appendMessage('assistant', responseContent)
                 // Don't await memory processing, but still pass context from the user's message
                 void this.crimsonChat.memoryManager.evaluateAndStore(responseContent, options.respondingTo?.targetText)
+
+                // Try to parse response as JSON to check for embed
+                try {
+                    const parsed = JSON.parse(responseContent)
+                    if (parsed.embed) {
+                        processedResponses.push(responseContent)
+                        continue
+                    }
+                } catch {
+                    // Not JSON/embed, treat as regular message
+                }
+
                 processedResponses.push(responseContent)
             }
         }

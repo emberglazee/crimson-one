@@ -197,11 +197,37 @@ export default class CrimsonChat {
         }
     }
 
-    private async sendResponseToDiscord(content: string, originalMessage?: Message): Promise<void> {
+    private async sendResponseToDiscord(content: string | { embed?: { title?: string; description?: string; color?: number; fields?: { name: string; value: string }[] } }, originalMessage?: Message): Promise<void> {
         if (!this.channel || !this.client) throw new Error('Channel or client not set')
 
         try {
-            let finalContent = await usernamesToMentions(this.client, content)
+            // Handle embed objects
+            if (typeof content === 'object' && content.embed) {
+                const messageOptions = {
+                    embeds: [{
+                        title: content.embed.title,
+                        description: content.embed.description,
+                        color: content.embed.color,
+                        fields: content.embed.fields
+                    }],
+                    allowedMentions: { repliedUser: true }
+                }
+
+                if (originalMessage?.reply) {
+                    await originalMessage.reply(messageOptions)
+                } else {
+                    await this.channel.send(messageOptions)
+                }
+                return
+            }
+
+            // Handle string content
+            let finalContent = await usernamesToMentions(this.client, content as string)
+
+            // If content is empty, send a placeholder message
+            if (!finalContent.trim()) {
+                finalContent = '-# ...'
+            }
 
             // Split message if longer than Discord's limit
             const messages = this.splitMessage(finalContent)
@@ -225,7 +251,7 @@ export default class CrimsonChat {
                     }
                 } else {
                     const messageOptions = {
-                        content: message || '-# ...'
+                        content: message
                     }
 
                     if (originalMessage?.reply) {
