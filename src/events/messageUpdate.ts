@@ -25,7 +25,7 @@ export default function onMessageUpdate(client: Client) {
                 username: 'System',
                 displayName: 'Message Edit',
                 serverDisplayName: 'Message Edit'
-            })
+            }, current)
         }
     })
 }
