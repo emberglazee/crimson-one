@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 export const COMMAND_PREFIX = '!'
 export const ADMIN_COMMANDS = {
     RESET: 'reset',
@@ -159,3 +161,9 @@ export const DEEPSEEK_TOGGLE = false
 
 export let OPENAI_BASE_URL = DEEPSEEK_TOGGLE ? 'http://localhost:11434/v1' : undefined
 export let OPENAI_MODEL = DEEPSEEK_TOGGLE ? 'huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF:latest' : 'gpt-4o-mini'
+
+export const CRIMSONCHAT_RESPONSE_SCHEMA = z.object({
+    replyMessages: z.array(
+        z.string().max(2000).describe('A single string response to be sent as a discord message.')
+    ).describe('Every string in the array will be sent as a separate discord message, hence the 2000 character limit.')
+})

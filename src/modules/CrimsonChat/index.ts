@@ -62,7 +62,7 @@ export default class CrimsonChat {
         logger.ok('CrimsonChat initialized successfully')
     }
 
-    public async sendMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string | null | undefined> {
+    public async sendMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string[] | null | undefined> {
         if (!this.channel) throw new Error('Channel not set. Call init() first.')
         if (!this.enabled) return
 
@@ -104,7 +104,7 @@ export default class CrimsonChat {
 
                 // Initial typing indicator
                 targetChannel.sendTyping()
-                let response: string | null | undefined = ''
+                let response: string[] = []
 
                 try {
                     response = await this.getMessageProcessor().processMessage(
@@ -121,8 +121,13 @@ export default class CrimsonChat {
                         logger.info('Received null/undefined response from message processor, ignoring')
                         return null
                     }
-                    await this.sendResponseToDiscord(this.cutOutThinkingPart(response), originalMessage)
-                    
+                    const responseMessages = Array.isArray(response) ? response : [response]
+                    for (const message of responseMessages) {
+                        await this.sendResponseToDiscord(message, originalMessage)
+                        // Only reply to the first message
+                        originalMessage = undefined 
+                    }
+
                     // Replace waiting reaction with success reaction
                     if (originalMessage) {
                         await originalMessage.reactions.removeAll()
@@ -132,7 +137,7 @@ export default class CrimsonChat {
                     const error = e as Error
                     logger.error(`Error processing message: ${chalk.red(error.message)}`)
                     await this.sendResponseToDiscord('Sorry, something went wrong while processing your message. Please try again later.')
-                    
+
                     // Replace waiting reaction with error reaction
                     if (originalMessage) {
                         await originalMessage.reactions.removeAll()
@@ -160,7 +165,7 @@ export default class CrimsonChat {
 
         // Initial typing indicator
         targetChannel.sendTyping()
-        let response: string | null | undefined = ''
+        let response: string[] = []
 
         try {
             response = await this.getMessageProcessor().processMessage(content, options, originalMessage)
@@ -168,7 +173,13 @@ export default class CrimsonChat {
                 logger.info('Received null/undefined response from message processor, ignoring')
                 return null
             }
-            await this.sendResponseToDiscord(this.cutOutThinkingPart(response), originalMessage)
+            // Send messages serially to maintain order
+            const responseMessages = Array.isArray(response) ? response : [response]
+            for (const message of responseMessages) {
+                await this.sendResponseToDiscord(message, originalMessage)
+                // Only reply to the first message
+                originalMessage = undefined 
+            }
         } catch (e) {
             const error = e as Error
             logger.error(`Error processing message: ${chalk.red(error.message)}`)
@@ -185,38 +196,82 @@ export default class CrimsonChat {
 
         try {
             let finalContent = await usernamesToMentions(this.client, content)
+            
+            // Split message if longer than Discord's limit
+            const messages = this.splitMessage(finalContent)
+            
+            for (const message of messages) {
+                if (message.length > 2000) {
+                    // Send as file attachment if still too long
+                    const buffer = Buffer.from(message, 'utf-8')
+                    const messageOptions: string | MessagePayload | MessageReplyOptions = {
+                        files: [{
+                            attachment: buffer,
+                            name: 'response.txt'
+                        }],
+                        allowedMentions: { repliedUser: true }
+                    }
 
-            if (finalContent.length > 2000) {
-                const buffer = Buffer.from(finalContent, 'utf-8')
-                const messageOptions: string | MessagePayload | MessageReplyOptions = {
-                    files: [{
-                        attachment: buffer,
-                        name: 'response.txt'
-                    }],
-                    allowedMentions: { repliedUser: true }
-                }
-
-                if (originalMessage?.reply) {
-                    await originalMessage.reply(messageOptions)
+                    if (originalMessage?.reply) {
+                        await originalMessage.reply(messageOptions)
+                    } else {
+                        await this.channel.send(messageOptions)
+                    }
                 } else {
-                    await this.channel.send(messageOptions)
-                }
-            } else {
-                const messageOptions = {
-                    content: finalContent
-                }
+                    const messageOptions = {
+                        content: message
+                    }
 
-                if (originalMessage?.reply) {
-                    await originalMessage.reply(messageOptions)
-                } else {
-                    await this.channel.send(messageOptions)
+                    if (originalMessage?.reply) {
+                        await originalMessage.reply(messageOptions)
+                    } else {
+                        await this.channel.send(messageOptions)
+                    }
                 }
+                // Only reply to the first split message
+                originalMessage = undefined
             }
         } catch (e) {
             const error = e as Error
             logger.error(`Error sending response to Discord: ${chalk.red(error.message)}`)
             throw error
         }
+    }
+
+    private splitMessage(text: string): string[] {
+        // If message is under limit, return as is
+        if (text.length <= 2000) return [text]
+
+        const messages: string[] = []
+        let currentMessage = ''
+        const lines = text.split('\n')
+
+        for (const line of lines) {
+            if (currentMessage.length + line.length + 1 <= 2000) {
+                currentMessage += (currentMessage ? '\n' : '') + line
+            } else {
+                // Push current message if not empty
+                if (currentMessage) {
+                    messages.push(currentMessage)
+                }
+                // Start new message
+                currentMessage = line
+
+                // If single line is too long, split by characters
+                if (line.length > 2000) {
+                    const chunks = line.match(/.{1,2000}/g) || []
+                    messages.push(...chunks)
+                    currentMessage = ''
+                }
+            }
+        }
+
+        // Push final message if any
+        if (currentMessage) {
+            messages.push(currentMessage)
+        }
+
+        return messages
     }
 
     public async handleStartup(): Promise<void> {
@@ -327,7 +382,7 @@ export default class CrimsonChat {
 
         here i answer!
     */
-    private cutOutThinkingPart(response: string): string {
+    private cutOutThinkingPart(response: string[]): string[] {
         // const thinkingPartStart = response.indexOf('<think>')
         // const thinkingPartEnd = response.indexOf('</think>')
 
