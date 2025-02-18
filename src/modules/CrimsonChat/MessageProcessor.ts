@@ -177,14 +177,15 @@ export class MessageProcessor {
             response_format: zodResponseFormat(CRIMSONCHAT_RESPONSE_SCHEMA, 'response')
         })
 
-        if (response.choices[0].message.parsed?.embed) {
-            // If we have an embed, send it as a stringified JSON object
-            return [JSON.stringify({ embed: response.choices[0].message.parsed.embed })]
-        }
+        const parsed = response.choices[0].message.parsed
+        const replyMessages = parsed?.replyMessages ?? []
         
-        // If no embed and no replyMessages, treat as an empty reply
-        const content = response.choices[0].message.parsed?.replyMessages ?? [response.choices[0].message.content ?? ''] 
-        return content.length ? content : ['']
+        // If we have an embed, add it as the last message
+        if (parsed?.embed) {
+            return [...replyMessages, JSON.stringify({ embed: parsed.embed })]
+        }
+
+        return replyMessages
     }
 
     private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<string[] | null> {
@@ -351,9 +352,21 @@ export class MessageProcessor {
 
     private async processResponse(content: string[], options: UserMessageOptions, originalMessage?: Message): Promise<string[]> {
         const processedResponses: string[] = []
+        let embedMessage: { embed: any } | null = null
 
         for (const responseContent of content) {
-            // Check if response is a command
+            // Check if the message is an embed
+            try {
+                const parsed = JSON.parse(responseContent)
+                if (parsed.embed) {
+                    embedMessage = parsed
+                    continue // Skip processing embed for now
+                }
+            } catch {
+                // Not JSON/embed, continue with normal processing
+            }
+
+            // Process normal messages first
             if (responseContent.trim().startsWith('!')) {
                 logger.info('{processMessage} AI response is a command, executing internally')
 
@@ -395,25 +408,15 @@ export class MessageProcessor {
                     }
                 }
             } else {
-                // For non-command responses, save and process memory asynchronously
                 await this.historyManager.appendMessage('assistant', responseContent)
-                // Don't await memory processing, but still pass context from the user's message
                 void this.crimsonChat.memoryManager.evaluateAndStore(responseContent, options.respondingTo?.targetText)
-
-                // Try to parse response as JSON to check for embed
-                try {
-                    const parsed = JSON.parse(responseContent)
-                    if (parsed.embed) {
-                        // Pass the embed object directly without stringifying
-                        processedResponses.push(parsed)
-                        continue
-                    }
-                } catch {
-                    // Not JSON/embed, treat as regular message
-                }
-
                 processedResponses.push(responseContent)
             }
+        }
+
+        // Add embed as the last message if it exists
+        if (embedMessage) {
+            processedResponses.push(JSON.stringify(embedMessage))
         }
 
         return processedResponses
