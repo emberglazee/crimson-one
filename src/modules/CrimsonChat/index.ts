@@ -70,95 +70,68 @@ export default class CrimsonChat {
 
         logger.info(`Processing message from ${chalk.yellow(options.username)}: ${chalk.yellow(content.substring(0, 50) + (content.length > 50) ? '...' : '')}`)
 
-        // Handle message history injection commands
+        // Silently handle message injection commands
         if (content.startsWith('!system') || content.startsWith('!user') || content.startsWith('!assistant')) {
-            const lines = content.split('\n')
-            let lastCommandLine = ''
-
-            // Add a waiting reaction if we have an original message
+            const lines = content.split('\n').filter(line => line.trim())
+            
+            // Add waiting reaction
             if (originalMessage) {
                 await originalMessage.react('⏱️')
             }
 
-            // Don't append the command message to history, only append the processed content
-            for (const line of lines) {
-                if (!line.trim()) continue
-
-                // Extract just the content part after the command
-                const [command, ...contentParts] = line.split(' ')
+            // For single line injection commands, treat it as a normal message from that role
+            if (lines.length === 1) {
+                const [command, ...contentParts] = lines[0].split(' ')
                 const messageContent = contentParts.join(' ').trim()
-
-                if (!messageContent) continue
-
-                // Save role based on command type
                 const role = command.substring(1) as 'system' | 'user' | 'assistant'
-                await this.historyManager.appendMessage(role, messageContent)
-                lastCommandLine = line
-            }
 
-            // If the last line was a command, trigger a response
-            if (lastCommandLine) {
-                // Start typing indicator loop
-                const typingInterval = setInterval(() => {
-                    targetChannel.sendTyping()
-                }, 8000)
-
-                // Initial typing indicator
-                targetChannel.sendTyping()
-                let response: ChatResponseArray = []
-
-                try {
-                    response = await this.getMessageProcessor().processMessage(
-                        'Processing history modification command...',  // Send neutral message instead of the command
-                        { 
+                if (messageContent) {
+                    return await this.getMessageProcessor().processMessage(
+                        messageContent,
+                        {
                             ...options,
-                            username: 'system',
-                            displayName: 'System',
-                            serverDisplayName: 'System'
-                        }, 
+                            username: role,
+                            displayName: role.charAt(0).toUpperCase() + role.slice(1),
+                            serverDisplayName: role.charAt(0).toUpperCase() + role.slice(1)
+                        },
                         originalMessage
                     )
-                    if (!response) {
-                        logger.info('Received null/undefined response from message processor, ignoring')
-                        return null
-                    }
-
-                    // Clear typing indicators before sending messages
-                    clearInterval(typingInterval)
-
-                    // Process each response separately
-                    for (const msg of response) {
-                        await this.sendResponseToDiscord(typeof msg === 'string' ? msg : { embed: msg.embed }, originalMessage)
-                        // Only reply to the first message
-                        originalMessage = undefined
-                    }
-
-                    // Replace waiting reaction with success reaction
-                    if (originalMessage) {
-                        await originalMessage.reactions.removeAll()
-                        await originalMessage.react('✅')
-                    }
-                } catch (e) {
-                    const error = e as Error
-                    logger.error(`Error processing message: ${chalk.red(error.message)}`)
-                    await this.sendResponseToDiscord('Sorry, something went wrong while processing your message. Please try again later.')
-
-                    // Replace waiting reaction with error reaction
-                    if (originalMessage) {
-                        await originalMessage.reactions.removeAll()
-                        await originalMessage.react('❌')
-                    }
-                } finally {
-                    clearInterval(typingInterval)
-                    logger.ok('Message processing completed')
-                    return response
                 }
-            } else {
-                // If no commands were processed, just add a success reaction
-                if (originalMessage) {
-                    await originalMessage.reactions.removeAll()
-                    await originalMessage.react('✅')
+            } 
+            // For multiple lines, silently append all but the last, then process the last one normally
+            else if (lines.length > 1) {
+                // Process all lines except the last one silently
+                for (let i = 0; i < lines.length - 1; i++) {
+                    const [command, ...contentParts] = lines[i].split(' ')
+                    const messageContent = contentParts.join(' ').trim()
+                    if (!messageContent) continue
+                    const role = command.substring(1) as 'system' | 'user' | 'assistant'
+                    await this.historyManager.appendMessage(role, messageContent)
                 }
+
+                // Process the last line as a normal message
+                const [command, ...contentParts] = lines[lines.length - 1].split(' ')
+                const messageContent = contentParts.join(' ').trim()
+                const role = command.substring(1) as 'system' | 'user' | 'assistant'
+
+                if (messageContent) {
+                    return await this.getMessageProcessor().processMessage(
+                        messageContent,
+                        {
+                            ...options,
+                            username: role,
+                            displayName: role.charAt(0).toUpperCase() + role.slice(1),
+                            serverDisplayName: role.charAt(0).toUpperCase() + role.slice(1)
+                        },
+                        originalMessage
+                    )
+                }
+            }
+
+            // Add success reaction
+            if (originalMessage) {
+                await originalMessage.reactions.removeAll()
+                await originalMessage.react('✅')
             }
             return null
         }
