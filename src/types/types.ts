@@ -113,3 +113,13 @@ export interface Memory {
     timestamp: number
     importance: 1 | 2 | 3 | 4 | 5
 }
+
+export interface DiscordEmbed {
+    title?: string; // Optional, defaults to empty string
+    description?: string; // Optional, defaults to empty string
+    color: number; // Required, defaults to 0xFF0000
+    fields?: { name: string; value: string }[];
+}
+
+export type ChatResponse = string | { embed: DiscordEmbed };
+export type ChatResponseArray = ChatResponse[];

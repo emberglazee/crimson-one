@@ -4,7 +4,7 @@ import { ImageProcessor } from './ImageProcessor'
 import { CommandParser } from './CommandParser'
 import { Logger } from '../../util/logger'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSONCHAT_RESPONSE_SCHEMA, getAssistantCommandRegex, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
-import type { ChatMessage, Memory, UserMessageOptions, UserStatus } from '../../types/types'
+import type { ChatMessage, Memory, UserMessageOptions, UserStatus, ChatResponse, ChatResponseArray, DiscordEmbed } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
 import chalk from 'chalk'
@@ -37,7 +37,7 @@ export class MessageProcessor {
     })
     readonly BREAKDOWN_CHANCE = 0.01
 
-    async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string[]> {
+    async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<ChatResponseArray> {
         // Check for random breakdown before normal processing
         const breakdown = await this.handleRandomBreakdown(content, options)
         if (breakdown) return Array.isArray(breakdown) ? breakdown : [breakdown]
@@ -161,16 +161,17 @@ export class MessageProcessor {
 
             const response = await this.generateAIResponse(history)
             const processedResponse = await this.processResponse(response, options, originalMessage)
+            logger.ok('Response processed successfully')
             return processedResponse
 
         } catch (e) {
             const error = e as Error
-            logger.error(`Error processing message: ${chalk.red(error.message)}`)
-            return [`Error processing message: "${error.message}"`]
+            logger.error(`Error processing AI response: ${chalk.red(error.message)}`)
+            throw error
         }
     }
 
-    private async generateAIResponse(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]): Promise<string[]> {
+    private async generateAIResponse(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]): Promise<ChatResponseArray> {
         const response = await this.openai.beta.chat.completions.parse({
             messages,
             model: OPENAI_MODEL,
@@ -178,17 +179,25 @@ export class MessageProcessor {
         })
 
         const parsed = response.choices[0].message.parsed
-        const replyMessages = parsed?.replyMessages ?? []
+        if (!parsed) return []
         
-        // If we have an embed, add it as the last message
-        if (parsed?.embed) {
-            return [...replyMessages, JSON.stringify({ embed: parsed.embed })]
+        const replyMessages = parsed.replyMessages ?? []
+        
+        if (parsed.embed) {
+            return [...replyMessages, { 
+                embed: {
+                    title: parsed.embed.title || '',
+                    description: parsed.embed.description || '',
+                    color: typeof parsed.embed.color === 'number' ? parsed.embed.color : 0xFF0000,
+                    fields: Array.isArray(parsed.embed.fields) ? parsed.embed.fields : []
+                }
+            }]
         }
 
         return replyMessages
     }
 
-    private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<string[] | null> {
+    private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<ChatResponseArray | null> {
         if (this.forceNextBreakdown || Math.random() < this.BREAKDOWN_CHANCE) {
             logger.info(`Triggering ${chalk.yellow(this.forceNextBreakdown ? 'forced' : 'random')} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
@@ -215,7 +224,11 @@ export class MessageProcessor {
             
             // Save each breakdown message to history
             for (const message of breakdown) {
-                await this.historyManager.appendMessage('assistant', message)
+                if (typeof message === 'string') {
+                    await this.historyManager.appendMessage('assistant', message)
+                } else {
+                    await this.historyManager.appendMessage('assistant', JSON.stringify(message))
+                }
             }
 
             return breakdown
@@ -350,73 +363,52 @@ export class MessageProcessor {
         return `${Math.floor(seconds / 86400)}d ago`
     }
 
-    private async processResponse(content: string[], options: UserMessageOptions, originalMessage?: Message): Promise<string[]> {
-        const processedResponses: string[] = []
-        let embedMessage: { embed: any } | null = null
+    private async processResponse(content: ChatResponseArray, options: UserMessageOptions, originalMessage?: Message): Promise<ChatResponseArray> {
+        const processedResponses: ChatResponseArray = []
+        let embedMessage: ChatResponse | null = null
 
         for (const responseContent of content) {
-            // Check if the message is an embed
-            try {
-                const parsed = JSON.parse(responseContent)
-                if (parsed.embed) {
-                    embedMessage = parsed
-                    continue // Skip processing embed for now
-                }
-            } catch {
-                // Not JSON/embed, continue with normal processing
-            }
+            if (typeof responseContent === 'string') {
+                // Process normal messages first
+                if (responseContent.trim().startsWith('!')) {
+                    // Handle commands
+                    logger.info('{processMessage} AI response is a command, executing internally')
+                    await this.historyManager.appendMessage('assistant', responseContent)
 
-            // Process normal messages first
-            if (responseContent.trim().startsWith('!')) {
-                logger.info('{processMessage} AI response is a command, executing internally')
-
-                // Save the command to history
-                await this.historyManager.appendMessage('assistant', responseContent)
-
-                // `createChannel` specific checks
-                if (responseContent.startsWith('!createChannel')) {
-                    if (!originalMessage) {
-                        processedResponses.push('Error: No original message available, cannot fetch guild.')
-                        continue
-                    }
-                    const guild = originalMessage.guild
-                    if (!guild) {
+                    if (responseContent.startsWith('!createChannel') && !originalMessage?.guild) {
                         processedResponses.push('Error: Guild not found in `originalMessage`.')
                         continue
                     }
-                }
 
-                const commandResult = await this.checkForCommands(responseContent, originalMessage)
-                if (commandResult) {
-                    // Feed command result back as a System message
-                    const systemFeedback = `!${responseContent.split('!')[1].trim()} -> ${commandResult}`
-
-                    const systemResponse = await this.processMessage(
-                        systemFeedback,
-                        {
-                            username: 'System',
-                            displayName: 'System',
-                            serverDisplayName: 'System'
-                        },
-                        originalMessage
-                    )
-
-                    if (Array.isArray(systemResponse)) {
+                    const commandResult = await this.checkForCommands(responseContent, originalMessage)
+                    if (commandResult) {
+                        const systemFeedback = `!${responseContent.split('!')[1].trim()} -> ${commandResult}`
+                        const systemResponse = await this.processMessage(
+                            systemFeedback,
+                            {
+                                username: 'System',
+                                displayName: 'System',
+                                serverDisplayName: 'System'
+                            },
+                            originalMessage
+                        )
                         processedResponses.push(...systemResponse)
-                    } else if (systemResponse) {
-                        processedResponses.push(systemResponse)
                     }
+                } else {
+                    // Process normal messages
+                    await this.historyManager.appendMessage('assistant', responseContent)
+                    void this.crimsonChat.memoryManager.evaluateAndStore(responseContent, options.respondingTo?.targetText)
+                    processedResponses.push(responseContent)
                 }
-            } else {
-                await this.historyManager.appendMessage('assistant', responseContent)
-                void this.crimsonChat.memoryManager.evaluateAndStore(responseContent, options.respondingTo?.targetText)
-                processedResponses.push(responseContent)
+            } else if (responseContent.embed) {
+                // Store embed for last
+                embedMessage = responseContent
             }
         }
 
         // Add embed as the last message if it exists
         if (embedMessage) {
-            processedResponses.push(JSON.stringify(embedMessage))
+            processedResponses.push(embedMessage)
         }
 
         return processedResponses
