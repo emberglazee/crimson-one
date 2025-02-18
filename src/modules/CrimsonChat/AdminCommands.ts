@@ -16,7 +16,9 @@ export class AdminCommandHandler {
     public async handleCommand(message: Message): Promise<boolean> {
         if (message.author.id !== ADMIN_USER_ID) return false
 
-        const command = message.content.slice(COMMAND_PREFIX.length)
+        const fullCommand = message.content.slice(COMMAND_PREFIX.length)
+        const [command, ...args] = fullCommand.split(' ')
+        
         try {
             switch (command) {
                 case ADMIN_COMMANDS.RESET:
@@ -124,8 +126,11 @@ export class AdminCommandHandler {
 
                 case ADMIN_COMMANDS.BAN:
                 case ADMIN_COMMANDS.UNBAN:
-                    const userId = message.content.split(' ')[1]
-                    if (!userId) return false
+                    const userId = args[0]
+                    if (!userId) {
+                        await message.react('❌')
+                        return true
+                    }
 
                     if (command === ADMIN_COMMANDS.BAN) {
                         await this.crimsonChat.banUser(userId)
