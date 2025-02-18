@@ -2,7 +2,7 @@ import chalk from 'chalk'
 import { Logger } from '../../util/logger'
 import OpenAI from 'openai'
 import { CRIMSON_LONG_TERM_MEMORY_PROMPT, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
-import type { Memory } from '../../types/types'
+import type { Memory, ChatResponse } from '../../types/types'
 import { promises as fs } from 'fs'
 import path from 'path'
 
@@ -69,11 +69,14 @@ export class MemoryManager {
     }
 
     public async evaluateAndStore(
-        content: string, 
+        content: ChatResponse, 
         context?: string
     ): Promise<void> {
+        // Convert embed objects to string representation for memory storage
+        const contentString = typeof content === 'object' ? JSON.stringify(content) : content
+        
         // Add to queue and process if not already processing
-        this.memoryQueue.push({ content, context })
+        this.memoryQueue.push({ content: contentString, context })
         this.processNextMemory()
     }
 

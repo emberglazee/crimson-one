@@ -3,7 +3,7 @@ import { MessageProcessor } from './MessageProcessor'
 import { HistoryManager } from './HistoryManager'
 import { Logger } from '../../util/logger'
 import { promises as fs } from 'fs'
-import type { UserMessageOptions } from '../../types/types'
+import type { UserMessageOptions, ChatResponse, ChatResponseArray } from '../../types/types'
 import path from 'path'
 import { formatUserMessage, usernamesToMentions } from './utils/formatters'
 import chalk from 'chalk'
@@ -62,7 +62,7 @@ export default class CrimsonChat {
         logger.ok('CrimsonChat initialized successfully')
     }
 
-    public async sendMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<(string | { embed?: { title?: string; description?: string; color?: number; fields?: { name: string; value: string }[] } })[] | null | undefined> {
+    public async sendMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<ChatResponseArray | null | undefined> {
         if (!this.channel) throw new Error('Channel not set. Call init() first.')
         if (!this.enabled) return
 
@@ -104,7 +104,7 @@ export default class CrimsonChat {
 
                 // Initial typing indicator
                 targetChannel.sendTyping()
-                let response: (string | { embed?: { title?: string; description?: string; color?: number; fields?: { name: string; value: string }[] } })[] = []
+                let response: ChatResponseArray = []
 
                 try {
                     response = await this.getMessageProcessor().processMessage(
@@ -121,11 +121,15 @@ export default class CrimsonChat {
                         logger.info('Received null/undefined response from message processor, ignoring')
                         return null
                     }
-                    const responseMessages = Array.isArray(response) ? response : [response]
-                    for (const message of responseMessages) {
-                        await this.sendResponseToDiscord(message, originalMessage)
+
+                    // Clear typing indicators before sending messages
+                    clearInterval(typingInterval)
+
+                    // Process each response separately
+                    for (const msg of response) {
+                        await this.sendResponseToDiscord(typeof msg === 'string' ? msg : { embed: msg.embed }, originalMessage)
                         // Only reply to the first message
-                        originalMessage = undefined 
+                        originalMessage = undefined
                     }
 
                     // Replace waiting reaction with success reaction
@@ -167,7 +171,7 @@ export default class CrimsonChat {
 
         // Initial typing indicator
         await targetChannel.sendTyping()
-        let response: (string | { embed?: { title?: string; description?: string; color?: number; fields?: { name: string; value: string }[] } })[] = []
+        let response: ChatResponseArray = []
 
         try {
             response = await this.getMessageProcessor().processMessage(content, options, originalMessage)
@@ -179,59 +183,49 @@ export default class CrimsonChat {
             // Clear typing indicators before sending messages
             clearInterval(typingInterval)
 
-            // Separate embeds from normal messages
-            const normalMessages = []
-            let embedMessage = null
-
-            for (const message of response) {
-                if (typeof message === 'object' && message.embed) {
-                    embedMessage = message
-                } else {
-                    normalMessages.push(message)
+            // Process each response message
+            for (const msg of response) {
+                if (typeof msg === 'string') {
+                    await this.sendResponseToDiscord(msg, originalMessage)
+                } else if (msg.embed) {
+                    await this.sendResponseToDiscord({ 
+                        embed: {
+                            title: msg.embed.title ?? '',
+                            description: msg.embed.description ?? '',
+                            color: msg.embed.color,
+                            fields: msg.embed.fields ?? []
+                        }
+                    }, originalMessage)
                 }
-            }
-
-            // Send normal messages first
-            for (const message of normalMessages) {
-                await this.sendResponseToDiscord(message, originalMessage)
                 // Only reply to the first message
-                originalMessage = undefined 
+                originalMessage = undefined
             }
 
-            // Send embed last if it exists
-            if (embedMessage) {
-                await this.sendResponseToDiscord(embedMessage)
-            }
+            return response
         } catch (e) {
             const error = e as Error
             logger.error(`Error processing message: ${chalk.red(error.message)}`)
             await this.sendResponseToDiscord('Sorry, something went wrong while processing your message. Please try again later.')
+            return null
         } finally {
             clearInterval(typingInterval)
             logger.ok('Message processing completed')
-            return response
         }
     }
 
-    private async sendResponseToDiscord(content: string | { embed?: { title?: string; description?: string; color?: number; fields?: { name: string; value: string }[] } }, originalMessage?: Message): Promise<void> {
+    private async sendResponseToDiscord(response: ChatResponse, originalMessage?: Message): Promise<void> {
         if (!this.channel || !this.client) throw new Error('Channel or client not set')
 
         try {
             // Handle embed objects
-            if (typeof content === 'object' && content.embed) {
+            if (typeof response === 'object' && 'embed' in response && response.embed) {
                 const embed = new EmbedBuilder()
-                    .setTitle(content.embed.title || '')
-                    .setDescription(content.embed.description || '')
+                    .setTitle(response.embed.title ?? null)
+                    .setDescription(response.embed.description ?? null)
+                    .setColor(response.embed.color)
 
-                // Default to Crimson color if none provided
-                if (content.embed.color !== undefined) {
-                    embed.setColor(content.embed.color)
-                } else {
-                    embed.setColor(0xFF0000) // Crimson red
-                }
-
-                if (content.embed.fields) {
-                    embed.addFields(content.embed.fields)
+                if (response.embed.fields && response.embed.fields.length > 0) {
+                    embed.addFields(response.embed.fields)
                 }
 
                 const messageOptions = {
@@ -247,22 +241,20 @@ export default class CrimsonChat {
                 return
             }
 
-            // Handle string content
-            let finalContent = await usernamesToMentions(this.client, content as string)
+            // At this point, response must be a string
+            const finalContent = await usernamesToMentions(this.client, response as string)
 
             // If content is empty, send a placeholder message
-            if (!finalContent.trim()) {
-                finalContent = '-# ...'
-            }
+            const content = finalContent.trim() || '-# ...'
 
             // Split message if longer than Discord's limit
-            const messages = this.splitMessage(finalContent)
+            const messages = this.splitMessage(content)
 
             for (const message of messages) {
                 if (message.length > 2000) {
                     // Send as file attachment if still too long
                     const buffer = Buffer.from(message, 'utf-8')
-                    const messageOptions: string | MessagePayload | MessageReplyOptions = {
+                    const messageOptions: MessagePayload | MessageReplyOptions = {
                         files: [{
                             attachment: buffer,
                             name: 'response.txt'
@@ -277,7 +269,8 @@ export default class CrimsonChat {
                     }
                 } else {
                     const messageOptions = {
-                        content: message
+                        content: message,
+                        allowedMentions: { repliedUser: true }
                     }
 
                     if (originalMessage?.reply) {

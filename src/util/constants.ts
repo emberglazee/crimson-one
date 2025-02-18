@@ -176,4 +176,12 @@ export const CRIMSONCHAT_RESPONSE_SCHEMA = z.object({
             })
         ).optional()
     }).optional()
-})
+}).transform(data => ({
+    replyMessages: data.replyMessages,
+    embed: data.embed ? {
+        title: data.embed.title || '',
+        description: data.embed.description || '',
+        color: typeof data.embed.color === 'number' ? data.embed.color : 0xFF0000, // Default to Crimson red
+        fields: data.embed.fields || []
+    } : undefined
+}))

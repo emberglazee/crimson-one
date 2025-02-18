@@ -2,7 +2,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { Logger } from '../../util/logger'
 import { CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
-import type { ChatMessage } from '../../types/types'
+import type { ChatMessage, ChatResponse } from '../../types/types'
 import { encoding_for_model } from 'tiktoken'
 import chalk from 'chalk'
 
@@ -88,7 +88,7 @@ export class HistoryManager {
         }
     }
 
-    public async appendMessage(role: 'system' | 'assistant' | 'user', content: string): Promise<void> {
+    public async appendMessage(role: 'system' | 'assistant' | 'user', content: ChatResponse): Promise<void> {
         // Ensure system prompt exists at start of history
         if (this.history.length === 0 || this.history[0].role !== 'system') {
             this.history.unshift({
@@ -97,10 +97,12 @@ export class HistoryManager {
             })
         }
 
-        this.history.push({ role, content })
+        // Convert embed objects to string for storage
+        const finalContent = typeof content === 'object' ? JSON.stringify(content) : content
+        this.history.push({ role, content: finalContent })
         await this.saveHistory()
         logger.ok(`Appended ${chalk.yellow(role)} message to history`)
-        console.log(chalk.cyan(content))
+        console.log(chalk.cyan(finalContent))
     }
 
     public async clearHistory(): Promise<void> {
