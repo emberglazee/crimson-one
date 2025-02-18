@@ -196,10 +196,10 @@ export default class CrimsonChat {
 
         try {
             let finalContent = await usernamesToMentions(this.client, content)
-            
+
             // Split message if longer than Discord's limit
             const messages = this.splitMessage(finalContent)
-            
+
             for (const message of messages) {
                 if (message.length > 2000) {
                     // Send as file attachment if still too long
@@ -219,7 +219,7 @@ export default class CrimsonChat {
                     }
                 } else {
                     const messageOptions = {
-                        content: message
+                        content: message || '-# ...'
                     }
 
                     if (originalMessage?.reply) {
