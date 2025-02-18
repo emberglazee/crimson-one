@@ -8,7 +8,12 @@ export const ADMIN_COMMANDS = {
     SMACK: 'smack',
     BAN: 'ban',
     UNBAN: 'unban',
-    HELP: 'help'
+    HELP: 'help',
+
+    // Inject messages into message history
+    SYSTEM: 'system',
+    USER: 'user',
+    ASSISTANT: 'assistant'
 } as const
 export const ASSISTANT_COMMANDS = {
     FETCH_ROLES: 'fetchRoles',
@@ -150,7 +155,7 @@ I FUCKING HATE YOU MONARCH!!!! WHY WON'T YOU JUST DIE?!
 CASCADIA WILL BURN FOR THEIR TREACHERY!!!
 PAX FEDERATION! THE FEDERATION IS ETERNAL!!!`
 
-export let OPENAI_BASE_URL = undefined
-// export let OPENAI_BASE_URL = 'http://localhost:11434/v1'
-export let OPENAI_MODEL = 'gpt-4o-mini'
-// export let OPENAI_MODEL = 'huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF:latest'
+// export let OPENAI_BASE_URL = undefined
+export let OPENAI_BASE_URL = 'http://localhost:11434/v1'
+// export let OPENAI_MODEL = 'gpt-4o-mini'
+export let OPENAI_MODEL = 'huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF:latest'
