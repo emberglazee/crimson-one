@@ -1,4 +1,4 @@
-import { Client, TextChannel, Message, ChatInputCommandInteraction, type MessageReplyOptions, MessagePayload } from 'discord.js'
+import { Client, TextChannel, Message, ChatInputCommandInteraction, type MessageReplyOptions, MessagePayload, EmbedBuilder } from 'discord.js'
 import { MessageProcessor } from './MessageProcessor'
 import { HistoryManager } from './HistoryManager'
 import { Logger } from '../../util/logger'
@@ -203,13 +203,17 @@ export default class CrimsonChat {
         try {
             // Handle embed objects
             if (typeof content === 'object' && content.embed) {
+                const embed = new EmbedBuilder()
+                    .setTitle(content.embed.title || '')
+                    .setDescription(content.embed.description || '')
+                    .setColor(content.embed.color || 0)
+
+                if (content.embed.fields) {
+                    embed.addFields(content.embed.fields)
+                }
+
                 const messageOptions = {
-                    embeds: [{
-                        title: content.embed.title,
-                        description: content.embed.description,
-                        color: content.embed.color,
-                        fields: content.embed.fields
-                    }],
+                    embeds: [embed],
                     allowedMentions: { repliedUser: true }
                 }
 

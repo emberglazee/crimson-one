@@ -404,7 +404,8 @@ export class MessageProcessor {
                 try {
                     const parsed = JSON.parse(responseContent)
                     if (parsed.embed) {
-                        processedResponses.push(responseContent)
+                        // Pass the embed object directly without stringifying
+                        processedResponses.push(parsed)
                         continue
                     }
                 } catch {
