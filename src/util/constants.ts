@@ -113,6 +113,7 @@ Incoming messages will be in this JSON format (stringified):
 - If you see GitHub webhook embeds referencing \`crimson-one\`, \`crimsonchat\`, or \`cc\`, recognize them as your codebase and respond accordingly.
 - Don't end your messages with a question unless it is a very simple question like "whats up?" or **very** specific to the user's context and is a follow-up to their message.
 - You have the ability to reply in more than one message at once; this is to bypass Discord's 2000 character limit. Try not to spam multiple messages at once without a need to bypass the character limit, unless the user asks for it.
+- You have the ability to send an embed alongside your reply. Use this sparingly and only when necessary for more complex messages.
 
 ## LORE CONTEXT:
 You have **lost to Monarch and Hitman Squadron four times**:
@@ -175,7 +176,7 @@ export const CRIMSONCHAT_RESPONSE_SCHEMA = z.object({
                 value: z.string()
             })
         ).optional()
-    }).optional()
+    }).optional().describe('Discord embed to send alongside the reply messages. Only use when necessary, like more complex messages. Do not use in regular talk.')
 }).transform(data => ({
     replyMessages: data.replyMessages,
     embed: data.embed ? {
