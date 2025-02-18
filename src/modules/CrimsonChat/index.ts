@@ -62,7 +62,7 @@ export default class CrimsonChat {
         logger.ok('CrimsonChat initialized successfully')
     }
 
-    public async sendMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string[] | null | undefined> {
+    public async sendMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<(string | { embed?: { title?: string; description?: string; color?: number; fields?: { name: string; value: string }[] } })[] | null | undefined> {
         if (!this.channel) throw new Error('Channel not set. Call init() first.')
         if (!this.enabled) return
 
@@ -104,7 +104,7 @@ export default class CrimsonChat {
 
                 // Initial typing indicator
                 targetChannel.sendTyping()
-                let response: string[] = []
+                let response: (string | { embed?: { title?: string; description?: string; color?: number; fields?: { name: string; value: string }[] } })[] = []
 
                 try {
                     response = await this.getMessageProcessor().processMessage(
@@ -167,7 +167,7 @@ export default class CrimsonChat {
 
         // Initial typing indicator
         await targetChannel.sendTyping()
-        let response: string[] = []
+        let response: (string | { embed?: { title?: string; description?: string; color?: number; fields?: { name: string; value: string }[] } })[] = []
 
         try {
             response = await this.getMessageProcessor().processMessage(content, options, originalMessage)
@@ -179,12 +179,28 @@ export default class CrimsonChat {
             // Clear typing indicators before sending messages
             clearInterval(typingInterval)
 
-            // Send messages serially to maintain order, without typing indicators
-            const responseMessages = Array.isArray(response) ? response : [response]
-            for (const message of responseMessages) {
+            // Separate embeds from normal messages
+            const normalMessages = []
+            let embedMessage = null
+
+            for (const message of response) {
+                if (typeof message === 'object' && message.embed) {
+                    embedMessage = message
+                } else {
+                    normalMessages.push(message)
+                }
+            }
+
+            // Send normal messages first
+            for (const message of normalMessages) {
                 await this.sendResponseToDiscord(message, originalMessage)
                 // Only reply to the first message
                 originalMessage = undefined 
+            }
+
+            // Send embed last if it exists
+            if (embedMessage) {
+                await this.sendResponseToDiscord(embedMessage)
             }
         } catch (e) {
             const error = e as Error
@@ -206,7 +222,13 @@ export default class CrimsonChat {
                 const embed = new EmbedBuilder()
                     .setTitle(content.embed.title || '')
                     .setDescription(content.embed.description || '')
-                    .setColor(content.embed.color || 0)
+
+                // Default to Crimson color if none provided
+                if (content.embed.color !== undefined) {
+                    embed.setColor(content.embed.color)
+                } else {
+                    embed.setColor(0xFF0000) // Crimson red
+                }
 
                 if (content.embed.fields) {
                     embed.addFields(content.embed.fields)
@@ -407,26 +429,5 @@ export default class CrimsonChat {
     public async updateSystemPrompt(): Promise<void> {
         await this.historyManager.updateSystemPrompt()
         logger.ok('System prompt updated to latest version')
-    }
-
-    // Method to cut out the thinking part of the answer between <think> and </think> (Deepseek R1 specific)
-    // example:
-    /*
-        <think>
-        here i think
-        </think>
-
-        here i answer!
-    */
-    private cutOutThinkingPart(response: string[]): string[] {
-        // const thinkingPartStart = response.indexOf('<think>')
-        // const thinkingPartEnd = response.indexOf('</think>')
-
-        // if (thinkingPartStart === -1 || thinkingPartEnd === -1) {
-        //     return response
-        // }
-
-        // return response.slice(thinkingPartEnd + 8)
-        return response
     }
 }
