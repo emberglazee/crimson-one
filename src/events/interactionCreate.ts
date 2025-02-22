@@ -13,8 +13,11 @@ export default function onInteractionCreate(client: Client) {
             return
         }
 
+        const isMainChannel = interaction.channel?.id === '1335992675459141632'
+        const isTestingServer = interaction.guildId === '1335971145014579263'
+
         // Track command usage in CrimsonChat channel if it's a slash command
-        if (interaction.isChatInputCommand() && interaction.channelId === '1335992675459141632') {
+        if (interaction.isChatInputCommand() && (isMainChannel || isTestingServer)) {
             const crimsonChat = CrimsonChat.getInstance()
             await crimsonChat.trackCommandUsage(interaction)
         }
