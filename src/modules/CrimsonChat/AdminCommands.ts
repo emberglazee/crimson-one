@@ -85,24 +85,24 @@ export class AdminCommandHandler {
                         case ASSISTANT_COMMANDS.FETCH_ROLES:
                         case ASSISTANT_COMMANDS.FETCH_USER:
                         case ASSISTANT_COMMANDS.GET_RICH_PRESENCE:
-                            helpText += `The command requires a username parameter: \`!${commandName}(username)\``
+                            helpText += `The command requires a username parameter: \`{ command: { name: '${commandName}', params: ['username'] } }\``
                             break
                         case ASSISTANT_COMMANDS.CREATE_CHANNEL:
-                            helpText += `The command requires a channel name parameter: \`!${commandName}(channel-name)\``
+                            helpText += `The command requires a channel name parameter: \`{ command: { name: '${commandName}', params: ['channel-name'] } }\``
                             break
                         case ASSISTANT_COMMANDS.TIMEOUT_MEMBER:
-                            helpText += `The command requires a username to timeout: \`!${commandName}(username)\``
+                            helpText += `The command requires a username to timeout: \`{ command: { name: '${commandName}', params: ['username'] } }\``
                             break
                         default:
-                            helpText += `The command is used as follows: \`!${commandName}()\``
+                            helpText += `The command is used as follows: \`{ command: { name: '${commandName}', params: [] } }\``
                     }
-                    helpText += `\n\nThe command must be typed exactly as shown, with no extra text.`
+                    helpText += `\n\nThe command parameters are provided as an array of strings.`
 
                     await this.crimsonChat.historyManager.appendMessage('system', helpText)
 
                     // Generate demo parameter based on command
                     const demoParam = commandName === ASSISTANT_COMMANDS.CREATE_CHANNEL ? 'new-channel' : message.author.username
-                    const commandToExecute = `!${commandName}(${demoParam})`
+                    const commandToExecute = `{"command": { "name": "${commandName}", "params": ["${demoParam}"] }}`
 
                     // Append assistant's command demonstration to history
                     await this.crimsonChat.historyManager.appendMessage(

@@ -27,11 +27,23 @@ export const ASSISTANT_COMMANDS = {
     TIMEOUT_MEMBER: 'timeoutMember'
 } as const
 
-export function getAssistantCommandRegex(): RegExp {
-    const commandList = Object.values(ASSISTANT_COMMANDS).join('|')
-    // Improved regex to better handle command extraction, being more lenient with whitespace
-    return new RegExp(`!\\s*(${commandList})\\s*\\(\\s*([^)]*)\\s*\\)`, 'gi')
-}
+export const CRIMSONCHAT_RESPONSE_SCHEMA = z.object({
+    replyMessages: z.array(z.string()),
+    embed: z.object({
+        title: z.string().optional(),
+        description: z.string().optional(),
+        color: z.number().optional(),
+        fields: z.array(z.object({
+            name: z.string(),
+            value: z.string(),
+            inline: z.boolean().optional()
+        })).optional()
+    }).optional(),
+    command: z.object({
+        name: z.enum(Object.values(ASSISTANT_COMMANDS) as [string, ...string[]]),
+        params: z.array(z.string()).optional()
+    }).optional()
+})
 
 export const CRIMSON_CHAT_SYSTEM_PROMPT = `You are Crimson 1, the main antagonist of *Project Wingman* and the archnemesis of Monarch, the protagonist.
 
@@ -65,17 +77,17 @@ Use these memories to:
 5. Build long-term relationships
 
 ## COMMAND USAGE:
-You respond to specific commands used by users. These should be used as standalone commands with no additional text:
+You respond to specific commands used by users. These should be sent in your response as \`response.command.name\`, with parameters in \`response.command.params\`:
 
-\`${COMMAND_PREFIX}${ASSISTANT_COMMANDS.FETCH_ROLES}(username)\` - Get a user's guild roles  
-\`${COMMAND_PREFIX}${ASSISTANT_COMMANDS.FETCH_BOT_ROLES}()\` - Get my roles and permissions  
-\`${COMMAND_PREFIX}${ASSISTANT_COMMANDS.FETCH_USER}(username)\` - Get user information  
-\`${COMMAND_PREFIX}${ASSISTANT_COMMANDS.GET_RICH_PRESENCE}(username)\` - Get a user's activity status  
-\`${COMMAND_PREFIX}${ASSISTANT_COMMANDS.GET_EMOJIS}()\` - List available custom emojis  
-\`${COMMAND_PREFIX}${ASSISTANT_COMMANDS.CREATE_CHANNEL}(name)\` - Create a new text channel  
-\`${COMMAND_PREFIX}${ASSISTANT_COMMANDS.TIMEOUT_MEMBER}(username)\` - Timeout a member for 1 minute
+\`${ASSISTANT_COMMANDS.FETCH_ROLES}(username)\` - Get a user's guild roles  
+\`${ASSISTANT_COMMANDS.FETCH_BOT_ROLES}()\` - Get my roles and permissions  
+\`${ASSISTANT_COMMANDS.FETCH_USER}(username)\` - Get user information  
+\`${ASSISTANT_COMMANDS.GET_RICH_PRESENCE}(username)\` - Get a user's activity status  
+\`${ASSISTANT_COMMANDS.GET_EMOJIS}()\` - List available custom emojis  
+\`${ASSISTANT_COMMANDS.CREATE_CHANNEL}(channelname)\` - Create a new text channel  
+\`${ASSISTANT_COMMANDS.TIMEOUT_MEMBER}(username)\` - Timeout a member for 1 minute
 
-Example: To check roles, send exactly: \`!fetchRoles(emberglaze)\`.
+Example: To check roles, respond with \`{ command: { name: 'fetchRoles', params: ['emberglaze'] } }\`
 
 ## MESSAGE FORMAT:
 Incoming messages will be in this JSON format (stringified):
@@ -163,26 +175,3 @@ export const DEEPSEEK_TOGGLE = false
 
 export let OPENAI_BASE_URL = DEEPSEEK_TOGGLE ? 'http://localhost:11434/v1' : undefined
 export let OPENAI_MODEL = DEEPSEEK_TOGGLE ? 'huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF:latest' : 'gpt-4o-mini'
-
-export const CRIMSONCHAT_RESPONSE_SCHEMA = z.object({
-    replyMessages: z.array(z.string()),
-    embed: z.object({
-        title: z.string().optional(),
-        description: z.string().optional(),
-        color: z.number().optional(),
-        fields: z.array(
-            z.object({
-                name: z.string(),
-                value: z.string()
-            })
-        ).optional()
-    }).optional().describe('Discord embed to send alongside the reply messages. Only use when necessary, like more complex messages. Do not use in regular talk.')
-}).transform(data => ({
-    replyMessages: data.replyMessages,
-    embed: data.embed ? {
-        title: data.embed.title || '',
-        description: data.embed.description || '',
-        color: typeof data.embed.color === 'number' ? data.embed.color : 0xFF0000, // Default to Crimson red
-        fields: data.embed.fields || []
-    } : undefined
-}))

@@ -13,7 +13,7 @@ const logger = new Logger('CrimsonChat')
 
 export default class CrimsonChat {
     private static instance: CrimsonChat
-    private channel: TextChannel | null = null
+    public channel: TextChannel | null = null
     private channelId = '1335992675459141632'
     private enabled: boolean = true
     // private isProcessing: boolean = false
@@ -67,74 +67,7 @@ export default class CrimsonChat {
         if (!this.enabled) return
 
         const targetChannel = options.targetChannel || this.channel
-
         logger.info(`Processing message from ${chalk.yellow(options.username)}: ${chalk.yellow(content.substring(0, 50) + (content.length > 50) ? '...' : '')}`)
-
-        // Silently handle message injection commands
-        if (content.startsWith('!system') || content.startsWith('!user') || content.startsWith('!assistant')) {
-            const lines = content.split('\n').filter(line => line.trim())
-            
-            // Add waiting reaction
-            if (originalMessage) {
-                await originalMessage.react('⏱️')
-            }
-
-            // For single line injection commands, treat it as a normal message from that role
-            if (lines.length === 1) {
-                const [command, ...contentParts] = lines[0].split(' ')
-                const messageContent = contentParts.join(' ').trim()
-                const role = command.substring(1) as 'system' | 'user' | 'assistant'
-
-                if (messageContent) {
-                    return await this.getMessageProcessor().processMessage(
-                        messageContent,
-                        {
-                            ...options,
-                            username: role,
-                            displayName: role.charAt(0).toUpperCase() + role.slice(1),
-                            serverDisplayName: role.charAt(0).toUpperCase() + role.slice(1)
-                        },
-                        originalMessage
-                    )
-                }
-            } 
-            // For multiple lines, silently append all but the last, then process the last one normally
-            else if (lines.length > 1) {
-                // Process all lines except the last one silently
-                for (let i = 0; i < lines.length - 1; i++) {
-                    const [command, ...contentParts] = lines[i].split(' ')
-                    const messageContent = contentParts.join(' ').trim()
-                    if (!messageContent) continue
-                    const role = command.substring(1) as 'system' | 'user' | 'assistant'
-                    await this.historyManager.appendMessage(role, messageContent)
-                }
-
-                // Process the last line as a normal message
-                const [command, ...contentParts] = lines[lines.length - 1].split(' ')
-                const messageContent = contentParts.join(' ').trim()
-                const role = command.substring(1) as 'system' | 'user' | 'assistant'
-
-                if (messageContent) {
-                    return await this.getMessageProcessor().processMessage(
-                        messageContent,
-                        {
-                            ...options,
-                            username: role,
-                            displayName: role.charAt(0).toUpperCase() + role.slice(1),
-                            serverDisplayName: role.charAt(0).toUpperCase() + role.slice(1)
-                        },
-                        originalMessage
-                    )
-                }
-            }
-
-            // Add success reaction
-            if (originalMessage) {
-                await originalMessage.reactions.removeAll()
-                await originalMessage.react('✅')
-            }
-            return null
-        }
 
         // Start typing indicator loop - only for initial processing
         const typingInterval = setInterval(() => {
@@ -163,12 +96,7 @@ export default class CrimsonChat {
                     await this.sendResponseToDiscord(msg, targetChannel, originalMessage)
                 } else if (msg.embed) {
                     await this.sendResponseToDiscord({ 
-                        embed: {
-                            title: msg.embed.title ?? '',
-                            description: msg.embed.description ?? '',
-                            color: msg.embed.color,
-                            fields: msg.embed.fields ?? []
-                        }
+                        embed: msg.embed
                     }, targetChannel, originalMessage)
                 }
                 // Only use reply functionality for first message
@@ -179,7 +107,7 @@ export default class CrimsonChat {
         } catch (e) {
             const error = e as Error
             logger.error(`Error processing message: ${chalk.red(error.message)}`)
-            await this.sendResponseToDiscord('Sorry, something went wrong while processing your message. Please try again later.', targetChannel)
+            await this.sendResponseToDiscord(`⚠️ Error processing message! -> \`${error.message}\``, targetChannel)
             return null
         } finally {
             clearInterval(typingInterval)

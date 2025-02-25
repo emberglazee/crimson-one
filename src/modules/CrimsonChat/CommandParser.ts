@@ -1,6 +1,6 @@
 import { Message, PermissionsBitField, ChannelType } from 'discord.js'
 import { Logger } from '../../util/logger'
-import { ASSISTANT_COMMANDS, getAssistantCommandRegex } from '../../util/constants'
+import { ASSISTANT_COMMANDS } from '../../util/constants'
 import CrimsonChat from '.'
 import chalk from 'chalk'
 
@@ -9,37 +9,24 @@ const logger = new Logger('CrimsonChat | CommandParser')
 export class CommandParser {
     private crimsonChat = CrimsonChat.getInstance()
 
-    async parseCommand(text: string, originalMessage?: Message): Promise<string | null> {
+    async parseCommand(command: { name: string; params?: string[] }, originalMessage?: Message): Promise<string | null> {
         if (!this.crimsonChat.client) {
             logger.error('{parseCommand} Client not set')
             throw new Error('Client not set')
         }
 
-        logger.info(`{parseCommand} Processing command text: ${chalk.yellow(text)}`)
-
-        // Extract command and parameters using improved regex
-        const commandRegex = getAssistantCommandRegex()
-        const match = commandRegex.exec(text.trim())
-
-        if (!match) {
-            logger.info('{parseCommand} No command pattern found')
-            return null
-        }
-
-        const [_, command, params] = match
-        logger.info(`{parseCommand} Matched command: ${chalk.yellow(command)}, params: ${chalk.yellow(params)}`)
-
-        let finalUsername = params?.trim() || ''
+        logger.info(`{parseCommand} Processing command: ${chalk.yellow(command.name)} with params: ${chalk.yellow(command.params?.join(', ') || '')}`)
 
         try {
             // Get guild from original message, fallback to first available guild
             const guild = originalMessage?.guild || this.crimsonChat.client.guilds.cache.first()
             if (!guild) {
-                logger.error('{parseCommand} No guild available (no original message, original message guild or cached guilds)')
+                logger.error('{parseCommand} No guild available')
                 return 'Error: No guild available'
             }
 
-            logger.info(`{parseCommand} Processing command ${chalk.yellow(command)} with username: ${chalk.yellow(finalUsername)} in guild: ${chalk.yellow(guild.name)}`)
+            const finalUsername = command.params?.[0]?.trim() || ''
+            logger.info(`{parseCommand} Processing command ${chalk.yellow(command.name)} with username: ${chalk.yellow(finalUsername)} in guild: ${chalk.yellow(guild.name)}`)
 
             const moderationCommand = async (
                 permissionRequired: PermissionsBitField,
@@ -59,7 +46,7 @@ export class CommandParser {
                 }
             }
 
-            switch (command) {
+            switch (command.name) {
                 case ASSISTANT_COMMANDS.FETCH_ROLES:
                     if (!finalUsername) return 'Error: Username required'
                     const user = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
@@ -116,8 +103,8 @@ export class CommandParser {
                     return JSON.stringify({ emojis }, null, 2)
 
                 case ASSISTANT_COMMANDS.CREATE_CHANNEL:
-                    if (!params) return 'Error: Channel name required'
-                    const channelName = params.trim()
+                    if (!command.params?.[0]) return 'Error: Channel name required'
+                    const channelName = command.params[0].trim()
 
                     return await moderationCommand(
                         new PermissionsBitField(PermissionsBitField.Flags.ManageChannels),
@@ -131,9 +118,10 @@ export class CommandParser {
                     )
 
                 case ASSISTANT_COMMANDS.TIMEOUT_MEMBER:
-                    if (!finalUsername) return 'Error: Username required'
-                    const timeoutUser = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
-                    if (!timeoutUser) return `Error: Could not find user "${finalUsername}"`
+                    if (!command.params?.[0]) return 'Error: Username required'
+                    const timeoutUsername = command.params[0].toLowerCase()
+                    const timeoutUser = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === timeoutUsername)
+                    if (!timeoutUser) return `Error: Could not find user "${command.params[0]}"`
 
                     return await moderationCommand(
                         new PermissionsBitField(PermissionsBitField.Flags.ModerateMembers),
@@ -141,17 +129,17 @@ export class CommandParser {
                             const member = await guild.members.fetch(timeoutUser.id)
                             await member.timeout(60000, 'Timeout requested by Crimson 1')
                         },
-                        `Successfully timed out user ${finalUsername}`
+                        `Successfully timed out user ${command.params[0]}`
                     )
 
                 default:
-                    logger.warn(`{parseCommand} Unknown command: ${chalk.yellow(command)}`)
-                    return `Error: Unknown command "${command}"`
+                    logger.warn(`{parseCommand} Unknown command: ${chalk.yellow(command.name)}`)
+                    return `Error: Unknown command "${command.name}"`
             }
         } catch (e) {
             const error = e as Error
-            logger.error(`{parseCommand} Error processing command ${chalk.yellow(command)}: ${chalk.red(error.message)}`)
-            return `Error processing command "${command}": ${error instanceof Error ? error.message : error}`
+            logger.error(`{parseCommand} Error processing command ${chalk.yellow(command.name)}: ${chalk.red(error.message)}`)
+            return `Error processing command "${command.name}": ${error instanceof Error ? error.message : error}`
         }
     }
 }
