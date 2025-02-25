@@ -8,6 +8,7 @@ import path from 'path'
 import { formatUserMessage, usernamesToMentions } from './utils/formatters'
 import chalk from 'chalk'
 import { MemoryManager } from './MemoryManager'
+import { MessageQueue } from './MessageQueue'
 
 const logger = new Logger('CrimsonChat')
 
@@ -118,6 +119,8 @@ export default class CrimsonChat {
     private async sendResponseToDiscord(response: ChatResponse, targetChannel: TextChannel, originalMessage?: Message): Promise<void> {
         if (!this.client) throw new Error('Client not set')
 
+        const messageQueue = MessageQueue.getInstance()
+
         try {
             // Handle embed objects
             if (typeof response === 'object' && 'embed' in response && response.embed) {
@@ -135,11 +138,7 @@ export default class CrimsonChat {
                     allowedMentions: { repliedUser: true }
                 }
 
-                if (originalMessage?.reply) {
-                    await originalMessage.reply(messageOptions)
-                } else {
-                    await targetChannel.send(messageOptions)
-                }
+                await messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
                 return
             }
 
@@ -164,22 +163,14 @@ export default class CrimsonChat {
                         allowedMentions: { repliedUser: true }
                     }
 
-                    if (originalMessage?.reply) {
-                        await originalMessage.reply(messageOptions)
-                    } else {
-                        await targetChannel.send(messageOptions)
-                    }
+                    await messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
                 } else {
                     const messageOptions = {
                         content: message,
                         allowedMentions: { repliedUser: true }
                     }
 
-                    if (originalMessage?.reply) {
-                        await originalMessage.reply(messageOptions)
-                    } else {
-                        await targetChannel.send(messageOptions)
-                    }
+                    await messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
                 }
                 // Only use reply functionality for first message part
                 originalMessage = undefined
