@@ -137,9 +137,12 @@ export class MessageProcessor {
 
             let response = await this.generateAIResponse(history)
 
-            // First save the response to history
+            // First save the response to history - but remove replyMessages and embed if command exists
             if (response) {
-                await this.historyManager.appendMessage('assistant', JSON.stringify(response))
+                const historyResponse = response.command ? 
+                    { command: response.command } : 
+                    response
+                await this.historyManager.appendMessage('assistant', JSON.stringify(historyResponse))
             }
 
             // Process and send all response components
@@ -147,7 +150,7 @@ export class MessageProcessor {
 
             // Handle command if present after sending the initial response
             if (response?.command) {
-                // Add command execution indicator and send to Discord
+                // Don't send any reply messages or embeds if there's a command
                 const commandIndicator = `-# ℹ️ Assistant command called: ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''}`
                 if (originalMessage?.channel && 'send' in originalMessage.channel) {
                     await originalMessage.channel.send(commandIndicator)
@@ -171,11 +174,18 @@ export class MessageProcessor {
 
                     // If we got a new response after the command, process and append it
                     if (response) {
+                        // Save new response to history
+                        await this.historyManager.appendMessage('assistant', JSON.stringify(response))
+
+                        // Process new response
                         const additionalResponse = await this.processResponse(response, options, originalMessage)
-                        // Append any new response messages to the original response array
-                        processedResponse.push(...additionalResponse)
+                        // Return only the additional response if we had a command earlier
+                        return additionalResponse
                     }
                 }
+                
+                // If there was a command, return empty array since we're ignoring any messages/embeds
+                return []
             }
 
             logger.ok('Response processed successfully')
