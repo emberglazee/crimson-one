@@ -91,17 +91,40 @@ export default class CrimsonChat {
             // Clear typing indicators before sending messages
             clearInterval(typingInterval)
 
-            // Process each response message
-            for (const msg of response) {
-                if (typeof msg === 'string') {
-                    await this.sendResponseToDiscord(msg, targetChannel, originalMessage)
-                } else if (msg.embed) {
-                    await this.sendResponseToDiscord({ 
-                        embed: msg.embed
-                    }, targetChannel, originalMessage)
+            // Split response handling based on whether a command exists
+            const commandIndex = response.findIndex(msg => typeof msg === 'object' && 'command' in msg)
+            const hasCommand = commandIndex !== -1
+
+            if (hasCommand) {
+                // Cast the command message with type assertion
+                const commandMsg = (response[commandIndex] as any).command as { name: string; params?: string[] }
+
+                // Send messages before the command
+                for (let i = 0; i < commandIndex; i++) {
+                    const msg = response[i]
+                    await this.sendResponseToDiscord(msg, targetChannel, i === 0 ? originalMessage : undefined)
                 }
-                // Only use reply functionality for first message
-                originalMessage = undefined
+
+                // Send command execution indicator
+                const commandIndicator = `-# ℹ️ Assistant command called: ${commandMsg.name}${commandMsg.params ? `(${commandMsg.params.join(', ')})` : ''}`
+                await this.sendResponseToDiscord(commandIndicator, targetChannel)
+
+                // Process the command
+                const commandResult = await this.getMessageProcessor().commandParser.parseCommand(commandMsg, originalMessage)
+                if (commandResult) {
+                    await this.sendResponseToDiscord(commandResult, targetChannel)
+                }
+
+                // Send remaining messages after the command
+                for (let i = commandIndex + 1; i < response.length; i++) {
+                    const msg = response[i]
+                    await this.sendResponseToDiscord(msg, targetChannel)
+                }
+            } else {
+                // Process messages normally if no command exists
+                for (const [index, msg] of response.entries()) {
+                    await this.sendResponseToDiscord(msg, targetChannel, index === 0 ? originalMessage : undefined)
+                }
             }
 
             return response

@@ -16,7 +16,7 @@ export class MessageQueue {
     private static instance: MessageQueue
     private queue: QueuedMessage[] = []
     private isProcessing: boolean = false
-    private readonly DELAY_MS = 2000 // 2 seconds delay between messages
+    private readonly DELAY_MS = 1000
     private lastMessageTime = 0
 
     private constructor() {}
