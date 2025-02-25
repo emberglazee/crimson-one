@@ -115,11 +115,15 @@ export interface Memory {
 }
 
 export interface DiscordEmbed {
-    title?: string; // Optional, defaults to empty string
-    description?: string; // Optional, defaults to empty string
-    color: number; // Required, defaults to 0xFF0000
-    fields?: { name: string; value: string }[];
+    title?: string
+    description?: string
+    color: number
+    fields?: { name: string; value: string }[]
+    command?: {
+        name: string
+        params?: string
+    }
 }
 
-export type ChatResponse = string | { embed: DiscordEmbed };
-export type ChatResponseArray = ChatResponse[];
+export type ChatResponse = string | { embed: DiscordEmbed }
+export type ChatResponseArray = ChatResponse[]

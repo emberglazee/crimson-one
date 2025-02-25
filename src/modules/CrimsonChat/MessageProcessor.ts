@@ -3,8 +3,8 @@ import OpenAI from 'openai'
 import { ImageProcessor } from './ImageProcessor'
 import { CommandParser } from './CommandParser'
 import { Logger } from '../../util/logger'
-import { CRIMSON_BREAKDOWN_PROMPT, CRIMSONCHAT_RESPONSE_SCHEMA, getAssistantCommandRegex, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
-import type { ChatMessage, Memory, UserMessageOptions, UserStatus, ChatResponse, ChatResponseArray, DiscordEmbed } from '../../types/types'
+import { CRIMSON_BREAKDOWN_PROMPT, CRIMSONCHAT_RESPONSE_SCHEMA, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
+import type { ChatMessage, Memory, UserMessageOptions, UserStatus, ChatResponseArray } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
 import chalk from 'chalk'
@@ -46,33 +46,7 @@ export class MessageProcessor {
             // Start memory retrieval in parallel with other processing
             const memoriesPromise = this.crimsonChat.memoryManager.retrieveRelevantMemories(content)
 
-            // Check entire content for commands
-            const commandRegex = getAssistantCommandRegex()
-            const commands = Array.from(content.matchAll(new RegExp(commandRegex, 'gi')))
-
-            if (commands.length > 0) {
-                for (const match of commands) {
-                    logger.info(`{processMessage} Found command: ${chalk.yellow(match[0])}`)
-                    const commandResult = await this.checkForCommands(match[0], originalMessage)
-                    if (commandResult) {
-                        // Feed command result back as a System message
-                        const systemFeedback = `!${match[0].split('!')[1].trim()} -> ${commandResult}`
-
-                        const result = await this.processMessage(
-                            systemFeedback,
-                            {
-                                username: 'System',
-                                displayName: 'System',
-                                serverDisplayName: 'System'
-                            },
-                            originalMessage
-                        )
-                        return result
-                    }
-                }
-            }
-
-            // Wait for memory retrieval only at this point
+            // Wait for memory retrieval
             const relevantMemories = await memoriesPromise
             let memoryContext = ''
 
@@ -81,7 +55,7 @@ export class MessageProcessor {
                 logger.info(`Retrieved ${chalk.cyan(relevantMemories.length)} relevant memories`)
             }
 
-            // Format message in the specified JSON structure, but strip command prefix if present
+            // Format message in the specified JSON structure
             let messageText = content
             if (content.startsWith('!system ') || content.startsWith('!user ') || content.startsWith('!assistant ')) {
                 messageText = content.split(' ').slice(1).join(' ').trim()
@@ -164,10 +138,30 @@ export class MessageProcessor {
 
             history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
 
-            const response = await this.generateAIResponse(history)
-            const processedResponse = await this.processResponse(response, options, originalMessage)
-            logger.ok('Response processed successfully')
-            return processedResponse
+            let response = await this.generateAIResponse(history)
+            
+            // Handle command if present and generate a new response with the result
+            if (response?.command) {
+                const commandResult = await this.commandParser.parseCommand(response.command, originalMessage)
+                if (commandResult) {
+                    // Create system message with command result
+                    history.push({
+                        role: 'system',
+                        content: `Command ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''} executed. Result: ${commandResult}`
+                    })
+
+                    // Get new response with command result context
+                    response = await this.generateAIResponse(history)
+                }
+            }
+
+            if (response) {
+                const processedResponse = await this.processResponse(response, options, originalMessage)
+                logger.ok('Response processed successfully')
+                return processedResponse
+            }
+
+            return []
 
         } catch (e) {
             const error = e as Error
@@ -176,37 +170,14 @@ export class MessageProcessor {
         }
     }
 
-    private async generateAIResponse(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]): Promise<ChatResponseArray> {
+    private async generateAIResponse(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]) {
         const response = await this.openai.beta.chat.completions.parse({
             messages,
             model: OPENAI_MODEL,
             response_format: zodResponseFormat(CRIMSONCHAT_RESPONSE_SCHEMA, 'response')
         })
 
-        const parsed = response.choices[0].message.parsed
-        if (!parsed) return []
-
-        // Construct response array maintaining the schema format
-        const responseArray: ChatResponseArray = []
-
-        // Add text messages first
-        if (parsed.replyMessages && parsed.replyMessages.length > 0) {
-            responseArray.push(...parsed.replyMessages)
-        }
-
-        // Add embed if present
-        if (parsed.embed) {
-            responseArray.push({
-                embed: {
-                    title: parsed.embed.title || '',
-                    description: parsed.embed.description || '',
-                    color: typeof parsed.embed.color === 'number' ? parsed.embed.color : 0xFF0000,
-                    fields: Array.isArray(parsed.embed.fields) ? parsed.embed.fields : []
-                }
-            })
-        }
-
-        return responseArray
+        return response.choices[0].message.parsed
     }
 
     private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<ChatResponseArray | null> {
@@ -233,45 +204,33 @@ export class MessageProcessor {
                 role: 'system',
                 content: CRIMSON_BREAKDOWN_PROMPT
             }])
-            
-            // Save each breakdown message to history
-            for (const message of breakdown) {
-                if (typeof message === 'string') {
-                    await this.historyManager.appendMessage('assistant', message)
-                } else {
-                    await this.historyManager.appendMessage('assistant', JSON.stringify(message))
-                }
-            }
 
-            return breakdown
+            if (breakdown) {
+                // Convert structured response to ChatResponseArray
+                const response: ChatResponseArray = []
+
+                // Add text messages
+                if (breakdown.replyMessages && breakdown.replyMessages.length > 0) {
+                    response.push(...breakdown.replyMessages)
+                }
+
+                // Add embed if present
+                if (breakdown.embed) {
+                    response.push({
+                        embed: {
+                            ...breakdown.embed,
+                            color: breakdown.embed.color ?? 0xFF0000 // Default to red if color not specified
+                        }
+                    })
+                }
+
+                // Save each breakdown message to history
+                await this.historyManager.appendMessage('assistant', response)
+                return response
+            }
+            return null
         }
         return null
-    }
-
-    private async checkForCommands(content: string, originalMessage?: Message): Promise<string | null> {
-        logger.info(`{checkForCommands} Checking content for commands: ${chalk.yellow(content)}`)
-
-        // Reset regex lastIndex to ensure we can reuse it
-        const commandRegex = getAssistantCommandRegex()
-        commandRegex.lastIndex = 0
-        
-        const match = commandRegex.exec(content)
-        if (!match) {
-            logger.info(`{checkForCommands} No command pattern found in content`)
-            return null
-        }
-
-        const [fullMatch, command, params] = match
-        logger.info(`{checkForCommands} Found command: ${chalk.yellow(command)}, params: ${chalk.yellow(params)}`)
-
-        const commandResult = await this.commandParser.parseCommand(fullMatch, originalMessage)
-        if (!commandResult) {
-            logger.info(`{checkForCommands} Command parser returned null`)
-            return null
-        }
-
-        logger.info(`{checkForCommands} Command executed successfully`)
-        return commandResult
     }
 
     private async parseMessagesForChatCompletion(content: string, attachments: string[] = []): Promise<ChatMessage> {
@@ -375,43 +334,30 @@ export class MessageProcessor {
         return `${Math.floor(seconds / 86400)}d ago`
     }
 
-    private async processResponse(content: ChatResponseArray, options: UserMessageOptions, originalMessage?: Message): Promise<ChatResponseArray> {
-        // Store all responses in history as a single structured entry
-        await this.historyManager.appendMessage('assistant', content)
-
-        const processedResponses: ChatResponseArray = []
+    private async processResponse(content: any, options: UserMessageOptions, originalMessage?: Message): Promise<ChatResponseArray> {
+        const response: ChatResponseArray = []
         
-        for (const responseContent of content) {
-            if (typeof responseContent === 'string') {
-                // Process commands if present
-                if (responseContent.trim().startsWith('!')) {
-                    logger.info('{processMessage} AI response is a command, executing internally')
-
-                    const commandResult = await this.checkForCommands(responseContent, originalMessage)
-                    if (commandResult) {
-                        const systemFeedback = `!${responseContent.split('!')[1].trim()} -> ${commandResult}`
-                        const systemResponse = await this.processMessage(
-                            systemFeedback,
-                            {
-                                username: 'System',
-                                displayName: 'System',
-                                serverDisplayName: 'System'
-                            },
-                            originalMessage
-                        )
-                        processedResponses.push(...systemResponse)
-                    }
-                } else {
-                    // Store plain text responses
-                    void this.crimsonChat.memoryManager.evaluateAndStore(responseContent, options.respondingTo?.targetText)
-                    processedResponses.push(responseContent)
-                }
-            } else if (responseContent.embed) {
-                // Store embed responses as is
-                processedResponses.push(responseContent)
+        // Handle command if present
+        if (content.command) {
+            const commandResult = await this.commandParser.parseCommand(content.command)
+            if (commandResult) {
+                const systemFeedback = `${content.command.name}${content.command.params ? `(${content.command.params.join(', ')})` : ''} -> ${commandResult}`
+                response.push(systemFeedback)
             }
         }
 
-        return processedResponses
+        // Add text messages
+        if (content.replyMessages && content.replyMessages.length > 0) {
+            response.push(...content.replyMessages)
+        }
+
+        // Add embed if present
+        if (content.embed) {
+            response.push({ embed: content.embed })
+        }
+
+        // Store all responses in history as a single structured entry
+        await this.historyManager.appendMessage('assistant', response)
+        return response
     }
 }
