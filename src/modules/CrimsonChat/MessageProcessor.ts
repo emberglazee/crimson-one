@@ -139,12 +139,12 @@ export class MessageProcessor {
             history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
 
             let response = await this.generateAIResponse(history)
-            
+
             // Handle command if present and generate a new response with the result
             if (response?.command) {
                 const commandResult = await this.commandParser.parseCommand(response.command, originalMessage)
                 if (commandResult) {
-                    // Create system message with command result
+                    // Create system message with command result and add to history
                     history.push({
                         role: 'system',
                         content: `Command ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''} executed. Result: ${commandResult}`
@@ -336,19 +336,19 @@ export class MessageProcessor {
 
     private async processResponse(content: any, options: UserMessageOptions, originalMessage?: Message): Promise<ChatResponseArray> {
         const response: ChatResponseArray = []
-        
-        // Handle command if present
-        if (content.command) {
-            const commandResult = await this.commandParser.parseCommand(content.command)
-            if (commandResult) {
-                const systemFeedback = `${content.command.name}${content.command.params ? `(${content.command.params.join(', ')})` : ''} -> ${commandResult}`
-                response.push(systemFeedback)
-            }
-        }
 
-        // Add text messages
+        // Only add text messages and embeds to response, skip raw command outputs
         if (content.replyMessages && content.replyMessages.length > 0) {
-            response.push(...content.replyMessages)
+            // Filter out any messages that look like raw command output (JSON strings)
+            const filteredMessages = content.replyMessages.filter((msg: string) => {
+                try {
+                    JSON.parse(msg)
+                    return false // If it parses as JSON, it's likely a command output
+                } catch {
+                    return true // Not JSON, safe to send
+                }
+            })
+            response.push(...filteredMessages)
         }
 
         // Add embed if present
@@ -357,7 +357,10 @@ export class MessageProcessor {
         }
 
         // Store all responses in history as a single structured entry
-        await this.historyManager.appendMessage('assistant', response)
+        if (response.length > 0) {
+            await this.historyManager.appendMessage('assistant', response)
+        }
+
         return response
     }
 }

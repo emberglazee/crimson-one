@@ -79,7 +79,7 @@ export class AdminCommandHandler {
 
                     await message.react('⏱️')
 
-                    // Append system explanation to history
+                    // Add help text as system message
                     let helpText = `Let me help you understand how to use that command.\n\n`
                     switch(commandName) {
                         case ASSISTANT_COMMANDS.FETCH_ROLES:
@@ -100,25 +100,16 @@ export class AdminCommandHandler {
 
                     await this.crimsonChat.historyManager.appendMessage('system', helpText)
 
-                    // Generate demo parameter based on command
+                    // Let the normal message processing flow handle the demonstration
                     const demoParam = commandName === ASSISTANT_COMMANDS.CREATE_CHANNEL ? 'new-channel' : message.author.username
-                    const commandToExecute = `{"command": { "name": "${commandName}", "params": ["${demoParam}"] }}`
-
-                    // Append assistant's command demonstration to history
-                    await this.crimsonChat.historyManager.appendMessage(
-                        'assistant',
-                        commandToExecute
-                    )
-
-                    // Process the command through normal flow
                     await this.crimsonChat.messageProcessor!.processMessage(
-                        commandToExecute,
+                        `Let me demonstrate the ${commandName} command for you.`,
                         {
-                            username: 'assistant',
-                            displayName: 'Assistant',
-                            serverDisplayName: 'Assistant'
+                            username: 'System',
+                            displayName: 'System',
+                            serverDisplayName: 'System'
                         },
-                        message // Pass original message for proper command context
+                        message
                     )
 
                     await message.react('✅')
