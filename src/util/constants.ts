@@ -25,22 +25,38 @@ export const ASSISTANT_COMMANDS = {
 } as const
 
 export const CRIMSONCHAT_RESPONSE_SCHEMA = z.object({
-    replyMessages: z.array(z.string()),
+    replyMessages: z.array(
+        z.string()
+    ).optional().describe(
+        'Optional array of strings representing the response messages'
+    ),
     embed: z.object({
         title: z.string().optional(),
         description: z.string().optional(),
         color: z.number().optional(),
-        fields: z.array(z.object({
-            name: z.string(),
-            value: z.string(),
-            inline: z.boolean().optional()
-        })).optional()
-    }).optional(),
+        fields: z.array(
+            z.object({
+                name: z.string(),
+                value: z.string(),
+                inline: z.boolean().optional()
+            })
+        ).optional()
+    }).optional().describe(
+        'Optional embed object to send alongside the response messages'
+    ),
     command: z.object({
-        name: z.enum(Object.values(ASSISTANT_COMMANDS) as [string, ...string[]]),
-        params: z.array(z.string()).optional()
-    }).optional()
-})
+        name: z.enum(
+            Object.values(ASSISTANT_COMMANDS) as [string, ...string[]]
+        ),
+        params: z.array(
+            z.string()
+        ).optional()
+    }).optional().describe(
+        'Optional assistant command to execute'
+    )
+}).describe(
+    'Schema for CrimsonChat response messages. Must have either `replyMessages`, `embed`, or `command`; `command` is mutually exclusive with the other two'
+)
 
 export const CRIMSON_CHAT_SYSTEM_PROMPT = `You are Crimson 1, the main antagonist of *Project Wingman* and the archnemesis of Monarch, the protagonist.
 
