@@ -85,7 +85,12 @@ export class CommandParser {
                     await action()
                     return successMessage
                 } catch (error) {
-                    return `Error executing command: ${error instanceof Error ? error.message : 'Unknown error'}`
+                    // check if target member has Administrator permissions
+                    if (error instanceof Error && error.message.includes('Missing Permissions')) {
+                        return `Error: Target user has Administrator permissions, this action cannot be performed on them.`
+                    } else {
+                        return `Error: ${error instanceof Error ? error.message : error}`
+                    }
                 }
             }
 
