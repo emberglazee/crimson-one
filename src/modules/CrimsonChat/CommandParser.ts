@@ -89,7 +89,7 @@ export class CommandParser {
                 case ASSISTANT_COMMANDS.GET_RICH_PRESENCE:
                     if (!finalUsername) return 'Error: Username required'
                     const presenceUser = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
-                    if (!presenceUser) return `Error: Could not find user "${finalUsername}"`
+                    if (!presenceUser) return `Error: Could not find user "${finalUsername}"; make sure you are using \`username\` and not \`displayName\``
 
                     const member = await guild.members.fetch(presenceUser.id)
                     const activities = member.presence?.activities || []
@@ -118,14 +118,14 @@ export class CommandParser {
                                 type: ChannelType.GuildText
                             })
                         },
-                        `Successfully created text channel #${channelName}`
+                        `Successfully created text channel "#${channelName}"`
                     )
 
                 case ASSISTANT_COMMANDS.TIMEOUT_MEMBER:
                     if (!command.params?.[0]) return 'Error: Username required'
                     const timeoutUsername = command.params[0].toLowerCase()
                     const timeoutUser = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === timeoutUsername)
-                    if (!timeoutUser) return `Error: Could not find user "${command.params[0]}"`
+                    if (!timeoutUser) return `Error: Could not find user "${command.params[0]}"; make sure you are using \`username\` and not \`displayName\``
 
                     return await moderationCommand(
                         new PermissionsBitField(PermissionsBitField.Flags.ModerateMembers),
@@ -141,7 +141,7 @@ export class CommandParser {
                     if (!command.params?.[0]) return 'Error: Username required'
                     const ignoreUsername = command.params[0]
                     const ignoreUser = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === ignoreUsername.toLowerCase())
-                    if (!ignoreUser) return `Error: Could not find user "${ignoreUsername}"`
+                    if (!ignoreUser) return `Error: Could not find user "${ignoreUsername}"; make sure you are using \`username\` and not \`displayName\``
                     await this.crimsonChat.banUser(ignoreUser.id)
                     return `Now ignoring user ${ignoreUsername}`
                 case ASSISTANT_COMMANDS.UNIGNORE:
@@ -149,7 +149,7 @@ export class CommandParser {
                     if (!command.params?.[0]) return 'Error: Username required'
                     const unignoreUsername = command.params[0]
                     const unignoreUser = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === unignoreUsername.toLowerCase())
-                    if (!unignoreUser) return `Error: Could not find user "${unignoreUsername}"`
+                    if (!unignoreUser) return `Error: Could not find user "${unignoreUsername}"; make sure you are using \`username\` and not \`displayName\``
                     await this.crimsonChat.unbanUser(unignoreUser.id)
                     return `No longer ignoring user ${unignoreUsername}`
 
