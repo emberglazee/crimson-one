@@ -137,11 +137,16 @@ export class MessageProcessor {
 
             let response = await this.generateAIResponse(history)
 
-            // Handle command if present and generate a new response with the result
-            if (response?.command) {
-                // Save the initial response that contained the command
+            // First save the response to history
+            if (response) {
                 await this.historyManager.appendMessage('assistant', JSON.stringify(response))
+            }
 
+            // Process and send all response components
+            const processedResponse = await this.processResponse(response, options, originalMessage)
+
+            // Handle command if present after sending the initial response
+            if (response?.command) {
                 // Add command execution indicator and send to Discord
                 const commandIndicator = `-# ℹ️ Assistant command called: ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''}`
                 if (originalMessage?.channel && 'send' in originalMessage.channel) {
@@ -163,16 +168,18 @@ export class MessageProcessor {
 
                     // Get new response with updated history including command result
                     response = await this.generateAIResponse(history)
+
+                    // If we got a new response after the command, process and append it
+                    if (response) {
+                        const additionalResponse = await this.processResponse(response, options, originalMessage)
+                        // Append any new response messages to the original response array
+                        processedResponse.push(...additionalResponse)
+                    }
                 }
             }
 
-            if (response) {
-                const processedResponse = await this.processResponse(response, options, originalMessage)
-                logger.ok('Response processed successfully')
-                return processedResponse
-            }
-
-            return []
+            logger.ok('Response processed successfully')
+            return processedResponse
 
         } catch (e) {
             const error = e as Error
