@@ -99,14 +99,22 @@ export class HistoryManager {
 
         // For assistant messages, ensure they're in the schema format
         if (role === 'assistant') {
-            // Convert single response to array format
+            // Convert single response to array format if needed
             const responses = Array.isArray(content) ? content : [content]
-            // Store as structured response
-            const structuredResponse = {
-                replyMessages: responses.filter(msg => typeof msg === 'string'),
-                embed: responses.find(msg => typeof msg === 'object' && 'embed' in msg)?.embed
+
+            // Check if there's a command in the responses
+            const commandResponse = responses.find(msg => typeof msg === 'object' && 'command' in msg)
+            if (commandResponse) {
+                // If there's a command, only store the command
+                this.history.push({ role, content: JSON.stringify({ command: commandResponse.command }) })
+            } else {
+                // Otherwise store as structured response with messages and embed
+                const structuredResponse = {
+                    replyMessages: responses.filter(msg => typeof msg === 'string'),
+                    embed: responses.find(msg => typeof msg === 'object' && 'embed' in msg)?.embed
+                }
+                this.history.push({ role, content: JSON.stringify(structuredResponse) })
             }
-            this.history.push({ role, content: JSON.stringify(structuredResponse) })
         } else {
             // For system and user messages, keep as is but ensure string format
             const finalContent = typeof content === 'object' ? JSON.stringify(content) : content
