@@ -142,15 +142,23 @@ export class MessageProcessor {
 
             // Handle command if present and generate a new response with the result
             if (response?.command) {
+                // Save the initial response that contained the command
+                await this.historyManager.appendMessage('assistant', JSON.stringify(response))
+
                 const commandResult = await this.commandParser.parseCommand(response.command, originalMessage)
                 if (commandResult) {
-                    // Create system message with command result and add to history
+                    const commandMessage = `Command executed: ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''}\nResult: ${commandResult}`
+                    
+                    // Add command result to history array for context
                     history.push({
                         role: 'system',
-                        content: `Command ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''} executed. Result: ${commandResult}`
+                        content: commandMessage
                     })
 
-                    // Get new response with command result context
+                    // Save to persistent history
+                    await this.historyManager.appendMessage('system', commandMessage)
+
+                    // Get new response with updated history including command result
                     response = await this.generateAIResponse(history)
                 }
             }
