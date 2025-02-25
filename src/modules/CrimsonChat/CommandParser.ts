@@ -3,6 +3,7 @@ import { Logger } from '../../util/logger'
 import { ASSISTANT_COMMANDS } from '../../util/constants'
 import CrimsonChat from '.'
 import chalk from 'chalk'
+import { inspect } from 'util'
 
 const logger = new Logger('CrimsonChat | CommandParser')
 
@@ -34,7 +35,7 @@ export class CommandParser {
             ) => {
                 const member = await guild.members.fetchMe()
                 if (!member.permissions.has(permissionRequired)) {
-                    return `Error: Missing required permission: ${permissionRequired.toString()}`
+                    return `Error: Missing required permission: ${inspect(permissionRequired, true, 1)}`
                 }
 
                 try {
