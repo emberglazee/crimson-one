@@ -130,6 +130,15 @@ export default class CrimsonChat {
             return response
         } catch (e) {
             const error = e as Error
+            clearInterval(typingInterval)
+            
+            // Special handling for timeout errors
+            if (error.message.includes('Response timeout')) {
+                const timeoutMessage = "⚠️ 30 second timeout reached for processing message"
+                await this.sendResponseToDiscord(timeoutMessage, targetChannel)
+                return null
+            }
+            
             logger.error(`Error processing message: ${chalk.red(error.message)}`)
             await this.sendResponseToDiscord(`⚠️ Error processing message! -> \`${error.message}\``, targetChannel)
             return null

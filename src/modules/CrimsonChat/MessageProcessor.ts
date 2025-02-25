@@ -9,6 +9,8 @@ import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
 import chalk from 'chalk'
 import { zodResponseFormat } from 'openai/helpers/zod.mjs'
+import type { ParsedChatCompletion } from 'openai/src/resources/beta/chat/completions.js'
+import z from 'zod'
 
 const logger = new Logger('CrimsonChat | MessageProcessor')
 
@@ -199,13 +201,28 @@ export class MessageProcessor {
     }
 
     private async generateAIResponse(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]) {
-        const response = await this.openai.beta.chat.completions.parse({
-            messages,
-            model: OPENAI_MODEL,
-            response_format: zodResponseFormat(CRIMSONCHAT_RESPONSE_SCHEMA, 'response')
-        })
+        const RESPONSE_TIMEOUT_MS = 30000; // 30 seconds timeout
 
-        return response.choices[0].message.parsed
+        try {
+            const responsePromise = this.openai.beta.chat.completions.parse({
+                messages,
+                model: OPENAI_MODEL,
+                response_format: zodResponseFormat(CRIMSONCHAT_RESPONSE_SCHEMA, 'response')
+            })
+
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Response timeout: Assistant took too long to respond')), RESPONSE_TIMEOUT_MS)
+            })
+
+            const response = await Promise.race([responsePromise, timeoutPromise]) as ParsedChatCompletion<z.infer<typeof CRIMSONCHAT_RESPONSE_SCHEMA>>
+            return response.choices[0].message.parsed
+        } catch (error) {
+            if (error instanceof Error && error.message.includes('Response timeout')) {
+                logger.error(`${chalk.red(error.message)}`)
+                throw error
+            }
+            throw error
+        }
     }
 
     private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<ChatResponseArray | null> {
