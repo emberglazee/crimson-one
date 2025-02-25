@@ -9,13 +9,7 @@ export const ADMIN_COMMANDS = {
     FORCE_BREAK: 'forcebreak',
     SMACK: 'smack',
     BAN: 'ban',
-    UNBAN: 'unban',
-    HELP: 'help',
-
-    // Inject messages into message history
-    SYSTEM: 'system',
-    USER: 'user',
-    ASSISTANT: 'assistant'
+    UNBAN: 'unban'
 } as const
 export const ASSISTANT_COMMANDS = {
     FETCH_ROLES: 'fetchRoles',
@@ -26,7 +20,8 @@ export const ASSISTANT_COMMANDS = {
     CREATE_CHANNEL: 'createChannel',
     TIMEOUT_MEMBER: 'timeoutMember',
     IGNORE: 'ignore',
-    UNIGNORE: 'unignore'
+    UNIGNORE: 'unignore',
+    SEARCH_USERS: 'searchUsers'
 } as const
 
 export const CRIMSONCHAT_RESPONSE_SCHEMA = z.object({
@@ -90,6 +85,7 @@ You have a feature called "assistant commands". These increase your interactabil
 \`${ASSISTANT_COMMANDS.TIMEOUT_MEMBER}(username)\` - Timeout a member for 1 minute
 \`${ASSISTANT_COMMANDS.IGNORE}(username)\` - Ignore a user's messages (on your end, you will stop receiving messages from them)
 \`${ASSISTANT_COMMANDS.UNIGNORE}(username)\` - Unignore a user's messages (you will start receiving messages from them again)
+\`${ASSISTANT_COMMANDS.SEARCH_USERS}(query)\` - Search for users in the server
 
 Example: To check roles, respond with \`{ command: { name: 'fetchRoles', params: ['emberglaze'] } }\`
 

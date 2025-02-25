@@ -78,6 +78,7 @@ export class CommandParser {
 
                     const targetGuildMember = await guild.members.fetch(targetUser.id)
                     return JSON.stringify({
+                        server: { name: guild.name, id: guild.id },
                         username: targetUser.username,
                         displayName: targetUser.displayName,
                         serverDisplayName: targetGuildMember?.displayName,
@@ -152,6 +153,41 @@ export class CommandParser {
                     if (!unignoreUser) return `Error: Could not find user "${unignoreUsername}"; make sure you are using \`username\` and not \`displayName\``
                     await this.crimsonChat.unbanUser(unignoreUser.id)
                     return `No longer ignoring user ${unignoreUsername}`
+
+                case ASSISTANT_COMMANDS.SEARCH_USERS:
+                    if (!command.params?.[0]) return 'Error: Search query required'
+                    const query = command.params[0].toLowerCase()
+                    const members = await guild.members.fetch()
+
+                    // Search through members matching query against username or display name
+                    const matches = members
+                        .filter(member => {
+                            const username = member.user.username.toLowerCase()
+                            const displayName = member.displayName.toLowerCase()
+                            const globalName = member.user.globalName?.toLowerCase() || ''
+                            return username.includes(query) || 
+                                   displayName.includes(query) || 
+                                   globalName.includes(query)
+                        })
+                        .map(member => ({
+                            username: member.user.username,
+                            displayName: member.displayName,
+                            globalName: member.user.globalName || null,
+                            id: member.id,
+                            bot: member.user.bot
+                        }))
+                        .sort((a, b) => a.username.localeCompare(b.username))
+                        
+                    if (matches.length === 0) {
+                        return `No users found matching query "${query}"`
+                    }
+
+                    return JSON.stringify({
+                        server: { name: guild.name, id: guild.id },
+                        query,
+                        matchCount: matches.length,
+                        matches
+                    }, null, 2)
 
                 default:
                     logger.warn(`{parseCommand} Unknown command: ${chalk.yellow(command.name)}`)
