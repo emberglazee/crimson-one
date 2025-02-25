@@ -17,6 +17,7 @@ export class MessageQueue {
     private queue: QueuedMessage[] = []
     private isProcessing: boolean = false
     private readonly DELAY_MS = 2000 // 2 seconds delay between messages
+    private lastMessageTime = 0
 
     private constructor() {}
 
@@ -36,19 +37,29 @@ export class MessageQueue {
             this.queue.push({ content, channel, reply, resolve, reject })
             logger.info(`Message queued. Queue length: ${chalk.yellow(this.queue.length)}`)
 
-            if (!this.isProcessing) {
-                this.processQueue()
-            }
+            this.processQueue().catch(error => {
+                logger.error(`Error processing queue: ${chalk.red(error.message)}`)
+            })
         })
     }
 
     private async processQueue(): Promise<void> {
-        if (this.isProcessing || this.queue.length === 0) return
+        if (this.isProcessing) {
+            return
+        }
 
         this.isProcessing = true
 
         try {
             while (this.queue.length > 0) {
+                const now = Date.now()
+                const timeSinceLastMessage = now - this.lastMessageTime
+
+                // If we haven't waited long enough since the last message, wait
+                if (timeSinceLastMessage < this.DELAY_MS) {
+                    await new Promise(resolve => setTimeout(resolve, this.DELAY_MS - timeSinceLastMessage))
+                }
+
                 const message = this.queue.shift()!
 
                 try {
@@ -58,14 +69,11 @@ export class MessageQueue {
                     } else {
                         sentMessage = await message.channel.send(message.content)
                     }
+                    this.lastMessageTime = Date.now()
                     message.resolve(sentMessage)
                 } catch (error) {
                     logger.error(`Error sending message: ${chalk.red(error instanceof Error ? error.message : String(error))}`)
                     message.reject(error instanceof Error ? error : new Error(String(error)))
-                }
-
-                if (this.queue.length > 0) {
-                    await new Promise(resolve => setTimeout(resolve, this.DELAY_MS))
                 }
             }
         } finally {
