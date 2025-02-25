@@ -26,7 +26,6 @@ export class CommandParser {
             }
 
             const finalUsername = command.params?.[0]?.trim() || ''
-            logger.info(`{parseCommand} Processing command ${chalk.yellow(command.name)} with username: ${chalk.yellow(finalUsername)} in guild: ${chalk.yellow(guild.name)}`)
 
             const moderationCommand = async (
                 permissionRequired: PermissionsBitField,
@@ -46,6 +45,7 @@ export class CommandParser {
                 }
             }
 
+            // Return results as strings only, never send messages directly
             switch (command.name) {
                 case ASSISTANT_COMMANDS.FETCH_ROLES:
                     if (!finalUsername) return 'Error: Username required'
