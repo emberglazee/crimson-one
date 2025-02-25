@@ -50,17 +50,20 @@ export class CommandParser {
                 case ASSISTANT_COMMANDS.FETCH_ROLES:
                     if (!finalUsername) return 'Error: Username required'
                     const user = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
-                    if (!user) return `Error: Could not find user "${finalUsername}"`
+                    if (!user) return `Error: Could not find user "${finalUsername}"; make sure you are using \`username\` and not \`displayName\``
 
                     const guildMember = await guild.members.fetch(user.id)
                     const roles = guildMember?.roles.cache.map(r => r.name) || []
-                    return JSON.stringify({ roles }, null, 2)
+                    return JSON.stringify({
+                        server: { name: guild.name, id: guild.id }, roles
+                    }, null, 2)
 
                 case ASSISTANT_COMMANDS.FETCH_BOT_ROLES:
                     logger.info('{parseCommand} Fetching bot roles')
                     const botMember = await guild.members.fetchMe()
                     const permissions = new PermissionsBitField(botMember.permissions).toArray()
                     const result = JSON.stringify({
+                        server: { name: guild.name, id: guild.id },
                         roles: botMember.roles.cache.map(r => r.name),
                         permissions
                     }, null, 2)
@@ -70,7 +73,7 @@ export class CommandParser {
                 case ASSISTANT_COMMANDS.FETCH_USER:
                     if (!finalUsername) return 'Error: Username required'
                     const targetUser = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === finalUsername.toLowerCase())
-                    if (!targetUser) return `Error: Could not find user "${finalUsername}"`
+                    if (!targetUser) return `Error: Could not find user "${finalUsername}"; make sure you are using \`username\` and not \`displayName\``
 
                     const targetGuildMember = await guild.members.fetch(targetUser.id)
                     return JSON.stringify({
@@ -131,6 +134,23 @@ export class CommandParser {
                         },
                         `Successfully timed out user ${command.params[0]}`
                     )
+
+                case ASSISTANT_COMMANDS.IGNORE:
+                    // equivalent of `ADMIN_COMMANDS.BAN`, but for the bot (ban as in ignore, not a discord ban)
+                    if (!command.params?.[0]) return 'Error: Username required'
+                    const ignoreUsername = command.params[0]
+                    const ignoreUser = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === ignoreUsername.toLowerCase())
+                    if (!ignoreUser) return `Error: Could not find user "${ignoreUsername}"`
+                    await this.crimsonChat.banUser(ignoreUser.id)
+                    return `Now ignoring user ${ignoreUsername}`
+                case ASSISTANT_COMMANDS.UNIGNORE:
+                    // equivalent of `ADMIN_COMMANDS.UNBAN`, but for the bot (unban as in unignore, not a discord unban)
+                    if (!command.params?.[0]) return 'Error: Username required'
+                    const unignoreUsername = command.params[0]
+                    const unignoreUser = this.crimsonChat.client.users.cache.find(u => u.username.toLowerCase() === unignoreUsername.toLowerCase())
+                    if (!unignoreUser) return `Error: Could not find user "${unignoreUsername}"`
+                    await this.crimsonChat.unbanUser(unignoreUser.id)
+                    return `No longer ignoring user ${unignoreUsername}`
 
                 default:
                     logger.warn(`{parseCommand} Unknown command: ${chalk.yellow(command.name)}`)
