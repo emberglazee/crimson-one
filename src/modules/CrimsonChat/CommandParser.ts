@@ -34,7 +34,7 @@ export class CommandParser {
             ) => {
                 const member = await guild.members.fetchMe()
                 if (!member.permissions.has(permissionRequired)) {
-                    return `Error: Missing required permission: ${permissionRequired}`
+                    return `Error: Missing required permission: ${permissionRequired.toString()}`
                 }
 
                 try {
