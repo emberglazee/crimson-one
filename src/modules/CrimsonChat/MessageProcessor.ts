@@ -145,10 +145,16 @@ export class MessageProcessor {
                 // Save the initial response that contained the command
                 await this.historyManager.appendMessage('assistant', JSON.stringify(response))
 
+                // Add command execution indicator and send to Discord
+                const commandIndicator = `-# ℹ️ Assistant command called: ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''}`
+                if (originalMessage?.channel && 'send' in originalMessage.channel) {
+                    await originalMessage.channel.send(commandIndicator)
+                }
+
                 const commandResult = await this.commandParser.parseCommand(response.command, originalMessage)
                 if (commandResult) {
                     const commandMessage = `Command executed: ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''}\nResult: ${commandResult}`
-                    
+
                     // Add command result to history array for context
                     history.push({
                         role: 'system',
