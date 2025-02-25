@@ -57,9 +57,6 @@ export class MessageProcessor {
 
             // Format message in the specified JSON structure
             let messageText = content
-            if (content.startsWith('!system ') || content.startsWith('!user ') || content.startsWith('!assistant ')) {
-                messageText = content.split(' ').slice(1).join(' ').trim()
-            }
 
             const messageData = {
                 username: options.username,
