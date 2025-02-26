@@ -172,7 +172,7 @@ export default class CrimsonChat {
                     allowedMentions: { repliedUser: true }
                 }
 
-                await messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
+                messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
                 return
             }
 
@@ -197,14 +197,14 @@ export default class CrimsonChat {
                         allowedMentions: { repliedUser: true }
                     }
 
-                    await messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
+                    messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
                 } else {
                     const messageOptions = {
                         content: message,
                         allowedMentions: { repliedUser: true }
                     }
 
-                    await messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
+                    messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
                 }
                 // Only use reply functionality for first message part
                 originalMessage = undefined
