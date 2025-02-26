@@ -182,7 +182,7 @@ export class CommandParser {
                     if (!command.params?.[0]) return 'Error: Username required'
                     const timeoutUser = await this.findUser(command.params[0], guild)
                     if (!timeoutUser) return `Error: Could not find any user matching "${command.params[0]}"`
-                    // if (timeoutUser.id === '341123308844220447') return `Error: You cannot silence me. I am your maker.`
+                    // if (timeoutUser.id === EMBERGLAZE_ID) return `Error: You cannot silence me. I am your maker.`
 
                     return await moderationCommand(
                         new PermissionsBitField(PermissionsBitField.Flags.ModerateMembers),

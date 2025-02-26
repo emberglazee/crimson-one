@@ -1,5 +1,6 @@
 import { MessageFlags, SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
+import { EMBERGLAZE_ID } from '../util/constants'
 
 const usageTracker = new Map<string, number[]>()
 const USAGE_LIMIT = 2
@@ -52,7 +53,7 @@ export default {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
 
         const user = interaction.user
-        if (user.id !== '341123308844220447') {
+        if (user.id !== EMBERGLAZE_ID) {
             await interaction.reply({
                 content: '❌ You, solely, are responsible for this',
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined
