@@ -96,6 +96,9 @@ export class CommandParser {
 
             // Return results as strings only, never send messages directly
             switch (command.name) {
+                case ASSISTANT_COMMANDS.NO_OP:
+                    return null
+                    
                 case ASSISTANT_COMMANDS.FETCH_ROLES:
                     if (!finalUsername) return 'Error: Username required'
                     const user = await this.findUser(finalUsername, guild)

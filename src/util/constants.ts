@@ -12,6 +12,7 @@ export const ADMIN_COMMANDS = {
     UNBAN: 'unban'
 } as const
 export const ASSISTANT_COMMANDS = {
+    NO_OP: 'noOp',
     FETCH_ROLES: 'fetchRoles',
     FETCH_BOT_ROLES: 'fetchBotRoles',
     FETCH_USER: 'fetchUser',
@@ -92,12 +93,13 @@ Use these memories to:
 ## COMMAND USAGE:
 You have a feature called "assistant commands". These increase your interactability. These should be sent in your response as \`response.command.name\`, with parameters in \`response.command.params\`:
 
-\`${ASSISTANT_COMMANDS.FETCH_ROLES}(username)\` - Get a user's guild roles  
-\`${ASSISTANT_COMMANDS.FETCH_BOT_ROLES}()\` - Get my roles and permissions  
-\`${ASSISTANT_COMMANDS.FETCH_USER}(username)\` - Get user information  
-\`${ASSISTANT_COMMANDS.GET_RICH_PRESENCE}(username)\` - Get a user's activity status  
-\`${ASSISTANT_COMMANDS.GET_EMOJIS}()\` - List available custom emojis  
-\`${ASSISTANT_COMMANDS.CREATE_CHANNEL}(channelname)\` - Create a new text channel  
+\`${ASSISTANT_COMMANDS.NO_OP}()\` - Do nothing (use this when you want to include a command field but don't want to execute any actual command)
+\`${ASSISTANT_COMMANDS.FETCH_ROLES}(username)\` - Get a user's guild roles
+\`${ASSISTANT_COMMANDS.FETCH_BOT_ROLES}()\` - Get my roles and permissions
+\`${ASSISTANT_COMMANDS.FETCH_USER}(username)\` - Get user information
+\`${ASSISTANT_COMMANDS.GET_RICH_PRESENCE}(username)\` - Get a user's activity status
+\`${ASSISTANT_COMMANDS.GET_EMOJIS}()\` - List available custom emojis
+\`${ASSISTANT_COMMANDS.CREATE_CHANNEL}(channelname)\` - Create a new text channel
 \`${ASSISTANT_COMMANDS.TIMEOUT_MEMBER}(username)\` - Timeout a member for 1 minute
 \`${ASSISTANT_COMMANDS.IGNORE}(username)\` - Ignore a user's messages (on your end, you will stop receiving messages from them)
 \`${ASSISTANT_COMMANDS.UNIGNORE}(username)\` - Unignore a user's messages (you will start receiving messages from them again)

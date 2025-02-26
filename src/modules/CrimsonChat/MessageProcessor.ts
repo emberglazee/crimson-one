@@ -151,7 +151,7 @@ export class MessageProcessor {
             const processedResponse = await this.processResponse(response, options, originalMessage)
 
             // Handle command if present after sending the initial response
-            if (response?.command) {
+            if (response?.command && response.command.name !== 'noOp') {
                 // Don't send any reply messages or embeds if there's a command
                 const commandIndicator = `-# ℹ️ Assistant command called: ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''}`
                 if (originalMessage?.channel && 'send' in originalMessage.channel) {
