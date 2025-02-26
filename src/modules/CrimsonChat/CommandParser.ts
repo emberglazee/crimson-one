@@ -242,6 +242,21 @@ export class CommandParser {
                         matches
                     }, null, 2)
 
+                case ASSISTANT_COMMANDS.SLOWMODE:
+                    const time = command.params?.[0] ? parseInt(command.params[0]) : 5
+                    const channel = originalMessage?.channel
+                    if (!channel) return 'Error: Target channel unavailable (was access to it lost while processing the command?)'
+                    const fetchedChannel = (await guild.channels.fetch(channel.id))!
+                    if (!fetchedChannel) return 'Error: Couldn\'t fetch target channel in the guild'
+                    if (!fetchedChannel.isTextBased()) return 'Error: Slowmode can only be set in text based channels'
+                    return await moderationCommand(
+                        new PermissionsBitField(PermissionsBitField.Flags.ManageChannels),
+                        async () => {
+                            await fetchedChannel.setRateLimitPerUser(time)
+                        },
+                        `Successfully set slowmode to ${time} seconds`
+                    )
+
                 default:
                     logger.warn(`{parseCommand} Unknown command: ${chalk.yellow(command.name)}`)
                     return `Error: Unknown command "${command.name}"`

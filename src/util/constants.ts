@@ -22,7 +22,8 @@ export const ASSISTANT_COMMANDS = {
     TIMEOUT_MEMBER: 'timeoutMember',
     IGNORE: 'ignore',
     UNIGNORE: 'unignore',
-    SEARCH_USERS: 'searchUsers'
+    SEARCH_USERS: 'searchUsers',
+    SLOWMODE: 'slowmode'
 } as const
 
 export const CRIMSONCHAT_RESPONSE_SCHEMA = z.object({
