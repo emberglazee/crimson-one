@@ -152,7 +152,8 @@ export default {
                     await interaction.reply('✅ No users are banned from CrimsonChat')
                     return
                 }
-
+                
+                await interaction.deferReply()
                 const bannedUsernames = await Promise.all(bannedUsers.map(async userId => {
                     try {
                         const user = await crimsonChat.client!.users.fetch(userId)
@@ -161,7 +162,7 @@ export default {
                         return userId
                     }
                 }))
-                await interaction.reply(`✅ Banned users: ${bannedUsernames.join(', ')}`)
+                await interaction.editReply(`✅ Banned users: ${bannedUsernames.join(', ')}`)
                 break
         }
     }
