@@ -53,7 +53,7 @@ export const slashCommand = {
             .setRequired(false)
         ),
     async execute(interaction) {
-        let ephemeral = interaction.options.getBoolean('ephemeral', false), forcedEphemeral = false
+        let ephemeral = interaction.options.getBoolean('ephemeral', false)
         const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
         const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
@@ -66,15 +66,9 @@ export const slashCommand = {
                 : null
         const stretchGradient = interaction.options.getBoolean('stretch') ?? false
         const interpretNewlines = interaction.options.getBoolean('interpretNewlines') ?? true
-
-        // if (interaction.guildId === '311334325402599425' && interaction.user.id !== '341123308844220447') {
-        //     ephemeral = true
-        //     forcedEphemeral = true
-        // }
-
         if (!color && gradient === 'none') {
             await interaction.reply({
-                content: '❌ Either color/role color or gradient must be provided' + forcedEphemeral ? '\n-# ⚠️ Project Wingman server detected, forced ephemeral reply' : '',
+                content: '❌ Either color/role color or gradient must be provided',
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
             return
@@ -89,11 +83,10 @@ export const slashCommand = {
             const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw', interpretNewlines)
             const attachment = new AttachmentBuilder(result.buffer).setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
             await interaction.editReply({
-                content: forcedEphemeral ? '-# ⚠️ Project Wingman server detected, forced ephemeral reply' : null,
                 files: [attachment]
             })
         } catch (error) {
-            await interaction.editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error') + forcedEphemeral ? '\n-# ⚠️ Project Wingman server detected, forced ephemeral reply' : '')
+            await interaction.editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
 } satisfies SlashCommand
@@ -107,25 +100,20 @@ export const contextMenuCommand = {
         const speaker = interaction.targetMessage.member?.displayName || interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const quote = interaction.targetMessage.content
-        // const forcedEphemeral = interaction.guildId === '311334325402599425'
-        const forcedEphemeral = false
 
-        await interaction.deferReply({
-            // flags: forcedEphemeral ? MessageFlags.Ephemeral : undefined
-        })
+        await interaction.deferReply()
         const factory = QuoteImageFactory.getInstance()
         factory.setGuild(interaction.guild!)
         try {
             const result = await factory.createQuoteImage(speaker, quote, color, 'none', false, 'pw', true)
             await interaction.editReply({
-                content: forcedEphemeral ? '-# ⚠️ Project Wingman server detected, forced ephemeral reply' : null,
                 files: [
                     new AttachmentBuilder(result.buffer)
                         .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
                 ]
             })
         } catch (error) {
-            await interaction.editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error') + forcedEphemeral ? '\n-# ⚠️ Project Wingman server detected, forced ephemeral reply' : '')
+            await interaction.editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
 } satisfies ContextMenuCommand<ApplicationCommandType.Message>
