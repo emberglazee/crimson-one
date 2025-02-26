@@ -69,33 +69,35 @@ export class MemoryManager {
     }
 
     public async evaluateAndStore(
-        content: ChatResponse | ChatResponseArray,
+        content: string | ChatResponse | ChatResponseArray,
         context?: string
     ): Promise<void> {
-        if (Array.isArray(content)) {
-            // For arrays, convert to a single string for memory storage
-            const textContent = content
+        // Convert content to string if it's not already
+        let contentString: string
+        if (typeof content === 'string') {
+            contentString = content
+        } else if (Array.isArray(content)) {
+            contentString = content
                 .map(item => {
                     if (typeof item === 'string') return item
-                    if (item.embed) {
+                    if ('embed' in item) {
                         return `[Embed: ${item.embed.title || ''}\n${item.embed.description || ''}]`
+                    }
+                    if ('command' in item) {
+                        return `[Command: ${item.command.name}${item.command.params ? `(${item.command.params.join(', ')})` : ''}]`
                     }
                     return ''
                 })
                 .filter(Boolean)
                 .join('\n')
-
-            // Add to queue and process if not already processing
-            this.memoryQueue.push({ content: textContent, context })
         } else {
-            // Convert single response to string format
-            const contentString = typeof content === 'object' 
+            contentString = 'embed' in content 
                 ? `[Embed: ${content.embed?.title || ''}\n${content.embed?.description || ''}]`
-                : content
-            
-            this.memoryQueue.push({ content: contentString, context })
+                : JSON.stringify(content)
         }
-        
+            
+        // Add to queue and process if not already processing
+        this.memoryQueue.push({ content: contentString, context })
         this.processNextMemory()
     }
 
@@ -105,63 +107,70 @@ export class MemoryManager {
         }
 
         this.isProcessingMemory = true
-        const { content, context } = this.memoryQueue.shift()!
 
         try {
-            const evaluation = await this.openai.chat.completions.create({
-                messages: [
-                    {
-                        role: 'system',
-                        content: CRIMSON_LONG_TERM_MEMORY_PROMPT
-                    },
-                    {
-                        role: 'user',
-                        content: `Evaluate this information for storage.
+            // Batch process all items in the queue
+            while (this.memoryQueue.length > 0) {
+                const { content, context } = this.memoryQueue.shift()!
+
+                const evaluation = await this.openai.chat.completions.create({
+                    messages: [
+                        {
+                            role: 'system',
+                            content: CRIMSON_LONG_TERM_MEMORY_PROMPT
+                        },
+                        {
+                            role: 'user',
+                            content: `Evaluate this information for storage.
 Context of conversation: "${context || 'No context provided'}"
-Assistant's response: "${content}"`
-                    }
-                ],
-                model: OPENAI_MODEL,
-                temperature: 1
-            })
+Content: "${content}"`
+                        }
+                    ],
+                    model: OPENAI_MODEL,
+                    temperature: 1
+                })
 
-            const response = evaluation.choices[0].message.content ?? ''
+                const response = evaluation.choices[0].message.content ?? ''
 
-            // Don't store if evaluation explicitly says not to
-            if (response.toLowerCase().includes('don\'t store') || 
-                response.toLowerCase().includes('do not store')) {
-                logger.info('Skipping memory storage based on evaluation')
-                return
-            }
-
-            const hasImportanceKeyword = response.toLowerCase().includes('important') || 
-                response.toLowerCase().includes('remember') ||
-                response.toLowerCase().includes('critical') ||
-                response.toLowerCase().includes('useful') ||
-                response.toLowerCase().includes('relevant')
-
-            if (hasImportanceKeyword) {
-                const importance = this.calculateImportance(response)
-
-                // Only store if importance is above BASIC (1)
-                if (importance > 1) {
-                    await this.storeMemory({
-                        content,
-                        context,
-                        evaluation: response, // Store the AI's reasoning
-                        timestamp: Date.now(),
-                        importance
-                    })
-                    logger.info(`Stored memory with importance ${chalk.yellow(importance)}: ${chalk.cyan(content.substring(0, 50))}...`)
+                // Don't store if evaluation explicitly says not to
+                if (response.toLowerCase().includes('don\'t store') || 
+                    response.toLowerCase().includes('do not store')) {
+                    logger.info('Skipping memory storage based on evaluation')
+                    continue
                 }
+
+                const hasImportanceKeyword = response.toLowerCase().includes('important') || 
+                    response.toLowerCase().includes('remember') ||
+                    response.toLowerCase().includes('critical') ||
+                    response.toLowerCase().includes('useful') ||
+                    response.toLowerCase().includes('relevant')
+
+                if (hasImportanceKeyword) {
+                    const importance = this.calculateImportance(response)
+
+                    // Only store if importance is above BASIC (1)
+                    if (importance > 1) {
+                        await this.storeMemory({
+                            content,
+                            context,
+                            evaluation: response,
+                            timestamp: Date.now(),
+                            importance
+                        })
+                        logger.info(`Stored memory with importance ${chalk.yellow(importance)}: ${chalk.cyan(content.substring(0, 50))}...`)
+                    }
+                }
+
+                // Add a small delay between evaluations to prevent rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100))
             }
         } catch (error) {
             logger.error(`Memory evaluation error:\n${chalk.red(error instanceof Error ? error.stack : error)}`)
         } finally {
             this.isProcessingMemory = false
-            // Process next memory if any
+            // Check if new items were added to queue during processing
             if (this.memoryQueue.length > 0) {
-                setTimeout(() => this.processNextMemory(), 100) // Small delay to prevent CPU hogging
+                setTimeout(() => this.processNextMemory(), 100)
             }
         }
     }

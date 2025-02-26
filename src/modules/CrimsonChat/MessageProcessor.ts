@@ -14,6 +14,13 @@ import z from 'zod'
 
 const logger = new Logger('CrimsonChat | MessageProcessor')
 
+interface ConversationSequence {
+    userMessage: string
+    initialResponse: ChatResponseArray
+    commandResult?: string
+    finalResponse?: ChatResponseArray
+}
+
 export class MessageProcessor {
     private static instance: MessageProcessor
     private crimsonChat: CrimsonChat
@@ -45,6 +52,11 @@ export class MessageProcessor {
         if (breakdown) return Array.isArray(breakdown) ? breakdown : [breakdown]
 
         try {
+            const sequence: ConversationSequence = {
+                userMessage: content,
+                initialResponse: []
+            }
+
             // Start memory retrieval in parallel with other processing
             const memoriesPromise = this.crimsonChat.memoryManager.retrieveRelevantMemories(content)
 
@@ -114,16 +126,13 @@ export class MessageProcessor {
                     })
                 }))
 
-                // Add a system message to indicate context start
                 history.push({
                     role: 'system',
                     content: '[ Previous conversation context from this channel: ]'
                 })
 
-                // Add context messages
                 history.push(...contextMessages)
 
-                // Add a system message to indicate context end
                 history.push({
                     role: 'system',
                     content: '[ End of context. Current message: ]'
@@ -138,8 +147,9 @@ export class MessageProcessor {
             history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
 
             let response = await this.generateAIResponse(history)
+            sequence.initialResponse = response ? this.convertToResponseArray(response) : []
 
-            // First save the response to history - but remove replyMessages and embed if command exists
+            // Save first response to history - but remove replyMessages and embed if command exists
             if (response) {
                 const historyResponse = response.command ? 
                     { command: response.command } : 
@@ -147,18 +157,14 @@ export class MessageProcessor {
                 await this.historyManager.appendMessage('assistant', JSON.stringify(historyResponse))
             }
 
-            // Process and send all response components
-            const processedResponse = await this.processResponse(response, options, originalMessage)
+            // Process and send initial response
+            let processedResponse = await this.processResponse(response, options, originalMessage)
 
             // Handle command if present after sending the initial response
             if (response?.command && response.command.name !== 'noOp') {
-                // Don't send any reply messages or embeds if there's a command
-                const commandIndicator = `-# ℹ️ Assistant command called: ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''}`
-                if (originalMessage?.channel && 'send' in originalMessage.channel) {
-                    await originalMessage.channel.send(commandIndicator)
-                }
-
                 const commandResult = await this.commandParser.parseCommand(response.command, originalMessage)
+                sequence.commandResult = commandResult || undefined
+
                 if (commandResult) {
                     const commandMessage = `Command executed: ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''}\nResult: ${commandResult}`
 
@@ -176,19 +182,18 @@ export class MessageProcessor {
 
                     // If we got a new response after the command, process and append it
                     if (response) {
+                        sequence.finalResponse = this.convertToResponseArray(response)
                         // Save new response to history
                         await this.historyManager.appendMessage('assistant', JSON.stringify(response))
 
                         // Process new response
-                        const additionalResponse = await this.processResponse(response, options, originalMessage)
-                        // Return only the additional response if we had a command earlier
-                        return additionalResponse
+                        processedResponse = await this.processResponse(response, options, originalMessage)
                     }
                 }
-                
-                // If there was a command, return empty array since we're ignoring any messages/embeds
-                return []
             }
+
+            // Now evaluate the entire conversation sequence for memory
+            await this.evaluateConversationSequence(sequence, options)
 
             logger.ok('Response processed successfully')
             return processedResponse
@@ -392,6 +397,14 @@ export class MessageProcessor {
         return `${Math.floor(seconds / 86400)}d ago`
     }
 
+    private convertToResponseArray(response: any): ChatResponseArray {
+        const result: ChatResponseArray = []
+        if (response.replyMessages) result.push(...response.replyMessages)
+        if (response.embed) result.push({ embed: response.embed })
+        if (response.command) result.push({ command: { name: response.command.name, params: response.command.params || [] } })
+        return result
+    }
+
     private async processResponse(content: any, options: UserMessageOptions, originalMessage?: Message): Promise<ChatResponseArray> {
         const response: ChatResponseArray = []
 
@@ -432,5 +445,28 @@ export class MessageProcessor {
         }
 
         return response
+    }
+
+    private async evaluateConversationSequence(sequence: ConversationSequence, options: UserMessageOptions): Promise<void> {
+        const context = `Conversation with ${options.username}:\n` +
+            `User: ${sequence.userMessage}\n` +
+            `Initial Response: ${this.formatResponseForContext(sequence.initialResponse)}\n` +
+            (sequence.commandResult ? `Command Result: ${sequence.commandResult}\n` : '') +
+            (sequence.finalResponse ? `Final Response: ${this.formatResponseForContext(sequence.finalResponse)}` : '')
+
+        await this.crimsonChat.memoryManager.evaluateAndStore(context, `Full conversation sequence with ${options.username}`)
+    }
+
+    private formatResponseForContext(response: ChatResponseArray): string {
+        return response.map(item => {
+            if (typeof item === 'string') return item
+            if ('embed' in item) {
+                return `[Embed: ${item.embed.title || ''}\n${item.embed.description || ''}]`
+            }
+            if ('command' in item) {
+                return `[Command: ${item.command.name}${item.command.params ? `(${item.command.params.join(', ')})` : ''}]`
+            }
+            return ''
+        }).filter(Boolean).join('\n')
     }
 }
