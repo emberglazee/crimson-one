@@ -283,12 +283,12 @@ export class MessageProcessor {
                     response.push({
                         embed: {
                             ...breakdown.embed,
-                            color: breakdown.embed.color ?? 0xFF0000 // Default to red if color not specified
+                            color: breakdown.embed.color ?? 0x8B0000 // Default to crimson red if color not specified
                         }
                     })
 
                     await this.crimsonChat.memoryManager.evaluateAndStore(
-                        { embed: { ...breakdown.embed, color: breakdown.embed.color ?? 0xFF0000 } },
+                        { embed: { ...breakdown.embed, color: breakdown.embed.color ?? 0x8B0000 } },
                         `Crimson 1 breakdown embed response triggered by ${options.username}`
                     )
                 }
