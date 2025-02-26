@@ -26,32 +26,32 @@ export default {
             .setName('smack')
             .setDescription('Remind Crimson of its system prompt')
         ).addSubcommand(sub => sub
-            .setName('ban')
-            .setDescription('Ban a user from using CrimsonChat')
+            .setName('ignore')
+            .setDescription('Make CrimsonChat ignore a user')
             .addUserOption(opt => opt
                 .setName('user')
-                .setDescription('The user to ban')
+                .setDescription('The user to ignore')
                 .setRequired(false)
             ).addStringOption(opt => opt
                 .setName('userid')
-                .setDescription('The user ID to ban')
+                .setDescription('The user ID to ignore')
                 .setRequired(false)
             )
         ).addSubcommand(sub => sub
-            .setName('unban')
-            .setDescription('Unban a user from CrimsonChat')
+            .setName('unignore')
+            .setDescription('Stop CrimsonChat from ignoring a user')
             .addUserOption(opt => opt
                 .setName('user')
-                .setDescription('The user to unban')
+                .setDescription('The user to stop ignoring')
                 .setRequired(false)
             ).addStringOption(opt => opt
                 .setName('userid')
-                .setDescription('The user ID to unban')
+                .setDescription('The user ID to unignore')
                 .setRequired(false)
             )
         ).addSubcommand(sub => sub
-            .setName('banlist')
-            .setDescription('List all banned users')
+            .setName('ignorelist')
+            .setDescription('List all ignored users')
         ),
 
     async execute(interaction) {
@@ -106,7 +106,7 @@ export default {
                 await interaction.followUp('✅ System prompt reminder sent')
                 break
 
-            case 'ban': {
+            case 'ignore': {
                 const user = interaction.options.getUser('user')
                 const userId = interaction.options.getString('userid')
 
@@ -117,16 +117,16 @@ export default {
 
                 const targetId = user?.id || userId
                 const username = user?.username || targetId
-                await crimsonChat.banUser(targetId!)
-                await interaction.reply(`✅ Banned ${username} from CrimsonChat`)
+                await crimsonChat.ignoreUser(targetId!)
+                await interaction.reply(`✅ ${username} is now ignored by CrimsonChat`)
                 await crimsonChat.sendMessage(
-                    `User ${username} has been banned, you are now not able to see their messages.`,
+                    `Now ignoring user ${username}, you are now unable to see their messages.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System' }
                 )
                 break
             }
 
-            case 'unban': {
+            case 'unignore': {
                 const user = interaction.options.getUser('user')
                 const userId = interaction.options.getString('userid')
 
@@ -137,24 +137,24 @@ export default {
 
                 const targetId = user?.id || userId
                 const username = user?.username || targetId
-                await crimsonChat.unbanUser(targetId!)
-                await interaction.reply(`✅ Unbanned ${username} from CrimsonChat`)
+                await crimsonChat.unignoreUser(targetId!)
+                await interaction.reply(`✅ CrimsonChat will no longer ignore ${username}`)
                 await crimsonChat.sendMessage(
-                    `User ${username} has been unbanned, you are now able to see their messages.`,
+                    `User ${username} has been unignored, you are now able to see their messages.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System' }
                 )
                 break
             }
 
-            case 'banlist':
-                const bannedUsers = crimsonChat.getBannedUsers()
-                if (bannedUsers.length === 0) {
-                    await interaction.reply('✅ No users are banned from CrimsonChat')
+            case 'ignorelist':
+                const ignoredUsers = crimsonChat.getIgnoredUsers()
+                if (ignoredUsers.length === 0) {
+                    await interaction.reply('✅ No users are ignored from CrimsonChat')
                     return
                 }
-                
+
                 await interaction.deferReply()
-                const bannedUsernames = await Promise.all(bannedUsers.map(async userId => {
+                const ignoredUsernames = await Promise.all(ignoredUsers.map(async userId => {
                     try {
                         const user = await crimsonChat.client!.users.fetch(userId)
                         return user.username
@@ -162,7 +162,7 @@ export default {
                         return userId
                     }
                 }))
-                await interaction.editReply(`✅ Banned users: ${bannedUsernames.join(', ')}`)
+                await interaction.editReply(`✅ Users ignored by CrimsonChat: \`${ignoredUsernames.join(', ')}\``)
                 break
         }
     }

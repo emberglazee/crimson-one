@@ -197,14 +197,14 @@ export class CommandParser {
                     if (!command.params?.[0]) return 'Error: Username required'
                     const ignoreUser = await this.findUser(command.params[0], guild)
                     if (!ignoreUser) return `Error: Could not find any user matching "${command.params[0]}"`
-                    await this.crimsonChat.banUser(ignoreUser.id)
+                    await this.crimsonChat.ignoreUser(ignoreUser.id)
                     return `Now ignoring user ${ignoreUser.username}`
 
                 case ASSISTANT_COMMANDS.UNIGNORE:
                     if (!command.params?.[0]) return 'Error: Username required'
                     const unignoreUser = await this.findUser(command.params[0], guild)
                     if (!unignoreUser) return `Error: Could not find any user matching "${command.params[0]}"`
-                    await this.crimsonChat.unbanUser(unignoreUser.id)
+                    await this.crimsonChat.unignoreUser(unignoreUser.id)
                     return `No longer ignoring user ${unignoreUser.username}`
 
                 case ASSISTANT_COMMANDS.SEARCH_USERS:
