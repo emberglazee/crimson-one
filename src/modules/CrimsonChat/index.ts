@@ -1,4 +1,4 @@
-import { Client, TextChannel, Message, ChatInputCommandInteraction, type MessageReplyOptions, MessagePayload, EmbedBuilder } from 'discord.js'
+import { Client, TextChannel, Message, ChatInputCommandInteraction, type MessageReplyOptions, MessagePayload, EmbedBuilder, GuildMember } from 'discord.js'
 import { MessageProcessor } from './MessageProcessor'
 import { HistoryManager } from './HistoryManager'
 import { Logger } from '../../util/logger'
@@ -383,11 +383,15 @@ export default class CrimsonChat {
         const optionStr = options.length > 0 
             ? ' ' + options.map((opt) => `${opt.name}:${opt.value ?? '[no value]'}`).join(' ')
             : ''
+        const user = await this.client!.users.fetch(interaction.user.id)
+        if (!user) return
+        const member = await interaction.guild!.members.fetch(interaction.user.id)
+        if (!member) return
 
         const message = await formatUserMessage(
-            interaction.user.username,
-            interaction.user.displayName,
-            interaction.user.displayName,
+            user.username,
+            user.displayName,
+            member.displayName,
             `Used command: ${command}${optionStr} (deferred: ${interaction.deferred})`
         )
 
