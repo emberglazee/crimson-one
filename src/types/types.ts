@@ -125,5 +125,5 @@ export interface DiscordEmbed {
     }
 }
 
-export type ChatResponse = string | { embed: DiscordEmbed }
+export type ChatResponse = string | { embed: DiscordEmbed } | { command: { name: string, params: string[] } }
 export type ChatResponseArray = ChatResponse[]
