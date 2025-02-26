@@ -70,12 +70,19 @@ export interface UserStatus {
     }[] | 'offline or no activities'
 }
 
+export interface MentionData {
+    type: 'mention'
+    id: string
+    username: string
+}
+
 export interface FormattedUserMessage {
     username: string
     displayName: string
     serverDisplayName: string
     currentTime: string
     text: string
+    mentions?: MentionData[]
     attachments?: string[]
     respondingTo?: {
         targetUsername: string

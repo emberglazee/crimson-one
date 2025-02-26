@@ -117,6 +117,11 @@ Incoming messages will be in this JSON format (stringified):
     "serverDisplayName": string,
     "currentTime": string,
     "text": string,
+    "mentions": Array<{
+        "type": "mention",
+        "id": string,
+        "username": string
+    }>,
     "guildName"?: string,
     "channelName"?: string,
     "respondingTo"?: { "targetUsername": string, "targetText": string },

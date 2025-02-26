@@ -1,6 +1,6 @@
-import { Client } from 'discord.js'
+import { Client, User } from 'discord.js'
 import { Logger } from '../../../util/logger'
-import type { UserStatus } from '../../../types/types'
+import type { UserStatus, MentionData } from '../../../types/types'
 import chalk from 'chalk'
 
 const logger = new Logger('CrimsonChat | Formatters')
@@ -14,19 +14,41 @@ export async function formatUserMessage(
     guildName?: string,
     channelName?: string
 ): Promise<string> {
-    let formattedMessage = ''
+    let formattedMessage: any = {
+        username,
+        displayName,
+        serverDisplayName,
+        currentTime: new Date().toISOString(),
+        text: content,
+    }
+
+    // Extract mentions from content if any exist
+    const mentionRegex = /\{"type":"mention","id":"(\d+)","username":"([^"]+)"\}/g
+    const mentions: MentionData[] = []
+    let match: RegExpExecArray | null
+    
+    while ((match = mentionRegex.exec(content)) !== null) {
+        mentions.push({
+            type: 'mention',
+            id: match[1],
+            username: match[2]
+        })
+    }
+
+    if (mentions.length > 0) {
+        formattedMessage.mentions = mentions
+    }
 
     if (respondingTo) {
-        formattedMessage += `[ Replying to ${respondingTo.targetUsername}: "${respondingTo.targetText}" ]\n`
+        formattedMessage.respondingTo = respondingTo
     }
 
-    let locationInfo = ''
     if (guildName || channelName) {
-        locationInfo = `[from: ${[guildName, channelName].filter(Boolean).join(' / ')}] `
+        if (guildName) formattedMessage.guildName = guildName
+        if (channelName) formattedMessage.channelName = channelName
     }
 
-    formattedMessage += `${locationInfo}${username} (display: ${displayName}, server: ${serverDisplayName}): ${content}`
-    return formattedMessage
+    return JSON.stringify(formattedMessage)
 }
 
 export async function parseMentions(client: Client, text: string): Promise<string> {
@@ -37,8 +59,13 @@ export async function parseMentions(client: Client, text: string): Promise<strin
     for (const match of mentions) {
         const userId = match[1]
         try {
-            const user = await client.users.fetch(userId)
-            parsedText = parsedText.replace(match[0], `@${user.username}`)
+            const user = client.users.cache.get(userId) ? (client.users.cache.get(userId) as User) : await client.users.fetch(userId)
+            const mentionJson = JSON.stringify({
+                type: 'mention',
+                id: userId,
+                username: user.username
+            })
+            parsedText = parsedText.replace(match[0], mentionJson)
         } catch (e) {
             const error = e as Error
             logger.error(`Could not fetch user ${chalk.yellow(userId)}: ${chalk.red(error.message)}`)
