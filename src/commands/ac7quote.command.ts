@@ -6,32 +6,32 @@ import { type GradientType, COLORS, ROLE_COLORS } from '../util/colors'
 export const slashCommand = {
     data: new SlashCommandBuilder()
         .setName('ac7quote')
-        .setDescription('Generate an image out of a text and speaker name styled as an Ace Combat 7 subtitle')
+        .setDescription('Generate an Ace Combat 7-styled subtitle image with custom text and speaker')
         .addStringOption(so => so
             .setName('speaker')
-            .setDescription('Who is speaking?')
+            .setDescription('The name of the speaker')
             .setRequired(true)
         ).addStringOption(so => so
             .setName('quote')
-            .setDescription('What are they saying?')
+            .setDescription('The text to display')
             .setRequired(true)
         ).addStringOption(so => so
             .setName('color')
-            .setDescription('Speaker name color')
+            .setDescription('The color of the speaker\'s name')
             .setRequired(false)
             .setChoices(
                 COLORS.map(color => ({ name: color.name, value: color.name }))
             )
         ).addStringOption(so => so
             .setName('rolecolor')
-            .setDescription('Pick a discord role color for speaker instead of a predefined color')
+            .setDescription('Use a Discord role color for the speaker\'s name')
             .setRequired(false)
             .setChoices(
                 ROLE_COLORS.map(color => ({ name: color.name, value: color.name }))
             )
         ).addStringOption(so => so
             .setName('gradient')
-            .setDescription('Use gradient colors for speaker name')
+            .setDescription('Apply a gradient effect to the speaker\'s name')
             .setRequired(false)
             .setChoices(
                 { name: 'Trans Flag', value: 'trans' },
@@ -41,15 +41,15 @@ export const slashCommand = {
             )
         ).addBooleanOption(bo => bo
             .setName('stretch')
-            .setDescription('Stretch gradient across entire name instead of repeating')
+            .setDescription('Stretch the gradient across the entire name instead of repeating it')
             .setRequired(false)
         ).addBooleanOption(bo => bo
             .setName('interpretnewlines')
-            .setDescription('Interpret <newline> as line breaks in text')
+            .setDescription('Convert <newline> tags into line breaks')
             .setRequired(false)
         ).addBooleanOption(so => so
             .setName('ephemeral')
-            .setDescription('Should the response only show up for you?')
+            .setDescription('Make the response visible only to you')
             .setRequired(false)
         ),
     async execute(interaction) {
@@ -68,7 +68,7 @@ export const slashCommand = {
         const interpretNewlines = interaction.options.getBoolean('interpretNewlines') ?? true
         if (!color && gradient === 'none') {
             await interaction.reply({
-                content: '❌ Either color/role color or gradient must be provided',
+                content: '❌ You must provide either a color/role color or a gradient effect',
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
             return
