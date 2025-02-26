@@ -36,7 +36,8 @@ export const slashCommand = {
             .setChoices(
                 { name: 'Trans Flag', value: 'trans' },
                 { name: 'Rainbow', value: 'rainbow' },
-                { name: 'Italian Flag', value: 'italian' }
+                { name: 'Italian Flag', value: 'italian' },
+                { name: 'French Flag', value: 'french' }
             )
         ).addBooleanOption(bo => bo
             .setName('stretch')
