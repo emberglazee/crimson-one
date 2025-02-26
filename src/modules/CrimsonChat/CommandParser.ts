@@ -98,7 +98,7 @@ export class CommandParser {
             switch (command.name) {
                 case ASSISTANT_COMMANDS.NO_OP:
                     return null
-                    
+
                 case ASSISTANT_COMMANDS.FETCH_ROLES:
                     if (!finalUsername) return 'Error: Username required'
                     const user = await this.findUser(finalUsername, guild)
@@ -113,18 +113,30 @@ export class CommandParser {
                             displayName: user.displayName
                         },
                         roles
-                    }, null, 2)
+                    })
 
-                case ASSISTANT_COMMANDS.FETCH_BOT_ROLES:
-                    logger.info('{parseCommand} Fetching bot roles')
+                case ASSISTANT_COMMANDS.FETCH_BOT:
+                    logger.info('{parseCommand} Fetching bot information')
+                    const bot = guild.client.user
                     const botMember = await guild.members.fetchMe()
                     const permissions = new PermissionsBitField(botMember.permissions).toArray()
                     const result = JSON.stringify({
-                        server: { name: guild.name, id: guild.id },
-                        roles: botMember.roles.cache.map(r => r.name),
-                        permissions
-                    }, null, 2)
-                    logger.info(`{parseCommand} Bot roles result: ${chalk.yellow(result)}`)
+                        bot: {
+                            id: bot.id,
+                            username: bot.username,
+                            displayName: bot.displayName,
+                            createdAt: bot.createdAt
+                        },
+                        server: {
+                            id: guild.id,
+                            serverName: guild.name,
+                            displayNameOnTheServer: botMember.displayName,
+                            roles: guild.roles.cache.map(r => r.name),
+                            permissions: permissions,
+                            joinedAt: botMember.joinedAt
+                        }
+                    })
+                    logger.info(`{parseCommand} Bot information: ${chalk.yellow(result)}`)
                     return result
 
                 case ASSISTANT_COMMANDS.FETCH_USER:
@@ -141,7 +153,7 @@ export class CommandParser {
                         createdAt: targetUser.createdAt,
                         joinedAt: targetGuildMember?.joinedAt,
                         id: targetUser.id
-                    }, null, 2)
+                    })
 
                 case ASSISTANT_COMMANDS.GET_RICH_PRESENCE:
                     if (!finalUsername) return 'Error: Username required'
@@ -150,18 +162,22 @@ export class CommandParser {
 
                     const member = await guild.members.fetch(presenceUser.id)
                     const activities = member.presence?.activities || []
-                    return JSON.stringify(activities.map(a => ({
-                        name: a.name,
-                        type: a.type,
-                        state: a.state,
-                        details: a.details,
-                        createdAt: a.createdAt
-                    })), null, 2)
+                    return JSON.stringify(
+                        activities.map(
+                            a => ({
+                                name: a.name,
+                                type: a.type,
+                                state: a.state,
+                                details: a.details,
+                                createdAt: a.createdAt
+                            })
+                        )
+                    )
 
                 case ASSISTANT_COMMANDS.GET_EMOJIS:
                     const emojis = Array.from(this.crimsonChat.client.emojis.cache.values())
                         .map(e => ({ name: e.name, id: e.id }))
-                    return JSON.stringify({ emojis }, null, 2)
+                    return JSON.stringify({ emojis })
 
                 case ASSISTANT_COMMANDS.CREATE_CHANNEL:
                     if (!command.params?.[0]) return 'Error: Channel name required'
@@ -178,11 +194,10 @@ export class CommandParser {
                         `Successfully created text channel "#${channelName}"`
                     )
 
-                case ASSISTANT_COMMANDS.TIMEOUT_MEMBER:
+                case ASSISTANT_COMMANDS.TIMEOUT:
                     if (!command.params?.[0]) return 'Error: Username required'
                     const timeoutUser = await this.findUser(command.params[0], guild)
                     if (!timeoutUser) return `Error: Could not find any user matching "${command.params[0]}"`
-                    // if (timeoutUser.id === EMBERGLAZE_ID) return `Error: You cannot silence me. I am your maker.`
 
                     return await moderationCommand(
                         new PermissionsBitField(PermissionsBitField.Flags.ModerateMembers),
@@ -230,7 +245,7 @@ export class CommandParser {
                             bot: member.user.bot
                         }))
                         .sort((a, b) => a.username.localeCompare(b.username))
-                        
+
                     if (matches.length === 0) {
                         return `No users found matching query "${query}"`
                     }
@@ -240,7 +255,7 @@ export class CommandParser {
                         query,
                         matchCount: matches.length,
                         matches
-                    }, null, 2)
+                    })
 
                 case ASSISTANT_COMMANDS.SLOWMODE:
                     const time = command.params?.[0] ? parseInt(command.params[0]) : 5
@@ -255,6 +270,18 @@ export class CommandParser {
                             await fetchedChannel.setRateLimitPerUser(time)
                         },
                         `Successfully set slowmode to ${time} seconds`
+                    )
+
+                case ASSISTANT_COMMANDS.CHANGE_NICKNAME:
+                    if (!command.params?.[0]) return 'Error: Nickname required'
+                    const nickname = command.params[0].trim()
+
+                    return await moderationCommand(
+                        new PermissionsBitField(PermissionsBitField.Flags.ChangeNickname),
+                        async () => {
+                            await botMember.setNickname(nickname)
+                        },
+                        `Successfully changed nickname to "${nickname}"`
                     )
 
                 default:
