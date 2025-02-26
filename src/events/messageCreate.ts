@@ -1,7 +1,6 @@
 import { Client, Message, TextChannel } from 'discord.js'
 import CrimsonChat from '../modules/CrimsonChat'
 import { normalizeUrl } from '../modules/CrimsonChat/utils/urlUtils'
-import { AdminCommandHandler } from '../modules/CrimsonChat/AdminCommands'
 import util from 'util'
 import { Logger } from '../util/logger'
 import { parseMentions } from '../modules/CrimsonChat/utils/formatters'
@@ -27,7 +26,6 @@ export default async function onMessageCreate(client: Client) {
     const crimsonChat = CrimsonChat.getInstance()
     crimsonChat.setClient(client)
     await crimsonChat.init()
-    const adminCommands = new AdminCommandHandler()
 
     client.on('messageCreate', async message => {
         try {
@@ -44,10 +42,6 @@ export default async function onMessageCreate(client: Client) {
 
             // Handle messages in main channel
             if (isMainChannel || isTestingServer) {
-                // Handle admin commands first
-                const wasAdminCommand = await adminCommands.handleCommand(message)
-                if (wasAdminCommand) return
-
                 // Skip processing if chat is disabled or user is banned
                 if (!crimsonChat.isEnabled()) return
                 if (crimsonChat.isBanned(message.author.id)) {
@@ -133,6 +127,7 @@ export default async function onMessageCreate(client: Client) {
                 }, message)
                 return
             }
+
             // Handle mentions outside main channel
             if (isMentioned) {
                 let { content } = message

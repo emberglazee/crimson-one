@@ -200,3 +200,5 @@ export const DEEPSEEK_TOGGLE = false
 
 export let OPENAI_BASE_URL = DEEPSEEK_TOGGLE ? 'http://localhost:11434/v1' : undefined
 export let OPENAI_MODEL = DEEPSEEK_TOGGLE ? 'huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF:latest' : 'gpt-4o-mini'
+
+export const EMBERGLAZE_ID = '341123308844220447'
