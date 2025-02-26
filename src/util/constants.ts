@@ -22,18 +22,20 @@ export const CRIMSONCHAT_RESPONSE_SCHEMA = z.object({
         'Optional array of strings representing the response messages'
     ),
     embed: z.object({
-        title: z.string().optional(),
-        description: z.string().optional(),
-        color: z.number().optional(),
+        title: z.string().describe('256 characters max'),
+        description: z.string().describe('4096 characters max'),
+        color: z.number().optional().describe('Defaults to crimson red (0x8B0000)'),
         fields: z.array(
             z.object({
                 name: z.string(),
                 value: z.string(),
                 inline: z.boolean().optional()
             })
-        ).optional()
+        ).optional().describe('25 fields max'),
+        footer: z.string().optional().describe('2048 characters max'),
+        author: z.string().optional().describe('256 characters max'),
     }).optional().describe(
-        'Optional embed object to send alongside the response messages'
+        'Optional embed object to send alongside the response messages; Total characters must be less than 6000'
     ),
     command: z.object({
         name: z.enum(

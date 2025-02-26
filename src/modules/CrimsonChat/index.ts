@@ -209,12 +209,14 @@ export default class CrimsonChat {
                     .setTitle(response.embed.title ?? null)
                     .setDescription(response.embed.description ?? null)
                     .setColor(response.embed.color)
+                    .setAuthor(response.embed.author ? { name: response.embed.author } : null)
+                    .setFooter(response.embed.footer ? { text: response.embed.footer } : null)
 
                 if (response.embed.fields && response.embed.fields.length > 0) {
                     embed.addFields(response.embed.fields)
                 }
 
-                const messageOptions = {
+                const messageOptions: MessagePayload | MessageReplyOptions = {
                     embeds: [embed],
                     allowedMentions: { repliedUser: true }
                 }

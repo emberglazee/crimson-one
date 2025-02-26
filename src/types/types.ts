@@ -130,6 +130,8 @@ export interface DiscordEmbed {
         name: string
         params?: string
     }
+    footer?: string
+    author?: string
 }
 
 export type ChatResponse = string | { embed: DiscordEmbed } | { command: { name: string, params: string[] } }
