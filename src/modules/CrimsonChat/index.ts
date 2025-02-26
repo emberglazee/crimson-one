@@ -82,8 +82,8 @@ export default class CrimsonChat {
         let response: ChatResponseArray = []
 
         try {
-            response = await this.getMessageProcessor().processMessage(content, options, originalMessage)
-            if (!response) {
+            let currentResponse = await this.getMessageProcessor().processMessage(content, options, originalMessage)
+            if (!currentResponse) {
                 logger.info('Received null/undefined response from message processor, ignoring')
                 return null
             }
@@ -91,50 +91,103 @@ export default class CrimsonChat {
             // Clear typing indicators before sending messages
             clearInterval(typingInterval)
 
-            // Split response handling based on whether a command exists
-            const commandIndex = response.findIndex(msg => typeof msg === 'object' && 'command' in msg)
-            const hasCommand = commandIndex !== -1
+            // Process responses in a loop to handle command chaining
+            let messageHistory: (string | ChatResponse)[] = [] // Keep track of message parts to avoid repeating
+            let iterationCount = 0
+            const MAX_ITERATIONS = 5 // Prevent infinite loops
 
-            if (hasCommand) {
-                // Cast the command message with type assertion
-                const commandMsg = (response[commandIndex] as any).command as { name: string; params?: string[] }
+            while (currentResponse && iterationCount < MAX_ITERATIONS) {
+                // Split response handling based on whether a command exists
+                const commandIndex = currentResponse.findIndex(msg => typeof msg === 'object' && 'command' in msg)
+                const hasCommand = commandIndex !== -1
 
-                // Send messages before the command
-                for (let i = 0; i < commandIndex; i++) {
-                    const msg = response[i]
-                    await this.sendResponseToDiscord(msg, targetChannel, i === 0 ? originalMessage : undefined)
+                // Send messages before the command if they're not duplicates
+                if (hasCommand) {
+                    for (let i = 0; i < commandIndex; i++) {
+                        const msg = currentResponse[i]
+                        const msgString = typeof msg === 'string' ? msg : JSON.stringify(msg)
+                        if (!messageHistory.includes(msgString)) {
+                            await this.sendResponseToDiscord(msg, targetChannel, i === 0 && iterationCount === 0 ? originalMessage : undefined)
+                            messageHistory.push(msgString)
+                        }
+                    }
+
+                    // Cast and process the command
+                    const commandMsg = (currentResponse[commandIndex] as any).command as { name: string; params?: string[] }
+                    const commandResult = await this.getMessageProcessor().commandParser.parseCommand(commandMsg, originalMessage)
+                    
+                    if (commandResult) {
+                        await this.sendResponseToDiscord(commandResult, targetChannel)
+
+                        // Get a new response based on the command result
+                        const nextResponse = await this.getMessageProcessor().processMessage(
+                            commandResult,
+                            { ...options, respondingTo: undefined }, // Clear respondingTo for command chain
+                            undefined // Don't pass original message for chained responses
+                        )
+
+                        // Process remaining messages from current response
+                        for (let i = commandIndex + 1; i < currentResponse.length; i++) {
+                            const msg = currentResponse[i]
+                            const msgString = typeof msg === 'string' ? msg : JSON.stringify(msg)
+                            if (!messageHistory.includes(msgString)) {
+                                await this.sendResponseToDiscord(msg, targetChannel)
+                                messageHistory.push(msgString)
+                            }
+                        }
+
+                        // Set up next iteration if we got a response
+                        if (nextResponse && nextResponse.length > 0) {
+                            currentResponse = nextResponse
+                            iterationCount++
+                            continue
+                        }
+                    }
+                } else {
+                    // Process messages normally if no command exists
+                    for (const [index, msg] of currentResponse.entries()) {
+                        const msgString = typeof msg === 'string' ? msg : JSON.stringify(msg)
+                        if (!messageHistory.includes(msgString)) {
+                            await this.sendResponseToDiscord(msg, targetChannel, index === 0 && iterationCount === 0 ? originalMessage : undefined)
+                            messageHistory.push(msgString)
+                        }
+                    }
                 }
 
-                // Process the command
-                const commandResult = await this.getMessageProcessor().commandParser.parseCommand(commandMsg, originalMessage)
-                if (commandResult) {
-                    await this.sendResponseToDiscord(commandResult, targetChannel)
-                }
-
-                // Send remaining messages after the command
-                for (let i = commandIndex + 1; i < response.length; i++) {
-                    const msg = response[i]
-                    await this.sendResponseToDiscord(msg, targetChannel)
-                }
-            } else {
-                // Process messages normally if no command exists
-                for (const [index, msg] of response.entries()) {
-                    await this.sendResponseToDiscord(msg, targetChannel, index === 0 ? originalMessage : undefined)
-                }
+                // If we reach here, we're done processing the current response
+                break
             }
 
+            if (iterationCount >= MAX_ITERATIONS) {
+                logger.warn(`Command chain exceeded ${MAX_ITERATIONS} iterations, stopping to prevent infinite loop`)
+                await this.sendResponseToDiscord(`⚠️ Command chain exceeded ${MAX_ITERATIONS} iterations and was stopped`, targetChannel)
+            }
+
+            // Combine all processed responses
+            response = messageHistory.map(msg => {
+                if (typeof msg === 'string') {
+                    try {
+                        return JSON.parse(msg)
+                    } catch {
+                        return msg
+                    }
+                }
+                return msg
+            })
+
             return response
+
         } catch (e) {
             const error = e as Error
             clearInterval(typingInterval)
-            
+
             // Special handling for timeout errors
             if (error.message.includes('Response timeout')) {
                 const timeoutMessage = "⚠️ 30 second timeout reached for processing message"
                 await this.sendResponseToDiscord(timeoutMessage, targetChannel)
                 return null
             }
-            
+
             logger.error(`Error processing message: ${chalk.red(error.message)}`)
             await this.sendResponseToDiscord(`⚠️ Error processing message! -> \`${error.message}\``, targetChannel)
             return null
