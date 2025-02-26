@@ -105,12 +105,6 @@ export default class CrimsonChat {
                     await this.sendResponseToDiscord(msg, targetChannel, i === 0 ? originalMessage : undefined)
                 }
 
-                if (commandMsg.name !== 'noOp') {
-                    // Send command execution indicator
-                    const commandIndicator = `-# ℹ️ Assistant command called: ${commandMsg.name}${commandMsg.params ? `(${commandMsg.params.join(', ')})` : ''}`
-                    await this.sendResponseToDiscord(commandIndicator, targetChannel)
-                }
-
                 // Process the command
                 const commandResult = await this.getMessageProcessor().commandParser.parseCommand(commandMsg, originalMessage)
                 if (commandResult) {

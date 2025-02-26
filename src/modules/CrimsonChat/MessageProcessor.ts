@@ -162,6 +162,12 @@ export class MessageProcessor {
 
             // Handle command if present after sending the initial response
             if (response?.command && response.command.name !== 'noOp') {
+                // Send command execution indicator
+                const commandIndicator = `-# ℹ️ Assistant command called: ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''}`
+                if (originalMessage?.channel && 'send' in originalMessage.channel) {
+                    await originalMessage.channel.send(commandIndicator)
+                }
+
                 const commandResult = await this.commandParser.parseCommand(response.command, originalMessage)
                 sequence.commandResult = commandResult || undefined
 
