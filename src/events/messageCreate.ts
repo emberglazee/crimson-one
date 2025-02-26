@@ -42,9 +42,9 @@ export default async function onMessageCreate(client: Client) {
 
             // Handle messages in main channel
             if (isMainChannel || isTestingServer) {
-                // Skip processing if chat is disabled or user is banned
+                // Skip processing if chat is disabled or user is ignored
                 if (!crimsonChat.isEnabled()) return
-                if (crimsonChat.isBanned(message.author.id)) {
+                if (crimsonChat.isIgnored(message.author.id)) {
                     await message.react('❌')
                     return
                 }

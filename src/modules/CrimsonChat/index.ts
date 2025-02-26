@@ -18,7 +18,7 @@ export default class CrimsonChat {
     private channelId = '1335992675459141632'
     private enabled: boolean = true
     // private isProcessing: boolean = false
-    private bannedUsers: Set<string> = new Set()
+    private ignoredUsers: Set<string> = new Set()
 
     memoryManager: MemoryManager = MemoryManager.getInstance()
     messageProcessor: MessageProcessor | null = null
@@ -59,7 +59,7 @@ export default class CrimsonChat {
 
         await this.historyManager.init()
         await this.memoryManager.init()
-        await this.loadBannedUsers()
+        await this.loadIgnoredUsers()
         logger.ok('CrimsonChat initialized successfully')
     }
 
@@ -276,40 +276,40 @@ export default class CrimsonChat {
         logger.info(`CrimsonChat ${chalk.yellow(state ? 'enabled' : 'disabled')}`)
     }
 
-    private async loadBannedUsers(): Promise<void> {
-        const bannedUsersPath = path.join(process.cwd(), 'data/banned_users.json')
+    private async loadIgnoredUsers(): Promise<void> {
+        const ignoredUsersPath = path.join(process.cwd(), 'data/ignored_users.json')
         try {
-            const data = await fs.readFile(bannedUsersPath, 'utf-8')
-            this.bannedUsers = new Set(JSON.parse(data))
+            const data = await fs.readFile(ignoredUsersPath, 'utf-8')
+            this.ignoredUsers = new Set(JSON.parse(data))
         } catch (error) {
-            this.bannedUsers = new Set()
+            this.ignoredUsers = new Set()
         }
     }
 
-    private async saveBannedUsers(): Promise<void> {
-        const bannedUsersPath = path.join(process.cwd(), 'data/banned_users.json')
+    private async saveIgnoredUsers(): Promise<void> {
+        const ignoredUsersPath = path.join(process.cwd(), 'data/ignored_users.json')
         try {
-            await fs.mkdir(path.dirname(bannedUsersPath), { recursive: true })
-            await fs.writeFile(bannedUsersPath, JSON.stringify([...this.bannedUsers]))
+            await fs.mkdir(path.dirname(ignoredUsersPath), { recursive: true })
+            await fs.writeFile(ignoredUsersPath, JSON.stringify([...this.ignoredUsers]))
         } catch (error) {
-            console.error('Failed to save banned users:', error)
+            console.error('Failed to save ignored users:', error)
         }
     }
 
-    public isBanned(userId: string): boolean {
-        return this.bannedUsers.has(userId)
+    public isIgnored(userId: string): boolean {
+        return this.ignoredUsers.has(userId)
     }
 
-    public async banUser(userId: string): Promise<void> {
-        this.bannedUsers.add(userId)
-        await this.saveBannedUsers()
-        logger.ok(`Banned user ${chalk.yellow(userId)}`)
+    public async ignoreUser(userId: string): Promise<void> {
+        this.ignoredUsers.add(userId)
+        await this.saveIgnoredUsers()
+        logger.ok(`Ignored user ${chalk.yellow(userId)}`)
     }
 
-    public async unbanUser(userId: string): Promise<void> {
-        this.bannedUsers.delete(userId)
-        await this.saveBannedUsers()
-        logger.ok(`Unbanned user ${chalk.yellow(userId)}`)
+    public async unignoreUser(userId: string): Promise<void> {
+        this.ignoredUsers.delete(userId)
+        await this.saveIgnoredUsers()
+        logger.ok(`Unignored user ${chalk.yellow(userId)}`)
     }
 
     public async clearHistory(): Promise<void> {
@@ -345,7 +345,7 @@ export default class CrimsonChat {
         logger.ok('System prompt updated to latest version')
     }
 
-    public getBannedUsers(): string[] {
-        return [...this.bannedUsers]
+    public getIgnoredUsers(): string[] {
+        return [...this.ignoredUsers]
     }
 }
