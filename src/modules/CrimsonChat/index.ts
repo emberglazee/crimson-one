@@ -344,4 +344,8 @@ export default class CrimsonChat {
         await this.historyManager.updateSystemPrompt()
         logger.ok('System prompt updated to latest version')
     }
+
+    public getBannedUsers(): string[] {
+        return [...this.bannedUsers]
+    }
 }
