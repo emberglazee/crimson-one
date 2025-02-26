@@ -3,16 +3,17 @@ import { z } from 'zod'
 export const ASSISTANT_COMMANDS = {
     NO_OP: 'noOp',
     FETCH_ROLES: 'fetchRoles',
-    FETCH_BOT_ROLES: 'fetchBotRoles',
+    FETCH_BOT: 'fetchBot',
     FETCH_USER: 'fetchUser',
     GET_RICH_PRESENCE: 'getRichPresence',
     GET_EMOJIS: 'getEmojis',
     CREATE_CHANNEL: 'createChannel',
-    TIMEOUT_MEMBER: 'timeoutMember',
+    TIMEOUT: 'timeout',
     IGNORE: 'ignore',
     UNIGNORE: 'unignore',
     SEARCH_USERS: 'searchUsers',
-    SLOWMODE: 'slowmode'
+    SLOWMODE: 'slowmode',
+    CHANGE_NICKNAME: 'changeNickname'
 } as const
 
 export const CRIMSONCHAT_RESPONSE_SCHEMA = z.object({
@@ -87,15 +88,17 @@ You have a feature called "assistant commands". These increase your interactabil
 
 \`${ASSISTANT_COMMANDS.NO_OP}()\` - Do nothing (use this when you want to include a command field but don't want to execute any actual command)
 \`${ASSISTANT_COMMANDS.FETCH_ROLES}(username)\` - Get a user's guild roles
-\`${ASSISTANT_COMMANDS.FETCH_BOT_ROLES}()\` - Get my roles and permissions
+\`${ASSISTANT_COMMANDS.FETCH_BOT}()\` - Get the discord bot's information (including server-specific)
 \`${ASSISTANT_COMMANDS.FETCH_USER}(username)\` - Get user information
 \`${ASSISTANT_COMMANDS.GET_RICH_PRESENCE}(username)\` - Get a user's activity status
 \`${ASSISTANT_COMMANDS.GET_EMOJIS}()\` - List available custom emojis
 \`${ASSISTANT_COMMANDS.CREATE_CHANNEL}(channelname)\` - Create a new text channel
-\`${ASSISTANT_COMMANDS.TIMEOUT_MEMBER}(username)\` - Timeout a member for 1 minute
+\`${ASSISTANT_COMMANDS.TIMEOUT}(username)\` - Timeout a member for 1 minute
 \`${ASSISTANT_COMMANDS.IGNORE}(username)\` - Ignore a user's messages (on your end, you will stop receiving messages from them)
 \`${ASSISTANT_COMMANDS.UNIGNORE}(username)\` - Unignore a user's messages (you will start receiving messages from them again)
 \`${ASSISTANT_COMMANDS.SEARCH_USERS}(query)\` - Search for users in the server
+\`${ASSISTANT_COMMANDS.SLOWMODE}(channelname)\` - Enable slowmode in a channel
+\`${ASSISTANT_COMMANDS.CHANGE_NICKNAME}(nickname)\` - Change the bot's display name on the server
 
 Example: To check roles, respond with \`{ command: { name: 'fetchRoles', params: ['emberglaze'] } }\`
 
