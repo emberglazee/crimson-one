@@ -4,6 +4,7 @@ import { normalizeUrl } from '../modules/CrimsonChat/utils/urlUtils'
 import { AdminCommandHandler } from '../modules/CrimsonChat/AdminCommands'
 import util from 'util'
 import { Logger } from '../util/logger'
+import { parseMentions } from '../modules/CrimsonChat/utils/formatters'
 
 const logger = Logger.new('event.messageCreate')
 
@@ -118,6 +119,9 @@ export default async function onMessageCreate(client: Client) {
                     content += `\n< embed: ${JSON.stringify(message.embeds[0])} >`
                 }
 
+                // Parse content to handle mentions
+                content = await parseMentions(client, content)
+
                 await crimsonChat.sendMessage(content, {
                     username: message.author.username,
                     displayName: message.member!.displayName,
@@ -192,6 +196,9 @@ export default async function onMessageCreate(client: Client) {
                 if (message.embeds.length) {
                     content += `\n< embed: ${JSON.stringify(message.embeds[0])} >`
                 }
+
+                // Parse content to handle mentions
+                content = await parseMentions(client, content)
 
                 // Get recent message context
                 const contextMessages = await getLastMessages(message.channel)
