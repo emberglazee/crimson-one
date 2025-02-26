@@ -254,12 +254,20 @@ export class MessageProcessor {
                 // Convert structured response to ChatResponseArray
                 const response: ChatResponseArray = []
 
-                // Add text messages
+                // Add text messages and store in long-term memory
                 if (breakdown.replyMessages && breakdown.replyMessages.length > 0) {
                     response.push(...breakdown.replyMessages)
+
+                    // Store breakdown messages in memory with high importance context
+                    for (const message of breakdown.replyMessages) {
+                        await this.crimsonChat.memoryManager.evaluateAndStore(
+                            message,
+                            `Crimson 1 breakdown triggered by ${options.username}: ${userContent}`
+                        )
+                    }
                 }
 
-                // Add embed if present
+                // Add embed if present and store in memory
                 if (breakdown.embed) {
                     response.push({
                         embed: {
@@ -267,6 +275,11 @@ export class MessageProcessor {
                             color: breakdown.embed.color ?? 0xFF0000 // Default to red if color not specified
                         }
                     })
+
+                    await this.crimsonChat.memoryManager.evaluateAndStore(
+                        { embed: { ...breakdown.embed, color: breakdown.embed.color ?? 0xFF0000 } },
+                        `Crimson 1 breakdown embed response triggered by ${options.username}`
+                    )
                 }
 
                 // Save each breakdown message to history
@@ -394,11 +407,23 @@ export class MessageProcessor {
                 }
             })
             response.push(...filteredMessages)
+
+            // Store filtered messages in long-term memory
+            for (const message of filteredMessages) {
+                await this.crimsonChat.memoryManager.evaluateAndStore(
+                    message,
+                    `Assistant's response to ${options.username}: ${options.contextMessages?.[0]?.content || 'No context'}`
+                )
+            }
         }
 
-        // Add embed if present
+        // Add embed if present and store it in memory
         if (content.embed) {
             response.push({ embed: content.embed })
+            await this.crimsonChat.memoryManager.evaluateAndStore(
+                { embed: content.embed },
+                `Assistant's embed response to ${options.username}`
+            )
         }
 
         // Store all responses in history as a single structured entry
