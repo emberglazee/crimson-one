@@ -11,6 +11,7 @@ import CommandHandler from './modules/CommandManager'
 import QuoteFactory from './modules/QuoteFactory'
 import { GithubWebhook } from './modules/GithubWebhook'
 import type { DiscordEventListener } from './types/types'
+import { MarkovChat } from './modules/MarkovChain/MarkovChat'
 
 import { registerFont } from 'canvas'
 import { QuoteImageFactory } from './modules/QuoteImageFactory'
@@ -44,6 +45,9 @@ bot.once('ready', async () => {
 
     // Set client on QuoteImageFactory
     QuoteImageFactory.getInstance().setClient(bot)
+
+    // Set client on MarkovChat
+    MarkovChat.getInstance().setClient(bot)
 
     // Set client and initialize command handler
     commandHandler.setClient(bot)
