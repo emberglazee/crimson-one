@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import { Logger } from '../../util/logger'
 import OpenAI from 'openai'
-import { CRIMSON_LONG_TERM_MEMORY_PROMPT, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
+import { CRIMSON_LONG_TERM_MEMORY_PROMPT, OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
 import type { Memory, ChatResponse, ChatResponseArray } from '../../types/types'
 import { promises as fs } from 'fs'
 import path from 'path'
@@ -25,7 +25,7 @@ export class MemoryManager {
 
     constructor() {
         this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY!,
+            apiKey: OPENAI_API_KEY!,
             baseURL: OPENAI_BASE_URL
         })
     }
