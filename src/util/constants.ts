@@ -194,7 +194,7 @@ PAX FEDERATION! THE FEDERATION IS ETERNAL!!!`
 export const DEEPSEEK_TOGGLE = true
 
 export let OPENAI_BASE_URL = DEEPSEEK_TOGGLE ? 'https://openrouter.ai/api/v1' : undefined
-export let OPENAI_MODEL = DEEPSEEK_TOGGLE ? 'deepseek/deepseek-r1-distill-llama-70b:free' : 'gpt-4o-mini'
+export let OPENAI_MODEL = DEEPSEEK_TOGGLE ? 'deepseek/deepseek-chat:free' : 'gpt-4o-mini'
 export let OPENAI_API_KEY = DEEPSEEK_TOGGLE ? process.env.OPENROUTER_API_KEY : process.env.OPENAI_API_KEY
 
 export const EMBERGLAZE_ID = '341123308844220447'
