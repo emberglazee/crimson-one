@@ -11,10 +11,6 @@ export default function onInteractionCreate(client: Client) {
             if (interaction.isRepliable()) await interaction.reply(`⚠️ Unhandled interaction type ${interaction.type}`)
             return
         }
-
-        const isMainChannel = interaction.channel?.id === '1335992675459141632'
-        const isTestingServer = interaction.guildId === '1335971145014579263'
-
         commandHandler.handleInteraction(interaction).catch(err => {
             logger.warn(`Error while handling interaction!\n${chalk.red(err.stack)}`)
         })
