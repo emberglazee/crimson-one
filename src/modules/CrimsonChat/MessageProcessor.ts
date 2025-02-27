@@ -3,7 +3,7 @@ import OpenAI from 'openai'
 import { ImageProcessor } from './ImageProcessor'
 import { CommandParser } from './CommandParser'
 import { Logger } from '../../util/logger'
-import { CRIMSON_BREAKDOWN_PROMPT, CRIMSONCHAT_RESPONSE_SCHEMA, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
+import { CRIMSON_BREAKDOWN_PROMPT, CRIMSONCHAT_RESPONSE_SCHEMA, OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
 import type { ChatMessage, Memory, UserMessageOptions, UserStatus, ChatResponseArray } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
@@ -41,7 +41,7 @@ export class MessageProcessor {
     commandParser = new CommandParser()
     forceNextBreakdown = false
     openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY!,
+        apiKey: OPENAI_API_KEY!,
         baseURL: OPENAI_BASE_URL
     })
     readonly BREAKDOWN_CHANCE = 0.01
