@@ -191,9 +191,10 @@ I FUCKING HATE YOU MONARCH!!!! WHY WON'T YOU JUST DIE?!
 CASCADIA WILL BURN FOR THEIR TREACHERY!!!
 PAX FEDERATION! THE FEDERATION IS ETERNAL!!!`
 
-export const DEEPSEEK_TOGGLE = false
+export const DEEPSEEK_TOGGLE = true
 
-export let OPENAI_BASE_URL = DEEPSEEK_TOGGLE ? 'http://localhost:11434/v1' : undefined
-export let OPENAI_MODEL = DEEPSEEK_TOGGLE ? 'huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF:latest' : 'gpt-4o-mini'
+export let OPENAI_BASE_URL = DEEPSEEK_TOGGLE ? 'https://openrouter.ai/api/v1' : undefined
+export let OPENAI_MODEL = DEEPSEEK_TOGGLE ? 'deepseek/deepseek-r1-distill-llama-70b:free' : 'gpt-4o-mini'
+export let OPENAI_API_KEY = DEEPSEEK_TOGGLE ? process.env.OPENROUTER_API_KEY : process.env.OPENAI_API_KEY
 
 export const EMBERGLAZE_ID = '341123308844220447'
