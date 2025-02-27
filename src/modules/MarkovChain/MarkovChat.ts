@@ -1,5 +1,5 @@
-import { Client, Guild, Message, TextChannel, User } from 'discord.js'
-import { ChainBuilder } from './Entities'
+import { Client, Guild, Message as DiscordMessage, TextChannel, User } from 'discord.js'
+import { ChainBuilder } from './entities'
 import { DataSource } from './DataSource'
 import { Logger } from '../../util/logger'
 import chalk from 'chalk'
@@ -40,7 +40,7 @@ export class MarkovChat {
         if (!this.client) throw new Error('Client not set')
         
         const { user, limit = 1000 } = options
-        const messages: Message[] = []
+        const messages: DiscordMessage[] = []
         
         let lastId: string | undefined
         
