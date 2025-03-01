@@ -133,7 +133,16 @@ export default {
                 })
                 const timeEnd = Date.now()
                 logger.ok(`Generated message: ${result}`)
-                await interaction.editReply(`${result}\n-# - Generated in ${timeEnd - timeStart}ms`)
+                await interaction.editReply(
+                    `${result}\n` + 
+                    `-# - Generated in ${timeEnd - timeStart}ms\n` +
+                    `-# - Filters: ${[
+                        source === 'global' ? 'Global' : source === 'channel' ? `Channel: #${channel?.name}` : 'Server-only',
+                        user ? `User: @${user.tag}` : null,
+                        words !== 20 ? `Words: ${words}` : null,
+                        seed ? `Seed: "${seed}"` : null
+                    ].filter(Boolean).join(', ') || 'None'}`
+                )
             } catch (error) {
                 logger.warn(`Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`)
                 await interaction.editReply({
