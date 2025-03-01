@@ -1,7 +1,6 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { formatBytes } from '../util/functions'
-import CrimsonChat from '../modules/CrimsonChat'
 
 export default {
     data: new SlashCommandBuilder()
@@ -20,7 +19,6 @@ export default {
         const { heapUsed, heapTotal, rss } = process.memoryUsage()
         const uptime = Math.floor(process.uptime())
         const uptimeStr = `${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`
-        const crimsonChat = CrimsonChat.getInstance()
 
         const application = await interaction.client.application.fetch()
         await interaction.editReply({
@@ -29,8 +27,7 @@ export default {
                 fields: [
                     { name: 'Memory Usage', value: `Heap: ${formatBytes(heapUsed)}/${formatBytes(heapTotal)}\nRSS: ${formatBytes(rss)}`, inline: true },
                     { name: 'Uptime', value: uptimeStr, inline: true },
-                    { name: 'Stats (approx.)', value: `Servers: ${application.approximateGuildCount ?? 'N/A'}\nUsers: ${application.approximateUserInstallCount ?? 'N/A'}`, inline: true },
-                    { name: 'CrimsonChat', value: `Message history length: ${crimsonChat.historyManager.messageCount}\nTokens in message history: ${crimsonChat.historyManager.tokenCount}` }
+                    { name: 'Stats (approx.)', value: `Servers: ${application.approximateGuildCount ?? 'N/A'}\nUsers: ${application.approximateUserInstallCount ?? 'N/A'}`, inline: true }
                 ],
                 color: 0x2B2D31,
                 timestamp: new Date().toISOString()
