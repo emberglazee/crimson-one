@@ -1,6 +1,9 @@
 import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
+import { Logger } from '../util/logger'
+
+const logger = Logger.new('/markov')
 
 export default {
     data: new SlashCommandBuilder()
@@ -77,6 +80,7 @@ export default {
         const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
 
         if (!interaction.guild) {
+            logger.info('Command used outside of a server')
             await interaction.reply({
                 content: '❌ This command can only be used in a server',
                 flags: MessageFlags.Ephemeral
@@ -96,6 +100,7 @@ export default {
 
             // Validate channel is provided when source is 'channel'
             if (source === 'channel' && !channel) {
+                logger.info('Channel not provided for "Specific Channel" source')
                 await interaction.reply({
                     content: '❌ You must specify a channel when using "Specific Channel" as the source',
                     flags: MessageFlags.Ephemeral
@@ -105,6 +110,7 @@ export default {
 
             // Validate channel is not provided for other sources
             if (source !== 'channel' && channel) {
+                logger.info('Channel provided for non-"Specific Channel" source')
                 await interaction.reply({
                     content: '❌ Channel option should only be used with "Specific Channel" source',
                     flags: MessageFlags.Ephemeral
@@ -115,6 +121,7 @@ export default {
             await interaction.deferReply({ ephemeral })
 
             try {
+                logger.info(`Generating message with source: ${source}, user: ${user?.tag}, channel: ${channel?.name}, words: ${words}, seed: ${seed}`)
                 const result = await markov.generateMessage({
                     guild: source === 'guild' ? interaction.guild : undefined,
                     channel: source === 'channel' ? channel : undefined,
@@ -123,8 +130,10 @@ export default {
                     seed,
                     global: source === 'global'
                 })
+                logger.ok(`Generated message: ${result}`)
                 await interaction.editReply(result)
             } catch (error) {
+                logger.warn(`Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`)
                 await interaction.editReply({
                     content: `❌ Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`
                 })
@@ -137,12 +146,15 @@ export default {
             await interaction.deferReply({ ephemeral })
 
             try {
+                logger.info(`Collecting messages from ${channel}${user ? ` by ${user.tag}` : ''}, limit: ${limit}`)
                 const count = await markov.collectMessages(channel, {
                     user,
                     limit
                 })
+                logger.ok(`Collected ${count} messages from ${channel}${user ? ` by ${user.tag}` : ''}`)
                 await interaction.editReply(`✅ Collected ${count} messages from ${channel}${user ? ` by ${user}` : ''}`)
             } catch (error) {
+                logger.warn(`Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
                 await interaction.editReply({
                     content: `❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`
                 })

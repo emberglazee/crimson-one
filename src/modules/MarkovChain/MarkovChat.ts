@@ -38,21 +38,21 @@ export class MarkovChat {
         limit?: number
     } = {}) {
         if (!this.client) throw new Error('Client not set')
-        
+
         const { user, limit = 1000 } = options
         const messages: DiscordMessage[] = []
-        
+
         let lastId: string | undefined
-        
+
         while (messages.length < limit) {
             const fetchOptions: { limit: number; before?: string } = {
                 limit: Math.min(100, limit - messages.length)
             }
             if (lastId) fetchOptions.before = lastId
-            
+
             const batch = await channel.messages.fetch(fetchOptions)
             if (!batch.size) break
-            
+
             // Filter messages if user is specified
             const validMessages = user
                 ? batch.filter(msg => !msg.author.bot && msg.author.id === user.id && msg.content.length > 0)
