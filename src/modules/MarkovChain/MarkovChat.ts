@@ -62,8 +62,8 @@ export class MarkovChat {
             if (!batch.size) break
 
             const validMessages = user
-                ? batch.filter(msg => !msg.author.bot && msg.author.id === user.id && msg.content.length > 0)
-                : batch.filter(msg => !msg.author.bot && msg.content.length > 0)
+                ? batch.filter(msg => msg.author.id === user.id && msg.content.length > 0)
+                : batch.filter(msg => msg.content.length > 0)
 
             messages.push(...validMessages.values())
             lastId = batch.last()?.id
