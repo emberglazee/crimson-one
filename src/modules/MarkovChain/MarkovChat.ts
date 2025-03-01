@@ -159,34 +159,59 @@ export class MarkovChat extends EventEmitter<{
             throw new Error('No messages found with the given filters')
         }
 
-        // Count unique authors, channels, and guilds
-        const uniqueAuthors = new Set(messages.map(msg => msg.authorId))
-        const uniqueChannels = new Set(messages.map(msg => msg.channelId))
-        const uniqueGuilds = new Set(messages.map(msg => msg.guildId))
-
-        // Count words and unique words
-        const allWords: string[] = []
+        // Process in smaller chunks to avoid stack overflow
+        const CHUNK_SIZE = 1000
+        const uniqueAuthors = new Set<string>()
+        const uniqueChannels = new Set<string>()
+        const uniqueGuilds = new Set<string>()
         const uniqueWords = new Set<string>()
+        
+        let totalWordCount = 0
+        let oldestTimestamp: number | null = null
+        let newestTimestamp: number | null = null
 
-        for (const msg of messages) {
-            const words = msg.content.split(/\s+/).filter(w => w.length > 0)
-            allWords.push(...words)
-            words.forEach(word => uniqueWords.add(word.toLowerCase()))
+        // Process messages in chunks to avoid memory issues
+        for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
+            const chunk = messages.slice(i, i + CHUNK_SIZE)
+
+            // Process each message in the chunk
+            for (const msg of chunk) {
+                // Add unique identifiers
+                uniqueAuthors.add(msg.authorId)
+                uniqueChannels.add(msg.channelId)
+                if (msg.guildId) uniqueGuilds.add(msg.guildId)
+
+                // Process words
+                if (msg.content) {
+                    const words = msg.content.split(/\s+/).filter(w => w.length > 0)
+                    totalWordCount += words.length
+                    
+                    // Add unique words (process in batches to avoid stack issues)
+                    for (const word of words) {
+                        uniqueWords.add(word.toLowerCase())
+                    }
+                }
+
+                // Update timestamps
+                if (msg.timestamp) {
+                    if (oldestTimestamp === null || msg.timestamp < oldestTimestamp) {
+                        oldestTimestamp = msg.timestamp
+                    }
+                    if (newestTimestamp === null || msg.timestamp > newestTimestamp) {
+                        newestTimestamp = msg.timestamp
+                    }
+                }
+            }
         }
-
-        // Find oldest and newest message timestamps
-        const timestamps = messages.map(msg => msg.timestamp)
-        const oldestTimestamp = timestamps.length ? Math.min(...timestamps) : null
-        const newestTimestamp = timestamps.length ? Math.max(...timestamps) : null
 
         return {
             messageCount: messages.length,
             authorCount: uniqueAuthors.size,
             channelCount: uniqueChannels.size,
             guildCount: uniqueGuilds.size,
-            totalWordCount: allWords.length,
+            totalWordCount,
             uniqueWordCount: uniqueWords.size,
-            avgWordsPerMessage: allWords.length / messages.length,
+            avgWordsPerMessage: messages.length > 0 ? totalWordCount / messages.length : 0,
             oldestMessageTimestamp: oldestTimestamp,
             newestMessageTimestamp: newestTimestamp
         }
