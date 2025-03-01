@@ -14,6 +14,13 @@ interface MarkovGenerateOptions {
     words?: number
     seed?: string
     global?: boolean
+    includeSourceIds?: boolean
+}
+
+interface MarkovGenerateResult {
+    text: string
+    sourceMessageIds: string[]
+    messageLinks: string[] // Array of Discord message links
 }
 
 interface MarkovCollectProgressEvent {
@@ -111,7 +118,12 @@ export class MarkovChat extends EventEmitter<{
         return messages.length
     }
 
-    public async generateMessage(options: MarkovGenerateOptions): Promise<string> {
+    // Helper function to create Discord message links
+    private createMessageLink(guildId: string, channelId: string, messageId: string): string {
+        return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`
+    }
+
+    public async generateMessage(options: MarkovGenerateOptions): Promise<MarkovGenerateResult> {
         const chain = new ChainBuilder()
         const messages = await this.dataSource.getMessages({
             guild: options.guild,
@@ -125,13 +137,32 @@ export class MarkovChat extends EventEmitter<{
         }
 
         for (const msg of messages) {
-            chain.train(msg.content)
+            chain.train(msg.content, msg.id)
         }
 
-        return chain.generate({
+        const result = chain.generate({
             minWords: Math.max(3, Math.floor((options.words || 20) * 0.8)),
             maxWords: options.words || 20,
             seed: options.seed?.split(/\s+/)
         })
+
+        // Create message links for each source message
+        const messageLinks = result.sourceMessageIds.map(messageId => {
+            const sourceMessage = messages.find(m => m.id === messageId)
+            if (sourceMessage) {
+                return this.createMessageLink(
+                    sourceMessage.guildId,
+                    sourceMessage.channelId,
+                    sourceMessage.id
+                )
+            }
+            return ''
+        }).filter(link => link !== '')
+
+        return {
+            text: result.text,
+            sourceMessageIds: result.sourceMessageIds,
+            messageLinks
+        }
     }
 }

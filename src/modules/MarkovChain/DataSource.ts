@@ -8,6 +8,7 @@ import chalk from 'chalk'
 const logger = Logger.new('MarkovChain.DataSource')
 
 interface MessageData {
+    id: string // Added message ID
     content: string
     authorId: string
     channelId: string
@@ -53,6 +54,7 @@ export class DataSource {
         let data = this.data.get(guild.id) ?? { messages: [], lastUpdated: Date.now() }
 
         const newMessages: MessageData[] = messages.map(msg => ({
+            id: msg.id, // Add message ID to the stored data
             content: msg.content,
             authorId: msg.author.id,
             channelId: msg.channelId,
