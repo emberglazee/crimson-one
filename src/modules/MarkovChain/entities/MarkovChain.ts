@@ -2,7 +2,6 @@ export interface MarkovNode {
     word: string
     next: Map<string, number>
     total: number
-    sourceIds: Set<string> // Track message sources
 }
 
 export interface MarkovChainOptions {
@@ -11,15 +10,10 @@ export interface MarkovChainOptions {
     seed?: string[]
 }
 
-export interface MarkovChainResult {
-    text: string
-    sourceMessageIds: string[]
-}
-
 export class ChainBuilder {
     private chain: Map<string, MarkovNode> = new Map()
-    
-    public train(text: string, messageId: string) {
+
+    public train(text: string) {
         const words = text.split(/\s+/).filter(w => w.length > 0)
         if (words.length < 2) return
 
@@ -31,19 +25,17 @@ export class ChainBuilder {
                 this.chain.set(word, {
                     word,
                     next: new Map(),
-                    total: 0,
-                    sourceIds: new Set()
+                    total: 0
                 })
             }
 
             const node = this.chain.get(word)!
-            node.sourceIds.add(messageId) // Track the source message ID
             node.next.set(nextWord, (node.next.get(nextWord) || 0) + 1)
             node.total++
         }
     }
 
-    public generate(options: MarkovChainOptions = {}): MarkovChainResult {
+    public generate(options: MarkovChainOptions = {}): string {
         const {
             minWords = 5,
             maxWords = 50,
@@ -67,15 +59,6 @@ export class ChainBuilder {
 
         const result: string[] = seed || []
         const targetLength = Math.floor(Math.random() * (maxWords - minWords + 1)) + minWords
-        
-        // Track which source IDs contributed to the generated text
-        const usedSourceIds = new Set<string>()
-        
-        // Add source IDs from the first word if we're starting with it
-        if (this.chain.has(current)) {
-            const sourceIds = this.chain.get(current)!.sourceIds
-            sourceIds.forEach(id => usedSourceIds.add(id))
-        }
 
         while (result.length < targetLength) {
             const node = this.chain.get(current)
@@ -103,18 +86,9 @@ export class ChainBuilder {
 
             result.push(nextWord)
             current = nextWord
-            
-            // Track source IDs from this word if it exists in the chain
-            if (this.chain.has(nextWord)) {
-                const sourceIds = this.chain.get(nextWord)!.sourceIds
-                sourceIds.forEach(id => usedSourceIds.add(id))
-            }
         }
 
-        return {
-            text: result.join(' '),
-            sourceMessageIds: Array.from(usedSourceIds)
-        }
+        return result.join(' ')
     }
 
     public clear() {
