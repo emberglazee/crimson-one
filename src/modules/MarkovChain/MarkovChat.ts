@@ -74,10 +74,7 @@ export class MarkovChat extends EventEmitter<{
         let batchCount = 0
 
         while (messages.length < limit) {
-            if (batchCount > 0) {
-                logger.info(`Waiting ${chalk.yellow(delayMs)}ms before next batch...`)
-                await Bun.sleep(delayMs)
-            }
+            if (batchCount > 0) await Bun.sleep(delayMs)
 
             const fetchOptions: { limit: number; before?: string } = {
                 limit: Math.min(100, limit - messages.length)

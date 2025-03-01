@@ -29,7 +29,7 @@ export default {
                 .setName('channel')
                 .setDescription('Channel to generate from (only if source is "Specific Channel")')
                 .setRequired(false)
-                .addChannelTypes(ChannelType.GuildText)
+                .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
             ).addIntegerOption(io => io
                 .setName('words')
                 .setDescription('Number of words to generate (default: 20)')
@@ -65,7 +65,7 @@ export default {
                 .setName('channel')
                 .setDescription('Channel to get info from (only if source is "Specific Channel")')
                 .setRequired(false)
-                .addChannelTypes(ChannelType.GuildText)
+                .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
             ).addBooleanOption(bo => bo
                 .setName('ephemeral')
                 .setDescription('Only show the response to you')
@@ -78,7 +78,7 @@ export default {
                 .setName('channel')
                 .setDescription('Channel to collect messages from')
                 .setRequired(true)
-                .addChannelTypes(ChannelType.GuildText)
+                .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
             ).addUserOption(uo => uo
                 .setName('user')
                 .setDescription('Only collect messages from this user')
