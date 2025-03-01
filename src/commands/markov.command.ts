@@ -12,30 +12,28 @@ export default {
         .addSubcommand(sc => sc
             .setName('generate')
             .setDescription('Generate a message using collected data')
-            .addUserOption(uo => uo
-                .setName('user')
-                .setDescription('Filter messages to this user')
-                .setRequired(false)
-            ).addStringOption(so => so
+            .addStringOption(so => so
                 .setName('source')
                 .setDescription('Where to generate messages from')
                 .setRequired(false)
                 .addChoices(
-                    { name: 'This Server', value: 'guild' },
-                    { name: 'Specific Channel', value: 'channel' },
-                    { name: 'Global', value: 'global' }
+                    { name: '🏠 This Server', value: 'guild' },
+                    { name: '📝 Specific Channel', value: 'channel' },
+                    { name: '🌐 Global (All Servers)', value: 'global' }
                 )
             ).addChannelOption(co => co
                 .setName('channel')
                 .setDescription('Channel to generate from (only if source is "Specific Channel")')
                 .setRequired(false)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
+            ).addUserOption(uo => uo
+                .setName('user')
+                .setDescription('Filter messages to this user')
+                .setRequired(false)
             ).addIntegerOption(io => io
                 .setName('words')
                 .setDescription('Number of words to generate (default: 20)')
                 .setRequired(false)
-                .setMinValue(1)
-                .setMaxValue(100)
             ).addStringOption(so => so
                 .setName('seed')
                 .setDescription('Start the chain with these words')
@@ -48,24 +46,24 @@ export default {
         ).addSubcommand(sc => sc
             .setName('info')
             .setDescription('Display information about available Markov chain data')
-            .addUserOption(uo => uo
-                .setName('user')
-                .setDescription('Filter info to this user')
-                .setRequired(false)
-            ).addStringOption(so => so
+            .addStringOption(so => so
                 .setName('source')
                 .setDescription('Where to get data from')
                 .setRequired(false)
                 .addChoices(
-                    { name: 'This Server', value: 'guild' },
-                    { name: 'Specific Channel', value: 'channel' },
-                    { name: 'Global', value: 'global' }
+                    { name: '🏠 This Server', value: 'guild' },
+                    { name: '📝 Specific Channel', value: 'channel' },
+                    { name: '🌐 Global (All Servers)', value: 'global' }
                 )
             ).addChannelOption(co => co
                 .setName('channel')
                 .setDescription('Channel to get info from (only if source is "Specific Channel")')
                 .setRequired(false)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
+            ).addUserOption(uo => uo
+                .setName('user')
+                .setDescription('Filter info to this user')
+                .setRequired(false)
             ).addBooleanOption(bo => bo
                 .setName('ephemeral')
                 .setDescription('Only show the response to you')
