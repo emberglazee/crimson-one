@@ -12,7 +12,7 @@ export interface MarkovChainOptions {
 
 export class ChainBuilder {
     private chain: Map<string, MarkovNode> = new Map()
-    
+
     public train(text: string) {
         const words = text.split(/\s+/).filter(w => w.length > 0)
         if (words.length < 2) return
