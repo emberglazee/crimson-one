@@ -94,6 +94,20 @@ export class DataSource {
             } else {
                 allMessages = this.data.get(options.guild.id)!.messages
             }
+        } else if (options.channel) {
+            // When only channel is specified, load its guild data
+            const guildId = options.channel.guildId
+            // Load guild data if not in memory
+            if (!this.data.has(guildId)) {
+                const guildKey = this.getGuildKey(guildId)
+                if (existsSync(guildKey)) {
+                    const fileData = JSON.parse(await readFile(guildKey, 'utf-8')) as ChainData
+                    this.data.set(guildId, fileData)
+                    allMessages = fileData.messages
+                }
+            } else {
+                allMessages = this.data.get(guildId)!.messages
+            }
         }
 
         // Apply filters
