@@ -36,30 +36,38 @@ export class MarkovChat {
     public async collectMessages(channel: TextChannel, options: {
         user?: User
         limit?: number
+        delayMs?: number
     } = {}) {
         if (!this.client) throw new Error('Client not set')
 
-        const { user, limit = 1000 } = options
+        const { user, limit = 1000, delayMs = 1000 } = options
         const messages: DiscordMessage[] = []
 
         let lastId: string | undefined
+        let batchCount = 0
 
         while (messages.length < limit) {
+            if (batchCount > 0) {
+                logger.info(`Waiting ${chalk.yellow(delayMs)}ms before next batch...`)
+                await Bun.sleep(delayMs)
+            }
+
             const fetchOptions: { limit: number; before?: string } = {
                 limit: Math.min(100, limit - messages.length)
             }
             if (lastId) fetchOptions.before = lastId
 
+            logger.ok(`Fetching batch #${chalk.yellow(batchCount + 1)} (${chalk.yellow(fetchOptions.limit)} messages)`)
             const batch = await channel.messages.fetch(fetchOptions)
             if (!batch.size) break
 
-            // Filter messages if user is specified
             const validMessages = user
                 ? batch.filter(msg => !msg.author.bot && msg.author.id === user.id && msg.content.length > 0)
                 : batch.filter(msg => !msg.author.bot && msg.content.length > 0)
-            
+
             messages.push(...validMessages.values())
             lastId = batch.last()?.id
+            batchCount++
         }
 
         if (messages.length > 0) {
@@ -83,12 +91,10 @@ export class MarkovChat {
             throw new Error('No messages found with the given filters')
         }
 
-        // Train the chain with all messages
         for (const msg of messages) {
             chain.train(msg.content)
         }
 
-        // Generate text
         return chain.generate({
             minWords: Math.max(3, Math.floor((options.words || 20) * 0.8)),
             maxWords: options.words || 20,
