@@ -46,11 +46,6 @@ export default {
                 .setRequired(false)
             )
             .addBooleanOption(option => option
-                .setName('show_sources')
-                .setDescription('Show which messages were used to generate the text')
-                .setRequired(false)
-            )
-            .addBooleanOption(option => option
                 .setName('ephemeral')
                 .setDescription('Only show the response to you')
                 .setRequired(false)
@@ -102,7 +97,6 @@ export default {
             const channel = (interaction.options.getChannel('channel') as TextChannel | null) ?? undefined
             const words = interaction.options.getInteger('words') ?? 20
             const seed = interaction.options.getString('seed') ?? undefined
-            const showSources = interaction.options.getBoolean('show_sources') ?? false
 
             // Validate channel is provided when source is 'channel'
             if (source === 'channel' && !channel) {
@@ -138,20 +132,8 @@ export default {
                     global: source === 'global'
                 })
                 const timeEnd = Date.now()
-                logger.ok(`Generated message: ${result.text}`)
-
-                let response = `${result.text}\n-# - Generated in ${timeEnd - timeStart}ms`
-
-                if (showSources && result.messageLinks.length > 0) {
-                    const truncatedLinks = result.messageLinks.slice(0, 5)
-                    response += `\n💬 Sources: ${truncatedLinks.join('\n')}`
-
-                    if (result.messageLinks.length > 5) {
-                        response += `\n...and ${result.messageLinks.length - 5} more sources`
-                    }
-                }
-
-                await interaction.editReply(response)
+                logger.ok(`Generated message: ${result}`)
+                await interaction.editReply(`${result}\n-# - Generated in ${timeEnd - timeStart}ms`)
             } catch (error) {
                 logger.warn(`Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`)
                 await interaction.editReply({
