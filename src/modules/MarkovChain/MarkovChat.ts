@@ -25,6 +25,18 @@ interface MarkovCollectProgressEvent {
     channelName: string
 }
 
+interface MessageStats {
+    messageCount: number
+    authorCount: number
+    channelCount: number
+    guildCount: number
+    totalWordCount: number
+    uniqueWordCount: number
+    avgWordsPerMessage: number
+    oldestMessageTimestamp: number | null
+    newestMessageTimestamp: number | null
+}
+
 export class MarkovChat extends EventEmitter<{
     collectProgress: (event: MarkovCollectProgressEvent) => void
     collectComplete: (event: { totalCollected: number; channelName: string; userFiltered: boolean }) => void
@@ -133,5 +145,50 @@ export class MarkovChat extends EventEmitter<{
             maxWords: options.words || 20,
             seed: options.seed?.split(/\s+/)
         })
+    }
+
+    public async getMessageStats(options: MarkovGenerateOptions): Promise<MessageStats> {
+        const messages = await this.dataSource.getMessages({
+            guild: options.guild,
+            channel: options.channel,
+            user: options.user,
+            global: options.global
+        })
+
+        if (messages.length === 0) {
+            throw new Error('No messages found with the given filters')
+        }
+
+        // Count unique authors, channels, and guilds
+        const uniqueAuthors = new Set(messages.map(msg => msg.authorId))
+        const uniqueChannels = new Set(messages.map(msg => msg.channelId))
+        const uniqueGuilds = new Set(messages.map(msg => msg.guildId))
+
+        // Count words and unique words
+        const allWords: string[] = []
+        const uniqueWords = new Set<string>()
+
+        for (const msg of messages) {
+            const words = msg.content.split(/\s+/).filter(w => w.length > 0)
+            allWords.push(...words)
+            words.forEach(word => uniqueWords.add(word.toLowerCase()))
+        }
+
+        // Find oldest and newest message timestamps
+        const timestamps = messages.map(msg => msg.timestamp)
+        const oldestTimestamp = timestamps.length ? Math.min(...timestamps) : null
+        const newestTimestamp = timestamps.length ? Math.max(...timestamps) : null
+
+        return {
+            messageCount: messages.length,
+            authorCount: uniqueAuthors.size,
+            channelCount: uniqueChannels.size,
+            guildCount: uniqueGuilds.size,
+            totalWordCount: allWords.length,
+            uniqueWordCount: uniqueWords.size,
+            avgWordsPerMessage: allWords.length / messages.length,
+            oldestMessageTimestamp: oldestTimestamp,
+            newestMessageTimestamp: newestTimestamp
+        }
     }
 }

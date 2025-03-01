@@ -1,4 +1,4 @@
-import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel } from 'discord.js'
+import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel, EmbedBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
 import { Logger } from '../util/logger'
@@ -9,15 +9,14 @@ export default {
     data: new SlashCommandBuilder()
         .setName('markov')
         .setDescription('Generate messages using Markov chains')
-        .addSubcommand(subcommand => subcommand
+        .addSubcommand(sc => sc
             .setName('generate')
             .setDescription('Generate a message using collected data')
-            .addUserOption(option => option
+            .addUserOption(uo => uo
                 .setName('user')
                 .setDescription('Filter messages to this user')
                 .setRequired(false)
-            )
-            .addStringOption(option => option
+            ).addStringOption(so => so
                 .setName('source')
                 .setDescription('Where to generate messages from')
                 .setRequired(false)
@@ -26,51 +25,69 @@ export default {
                     { name: 'Specific Channel', value: 'channel' },
                     { name: 'Global', value: 'global' }
                 )
-            )
-            .addChannelOption(option => option
+            ).addChannelOption(co => co
                 .setName('channel')
                 .setDescription('Channel to generate from (only if source is "Specific Channel")')
                 .setRequired(false)
                 .addChannelTypes(ChannelType.GuildText)
-            )
-            .addIntegerOption(option => option
+            ).addIntegerOption(io => io
                 .setName('words')
                 .setDescription('Number of words to generate (default: 20)')
                 .setRequired(false)
                 .setMinValue(1)
                 .setMaxValue(100)
-            )
-            .addStringOption(option => option
+            ).addStringOption(so => so
                 .setName('seed')
                 .setDescription('Start the chain with these words')
                 .setRequired(false)
-            )
-            .addBooleanOption(option => option
+            ).addBooleanOption(bo => bo
                 .setName('ephemeral')
                 .setDescription('Only show the response to you')
                 .setRequired(false)
             )
-        )
-        .addSubcommand(subcommand => subcommand
+        ).addSubcommand(sc => sc
+            .setName('info')
+            .setDescription('Display information about available Markov chain data')
+            .addUserOption(uo => uo
+                .setName('user')
+                .setDescription('Filter info to this user')
+                .setRequired(false)
+            ).addStringOption(so => so
+                .setName('source')
+                .setDescription('Where to get data from')
+                .setRequired(false)
+                .addChoices(
+                    { name: 'This Server', value: 'guild' },
+                    { name: 'Specific Channel', value: 'channel' },
+                    { name: 'Global', value: 'global' }
+                )
+            ).addChannelOption(co => co
+                .setName('channel')
+                .setDescription('Channel to get info from (only if source is "Specific Channel")')
+                .setRequired(false)
+                .addChannelTypes(ChannelType.GuildText)
+            ).addBooleanOption(bo => bo
+                .setName('ephemeral')
+                .setDescription('Only show the response to you')
+                .setRequired(false)
+            )
+        ).addSubcommand(sc => sc
             .setName('collect')
             .setDescription('Collect messages to build Markov chains from')
-            .addChannelOption(option => option
+            .addChannelOption(co => co
                 .setName('channel')
                 .setDescription('Channel to collect messages from')
                 .setRequired(true)
                 .addChannelTypes(ChannelType.GuildText)
-            )
-            .addUserOption(option => option
+            ).addUserOption(uo => uo
                 .setName('user')
                 .setDescription('Only collect messages from this user')
                 .setRequired(false)
-            )
-            .addIntegerOption(option => option
+            ).addIntegerOption(io => io
                 .setName('limit')
                 .setDescription('Maximum number of messages to collect (default: 1000)')
                 .setRequired(false)
-            )
-            .addBooleanOption(option => option
+            ).addBooleanOption(bo => bo
                 .setName('ephemeral')
                 .setDescription('Only show the response to you')
                 .setRequired(false)
@@ -147,6 +164,84 @@ export default {
                 logger.warn(`Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`)
                 await interaction.editReply({
                     content: `❌ Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`
+                })
+            }
+        } else if (subcommand === 'info') {
+            const user = interaction.options.getUser('user') ?? undefined
+            const source = interaction.options.getString('source') ?? 'guild'
+            const channel = (interaction.options.getChannel('channel') as TextChannel | null) ?? undefined
+
+            // Validate channel is provided when source is 'channel'
+            if (source === 'channel' && !channel) {
+                logger.info('Channel not provided for "Specific Channel" source')
+                await interaction.reply({
+                    content: '❌ You must specify a channel when using "Specific Channel" as the source',
+                    flags: MessageFlags.Ephemeral
+                })
+                return
+            }
+
+            // Validate channel is not provided for other sources
+            if (source !== 'channel' && channel) {
+                logger.info('Channel provided for non-"Specific Channel" source')
+                await interaction.reply({
+                    content: '❌ Channel option should only be used with "Specific Channel" source',
+                    flags: MessageFlags.Ephemeral
+                })
+                return
+            }
+
+            await interaction.deferReply({ ephemeral })
+
+            try {
+                logger.info(`Getting Markov info with source: ${source}, user: ${user?.tag}, channel: ${channel?.name}`)
+                const timeStart = Date.now()
+                const stats = await markov.getMessageStats({
+                    guild: source === 'guild' ? interaction.guild : undefined,
+                    channel: source === 'channel' ? channel : undefined,
+                    user,
+                    global: source === 'global'
+                })
+                const timeEnd = Date.now()
+
+                // Format timestamps to readable dates
+                const oldestDate = stats.oldestMessageTimestamp 
+                    ? new Date(stats.oldestMessageTimestamp).toLocaleString() 
+                    : 'N/A'
+                const newestDate = stats.newestMessageTimestamp 
+                    ? new Date(stats.newestMessageTimestamp).toLocaleString() 
+                    : 'N/A'
+
+                const embed = new EmbedBuilder()
+                    .setTitle('Markov Chain Data Statistics')
+                    .setColor(0x0099FF)
+                    .addFields(
+                        { name: 'Messages', value: stats.messageCount.toLocaleString(), inline: true },
+                        { name: 'Unique Authors', value: stats.authorCount.toLocaleString(), inline: true },
+                        { name: 'Channels', value: stats.channelCount.toLocaleString(), inline: true },
+                        { name: 'Total Words', value: stats.totalWordCount.toLocaleString(), inline: true },
+                        { name: 'Unique Words', value: stats.uniqueWordCount.toLocaleString(), inline: true },
+                        { name: 'Words Per Message', value: stats.avgWordsPerMessage.toFixed(1), inline: true },
+                        { name: 'Oldest Message', value: oldestDate, inline: false },
+                        { name: 'Newest Message', value: newestDate, inline: false },
+                    )
+                    .setFooter({ text: `Generated in ${timeEnd - timeStart}ms` })
+                    .setTimestamp()
+
+                // Add description with filter info
+                embed.setDescription(
+                    `**Filters Applied:**\n${[
+                        source === 'global' ? '🌐 Global' : source === 'channel' ? `📝 Channel: #${channel?.name}` : '🏠 Server-only',
+                        user ? `👤 User: @${user.tag}` : null
+                    ].filter(Boolean).join('\n')}`
+                )
+
+                logger.ok(`Generated Markov info in ${timeEnd - timeStart}ms`)
+                await interaction.editReply({ embeds: [embed] })
+            } catch (error) {
+                logger.warn(`Failed to get Markov info: ${error instanceof Error ? error.message : 'Unknown error'}`)
+                await interaction.editReply({
+                    content: `❌ Failed to get Markov info: ${error instanceof Error ? error.message : 'Unknown error'}`
                 })
             }
         } else if (subcommand === 'collect') {
