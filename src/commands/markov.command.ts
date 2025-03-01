@@ -122,6 +122,7 @@ export default {
 
             try {
                 logger.info(`Generating message with source: ${source}, user: ${user?.tag}, channel: ${channel?.name}, words: ${words}, seed: ${seed}`)
+                const timeStart = Date.now()
                 const result = await markov.generateMessage({
                     guild: source === 'guild' ? interaction.guild : undefined,
                     channel: source === 'channel' ? channel : undefined,
@@ -130,8 +131,9 @@ export default {
                     seed,
                     global: source === 'global'
                 })
+                const timeEnd = Date.now()
                 logger.ok(`Generated message: ${result}`)
-                await interaction.editReply(result)
+                await interaction.editReply(`${result}\n-# - Generated in ${timeEnd - timeStart}ms`)
             } catch (error) {
                 logger.warn(`Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`)
                 await interaction.editReply({
