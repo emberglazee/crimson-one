@@ -1,4 +1,5 @@
 import { Client, Guild, Message as DiscordMessage, TextChannel, User } from 'discord.js'
+import { EventEmitter } from 'tseep'
 import { ChainBuilder } from './entities'
 import { DataSource } from './DataSource'
 import { Logger } from '../../util/logger'
@@ -15,12 +16,26 @@ interface MarkovGenerateOptions {
     global?: boolean
 }
 
-export class MarkovChat {
+interface MarkovCollectProgressEvent {
+    batchNumber: number
+    messagesCollected: number
+    totalCollected: number
+    limit: number
+    percentComplete: number
+    channelName: string
+}
+
+export class MarkovChat extends EventEmitter<{
+    collectProgress: (event: MarkovCollectProgressEvent) => void
+    collectComplete: (event: { totalCollected: number; channelName: string; userFiltered: boolean }) => void
+}> {
     private static instance: MarkovChat
     private client: Client | null = null
     private dataSource = DataSource.getInstance()
 
-    private constructor() {}
+    private constructor() {
+        super()
+    }
 
     public static getInstance(): MarkovChat {
         if (!MarkovChat.instance) {
@@ -68,12 +83,30 @@ export class MarkovChat {
             messages.push(...validMessages.values())
             lastId = batch.last()?.id
             batchCount++
+
+            // Emit progress event every batch
+            const progressEvent: MarkovCollectProgressEvent = {
+                batchNumber: batchCount,
+                messagesCollected: validMessages.size,
+                totalCollected: messages.length,
+                limit,
+                percentComplete: (messages.length / limit) * 100,
+                channelName: channel.name
+            }
+            this.emit('collectProgress', progressEvent)
         }
 
         if (messages.length > 0) {
             await this.dataSource.addMessages(messages, channel.guild)
             logger.ok(`Collected ${chalk.yellow(messages.length)} messages from ${chalk.yellow(channel.name)}`)
         }
+
+        // Emit completion event
+        this.emit('collectComplete', {
+            totalCollected: messages.length,
+            channelName: channel.name,
+            userFiltered: !!user
+        })
 
         return messages.length
     }
