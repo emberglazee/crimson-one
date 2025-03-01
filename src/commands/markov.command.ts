@@ -143,17 +143,48 @@ export default {
             const user = interaction.options.getUser('user') ?? undefined
             const limit = interaction.options.getInteger('limit') ?? 1000
 
-            await interaction.deferReply({ ephemeral })
+            // Reply immediately instead of deferring
+            await interaction.reply({
+                content: `🔍 Starting to collect messages from ${channel}${user ? ` by ${user}` : ''}...`,
+                ephemeral
+            })
 
             try {
                 logger.info(`Collecting messages from ${channel}${user ? ` by ${user.tag}` : ''}, limit: ${limit}`)
+
+                // Setup progress updates
+                let lastUpdateBatch = 0
+
+                markov.on('collectProgress', async (progress) => {
+                    // Update every 10 batches
+                    if (progress.batchNumber % 10 === 0 || progress.batchNumber === 1) {
+                        logger.info(`Progress update: ${progress.batchNumber} batches, ${progress.totalCollected}/${progress.limit} messages (${progress.percentComplete.toFixed(1)}%)`)
+                        lastUpdateBatch = progress.batchNumber
+                        await interaction.editReply(
+                            `⏳ Collecting messages from ${channel}${user ? ` by ${user}` : ''}...\n` +
+                            `📊 Progress: ${progress.totalCollected}/${progress.limit} messages (${progress.percentComplete.toFixed(1)}%)\n` +
+                            `📚 Batches processed: ${progress.batchNumber}`
+                        ).catch(err => {
+                            logger.warn(`Failed to update progress: ${err.message}`)
+                        })
+                    }
+                })
+
+                // Process in one go
                 const count = await markov.collectMessages(channel, {
                     user,
                     limit
                 })
+
+                // Clean up event listener to prevent memory leaks
+                markov.removeAllListeners('collectProgress')
+
                 logger.ok(`Collected ${count} messages from ${channel}${user ? ` by ${user.tag}` : ''}`)
-                await interaction.editReply(`✅ Collected ${count} messages from ${channel}${user ? ` by ${user}` : ''}`)
+                await interaction.editReply(`✅ Successfully collected ${count} messages from ${channel}${user ? ` by ${user}` : ''}`)
             } catch (error) {
+                // Clean up event listener in case of error
+                markov.removeAllListeners('collectProgress')
+
                 logger.warn(`Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
                 await interaction.editReply({
                     content: `❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`
