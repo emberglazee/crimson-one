@@ -1,6 +1,7 @@
 import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel, EmbedBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
+import { DataSource } from '../modules/MarkovChain/DataSource'
 import { Logger } from '../util/logger'
 
 const logger = Logger.new('/markov')
@@ -86,6 +87,10 @@ export default {
                 .setDescription('Maximum number of messages to collect (default: 1000)')
                 .setRequired(false)
             ).addBooleanOption(bo => bo
+                .setName('entirechannel')
+                .setDescription('Collect ALL messages from the channel (overrides limit)')
+                .setRequired(false)
+            ).addBooleanOption(bo => bo
                 .setName('ephemeral')
                 .setDescription('Only show the response to you')
                 .setRequired(false)
@@ -105,6 +110,7 @@ export default {
 
         const subcommand = interaction.options.getSubcommand()
         const markov = MarkovChat.getInstance()
+        const dataSource = DataSource.getInstance();
 
         if (subcommand === 'generate') {
             const user = interaction.options.getUser('user') ?? undefined
@@ -245,16 +251,25 @@ export default {
         } else if (subcommand === 'collect') {
             const channel = interaction.options.getChannel('channel', true) as TextChannel
             const user = interaction.options.getUser('user') ?? undefined
-            const limit = interaction.options.getInteger('limit') ?? 1000
-
-            // Reply immediately instead of deferring
+            const collectEntireChannel = interaction.options.getBoolean('entire_channel') ?? false
+            const limit = collectEntireChannel ? 'entire' : (interaction.options.getInteger('limit') ?? 1000)
+            
+            // Check if channel was previously fully collected
+            const wasFullyCollected = dataSource.isChannelFullyCollected(interaction.guild.id, channel.id)
+            
+            // Reply with appropriate message
+            let replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'ALL' : limit} messages from ${channel}${user ? ` by ${user}` : ''}...`
+            if (wasFullyCollected) {
+                replyContent += `\n⚠️ This channel was already fully collected before. Only collecting new messages since the last collection.`
+            }
+            
             await interaction.reply({
-                content: `🔍 Starting to collect messages from ${channel}${user ? ` by ${user}` : ''}...`,
+                content: replyContent,
                 ephemeral
             })
 
             try {
-                logger.info(`Collecting messages from ${channel}${user ? ` by ${user.tag}` : ''}, limit: ${limit}`)
+                logger.info(`Collecting messages from ${channel}${user ? ` by ${user.tag}` : ''}, limit: ${limit}, wasFullyCollected: ${wasFullyCollected}`)
 
                 // Setup progress updates
                 let lastUpdateBatch = 0
@@ -262,12 +277,13 @@ export default {
                 markov.on('collectProgress', async (progress) => {
                     // Update every 10 batches
                     if (progress.batchNumber % 10 === 0 || progress.batchNumber === 1) {
-                        logger.info(`Progress update: ${progress.batchNumber} batches, ${progress.totalCollected}/${progress.limit} messages (${progress.percentComplete.toFixed(1)}%)`)
+                        logger.info(`Progress update: ${progress.batchNumber} batches, ${progress.totalCollected}/${progress.limit === 'entire' ? 'ALL' : progress.limit} messages (${progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%'})`)
                         lastUpdateBatch = progress.batchNumber
                         await interaction.editReply(
                             `⏳ Collecting messages from ${channel}${user ? ` by ${user}` : ''}...\n` +
-                            `📊 Progress: ${progress.totalCollected}/${progress.limit} messages (${progress.percentComplete.toFixed(1)}%)\n` +
-                            `📚 Batches processed: ${progress.batchNumber}`
+                            `📊 Progress: ${progress.totalCollected}/${progress.limit === 'entire' ? 'ALL' : progress.limit} messages ${progress.limit === 'entire' ? '' : `(${progress.percentComplete.toFixed(1)}%)`}\n` +
+                            `📚 Batches processed: ${progress.batchNumber}` +
+                            (wasFullyCollected ? `\n⚠️ Only collecting new messages since last collection.` : '')
                         ).catch(err => {
                             logger.warn(`Failed to update progress: ${err.message}`)
                         })
@@ -277,14 +293,24 @@ export default {
                 // Process in one go
                 const count = await markov.collectMessages(channel, {
                     user,
-                    limit
+                    limit,
                 })
 
                 // Clean up event listener to prevent memory leaks
                 markov.removeAllListeners('collectProgress')
 
                 logger.ok(`Collected ${count} messages from ${channel}${user ? ` by ${user.tag}` : ''}`)
-                await interaction.editReply(`✅ Successfully collected ${count} messages from ${channel}${user ? ` by ${user}` : ''}`)
+                
+                // Customize completion message based on whether it was a previously collected channel
+                let completionMessage = `✅ Successfully collected ${count} messages from ${channel}${user ? ` by ${user}` : ''}\n`;
+                
+                if (wasFullyCollected) {
+                    completionMessage += `📋 These were new messages since the previous collection.`;
+                } else if (collectEntireChannel) {
+                    completionMessage += `📋 The entire channel has been marked as fully collected.`;
+                }
+                
+                await interaction.editReply(completionMessage);
             } catch (error) {
                 // Clean up event listener in case of error
                 markov.removeAllListeners('collectProgress')

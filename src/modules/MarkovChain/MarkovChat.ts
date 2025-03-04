@@ -20,7 +20,7 @@ interface MarkovCollectProgressEvent {
     batchNumber: number
     messagesCollected: number
     totalCollected: number
-    limit: number
+    limit: number | 'entire'
     percentComplete: number
     channelName: string
 }
@@ -39,7 +39,7 @@ interface MessageStats {
 
 export class MarkovChat extends EventEmitter<{
     collectProgress: (event: MarkovCollectProgressEvent) => void
-    collectComplete: (event: { totalCollected: number; channelName: string; userFiltered: boolean }) => void
+    collectComplete: (event: { totalCollected: number; channelName: string; userFiltered: boolean; entireChannel: boolean; newMessagesOnly: boolean }) => void
 }> {
     private static instance: MarkovChat
     private client: Client | null = null
@@ -62,7 +62,7 @@ export class MarkovChat extends EventEmitter<{
 
     public async collectMessages(channel: TextChannel, options: {
         user?: User
-        limit?: number
+        limit?: number | 'entire'
         delayMs?: number
     } = {}) {
         if (!this.client) throw new Error('Client not set')
@@ -70,14 +70,29 @@ export class MarkovChat extends EventEmitter<{
         const { user, limit = 1000, delayMs = 1000 } = options
         const messages: DiscordMessage[] = []
 
+        // Check if channel was previously fully collected
+        const wasFullyCollected = this.dataSource.isChannelFullyCollected(channel.guild.id, channel.id)
+        const isEntireChannel = limit === 'entire'
+        
+        // For previously collected channels, we'll need to track existing message IDs
+        let existingMessageIds: Set<string> = new Set();
+        let foundExistingMessage = false;
+        
+        if (wasFullyCollected) {
+            // Load existing message IDs for this channel to check for duplicates
+            existingMessageIds = this.dataSource.getExistingMessageIds(channel.guild.id, channel.id);
+            logger.info(`Channel was previously fully collected. Checking for ${existingMessageIds.size} existing messages.`);
+        }
+
         let lastId: string | undefined
         let batchCount = 0
+        const numericLimit = isEntireChannel ? Number.MAX_SAFE_INTEGER : (limit as number)
 
-        while (messages.length < limit) {
+        while (messages.length < numericLimit) {
             if (batchCount > 0) await Bun.sleep(delayMs)
 
             const fetchOptions: { limit: number; before?: string } = {
-                limit: Math.min(100, limit - messages.length)
+                limit: Math.min(100, isEntireChannel ? 100 : numericLimit - messages.length)
             }
             if (lastId) fetchOptions.before = lastId
 
@@ -85,9 +100,29 @@ export class MarkovChat extends EventEmitter<{
             const batch = await channel.messages.fetch(fetchOptions)
             if (!batch.size) break
 
-            const validMessages = user
+            let validMessages = user
                 ? batch.filter(msg => msg.author.id === user.id && msg.content.length > 0)
                 : batch.filter(msg => msg.content.length > 0)
+            
+            // For previously fully collected channels, check for message ID matches
+            if (wasFullyCollected) {
+                // Check if we've found a message that already exists in our database
+                for (const [id, msg] of validMessages) {
+                    if (existingMessageIds.has(id)) {
+                        logger.info(`Found existing message with ID ${chalk.yellow(id)}. Stopping collection.`);
+                        foundExistingMessage = true;
+                        break;
+                    }
+                }
+                
+                if (foundExistingMessage) {
+                    // Filter out messages that already exist in the database
+                    validMessages = validMessages.filter(msg => !existingMessageIds.has(msg.id));
+                    // Add remaining new messages and then break
+                    messages.push(...validMessages.values());
+                    break;
+                }
+            }
 
             messages.push(...validMessages.values())
             lastId = batch.last()?.id
@@ -99,22 +134,24 @@ export class MarkovChat extends EventEmitter<{
                 messagesCollected: validMessages.size,
                 totalCollected: messages.length,
                 limit,
-                percentComplete: (messages.length / limit) * 100,
+                percentComplete: isEntireChannel ? 0 : (messages.length / numericLimit) * 100,
                 channelName: channel.name
             }
             this.emit('collectProgress', progressEvent)
         }
 
         if (messages.length > 0) {
-            await this.dataSource.addMessages(messages, channel.guild)
-            logger.ok(`Collected ${chalk.yellow(messages.length)} messages from ${chalk.yellow(channel.name)}`)
+            await this.dataSource.addMessages(messages, channel.guild, isEntireChannel ? channel.id : undefined)
+            logger.ok(`Collected ${chalk.yellow(messages.length)} messages from ${chalk.yellow(channel.name)}${isEntireChannel ? ' (entire channel)' : ''}`)
         }
 
         // Emit completion event
         this.emit('collectComplete', {
             totalCollected: messages.length,
             channelName: channel.name,
-            userFiltered: !!user
+            userFiltered: !!user,
+            entireChannel: isEntireChannel,
+            newMessagesOnly: wasFullyCollected
         })
 
         return messages.length

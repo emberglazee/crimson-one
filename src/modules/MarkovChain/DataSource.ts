@@ -13,11 +13,13 @@ interface MessageData {
     channelId: string
     guildId: string
     timestamp: number
+    id: string // Message ID
 }
 
 interface ChainData {
     messages: MessageData[]
     lastUpdated: number
+    fullyCollectedChannels: string[] // Array of channel IDs that are fully collected
 }
 
 export class DataSource {
@@ -47,21 +49,33 @@ export class DataSource {
         return join(this.dataDir, `${guildId}.json`)
     }
 
-    public async addMessages(messages: Message[], guild: Guild) {
+    public async addMessages(messages: Message[], guild: Guild, fullyCollectedChannelId?: string) {
         await this.init()
         const guildKey = this.getGuildKey(guild.id)
-        let data = this.data.get(guild.id) ?? { messages: [], lastUpdated: Date.now() }
+        let data = this.data.get(guild.id) ?? { 
+            messages: [], 
+            lastUpdated: Date.now(),
+            fullyCollectedChannels: []
+        }
 
         const newMessages: MessageData[] = messages.map(msg => ({
             content: msg.content,
             authorId: msg.author.id,
             channelId: msg.channelId,
             guildId: msg.guildId!,
-            timestamp: msg.createdTimestamp
+            timestamp: msg.createdTimestamp,
+            id: msg.id
         }))
 
         data.messages.push(...newMessages)
         data.lastUpdated = Date.now()
+        
+        // If the channel is fully collected, add it to the list if not already there
+        if (fullyCollectedChannelId && !data.fullyCollectedChannels.includes(fullyCollectedChannelId)) {
+            data.fullyCollectedChannels.push(fullyCollectedChannelId)
+            logger.ok(`Marked channel ${chalk.yellow(fullyCollectedChannelId)} as fully collected`)
+        }
+        
         this.data.set(guild.id, data)
 
         await writeFile(guildKey, JSON.stringify(data, null, 2))
@@ -88,6 +102,10 @@ export class DataSource {
                 const guildKey = this.getGuildKey(options.guild.id)
                 if (existsSync(guildKey)) {
                     const fileData = JSON.parse(await readFile(guildKey, 'utf-8')) as ChainData
+                    // Ensure compatibility with older data format that might not have fullyCollectedChannels
+                    if (!fileData.fullyCollectedChannels) {
+                        fileData.fullyCollectedChannels = []
+                    }
                     this.data.set(options.guild.id, fileData)
                     allMessages = fileData.messages
                 }
@@ -102,6 +120,10 @@ export class DataSource {
                 const guildKey = this.getGuildKey(guildId)
                 if (existsSync(guildKey)) {
                     const fileData = JSON.parse(await readFile(guildKey, 'utf-8')) as ChainData
+                    // Ensure compatibility with older data format that might not have fullyCollectedChannels
+                    if (!fileData.fullyCollectedChannels) {
+                        fileData.fullyCollectedChannels = []
+                    }
                     this.data.set(guildId, fileData)
                     allMessages = fileData.messages
                 }
@@ -119,5 +141,29 @@ export class DataSource {
         }
 
         return allMessages
+    }
+    
+    public isChannelFullyCollected(guildId: string, channelId: string): boolean {
+        const data = this.data.get(guildId)
+        if (!data || !data.fullyCollectedChannels) return false
+        return data.fullyCollectedChannels.includes(channelId)
+    }
+
+    public messageExists(guildId: string, messageId: string): boolean {
+        const data = this.data.get(guildId)
+        if (!data) return false
+        return data.messages.some(message => message.id === messageId)
+    }
+
+    public getExistingMessageIds(guildId: string, channelId: string): Set<string> {
+        const data = this.data.get(guildId)
+        if (!data) return new Set<string>()
+        
+        const messageIds = new Set<string>()
+        data.messages
+            .filter(msg => msg.channelId === channelId)
+            .forEach(msg => messageIds.add(msg.id))
+        
+        return messageIds
     }
 }
