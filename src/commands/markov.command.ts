@@ -6,6 +6,24 @@ import { Logger } from '../util/logger'
 
 const logger = Logger.new('/markov')
 
+/**
+ * Format seconds into a human-readable time string
+ */
+function formatTimeRemaining(seconds: number): string {
+    if (seconds < 60) {
+        return `${Math.round(seconds)}s`
+    } else if (seconds < 3600) {
+        const minutes = Math.floor(seconds / 60)
+        const remainingSeconds = Math.round(seconds % 60)
+        return `${minutes}m ${remainingSeconds}s`
+    } else {
+        const hours = Math.floor(seconds / 3600)
+        const minutes = Math.floor((seconds % 3600) / 60)
+        const remainingSeconds = Math.round(seconds % 60)
+        return `${hours}h ${minutes}m ${remainingSeconds}s`
+    }
+}
+
 export default {
     data: new SlashCommandBuilder()
         .setName('markov')
@@ -304,6 +322,18 @@ export default {
                             progressMessage += `${percentCompleteEmoji} Progress: ${progress.totalCollected}/${progress.limit} messages (${progress.percentComplete.toFixed(1)}%)\n`
                         }
 
+                        // Add ETA information
+                        if (progress.estimatedTimeRemaining !== null) {
+                            const etaString = formatTimeRemaining(progress.estimatedTimeRemaining)
+                            const speed = progress.messagesPerSecond.toFixed(1)
+
+                            progressMessage += `⏱️ ETA: ${etaString} (${speed} msgs/sec)\n`
+
+                            // Show elapsed time for context
+                            const elapsedTimeString = formatTimeRemaining(progress.elapsedTime / 1000)
+                            progressMessage += `⌛ Elapsed: ${elapsedTimeString}\n`
+                        }
+
                         progressMessage += `📚 Batches processed: ${progress.batchNumber}`
 
                         if (wasFullyCollected) {
@@ -317,8 +347,8 @@ export default {
                 })
 
                 // Listen for collection completion to get total message count
-                markov.on('collectComplete', (result) => {
-                    totalMessageCount = result.totalMessageCount;
+                markov.on('collectComplete', result => {
+                    totalMessageCount = result.totalMessageCount
                     logger.info(`Collection complete. ${result.totalCollected} messages collected${totalMessageCount ? ` out of ${totalMessageCount} total` : ''}.`)
                 })
 

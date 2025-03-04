@@ -24,6 +24,10 @@ interface MarkovCollectProgressEvent {
     limit: number | 'entire'
     percentComplete: number
     channelName: string
+    startTime: number
+    elapsedTime: number
+    messagesPerSecond: number
+    estimatedTimeRemaining: number | null
 }
 
 interface MessageStats {
@@ -70,15 +74,16 @@ export class MarkovChat extends EventEmitter<{
 
         const { user, limit = 1000, delayMs = 1000 } = options
         const messages: DiscordMessage[] = []
+        const startTime = Date.now()
 
         // Check if channel was previously fully collected
         const wasFullyCollected = this.dataSource.isChannelFullyCollected(channel.guild.id, channel.id)
         const isEntireChannel = limit === 'entire'
-        
+
         // For previously collected channels, we'll need to track existing message IDs
-        let existingMessageIds: Set<string> = new Set();
-        let foundExistingMessage = false;
-        
+        let existingMessageIds: Set<string> = new Set()
+        let foundExistingMessage = false
+
         if (wasFullyCollected) {
             // Load existing message IDs for this channel to check for duplicates
             existingMessageIds = this.dataSource.getExistingMessageIds(channel.guild.id, channel.id);
@@ -116,30 +121,45 @@ export class MarkovChat extends EventEmitter<{
             let validMessages = user
                 ? batch.filter(msg => msg.author.id === user.id && msg.content.length > 0)
                 : batch.filter(msg => msg.content.length > 0)
-            
+
             // For previously fully collected channels, check for message ID matches
             if (wasFullyCollected) {
                 // Check if we've found a message that already exists in our database
-                for (const [id, msg] of validMessages) {
+                for (const [id, _] of validMessages) {
                     if (existingMessageIds.has(id)) {
-                        logger.info(`Found existing message with ID ${chalk.yellow(id)}. Stopping collection.`);
-                        foundExistingMessage = true;
-                        break;
+                        logger.info(`Found existing message with ID ${chalk.yellow(id)}. Stopping collection.`)
+                        foundExistingMessage = true
+                        break
                     }
                 }
-                
+
                 if (foundExistingMessage) {
                     // Filter out messages that already exist in the database
-                    validMessages = validMessages.filter(msg => !existingMessageIds.has(msg.id));
+                    validMessages = validMessages.filter(msg => !existingMessageIds.has(msg.id))
                     // Add remaining new messages and then break
-                    messages.push(...validMessages.values());
-                    break;
+                    messages.push(...validMessages.values())
+                    break
                 }
             }
 
             messages.push(...validMessages.values())
             lastId = batch.last()?.id
             batchCount++
+
+            // Calculate ETA stats
+            const currentTime = Date.now()
+            const elapsedTime = currentTime - startTime
+            const messagesPerSecond = messages.length / (elapsedTime / 1000)
+
+            // Calculate estimated time remaining
+            let estimatedTimeRemaining: number | null = null
+            if (totalMessageCount && isEntireChannel && messagesPerSecond > 0) {
+                const remainingMessages = totalMessageCount - messages.length
+                estimatedTimeRemaining = remainingMessages / messagesPerSecond
+            } else if (!isEntireChannel && messagesPerSecond > 0) {
+                const remainingMessages = numericLimit - messages.length
+                estimatedTimeRemaining = remainingMessages / messagesPerSecond
+            }
 
             // Emit progress event every batch
             const progressEvent: MarkovCollectProgressEvent = {
@@ -150,7 +170,11 @@ export class MarkovChat extends EventEmitter<{
                 percentComplete: totalMessageCount && isEntireChannel ? 
                     (messages.length / totalMessageCount) * 100 : 
                     isEntireChannel ? 0 : (messages.length / numericLimit) * 100,
-                channelName: channel.name
+                channelName: channel.name,
+                startTime,
+                elapsedTime,
+                messagesPerSecond,
+                estimatedTimeRemaining
             }
             this.emit('collectProgress', progressEvent)
         }
@@ -215,7 +239,7 @@ export class MarkovChat extends EventEmitter<{
         const uniqueChannels = new Set<string>()
         const uniqueGuilds = new Set<string>()
         const uniqueWords = new Set<string>()
-        
+
         let totalWordCount = 0
         let oldestTimestamp: number | null = null
         let newestTimestamp: number | null = null
