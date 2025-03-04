@@ -1,4 +1,4 @@
-import { Entity, ManyToOne, OneToMany, PrimaryColumn } from 'typeorm'
+import { Entity, ManyToOne, OneToMany, PrimaryColumn, Column } from 'typeorm'
 
 @Entity('channels')
 export class Channel {
@@ -10,4 +10,7 @@ export class Channel {
 
     @OneToMany('Message', 'channel')
     messages!: any[]
+    
+    @Column('boolean', { default: false })
+    fullyCollected!: boolean
 }
