@@ -4,6 +4,7 @@ import { ChainBuilder } from './entities'
 import { DataSource } from './DataSource'
 import { Logger } from '../../util/logger'
 import chalk from 'chalk'
+import { getChannelMessageCount } from './DiscordUserApi'
 
 const logger = Logger.new('MarkovChain.Chat')
 
@@ -39,7 +40,7 @@ interface MessageStats {
 
 export class MarkovChat extends EventEmitter<{
     collectProgress: (event: MarkovCollectProgressEvent) => void
-    collectComplete: (event: { totalCollected: number; channelName: string; userFiltered: boolean; entireChannel: boolean; newMessagesOnly: boolean }) => void
+    collectComplete: (event: { totalCollected: number; channelName: string; userFiltered: boolean; entireChannel: boolean; newMessagesOnly: boolean; totalMessageCount?: number }) => void
 }> {
     private static instance: MarkovChat
     private client: Client | null = null
@@ -82,6 +83,18 @@ export class MarkovChat extends EventEmitter<{
             // Load existing message IDs for this channel to check for duplicates
             existingMessageIds = this.dataSource.getExistingMessageIds(channel.guild.id, channel.id);
             logger.info(`Channel was previously fully collected. Checking for ${existingMessageIds.size} existing messages.`);
+        }
+
+        // Get total message count from Discord API if collecting entire channel
+        let totalMessageCount: number | null = null;
+        if (isEntireChannel && !user) {
+            logger.info(`Attempting to fetch total message count for channel ${channel.id}`)
+            totalMessageCount = await getChannelMessageCount(channel.guild.id, channel.id);
+            if (totalMessageCount) {
+                logger.ok(`Total messages in channel according to Discord API: ${chalk.yellow(totalMessageCount)}`)
+            } else {
+                logger.warn('Could not get message count from Discord API. Progress percentage will not be available.')
+            }
         }
 
         let lastId: string | undefined
@@ -134,7 +147,9 @@ export class MarkovChat extends EventEmitter<{
                 messagesCollected: validMessages.size,
                 totalCollected: messages.length,
                 limit,
-                percentComplete: isEntireChannel ? 0 : (messages.length / numericLimit) * 100,
+                percentComplete: totalMessageCount && isEntireChannel ? 
+                    (messages.length / totalMessageCount) * 100 : 
+                    isEntireChannel ? 0 : (messages.length / numericLimit) * 100,
                 channelName: channel.name
             }
             this.emit('collectProgress', progressEvent)
@@ -151,7 +166,8 @@ export class MarkovChat extends EventEmitter<{
             channelName: channel.name,
             userFiltered: !!user,
             entireChannel: isEntireChannel,
-            newMessagesOnly: wasFullyCollected
+            newMessagesOnly: wasFullyCollected,
+            totalMessageCount: totalMessageCount || undefined
         })
 
         return messages.length
