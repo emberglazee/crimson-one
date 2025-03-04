@@ -1,10 +1,14 @@
-import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel, EmbedBuilder } from 'discord.js'
+import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel, EmbedBuilder, Message, InteractionResponse } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
 import { DataSource } from '../modules/MarkovChain/DataSource'
 import { Logger } from '../util/logger'
 
 const logger = Logger.new('/markov')
+
+// Discord interaction tokens expire after 15 minutes
+const INTERACTION_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes in milliseconds
+const SAFETY_MARGIN_MS = 1 * 60 * 1000 // Switch to new message 1 minute before expiry (at 14 minutes)
 
 /**
  * Format seconds into a human-readable time string
@@ -21,6 +25,108 @@ function formatTimeRemaining(seconds: number): string {
         const minutes = Math.floor((seconds % 3600) / 60)
         const remainingSeconds = Math.round(seconds % 60)
         return `${hours}h ${minutes}m ${remainingSeconds}s`
+    }
+}
+
+// Helper interface to manage message updates
+interface MessageUpdater {
+    updateMessage(content: string): Promise<void>
+}
+
+// Class to handle message updating with fallback support
+class InteractionMessageManager implements MessageUpdater {
+    private interaction: any
+    private followUpMessagePromise: Promise<Message<boolean> | null> | null = null
+    private followUpMessage: Message | null = null
+    private useFollowUp = false
+    private ephemeral: boolean
+    private logger: any
+
+    constructor(interaction: any, ephemeral: boolean, logger: any) {
+        this.interaction = interaction
+        this.ephemeral = ephemeral
+        this.logger = logger
+    }
+
+    // Switch to using follow-up message
+    public switchToFollowUp(): void {
+        if (this.useFollowUp) return
+        this.useFollowUp = true
+        
+        this.followUpMessagePromise = this.createFollowUpMessage()
+    }
+
+    private async createFollowUpMessage(): Promise<Message<boolean> | null> {
+        try {
+            // First update the original message to inform users
+            await this.interaction.editReply(
+                `⏳ Operation in progress...\n` +
+                `⚠️ This operation is taking longer than 14 minutes. ` +
+                `Real-time updates will continue in a follow-up message to avoid token expiration.`
+            ).catch((err: any) => {
+                this.logger.warn(`Failed to update original message about timeout: ${err.message}`)
+            })
+
+            // Create a follow-up message that we'll update from now on
+            const followUp = await this.interaction.followUp({
+                content: `🔄 Continuing operation...\nUpdates will now appear in this message.`,
+                ephemeral: this.ephemeral
+            })
+
+            this.followUpMessage = followUp
+            this.logger.ok(`Created follow-up message with ID ${followUp.id}`)
+            return followUp
+        } catch (error) {
+            this.logger.warn(`Failed to create follow-up message: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            return null
+        }
+    }
+
+    public async updateMessage(content: string): Promise<void> {
+        try {
+            if (this.useFollowUp) {
+                // Make sure we have a follow-up message
+                if (this.followUpMessagePromise && !this.followUpMessage) {
+                    this.followUpMessage = await this.followUpMessagePromise
+                }
+                
+                if (this.followUpMessage) {
+                    await this.followUpMessage.edit(content)
+                } else {
+                    // Fallback if follow-up message creation failed
+                    await this.interaction.editReply(content).catch(() => {})
+                }
+            } else {
+                await this.interaction.editReply(content)
+            }
+        } catch (error) {
+            this.logger.warn(`Failed to update message: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        }
+    }
+
+    public get isUsingFollowUp(): boolean {
+        return this.useFollowUp
+    }
+
+    public async sendFinalMessage(content: string): Promise<void> {
+        try {
+            if (this.useFollowUp && this.followUpMessage) {
+                await this.followUpMessage.edit(content)
+            } else {
+                await this.interaction.editReply(content)
+            }
+        } catch (error) {
+            // If both methods fail, try to send a new follow-up message with the results
+            this.logger.warn(`Failed to send final message: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            try {
+                await this.interaction.followUp({
+                    content: `${content}\n⚠️ (Posted as a new message because the original interaction expired)`,
+                    ephemeral: this.ephemeral
+                })
+            } catch (finalError) {
+                this.logger.error(`Failed to send any completion message: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`)
+            }
+        }
     }
 }
 
@@ -297,11 +403,26 @@ export default {
                 let totalMessageCount = null
                 let percentCompleteEmoji = '⏳'
 
-                markov.on('collectProgress', async (progress) => {
+                // Track the interaction start time to handle token expiration
+                const interactionStartTime = Date.now()
+
+                // Create the message manager for handling follow-up messages
+                const messageManager = new InteractionMessageManager(interaction, ephemeral, logger)
+
+                markov.on('collectProgress', async progress => {
                     // Update every 10 batches
                     if (progress.batchNumber % 10 === 0 || progress.batchNumber === 1) {
                         logger.info(`Progress update: ${progress.batchNumber} batches, ${progress.totalCollected}/${progress.limit === 'entire' ? 'ALL' : progress.limit} messages (${progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%'})`)
                         lastUpdateBatch = progress.batchNumber
+
+                        // Check if we're approaching the interaction token timeout
+                        const elapsedSinceInteraction = Date.now() - interactionStartTime
+
+                        // If we're reaching the timeout limit and haven't switched to follow-up message yet
+                        if (elapsedSinceInteraction > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
+                            logger.warn(`Approaching interaction timeout (${elapsedSinceInteraction}ms elapsed). Switching to follow-up message.`)
+                            messageManager.switchToFollowUp()
+                        }
 
                         // Update emoji based on progress percentage
                         if (progress.percentComplete > 0) {
@@ -340,9 +461,8 @@ export default {
                             progressMessage += `\n⚠️ Only collecting new messages since last collection.`
                         }
 
-                        await interaction.editReply(progressMessage).catch(err => {
-                            logger.warn(`Failed to update progress: ${err.message}`)
-                        })
+                        // Update the appropriate message using our manager
+                        await messageManager.updateMessage(progressMessage)
                     }
                 })
 
@@ -378,16 +498,31 @@ export default {
                     completionMessage += `📋 The entire channel has been marked as fully collected.`
                 }
 
-                await interaction.editReply(completionMessage)
+                // Send the final message using our manager
+                await messageManager.sendFinalMessage(completionMessage)
             } catch (error) {
                 // Clean up event listeners in case of error
                 markov.removeAllListeners('collectProgress')
                 markov.removeAllListeners('collectComplete')
 
                 logger.warn(`Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
-                await interaction.editReply({
-                    content: `❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`
-                })
+
+                try {
+                    await interaction.editReply({
+                        content: `❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`
+                    })
+                } catch (replyError) {
+                    // If editReply fails, the token might have expired, so try to send a follow-up
+                    logger.warn(`Failed to edit reply with error message: ${replyError instanceof Error ? replyError.message : 'Unknown error'}`)
+                    try {
+                        await interaction.followUp({
+                            content: `❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                            ephemeral
+                        })
+                    } catch (finalError) {
+                        logger.error(`Failed to send any error message: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`)
+                    }
+                }
             }
         }
     }
