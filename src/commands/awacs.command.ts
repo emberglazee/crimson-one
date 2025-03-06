@@ -5,12 +5,15 @@ import { Logger } from '../util/logger'
 
 const logger = new Logger('AWACSCommand')
 
+// The target guild ID that AWACS will monitor
+const TARGET_GUILD_ID = '958518067690868796'
+
 export default {
     data: new SlashCommandBuilder()
         .setName('awacs')
         .setDescription('Configure the AWACS audit log system')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addSubcommand(subcommand => subcommand
+        .addSubcommand(sc => sc
             .setName('setchannel')
             .setDescription('Set the channel where AWACS logs will be sent')
             .addChannelOption(option => option
@@ -19,12 +22,10 @@ export default {
                 .setRequired(true)
                 .addChannelTypes(ChannelType.GuildText)
             )
-        )
-        .addSubcommand(subcommand => subcommand
+        ).addSubcommand(sc => sc
             .setName('status')
             .setDescription('Check the current AWACS feed status')
-        )
-        .addSubcommand(subcommand => subcommand
+        ).addSubcommand(sc => sc
             .setName('test')
             .setDescription('Send a test AWACS message')
             .addStringOption(option => option
@@ -46,6 +47,15 @@ export default {
         const subcommand = interaction.options.getSubcommand()
         const awacs = AWACSFeed.getInstance()
 
+        // Check if command is being used in the target guild
+        if (interaction.guildId !== TARGET_GUILD_ID) {
+            await interaction.reply({
+                content: `❌ AWACS system is limited to a specific guild and cannot be used here.`,
+                ephemeral: true
+            })
+            return
+        }
+
         // Initialize AWACSFeed with the client if not done elsewhere
         if (!awacs.getChannelId()) {
             awacs.setClient(interaction.client)
@@ -53,7 +63,7 @@ export default {
 
         if (subcommand === 'setchannel') {
             const channel = interaction.options.getChannel('channel', true) as TextChannel
-            
+
             try {
                 if (awacs.getChannelId()) {
                     await awacs.setChannel(channel.id)
@@ -68,12 +78,12 @@ export default {
                         ephemeral: true
                     })
                 }
-                
+
                 // Send a welcome message to the channel
                 await channel.send({
-                    content: '```\nAWACS FEED ONLINE\n\n' +
+                    content: `\`\`\`\nAWACS FEED ONLINE\n\n' +
                         'SYSTEM: CRIMSON\nSTATUS: OPERATIONAL\n' +
-                        'MONITORING ALL COMMUNICATIONS CHANNELS\n```'
+                        MONITORING GUILD ID: ${TARGET_GUILD_ID}\n\`\`\``
                 })
             } catch (error) {
                 logger.error(`Failed to set AWACS channel: ${(error as Error).message}`)
@@ -85,7 +95,7 @@ export default {
         }
         else if (subcommand === 'status') {
             const channelId = awacs.getChannelId()
-            
+
             if (!channelId) {
                 await interaction.reply({
                     content: '❌ AWACS feed is not configured. Use `/awacs setchannel` to set it up.',
@@ -93,11 +103,11 @@ export default {
                 })
                 return
             }
-            
+
             try {
                 const channel = await interaction.client.channels.fetch(channelId) as TextChannel
                 await interaction.reply({
-                    content: `📡 AWACS feed status:\n- Active: Yes\n- Channel: <#${channelId}> (${channel.name})\n- Ready to receive audit logs`,
+                    content: `📡 AWACS feed status:\n- Active: Yes\n- Channel: <#${channelId}> (${channel.name})\n- Target Guild: ${TARGET_GUILD_ID}\n- Ready to receive audit logs`,
                     ephemeral: true
                 })
             } catch (error) {
@@ -109,7 +119,7 @@ export default {
         }
         else if (subcommand === 'test') {
             const channelId = awacs.getChannelId()
-            
+
             if (!channelId) {
                 await interaction.reply({
                     content: '❌ AWACS feed is not configured. Use `/awacs setchannel` to set it up.',
@@ -117,17 +127,17 @@ export default {
                 })
                 return
             }
-            
+
             const eventType = interaction.options.getString('event', true)
             const now = new Date()
-            
+
             try {
                 switch (eventType) {
                     case 'join':
                         awacs.emit('memberJoin', {
                             memberId: interaction.user.id,
                             memberName: interaction.user.displayName,
-                            guildId: interaction.guild!.id,
+                            guildId: TARGET_GUILD_ID,
                             guildName: interaction.guild!.name,
                             joinedAt: now
                         })
@@ -136,7 +146,7 @@ export default {
                         awacs.emit('memberLeave', {
                             memberId: interaction.user.id,
                             memberName: interaction.user.displayName,
-                            guildId: interaction.guild!.id,
+                            guildId: TARGET_GUILD_ID,
                             guildName: interaction.guild!.name,
                             leftAt: now
                         })
@@ -156,7 +166,7 @@ export default {
                         awacs.emit('channelCreate', {
                             channelId: interaction.channel!.id,
                             channelName: (interaction.channel as TextChannel).name,
-                            guildId: interaction.guild!.id,
+                            guildId: TARGET_GUILD_ID,
                             guildName: interaction.guild!.name,
                             timestamp: now
                         })
@@ -167,7 +177,7 @@ export default {
                             memberName: interaction.user.displayName,
                             moderatorId: interaction.client.user!.id,
                             moderatorName: interaction.client.user!.username,
-                            guildId: interaction.guild!.id,
+                            guildId: TARGET_GUILD_ID,
                             guildName: interaction.guild!.name,
                             reason: 'This is a test ban reason.',
                             timestamp: now
@@ -178,15 +188,15 @@ export default {
                             title: 'Test Event',
                             description: `This is a test event triggered by ${interaction.user.displayName}.`,
                             type: 'info',
-                            callsign: 'TEST',
                             fields: [
                                 { name: 'User', value: interaction.user.tag, inline: true },
-                                { name: 'Channel', value: (interaction.channel as TextChannel).name, inline: true }
+                                { name: 'Channel', value: (interaction.channel as TextChannel).name, inline: true },
+                                { name: 'Guild', value: TARGET_GUILD_ID, inline: true }
                             ]
                         })
                         break
                 }
-                
+
                 await interaction.reply({
                     content: `✅ Test ${eventType} event sent to AWACS feed.`,
                     ephemeral: true
