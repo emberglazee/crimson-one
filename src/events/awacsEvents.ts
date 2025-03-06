@@ -4,6 +4,9 @@ import { AWACSFeed } from '../modules/AWACSFeed'
 
 const logger = new Logger('awacsEvents')
 
+// The target guild ID that AWACS should monitor
+const TARGET_GUILD_ID = '958518067690868796'
+
 // Tracking recently processed events to avoid duplicates when combining immediate events with audit logs
 interface TrackedEvent {
     id: string
@@ -54,6 +57,9 @@ async function getAuditLogEntry(
     targetId?: string, 
     timeWindow: number = 5000
 ): Promise<GuildAuditLogsEntry | null> {
+    // Only get audit logs for the target guild
+    if (guildId !== TARGET_GUILD_ID) return null
+    
     try {
         const guild = await client.guilds.fetch(guildId)
         const auditLogs = await guild.fetchAuditLogs({
@@ -82,8 +88,12 @@ export default function registerAwacsEvents(client: Client): void {
     const awacs = AWACSFeed.getInstance()
     awacs.setClient(client)
 
+    logger.info(`AWACS configured to track only guild with ID: ${TARGET_GUILD_ID}`)
+
     // Member join event
     client.on('guildMemberAdd', async member => {
+        // Skip events from non-target guilds
+        if (member.guild.id !== TARGET_GUILD_ID) return
         if (!awacs.getChannelId()) return
 
         // Track this event to avoid duplicate logging
@@ -100,6 +110,8 @@ export default function registerAwacsEvents(client: Client): void {
 
     // Member leave event
     client.on('guildMemberRemove', async member => {
+        // Skip events from non-target guilds
+        if (member.guild.id !== TARGET_GUILD_ID) return
         if (!awacs.getChannelId()) return
 
         // Check if this was a ban (handled by guildBanAdd) or a kick (from audit logs)
@@ -116,7 +128,6 @@ export default function registerAwacsEvents(client: Client): void {
                 title: "Pilot Ejected",
                 description: `**${member.displayName}** was kicked from the server.`,
                 type: "warning",
-                callsign: "PRESIDIA",
                 fields: [
                     { name: "Member", value: member.displayName, inline: true },
                     { name: "By", value: kickEntry.executor?.tag || "Unknown", inline: true },
@@ -140,7 +151,8 @@ export default function registerAwacsEvents(client: Client): void {
 
     // Message delete event
     client.on('messageDelete', async message => {
-        if (!awacs.getChannelId() || message.author?.bot) return
+        // Skip events from non-target guilds, DMs, or from bots
+        if (!message.guild || message.guild.id !== TARGET_GUILD_ID || !awacs.getChannelId() || message.author?.bot) return
 
         const channel = message.channel as TextChannel
 
@@ -165,7 +177,6 @@ export default function registerAwacsEvents(client: Client): void {
                 title: "Message Removed by Moderator",
                 description: `A message by **${message.author?.displayName || 'Unknown'}** was deleted by **${auditEntry.executor?.displayName || 'Unknown'}** in <#${channel.id}>.`,
                 type: "warning",
-                callsign: "MONARCH",
                 fields: [
                     { name: "Content", value: message.content || "(No text content)" }
                 ]
@@ -188,7 +199,9 @@ export default function registerAwacsEvents(client: Client): void {
 
     // Message edit event
     client.on('messageUpdate', async (oldMessage, newMessage) => {
-        if (!awacs.getChannelId() || 
+        // Skip events from non-target guilds, DMs, or from bots
+        if (!newMessage.guild || newMessage.guild.id !== TARGET_GUILD_ID || 
+            !awacs.getChannelId() || 
             newMessage.author?.bot || 
             !oldMessage.content || 
             !newMessage.content || 
@@ -213,7 +226,8 @@ export default function registerAwacsEvents(client: Client): void {
 
     // Channel create event
     client.on('channelCreate', async channel => {
-        if (!awacs.getChannelId() || channel.isDMBased()) return
+        // Skip events from non-target guilds or DMs
+        if (channel.isDMBased() || !channel.guild || channel.guild.id !== TARGET_GUILD_ID || !awacs.getChannelId()) return
 
         // Track this event
         trackEvent('channelCreate', channel.id)
@@ -232,7 +246,6 @@ export default function registerAwacsEvents(client: Client): void {
                 title: "New Communications Channel Established",
                 description: `Channel <#${channel.id}> (**${channel.name}**) has been created by ${auditEntry.executor?.tag || "System"}.`,
                 type: "success",
-                callsign: "DIPLOMAT",
                 fields: [
                     { name: "Creator", value: auditEntry.executor?.tag || "System", inline: true },
                     { name: "Type", value: channel.type.toString(), inline: true }
@@ -252,7 +265,8 @@ export default function registerAwacsEvents(client: Client): void {
 
     // Channel delete event
     client.on('channelDelete', async channel => {
-        if (!awacs.getChannelId() || channel.isDMBased()) return
+        // Skip events from non-target guilds or DMs
+        if (channel.isDMBased() || !channel.guild || channel.guild.id !== TARGET_GUILD_ID || !awacs.getChannelId()) return
 
         // Track this event
         trackEvent('channelDelete', channel.id)
@@ -271,7 +285,6 @@ export default function registerAwacsEvents(client: Client): void {
                 title: "Communications Channel Lost",
                 description: `Channel **${channel.name}** has been deleted by ${auditEntry.executor?.tag || "System"}.`,
                 type: "warning",
-                callsign: "DIPLOMAT",
                 fields: [
                     { name: "Deleted by", value: auditEntry.executor?.tag || "System" }
                 ]
@@ -290,7 +303,8 @@ export default function registerAwacsEvents(client: Client): void {
 
     // Role create event
     client.on('roleCreate', async role => {
-        if (!awacs.getChannelId()) return
+        // Skip events from non-target guilds
+        if (role.guild.id !== TARGET_GUILD_ID || !awacs.getChannelId()) return
 
         // Track this event
         trackEvent('roleCreate', role.id)
@@ -309,7 +323,6 @@ export default function registerAwacsEvents(client: Client): void {
                 title: "New Command Rank Established",
                 description: `Role **${role.name}** has been created by ${auditEntry.executor?.tag || "System"}.`,
                 type: "success",
-                callsign: "KAISER",
                 fields: [
                     { name: "Created by", value: auditEntry.executor?.tag || "System", inline: true },
                     { name: "Color", value: role.hexColor || "None", inline: true }
@@ -330,7 +343,8 @@ export default function registerAwacsEvents(client: Client): void {
 
     // Role delete event
     client.on('roleDelete', async role => {
-        if (!awacs.getChannelId()) return
+        // Skip events from non-target guilds
+        if (role.guild.id !== TARGET_GUILD_ID || !awacs.getChannelId()) return
 
         // Track this event
         trackEvent('roleDelete', role.id)
@@ -349,7 +363,6 @@ export default function registerAwacsEvents(client: Client): void {
                 title: "Command Rank Decommissioned",
                 description: `Role **${role.name}** has been deleted by ${auditEntry.executor?.tag || "System"}.`,
                 type: "warning",
-                callsign: "KAISER",
                 fields: [
                     { name: "Deleted by", value: auditEntry.executor?.tag || "System" }
                 ]
@@ -369,7 +382,8 @@ export default function registerAwacsEvents(client: Client): void {
 
     // Member ban event
     client.on('guildBanAdd', async ban => {
-        if (!awacs.getChannelId()) return
+        // Skip events from non-target guilds
+        if (ban.guild.id !== TARGET_GUILD_ID || !awacs.getChannelId()) return
 
         // Track this event
         trackEvent('guildBanAdd', ban.user.id)
@@ -391,7 +405,8 @@ export default function registerAwacsEvents(client: Client): void {
 
     // Member unban event
     client.on('guildBanRemove', async ban => {
-        if (!awacs.getChannelId()) return
+        // Skip events from non-target guilds
+        if (ban.guild.id !== TARGET_GUILD_ID || !awacs.getChannelId()) return
 
         // Track this event
         trackEvent('guildBanRemove', ban.user.id)
@@ -413,7 +428,8 @@ export default function registerAwacsEvents(client: Client): void {
 
     // Member timeout event (using audit logs since there's no direct event)
     client.on('guildAuditLogEntryCreate', async (auditLogEntry, guild) => {
-        if (!awacs.getChannelId()) return
+        // Skip events from non-target guilds
+        if (guild.id !== TARGET_GUILD_ID || !awacs.getChannelId()) return
 
         if (auditLogEntry.action === AuditLogEvent.MemberUpdate && 
             auditLogEntry.changes.find(c => c.key === 'communication_disabled_until')) {
@@ -452,5 +468,5 @@ export default function registerAwacsEvents(client: Client): void {
         }
     })
 
-    logger.ok('AWACS event handlers registered')
+    logger.ok(`AWACS event handlers registered for guild ID: ${TARGET_GUILD_ID}`)
 }
