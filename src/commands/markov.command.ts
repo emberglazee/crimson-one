@@ -387,7 +387,7 @@ export default {
                 replyContent += `\n⚠️ This channel was already fully collected before. Only collecting new messages since the last collection.`
             }
             if (collectEntireChannel) {
-                replyContent += `\n💡 Using Discord User API to fetch the total message count. This requires DISCORD_USER_TOKEN to be set.`
+                replyContent += `\n💡 Using Discord User API to fetch the total message count.`
             }
 
             await interaction.reply({
@@ -412,7 +412,7 @@ export default {
                 markov.on('collectProgress', async progress => {
                     // Update every 10 batches
                     if (progress.batchNumber % 10 === 0 || progress.batchNumber === 1) {
-                        logger.info(`Progress update: ${progress.batchNumber} batches, ${progress.totalCollected}/${progress.limit === 'entire' ? 'ALL' : progress.limit} messages (${progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%'})`)
+                        logger.ok(`Progress update: ${progress.batchNumber} batches, ${progress.totalCollected}/${progress.limit === 'entire' ? 'ALL' : progress.limit} messages (${progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%'})`)
                         lastUpdateBatch = progress.batchNumber
 
                         // Check if we're approaching the interaction token timeout
@@ -469,7 +469,7 @@ export default {
                 // Listen for collection completion to get total message count
                 markov.on('collectComplete', result => {
                     totalMessageCount = result.totalMessageCount
-                    logger.info(`Collection complete. ${result.totalCollected} messages collected${totalMessageCount ? ` out of ${totalMessageCount} total` : ''}.`)
+                    logger.ok(`Collection complete. ${result.totalCollected} messages collected${totalMessageCount ? ` out of ${totalMessageCount} total` : ''}.`)
                 })
 
                 // Process in one go

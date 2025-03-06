@@ -12,6 +12,8 @@ import QuoteFactory from './modules/QuoteFactory'
 import { GithubWebhook } from './modules/GithubWebhook'
 import type { DiscordEventListener } from './types/types'
 import { MarkovChat } from './modules/MarkovChain/MarkovChat'
+import { AWACSFeed } from './modules/AWACSFeed'
+import registerAwacsEvents from './events/awacsEvents'
 
 import { registerFont } from 'canvas'
 import { QuoteImageFactory } from './modules/QuoteImageFactory'
@@ -24,7 +26,8 @@ const bot = new Client({
         IntentsBitField.Flags.GuildMembers,
         IntentsBitField.Flags.GuildPresences,
         IntentsBitField.Flags.GuildMessages,
-        IntentsBitField.Flags.MessageContent
+        IntentsBitField.Flags.MessageContent,
+        IntentsBitField.Flags.GuildModeration // For audit logs
     ]),
     partials: [
         Partials.Channel,
@@ -49,6 +52,15 @@ bot.once('ready', async () => {
     // Set client on MarkovChat
     MarkovChat.getInstance().setClient(bot)
 
+    // Initialize AWACS Feed (it will be configured via command)
+    const awacsModule = AWACSFeed.getInstance() 
+    awacsModule.setClient(bot)
+    await awacsModule.init(bot, '1347340883724603392')
+
+    // Register AWACS event handlers
+    registerAwacsEvents(bot)
+    logger.ok('AWACS system initialized')
+
     // Set client and initialize command handler
     commandHandler.setClient(bot)
     await commandHandler.init()
@@ -65,7 +77,7 @@ bot.once('ready', async () => {
 
     const eventFiles = (
         await readdir(path.join(__dirname, 'events'))
-    ).filter(file => file.endsWith('.ts'))
+    ).filter(file => file.endsWith('.ts') && file !== 'awacsEvents.ts') // Skip awacsEvents as it's handled separately
     for (const file of eventFiles) {
         const event = await import(path.join(__dirname, `events/${file}`)) as DiscordEventListener
         event.default(bot)
