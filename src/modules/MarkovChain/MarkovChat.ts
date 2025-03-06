@@ -114,7 +114,7 @@ export class MarkovChat extends EventEmitter<{
             }
             if (lastId) fetchOptions.before = lastId
 
-            logger.ok(`Fetching batch #${chalk.yellow(batchCount + 1)} (${chalk.yellow(fetchOptions.limit)} messages)`)
+            logger.info(`Fetching batch #${chalk.yellow(batchCount + 1)} (${chalk.yellow(fetchOptions.limit)} messages)`)
             const batch = await channel.messages.fetch(fetchOptions)
             if (!batch.size) break
 
