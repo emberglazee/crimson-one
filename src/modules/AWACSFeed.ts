@@ -1,6 +1,6 @@
 // module for public audit logs stylized to Project Wingman
 
-import { Client, EmbedBuilder, TextChannel } from 'discord.js'
+import { Client, TextChannel } from 'discord.js'
 import type { ColorResolvable } from 'discord.js'
 import { EventEmitter } from 'tseep'
 import { Logger } from '../util/logger'
@@ -118,12 +118,8 @@ export class AWACSFeed extends EventEmitter<AWACSEvents> {
     private channelId: string | null = null
     private initialized = false
 
-    // Style configuration
-    private colorSuccess: ColorResolvable = '#00FF99' // Cascadian green
-    private colorWarning: ColorResolvable = '#F96302' // Cordium orange
-    private colorDanger: ColorResolvable = '#FF3333'  // Federation red
-    private colorInfo: ColorResolvable = '#3498DB'    // Blue info
-    private headerEmojis = {
+    // Message prefix emoji indicators
+    private prefixEmoji = {
         success: '✅',
         warning: '⚠️',
         danger: '🚨',
@@ -195,20 +191,6 @@ export class AWACSFeed extends EventEmitter<AWACSEvents> {
         return this.channelId
     }
 
-    // Configure styling options
-    public setStyle(options: {
-        colorSuccess?: ColorResolvable,
-        colorWarning?: ColorResolvable,
-        colorDanger?: ColorResolvable,
-        colorInfo?: ColorResolvable,
-        callsigns?: Partial<Record<string, string>>
-    }): void {
-        if (options.colorSuccess) this.colorSuccess = options.colorSuccess
-        if (options.colorWarning) this.colorWarning = options.colorWarning
-        if (options.colorDanger) this.colorDanger = options.colorDanger
-        if (options.colorInfo) this.colorInfo = options.colorInfo
-    }
-
     // Set up all event handlers
     private setupEventHandlers(): void {
         this.on('memberJoin', this.handleMemberJoin.bind(this))
@@ -240,15 +222,11 @@ export class AWACSFeed extends EventEmitter<AWACSEvents> {
         return `${hours}${minutes}hrs ${month}.${day}.${year}`
     }
 
-    // Generic method to send an embed message
-    private async sendEmbed(options: {
+    // Generic method to send a formatted text message
+    private async sendMessage(options: {
         title: string,
-        description: string,
-        color: ColorResolvable,
-        fields?: Array<{name: string, value: string, inline?: boolean}>,
-        footer?: string,
-        thumbnail?: string,
-        image?: string,
+        type: 'success' | 'warning' | 'danger' | 'info',
+        content: string,
         timestamp?: Date,
         callsign?: string
     }): Promise<void> {
@@ -257,35 +235,23 @@ export class AWACSFeed extends EventEmitter<AWACSEvents> {
             return
         }
 
-        const { title, description, color, fields, footer, thumbnail, image, timestamp, callsign } = options
-
+        const { title, type, content, timestamp = new Date(), callsign } = options
+        
         try {
-            const callsignPrefix = callsign ? `[${callsign}]: ` : ''
-            const embed = new EmbedBuilder()
-                .setTitle(`${callsignPrefix}${title}`)
-                .setDescription(description)
-                .setColor(color)
-                .setTimestamp(timestamp || new Date())
-
-            if (footer) {
-                embed.setFooter({ text: footer })
-            } else {
-                embed.setFooter({ text: `MISSION TIMESTAMP: ${this.formatArcadeTimestamp(timestamp || new Date())}` })
-            }
-
-            if (fields && fields.length > 0) {
-                embed.addFields(fields)
-            }
-
-            if (thumbnail) {
-                embed.setThumbnail(thumbnail)
-            }
-
-            if (image) {
-                embed.setImage(image)
-            }
-
-            await this.channel.send({ embeds: [embed] })
+            const prefix = this.prefixEmoji[type]
+            const callsignPrefix = callsign ? `[${callsign}] ` : ''
+            const formattedTimestamp = this.formatArcadeTimestamp(timestamp)
+            
+            // Format the message with Project Wingman/Ace Combat style
+            const message = `\`\`\`
+CRIMSON AWACS // MISSION LOG
+${prefix} ${callsignPrefix}${title.toUpperCase()}
+TIME: ${formattedTimestamp}
+------------------------------
+${content}
+\`\`\``
+            
+            await this.channel.send(message)
             logger.ok(`Sent AWACS log: ${chalk.yellow(title)}`)
         } catch (error) {
             logger.error(`Failed to send AWACS log: ${(error as Error).message}`)
@@ -295,188 +261,250 @@ export class AWACSFeed extends EventEmitter<AWACSEvents> {
 
     // Event handlers for different event types
     private async handleMemberJoin(data: MemberJoinData): Promise<void> {
-        await this.sendEmbed({
+        const content = [
+            `PILOT ID: ${data.memberName} [${data.memberId}]`,
+            `REGISTRATION: Joining AO ${data.guildName}`,
+            `STATUS: New contact detected on radar`,
+            `ACTION: Monitoring`
+        ].join('\n')
+
+        await this.sendMessage({
             title: 'New Contact Detected',
-            description: `**${data.memberName}** has arrived in the AO.`,
-            color: this.colorSuccess,
-            fields: [
-                { name: 'Member ID', value: data.memberId, inline: true },
-                { name: 'Server', value: data.guildName, inline: true },
-                { name: 'Joined', value: `<t:${Math.floor(data.joinedAt.getTime() / 1000)}:R>`, inline: true }
-            ],
+            type: 'success',
+            content,
             timestamp: data.joinedAt
         })
     }
 
     private async handleMemberLeave(data: MemberLeaveData): Promise<void> {
-        await this.sendEmbed({
+        const content = [
+            `PILOT ID: ${data.memberName} [${data.memberId}]`,
+            `REGISTRATION: Left AO ${data.guildName}`,
+            `STATUS: Contact lost from radar`,
+            `ACTION: Removing from flight roster`
+        ].join('\n')
+
+        await this.sendMessage({
             title: 'Contact Lost',
-            description: `**${data.memberName}** has left the AO.`,
-            color: this.colorWarning,
-            fields: [
-                { name: 'Member ID', value: data.memberId, inline: true },
-                { name: 'Server', value: data.guildName, inline: true },
-                { name: 'Left', value: `<t:${Math.floor(data.leftAt.getTime() / 1000)}:R>`, inline: true }
-            ],
+            type: 'warning',
+            content,
             timestamp: data.leftAt
         })
     }
 
     private async handleMessageDelete(data: MessageDeleteData): Promise<void> {
-        const description = data.authorName 
-            ? `Message by **${data.authorName}** deleted in <#${data.channelId}>.` 
-            : `Message deleted in <#${data.channelId}>.`
+        let contentLines = [
+            `CHANNEL: #${data.channelName} [${data.channelId}]`,
+        ]
 
-        const fields = []
-
-        if (data.content) {
-            fields.push({ 
-                name: 'Content', 
-                value: data.content.length > 1024 
-                    ? data.content.substring(0, 1021) + '...' 
-                    : data.content 
-            })
+        if (data.authorName) {
+            contentLines.push(`SENDER: ${data.authorName} [${data.authorId}]`)
+        } else {
+            contentLines.push(`SENDER: Unknown`)
         }
 
-        await this.sendEmbed({
+        if (data.content) {
+            const truncatedContent = data.content.length > 500 
+                ? data.content.substring(0, 497) + '...' 
+                : data.content
+            
+            contentLines.push(`MESSAGE: "${truncatedContent}"`)
+        }
+
+        contentLines.push(`STATUS: Transmission deleted from record`)
+        
+        await this.sendMessage({
             title: 'Transmission Intercepted',
-            description,
-            color: this.colorWarning,
-            fields,
+            type: 'warning',
+            content: contentLines.join('\n'),
             timestamp: data.deletedAt
         })
     }
 
     private async handleMessageEdit(data: MessageEditData): Promise<void> {
-        const fields = []
+        let contentLines = [
+            `CHANNEL: #${data.channelName} [${data.channelId}]`,
+            `SENDER: ${data.authorName} [${data.authorId}]`,
+        ]
 
-        if (data.oldContent) {
-            fields.push({ 
-                name: 'Before', 
-                value: data.oldContent.length > 1024 
-                    ? data.oldContent.substring(0, 1021) + '...' 
-                    : data.oldContent 
-            })
+        if (data.oldContent && data.newContent) {
+            const oldTruncated = data.oldContent.length > 250
+                ? data.oldContent.substring(0, 247) + '...'
+                : data.oldContent
+                
+            const newTruncated = data.newContent.length > 250
+                ? data.newContent.substring(0, 247) + '...'
+                : data.newContent
+                
+            contentLines.push(`ORIGINAL: "${oldTruncated}"`)
+            contentLines.push(`MODIFIED: "${newTruncated}"`)
+        } else {
+            contentLines.push(`MESSAGE: Content modified`)
         }
-
-        fields.push({ 
-            name: 'After', 
-            value: data.newContent.length > 1024 
-                ? data.newContent.substring(0, 1021) + '...' 
-                : data.newContent 
-        })
-
-        await this.sendEmbed({
+        
+        await this.sendMessage({
             title: 'Transmission Modified',
-            description: `Message by **${data.authorName}** edited in <#${data.channelId}>.`,
-            color: this.colorInfo,
-            fields,
+            type: 'info',
+            content: contentLines.join('\n'),
             timestamp: data.editedAt
         })
     }
 
     private async handleChannelCreate(data: ChannelData): Promise<void> {
-        await this.sendEmbed({
+        const content = [
+            `CHANNEL ID: #${data.channelName} [${data.channelId}]`,
+            `SERVER: ${data.guildName}`,
+            `STATUS: New communication line established`,
+            `ACTION: Monitoring for transmissions`
+        ].join('\n')
+
+        await this.sendMessage({
             title: 'New Communications Channel Established',
-            description: `Channel <#${data.channelId}> (**${data.channelName}**) has been created.`,
-            color: this.colorSuccess,
+            type: 'success',
+            content,
             timestamp: data.timestamp
         })
     }
 
     private async handleChannelDelete(data: ChannelData): Promise<void> {
-        await this.sendEmbed({
+        const content = [
+            `CHANNEL ID: #${data.channelName} [${data.channelId}]`,
+            `SERVER: ${data.guildName}`,
+            `STATUS: Communication line terminated`,
+            `ACTION: Removing from monitoring grid`
+        ].join('\n')
+
+        await this.sendMessage({
             title: 'Communications Channel Lost',
-            description: `Channel **${data.channelName}** has been deleted.`,
-            color: this.colorWarning,
+            type: 'warning',
+            content,
             timestamp: data.timestamp
         })
     }
 
     private async handleRoleCreate(data: RoleData): Promise<void> {
-        await this.sendEmbed({
+        const content = [
+            `ROLE ID: ${data.roleName} [${data.roleId}]`,
+            `SERVER: ${data.guildName}`,
+            `COLOR: ${data.roleColor || 'None'}`,
+            `STATUS: New command rank established`,
+            `ACTION: Adding to command structure`
+        ].join('\n')
+
+        await this.sendMessage({
             title: 'New Command Rank Established',
-            description: `Role **${data.roleName}** has been created.`,
-            color: (data.roleColor as ColorResolvable) || this.colorSuccess,
+            type: 'success',
+            content,
             timestamp: data.timestamp
         })
     }
 
     private async handleRoleDelete(data: RoleData): Promise<void> {
-        await this.sendEmbed({
+        const content = [
+            `ROLE ID: ${data.roleName} [${data.roleId}]`,
+            `SERVER: ${data.guildName}`,
+            `STATUS: Command rank decommissioned`,
+            `ACTION: Removing from command structure`
+        ].join('\n')
+
+        await this.sendMessage({
             title: 'Command Rank Decommissioned',
-            description: `Role **${data.roleName}** has been deleted.`,
-            color: this.colorWarning,
+            type: 'warning',
+            content,
             timestamp: data.timestamp
         })
     }
 
     private async handleMemberBan(data: MemberActionData): Promise<void> {
-        let description = `**${data.memberName}** has been banned.`
+        let contentLines = [
+            `TARGET: ${data.memberName} [${data.memberId}]`,
+            `SERVER: ${data.guildName}`
+        ]
+
         if (data.moderatorName) {
-            description = `**${data.memberName}** has been banned by **${data.moderatorName}**.`
+            contentLines.push(`OPERATOR: ${data.moderatorName} [${data.moderatorId}]`)
         }
 
-        const fields = []
         if (data.reason) {
-            fields.push({ name: 'Reason', value: data.reason })
+            contentLines.push(`REASON: ${data.reason}`)
         }
 
-        await this.sendEmbed({
+        contentLines.push(`STATUS: Target eliminated`, `ACTION: Permanent removal from AO`)
+
+        await this.sendMessage({
             title: 'Target Eliminated',
-            description,
-            color: this.colorDanger,
-            fields,
+            type: 'danger',
+            content: contentLines.join('\n'),
             timestamp: data.timestamp
         })
     }
 
     private async handleMemberUnban(data: MemberActionData): Promise<void> {
-        let description = `**${data.memberName}** has been unbanned.`
+        let contentLines = [
+            `PILOT: ${data.memberName} [${data.memberId}]`,
+            `SERVER: ${data.guildName}`
+        ]
+
         if (data.moderatorName) {
-            description = `**${data.memberName}** has been unbanned by **${data.moderatorName}**.`
+            contentLines.push(`AUTHORIZED BY: ${data.moderatorName} [${data.moderatorId}]`)
         }
 
-        await this.sendEmbed({
+        contentLines.push(`STATUS: Pardon issued`, `ACTION: Clearance to return to AO granted`)
+
+        await this.sendMessage({
             title: 'Pardon Issued',
-            description,
-            color: this.colorSuccess,
+            type: 'success',
+            content: contentLines.join('\n'),
             timestamp: data.timestamp
         })
     }
 
     private async handleMemberTimeout(data: MemberTimeoutData): Promise<void> {
         const durationInMinutes = Math.floor(data.duration / 1000 / 60)
+        
+        let contentLines = [
+            `PILOT: ${data.memberName} [${data.memberId}]`,
+            `SERVER: ${data.guildName}`,
+            `DURATION: ${durationInMinutes} minutes`
+        ]
 
-        let description = `**${data.memberName}** has been timed out for ${durationInMinutes} minutes.`
         if (data.moderatorName) {
-            description = `**${data.memberName}** has been timed out for ${durationInMinutes} minutes by **${data.moderatorName}**.`
+            contentLines.push(`GROUNDED BY: ${data.moderatorName} [${data.moderatorId}]`)
         }
 
-        const fields = []
         if (data.reason) {
-            fields.push({ name: 'Reason', value: data.reason })
+            contentLines.push(`REASON: ${data.reason}`)
         }
 
-        await this.sendEmbed({
+        contentLines.push(`STATUS: Temporarily suspended`, `ACTION: Communication privileges revoked`)
+
+        await this.sendMessage({
             title: 'Pilot Grounded',
-            description,
-            color: this.colorWarning,
-            fields,
+            type: 'warning',
+            content: contentLines.join('\n'),
             timestamp: data.timestamp
         })
     }
 
     private async handleCustomEvent(data: CustomEventData): Promise<void> {
-        await this.sendEmbed({
+        // For custom events, build the content from fields
+        let contentLines: string[] = [data.description]
+        
+        if (data.fields && data.fields.length > 0) {
+            contentLines.push('')  // Add a blank line for separation
+            for (const field of data.fields) {
+                contentLines.push(`${field.name.toUpperCase()}: ${field.value}`)
+            }
+        }
+        
+        // Determine appropriate type from color if possible
+        let type: 'success' | 'warning' | 'danger' | 'info' = 'info'
+        
+        await this.sendMessage({
             title: data.title,
-            description: data.description,
-            color: data.color || this.colorInfo,
-            fields: data.fields,
-            timestamp: data.timestamp,
-            footer: data.footer,
-            thumbnail: data.thumbnail,
-            image: data.image
+            type,
+            content: contentLines.join('\n'),
+            timestamp: data.timestamp
         })
     }
 
@@ -489,21 +517,21 @@ export class AWACSFeed extends EventEmitter<AWACSEvents> {
         title: string
         description: string
         type: 'success' | 'warning' | 'danger' | 'info'
-        callsign?: string
         fields?: Array<{name: string, value: string, inline?: boolean}>
     }): Promise<void> {
-        const colorMap = {
-            'success': this.colorSuccess,
-            'warning': this.colorWarning,
-            'danger': this.colorDanger,
-            'info': this.colorInfo
+        let contentLines = [options.description]
+        
+        if (options.fields && options.fields.length > 0) {
+            contentLines.push('')  // Add a blank line for separation
+            for (const field of options.fields) {
+                contentLines.push(`${field.name.toUpperCase()}: ${field.value}`)
+            }
         }
-
-        await this.sendEmbed({
-            title: `${this.headerEmojis[options.type]} ${options.title}`,
-            description: options.description,
-            color: colorMap[options.type],
-            fields: options.fields
+        
+        await this.sendMessage({
+            title: options.title,
+            type: options.type,
+            content: contentLines.join('\n')
         })
     }
 }
