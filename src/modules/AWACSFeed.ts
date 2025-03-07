@@ -222,7 +222,7 @@ export class AWACSFeed extends EventEmitter<AWACSEvents> {
         return `${hours}${minutes}hrs ${month}.${day}.${year}`
     }
 
-    // Generic method to send a formatted text message
+    // Generic method to send a simple text message
     private async sendMessage(options: {
         title: string,
         type: 'success' | 'warning' | 'danger' | 'info',
@@ -236,21 +236,15 @@ export class AWACSFeed extends EventEmitter<AWACSEvents> {
         }
 
         const { title, type, content, timestamp = new Date(), callsign } = options
-        
+
         try {
             const prefix = this.prefixEmoji[type]
-            const callsignPrefix = callsign ? `[${callsign}] ` : ''
+            const callsignPrefix = callsign ? `${callsign} | ` : ''
             const formattedTimestamp = this.formatArcadeTimestamp(timestamp)
-            
-            // Format the message with Project Wingman/Ace Combat style
-            const message = `\`\`\`
-CRIMSON AWACS // MISSION LOG
-${prefix} ${callsignPrefix}${title.toUpperCase()}
-TIME: ${formattedTimestamp}
-------------------------------
-${content}
-\`\`\``
-            
+
+            // Create a simple one-liner message with Project Wingman/Ace Combat style
+            const message = `${prefix} **${callsignPrefix}${title.toUpperCase()}** | ${formattedTimestamp} | ${content}`
+
             await this.channel.send(message)
             logger.ok(`Sent AWACS log: ${chalk.yellow(title)}`)
         } catch (error) {
@@ -261,249 +255,124 @@ ${content}
 
     // Event handlers for different event types
     private async handleMemberJoin(data: MemberJoinData): Promise<void> {
-        const content = [
-            `PILOT ID: ${data.memberName} [${data.memberId}]`,
-            `REGISTRATION: Joining AO ${data.guildName}`,
-            `STATUS: New contact detected on radar`,
-            `ACTION: Monitoring`
-        ].join('\n')
-
         await this.sendMessage({
-            title: 'New Contact Detected',
+            title: 'New Contact',
             type: 'success',
-            content,
+            content: `**${data.memberName}** [${data.memberId}] has joined ${data.guildName}`,
             timestamp: data.joinedAt
         })
     }
 
     private async handleMemberLeave(data: MemberLeaveData): Promise<void> {
-        const content = [
-            `PILOT ID: ${data.memberName} [${data.memberId}]`,
-            `REGISTRATION: Left AO ${data.guildName}`,
-            `STATUS: Contact lost from radar`,
-            `ACTION: Removing from flight roster`
-        ].join('\n')
-
         await this.sendMessage({
             title: 'Contact Lost',
             type: 'warning',
-            content,
+            content: `**${data.memberName}** [${data.memberId}] has left ${data.guildName}`,
             timestamp: data.leftAt
         })
     }
 
     private async handleMessageDelete(data: MessageDeleteData): Promise<void> {
-        let contentLines = [
-            `CHANNEL: #${data.channelName} [${data.channelId}]`,
-        ]
+        const authorInfo = data.authorName ? `by **${data.authorName}**` : `from unknown user`
+        const contentPreview = data.content ? `"${data.content.length > 50 ? data.content.substring(0, 47) + '...' : data.content}"` : `(no content)`
 
-        if (data.authorName) {
-            contentLines.push(`SENDER: ${data.authorName} [${data.authorId}]`)
-        } else {
-            contentLines.push(`SENDER: Unknown`)
-        }
-
-        if (data.content) {
-            const truncatedContent = data.content.length > 500 
-                ? data.content.substring(0, 497) + '...' 
-                : data.content
-            
-            contentLines.push(`MESSAGE: "${truncatedContent}"`)
-        }
-
-        contentLines.push(`STATUS: Transmission deleted from record`)
-        
         await this.sendMessage({
-            title: 'Transmission Intercepted',
+            title: 'Message Deleted',
             type: 'warning',
-            content: contentLines.join('\n'),
+            content: `Message ${authorInfo} deleted in <#${data.channelId}>: ${contentPreview}`,
             timestamp: data.deletedAt
         })
     }
 
     private async handleMessageEdit(data: MessageEditData): Promise<void> {
-        let contentLines = [
-            `CHANNEL: #${data.channelName} [${data.channelId}]`,
-            `SENDER: ${data.authorName} [${data.authorId}]`,
-        ]
-
-        if (data.oldContent && data.newContent) {
-            const oldTruncated = data.oldContent.length > 250
-                ? data.oldContent.substring(0, 247) + '...'
-                : data.oldContent
-                
-            const newTruncated = data.newContent.length > 250
-                ? data.newContent.substring(0, 247) + '...'
-                : data.newContent
-                
-            contentLines.push(`ORIGINAL: "${oldTruncated}"`)
-            contentLines.push(`MODIFIED: "${newTruncated}"`)
-        } else {
-            contentLines.push(`MESSAGE: Content modified`)
-        }
-        
         await this.sendMessage({
-            title: 'Transmission Modified',
+            title: 'Message Edited',
             type: 'info',
-            content: contentLines.join('\n'),
+            content: `**${data.authorName}** edited message in <#${data.channelId}>`,
             timestamp: data.editedAt
         })
     }
 
     private async handleChannelCreate(data: ChannelData): Promise<void> {
-        const content = [
-            `CHANNEL ID: #${data.channelName} [${data.channelId}]`,
-            `SERVER: ${data.guildName}`,
-            `STATUS: New communication line established`,
-            `ACTION: Monitoring for transmissions`
-        ].join('\n')
-
         await this.sendMessage({
-            title: 'New Communications Channel Established',
+            title: 'Channel Created',
             type: 'success',
-            content,
+            content: `Channel <#${data.channelId}> (**${data.channelName}**) has been created`,
             timestamp: data.timestamp
         })
     }
 
     private async handleChannelDelete(data: ChannelData): Promise<void> {
-        const content = [
-            `CHANNEL ID: #${data.channelName} [${data.channelId}]`,
-            `SERVER: ${data.guildName}`,
-            `STATUS: Communication line terminated`,
-            `ACTION: Removing from monitoring grid`
-        ].join('\n')
-
         await this.sendMessage({
-            title: 'Communications Channel Lost',
+            title: 'Channel Deleted',
             type: 'warning',
-            content,
+            content: `Channel **${data.channelName}** [${data.channelId}] has been deleted`,
             timestamp: data.timestamp
         })
     }
 
     private async handleRoleCreate(data: RoleData): Promise<void> {
-        const content = [
-            `ROLE ID: ${data.roleName} [${data.roleId}]`,
-            `SERVER: ${data.guildName}`,
-            `COLOR: ${data.roleColor || 'None'}`,
-            `STATUS: New command rank established`,
-            `ACTION: Adding to command structure`
-        ].join('\n')
-
         await this.sendMessage({
-            title: 'New Command Rank Established',
+            title: 'Role Created',
             type: 'success',
-            content,
+            content: `Role **${data.roleName}** has been created`,
             timestamp: data.timestamp
         })
     }
 
     private async handleRoleDelete(data: RoleData): Promise<void> {
-        const content = [
-            `ROLE ID: ${data.roleName} [${data.roleId}]`,
-            `SERVER: ${data.guildName}`,
-            `STATUS: Command rank decommissioned`,
-            `ACTION: Removing from command structure`
-        ].join('\n')
-
         await this.sendMessage({
-            title: 'Command Rank Decommissioned',
+            title: 'Role Deleted',
             type: 'warning',
-            content,
+            content: `Role **${data.roleName}** has been deleted`,
             timestamp: data.timestamp
         })
     }
 
     private async handleMemberBan(data: MemberActionData): Promise<void> {
-        let contentLines = [
-            `TARGET: ${data.memberName} [${data.memberId}]`,
-            `SERVER: ${data.guildName}`
-        ]
-
-        if (data.moderatorName) {
-            contentLines.push(`OPERATOR: ${data.moderatorName} [${data.moderatorId}]`)
-        }
-
-        if (data.reason) {
-            contentLines.push(`REASON: ${data.reason}`)
-        }
-
-        contentLines.push(`STATUS: Target eliminated`, `ACTION: Permanent removal from AO`)
+        const modInfo = data.moderatorName ? ` by **${data.moderatorName}**` : ''
+        const reasonInfo = data.reason ? `: "${data.reason}"` : ''
 
         await this.sendMessage({
             title: 'Target Eliminated',
             type: 'danger',
-            content: contentLines.join('\n'),
+            content: `**${data.memberName}** [${data.memberId}] has been banned${modInfo}${reasonInfo}`,
             timestamp: data.timestamp
         })
     }
 
     private async handleMemberUnban(data: MemberActionData): Promise<void> {
-        let contentLines = [
-            `PILOT: ${data.memberName} [${data.memberId}]`,
-            `SERVER: ${data.guildName}`
-        ]
-
-        if (data.moderatorName) {
-            contentLines.push(`AUTHORIZED BY: ${data.moderatorName} [${data.moderatorId}]`)
-        }
-
-        contentLines.push(`STATUS: Pardon issued`, `ACTION: Clearance to return to AO granted`)
+        const modInfo = data.moderatorName ? ` by **${data.moderatorName}**` : ''
 
         await this.sendMessage({
             title: 'Pardon Issued',
             type: 'success',
-            content: contentLines.join('\n'),
+            content: `**${data.memberName}** [${data.memberId}] has been unbanned${modInfo}`,
             timestamp: data.timestamp
         })
     }
 
     private async handleMemberTimeout(data: MemberTimeoutData): Promise<void> {
         const durationInMinutes = Math.floor(data.duration / 1000 / 60)
-        
-        let contentLines = [
-            `PILOT: ${data.memberName} [${data.memberId}]`,
-            `SERVER: ${data.guildName}`,
-            `DURATION: ${durationInMinutes} minutes`
-        ]
-
-        if (data.moderatorName) {
-            contentLines.push(`GROUNDED BY: ${data.moderatorName} [${data.moderatorId}]`)
-        }
-
-        if (data.reason) {
-            contentLines.push(`REASON: ${data.reason}`)
-        }
-
-        contentLines.push(`STATUS: Temporarily suspended`, `ACTION: Communication privileges revoked`)
+        const modInfo = data.moderatorName ? ` by **${data.moderatorName}**` : ''
+        const reasonInfo = data.reason ? `: "${data.reason}"` : ''
 
         await this.sendMessage({
             title: 'Pilot Grounded',
             type: 'warning',
-            content: contentLines.join('\n'),
+            content: `**${data.memberName}** timed out for ${durationInMinutes} min${modInfo}${reasonInfo}`,
             timestamp: data.timestamp
         })
     }
 
     private async handleCustomEvent(data: CustomEventData): Promise<void> {
-        // For custom events, build the content from fields
-        let contentLines: string[] = [data.description]
-        
-        if (data.fields && data.fields.length > 0) {
-            contentLines.push('')  // Add a blank line for separation
-            for (const field of data.fields) {
-                contentLines.push(`${field.name.toUpperCase()}: ${field.value}`)
-            }
-        }
-        
-        // Determine appropriate type from color if possible
+        // Determine message type based on color or default to info
         let type: 'success' | 'warning' | 'danger' | 'info' = 'info'
-        
+
         await this.sendMessage({
             title: data.title,
             type,
-            content: contentLines.join('\n'),
+            content: data.description,
             timestamp: data.timestamp
         })
     }
@@ -517,21 +386,15 @@ ${content}
         title: string
         description: string
         type: 'success' | 'warning' | 'danger' | 'info'
+        callsign?: string
         fields?: Array<{name: string, value: string, inline?: boolean}>
     }): Promise<void> {
-        let contentLines = [options.description]
-        
-        if (options.fields && options.fields.length > 0) {
-            contentLines.push('')  // Add a blank line for separation
-            for (const field of options.fields) {
-                contentLines.push(`${field.name.toUpperCase()}: ${field.value}`)
-            }
-        }
-        
+        // For quick events, just use the description as content
         await this.sendMessage({
             title: options.title,
             type: options.type,
-            content: contentLines.join('\n')
+            content: options.description,
+            callsign: options.callsign
         })
     }
 }
