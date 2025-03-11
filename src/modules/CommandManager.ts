@@ -165,7 +165,7 @@ export default class CommandHandler {
         if (interaction.isChatInputCommand()) {
             // First check guild commands
             const guildCommand = this.guildCommands.find(
-                command => command.data.name === interaction.commandName && 
+                command => command.data.name === interaction.commandName &&
                 command.guildId === interaction.guildId
             )
             if (guildCommand) return guildCommand
@@ -176,7 +176,7 @@ export default class CommandHandler {
             )
         } else if (interaction.isContextMenuCommand()) {
             return this.contextMenuCommands.find(
-                command => command.data.name === interaction.commandName && 
+                command => command.data.name === interaction.commandName &&
                 ((interaction.isUserContextMenuCommand() && command.type === 2) ||
                 (interaction.isMessageContextMenuCommand() && command.type === 3))
             )

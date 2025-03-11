@@ -1,4 +1,4 @@
-import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel, EmbedBuilder, Message, InteractionResponse } from 'discord.js'
+import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel, EmbedBuilder, Message } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
 import { DataSource } from '../modules/MarkovChain/DataSource'
@@ -279,7 +279,7 @@ export default {
                 const timeEnd = Date.now()
                 logger.ok(`Generated message: ${result}`)
                 await interaction.editReply(
-                    `${result}\n` + 
+                    `${result}\n` +
                     `-# - Generated in ${timeEnd - timeStart}ms\n` +
                     `-# - Filters: ${[
                         source === 'global' ? 'Global' : source === 'channel' ? `Channel: #${channel?.name}` : 'Server-only',
@@ -383,7 +383,7 @@ export default {
 
             // Reply with appropriate message
             let replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'ALL' : limit} messages from ${channel}${user ? ` by ${user}` : ''}...`
-            if (wasFullyCollected) {
+            if (await wasFullyCollected) {
                 replyContent += `\n⚠️ This channel was already fully collected before. Only collecting new messages since the last collection.`
             }
             if (collectEntireChannel) {
@@ -457,7 +457,7 @@ export default {
 
                         progressMessage += `📚 Batches processed: ${progress.batchNumber}`
 
-                        if (wasFullyCollected) {
+                        if (await wasFullyCollected) {
                             progressMessage += `\n⚠️ Only collecting new messages since last collection.`
                         }
 
@@ -492,7 +492,7 @@ export default {
                     completionMessage += `📊 ${count} valid messages out of ${totalMessageCount} total messages in the channel (${percentageCollected}%)\n`
                 }
 
-                if (wasFullyCollected) {
+                if (await wasFullyCollected) {
                     completionMessage += `📋 These were new messages since the previous collection.`
                 } else if (collectEntireChannel) {
                     completionMessage += `📋 The entire channel has been marked as fully collected.`

@@ -11,7 +11,8 @@ export default [
   ...tseslint.configs.recommended,
   {
     rules: {
-      'no-trailing-spaces': 'error'
+      'no-trailing-spaces': 'error',
+      'no-explicit-any': 'off'
     }
   },
 ];
