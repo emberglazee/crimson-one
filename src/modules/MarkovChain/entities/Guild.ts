@@ -1,14 +1,15 @@
-import { Entity, OneToMany, PrimaryColumn, Column } from 'typeorm'
+import { Entity, OneToMany, PrimaryColumn } from 'typeorm'
 import { Channel } from './Channel'
+import { Message } from 'discord.js'
 
 @Entity('guilds')
 export class Guild {
-  @PrimaryColumn()
-  id!: string
+    @PrimaryColumn()
+    id!: string
 
-  @Column()
-  name!: string
+    @OneToMany(() => Channel, channel => channel.guild)
+    channels!: Channel[]
 
-  @OneToMany(() => Channel, channel => channel.guild)
-  channels!: Channel[]
+    @OneToMany(() => Message, message => message.guild)
+    messages!: Message[]
 }
