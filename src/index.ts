@@ -13,7 +13,6 @@ import { GithubWebhook } from './modules/GithubWebhook'
 import type { DiscordEventListener } from './types/types'
 import { MarkovChat } from './modules/MarkovChain/MarkovChat'
 import { AWACSFeed } from './modules/AWACSFeed'
-import registerAwacsEvents from './events/awacsEvents'
 
 import { registerFont } from 'canvas'
 import { QuoteImageFactory } from './modules/QuoteImageFactory'
@@ -42,6 +41,7 @@ const bot = new Client({
 
 const commandHandler = CommandHandler.getInstance()
 export const quoteFactory = new QuoteFactory(bot)
+export const awacsFeed = new AWACSFeed(bot)
 
 bot.once('ready', async () => {
     logger.info(`Logged in as ${chalk.yellow(bot.user!.tag)}`)
@@ -52,13 +52,6 @@ bot.once('ready', async () => {
     // Set client on MarkovChat
     MarkovChat.getInstance().setClient(bot)
 
-    // Initialize AWACS Feed (it will be configured via command)
-    const awacsModule = AWACSFeed.getInstance() 
-    awacsModule.setClient(bot)
-    await awacsModule.init(bot, '1347340883724603392')
-
-    // Register AWACS event handlers
-    registerAwacsEvents(bot)
     logger.ok('AWACS system initialized')
 
     // Set client and initialize command handler
