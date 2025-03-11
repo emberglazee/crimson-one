@@ -6,7 +6,7 @@ import { Message } from './entities/Message'
 import { Channel } from './entities/Channel'
 import { Guild as ChainGuild } from './entities/Guild'
 import { User as ChainUser } from './entities/User'
-import { Tag } from './entities'
+import { Tag } from './entities/Tag'
 
 const logger = Logger.new('MarkovChain.DataSource')
 
@@ -30,7 +30,7 @@ export class DataSource {
         this.orm = new ORMDataSource({
             type: 'sqlite',
             database: 'data/markov.sqlite',
-            entities: [Channel, Message, ChainGuild, ChainUser, Tag, User],
+            entities: [Channel, Message, ChainGuild, ChainUser, Tag],
             synchronize: true,
             logging: false
         })
