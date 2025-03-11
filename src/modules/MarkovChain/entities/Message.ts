@@ -1,5 +1,8 @@
 import { Column, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryColumn } from 'typeorm'
 import { Tag } from './Tag'
+import { User } from './User'
+import { Channel } from './Channel'
+import { Guild } from './Guild'
 
 @Entity('messages')
 export class Message {
@@ -9,14 +12,16 @@ export class Message {
     @Column('text')
     text!: string
 
-    @ManyToOne('User', 'messages')
-    author!: any
+    @ManyToOne(() => User, user => user.messages)
+    author!: User
 
-    @ManyToOne('Channel', 'messages')
-    channel!: any
+    @ManyToOne(() => Channel, channel => channel.messages)
+    @Column({ name: 'channel_id' })
+    channelId!: string
 
-    @ManyToOne('Guild', 'messages')
-    guild!: any
+    @ManyToOne(() => Guild, guild => guild.channels)
+    @Column({ name: 'guild_id' })
+    guildId!: string
 
     @ManyToMany(() => Tag)
     @JoinTable()
