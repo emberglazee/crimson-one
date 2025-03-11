@@ -1,5 +1,5 @@
 import { Guild, Message as DiscordMessage, TextChannel, User } from 'discord.js'
-import { DataSource as ORMDataSource, In } from 'typeorm'
+import { DataSource as ORMDataSource } from 'typeorm'
 import { Logger } from '../../util/logger'
 import chalk from 'chalk'
 import { Message } from './entities/Message'
@@ -92,7 +92,7 @@ export class DataSource {
 
             // Mark channel as fully collected if specified
             if (fullyCollectedChannelId) {
-                await manager.update(Channel, 
+                await manager.update(Channel,
                     { id: fullyCollectedChannelId },
                     { fullyCollected: true }
                 )
