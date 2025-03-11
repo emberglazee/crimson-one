@@ -1,7 +1,7 @@
 import { Column, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryColumn } from 'typeorm'
 import { Tag } from './Tag'
 import { User } from './User'
-import { Channel } from './Channel'
+import { type Channel } from './Channel'
 import { Guild } from './Guild'
 
 @Entity('messages')
@@ -15,7 +15,7 @@ export class Message {
     @ManyToOne(() => User, user => user.messages)
     author!: User
 
-    @ManyToOne(() => Channel, channel => channel.messages)
+    @ManyToOne('Channel', 'messages')
     channel!: Channel
 
     @ManyToOne(() => Guild, guild => guild.messages)
