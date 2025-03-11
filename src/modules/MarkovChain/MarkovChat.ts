@@ -77,7 +77,7 @@ export class MarkovChat extends EventEmitter<{
         const startTime = Date.now()
 
         // Check if channel was previously fully collected
-        const wasFullyCollected = this.dataSource.isChannelFullyCollected(channel.guild.id, channel.id)
+        const wasFullyCollected = await this.dataSource.isChannelFullyCollected(channel.guild.id, channel.id)
         const isEntireChannel = limit === 'entire'
 
         // For previously collected channels, we'll need to track existing message IDs
@@ -86,15 +86,15 @@ export class MarkovChat extends EventEmitter<{
 
         if (wasFullyCollected) {
             // Load existing message IDs for this channel to check for duplicates
-            existingMessageIds = this.dataSource.getExistingMessageIds(channel.guild.id, channel.id);
-            logger.info(`Channel was previously fully collected. Checking for ${existingMessageIds.size} existing messages.`);
+            existingMessageIds = await this.dataSource.getExistingMessageIds(channel.guild.id, channel.id)
+            logger.info(`Channel was previously fully collected. Checking for ${existingMessageIds.size} existing messages.`)
         }
 
         // Get total message count from Discord API if collecting entire channel
-        let totalMessageCount: number | null = null;
+        let totalMessageCount: number | null = null
         if (isEntireChannel && !user) {
             logger.info(`Attempting to fetch total message count for channel ${channel.id}`)
-            totalMessageCount = await getChannelMessageCount(channel.guild.id, channel.id);
+            totalMessageCount = await getChannelMessageCount(channel.guild.id, channel.id)
             if (totalMessageCount) {
                 logger.ok(`Total messages in channel according to Discord API: ${chalk.yellow(totalMessageCount)}`)
             } else {
@@ -125,7 +125,7 @@ export class MarkovChat extends EventEmitter<{
             // For previously fully collected channels, check for message ID matches
             if (wasFullyCollected) {
                 // Check if we've found a message that already exists in our database
-                for (const [id, _] of validMessages) {
+                for (const [id] of validMessages) {
                     if (existingMessageIds.has(id)) {
                         logger.info(`Found existing message with ID ${chalk.yellow(id)}. Stopping collection.`)
                         foundExistingMessage = true
@@ -167,8 +167,8 @@ export class MarkovChat extends EventEmitter<{
                 messagesCollected: validMessages.size,
                 totalCollected: messages.length,
                 limit,
-                percentComplete: totalMessageCount && isEntireChannel ? 
-                    (messages.length / totalMessageCount) * 100 : 
+                percentComplete: totalMessageCount && isEntireChannel ?
+                    (messages.length / totalMessageCount) * 100 :
                     isEntireChannel ? 0 : (messages.length / numericLimit) * 100,
                 channelName: channel.name,
                 startTime,
@@ -211,7 +211,7 @@ export class MarkovChat extends EventEmitter<{
         }
 
         for (const msg of messages) {
-            chain.train(msg.content)
+            chain.train(msg.text)
         }
 
         return chain.generate({
@@ -251,15 +251,15 @@ export class MarkovChat extends EventEmitter<{
             // Process each message in the chunk
             for (const msg of chunk) {
                 // Add unique identifiers
-                uniqueAuthors.add(msg.authorId)
-                uniqueChannels.add(msg.channelId)
-                if (msg.guildId) uniqueGuilds.add(msg.guildId)
+                uniqueAuthors.add(msg.author.id)
+                uniqueChannels.add(msg.channel.id)
+                if (msg.guild.id) uniqueGuilds.add(msg.guild.id)
 
                 // Process words
-                if (msg.content) {
-                    const words = msg.content.split(/\s+/).filter(w => w.length > 0)
+                if (msg.text) {
+                    const words = msg.text.split(/\s+/).filter(w => w.length > 0)
                     totalWordCount += words.length
-                    
+
                     // Add unique words (process in batches to avoid stack issues)
                     for (const word of words) {
                         uniqueWords.add(word.toLowerCase())

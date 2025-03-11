@@ -24,4 +24,7 @@ export class Message {
     @ManyToMany(() => Tag)
     @JoinTable()
     tags!: Tag[]
+
+    @Column('int')
+    timestamp!: number
 }
