@@ -1,15 +1,15 @@
 import { Entity, OneToMany, PrimaryColumn } from 'typeorm'
-import { Channel } from './Channel'
-import { Message } from 'discord.js'
+import { type Channel } from './Channel'
+import { type Message } from 'discord.js'
 
 @Entity('guilds')
 export class Guild {
     @PrimaryColumn()
     id!: string
 
-    @OneToMany(() => Channel, channel => channel.guild)
+    @OneToMany('Channel', 'guild')
     channels!: Channel[]
 
-    @OneToMany(() => Message, message => message.guild)
+    @OneToMany('Message', 'guild')
     messages!: Message[]
 }

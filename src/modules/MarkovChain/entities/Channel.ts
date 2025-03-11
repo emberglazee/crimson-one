@@ -1,16 +1,16 @@
 import { Entity, ManyToOne, OneToMany, PrimaryColumn, Column } from 'typeorm'
-import { Guild } from './Guild'
-import { Message } from './Message'
+import { type Guild } from './Guild'
+import { type Message } from './Message'
 
 @Entity('channels')
 export class Channel {
     @PrimaryColumn()
     id!: string
 
-    @ManyToOne(() => Guild, guild => guild.channels)
+    @ManyToOne('Guild', 'channel')
     guild!: Guild
 
-    @OneToMany(() => Message, message => message.channel)
+    @OneToMany('Message', 'channel')
     messages!: Message[]
 
     @Column('boolean', { default: false })
