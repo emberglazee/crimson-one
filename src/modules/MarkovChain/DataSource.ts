@@ -46,8 +46,7 @@ export class DataSource {
         return this.orm.transaction(async manager => {
             // Upsert guild
             await manager.upsert(ChainGuild, {
-                id: guild.id,
-                name: guild.name
+                id: guild.id
             }, ['id'])
 
             // Process messages in chunks of 500
@@ -134,7 +133,7 @@ export class DataSource {
     public async isChannelFullyCollected(guildId: string, channelId: string): Promise<boolean> {
         await this.init()
         const channel = await this.orm.getRepository(Channel).findOne({
-            where: { id: channelId, guildId }
+            where: { id: channelId, guild: { id: guildId } }
         })
         return channel?.fullyCollected ?? false
     }
@@ -142,7 +141,7 @@ export class DataSource {
     public async getExistingMessageIds(guildId: string, channelId: string): Promise<Set<string>> {
         await this.init()
         const messages = await this.orm.getRepository(Message).find({
-            where: { guildId, channel: { id: channelId } },
+            where: { guild: { id: guildId }, channel: { id: channelId } },
             select: ['id']
         })
         return new Set(messages.map(m => m.id))

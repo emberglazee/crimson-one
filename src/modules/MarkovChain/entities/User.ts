@@ -1,10 +1,11 @@
 import { Entity, OneToMany, PrimaryColumn } from 'typeorm'
+import { Message } from './Message'
 
 @Entity('users')
 export class User {
     @PrimaryColumn()
     id!: string
 
-    @OneToMany('Message', 'author')
-    messages!: any[]
+    @OneToMany(() => Message, message => message.author)
+    messages!: Message[]
 }

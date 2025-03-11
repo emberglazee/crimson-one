@@ -1,4 +1,4 @@
-import { Column, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryColumn, JoinColumn } from 'typeorm'
+import { Column, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryColumn } from 'typeorm'
 import { Tag } from './Tag'
 import { User } from './User'
 import { Channel } from './Channel'
@@ -16,12 +16,10 @@ export class Message {
     author!: User
 
     @ManyToOne(() => Channel, channel => channel.messages)
-    @JoinColumn({ name: 'channel_id' })
     channel!: Channel
 
-    @ManyToOne(() => Guild, guild => guild.channels)
-    @Column({ name: 'guild_id' })
-    guildId!: string
+    @ManyToOne(() => Guild, guild => guild.messages)
+    guild!: Guild
 
     @ManyToMany(() => Tag)
     @JoinTable()
