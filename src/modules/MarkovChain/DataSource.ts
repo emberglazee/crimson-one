@@ -142,7 +142,7 @@ export class DataSource {
     public async getExistingMessageIds(guildId: string, channelId: string): Promise<Set<string>> {
         await this.init()
         const messages = await this.orm.getRepository(Message).find({
-            where: { guildId, channelId },
+            where: { guildId, channel: { id: channelId } },
             select: ['id']
         })
         return new Set(messages.map(m => m.id))
