@@ -30,7 +30,7 @@ export class DataSource {
         this.orm = new ORMDataSource({
             type: 'sqlite',
             database: 'data/markov.sqlite',
-            entities: [Message, Channel, ChainGuild, ChainUser, Tag, User],
+            entities: [Channel, Message, ChainGuild, ChainUser, Tag, User],
             synchronize: true,
             logging: false
         })
