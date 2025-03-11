@@ -20,6 +20,6 @@ export class Channel {
     @JoinColumn({ name: 'guild_id' })
     guild!: Guild
 
-    @OneToMany(() => Message, message => message.channelId)
+    @OneToMany(() => Message, message => message.channel)
     messages!: Message[]
 }
