@@ -8,7 +8,7 @@ import { Guild as ChainGuild } from './entities/Guild'
 import { User as ChainUser } from './entities/User'
 import { Tag } from './entities/Tag'
 
-const logger = Logger.new('MarkovChain.DataSource')
+const logger = Logger.new('MarkovChain | DataSource')
 
 export class DataSource {
     private static instance: DataSource
@@ -45,10 +45,12 @@ export class DataSource {
 
         return this.orm.transaction(async manager => {
             // Upsert guild
+            logger.info(`Upserting guild ${guild.id}`)
             await manager.upsert(ChainGuild, {
                 id: guild.id
             }, ['id'])
 
+            logger.info('Beginning to upsert users, channels and messages in chunks of 500')
             // Process messages in chunks of 500
             for (let i = 0; i < messages.length; i += 500) {
                 const chunk = messages.slice(i, i + 500)
@@ -89,10 +91,12 @@ export class DataSource {
                     }))
                 )
             }
+            logger.ok('User, channel, and message upsert completed')
 
             // Mark channel as fully collected if specified
             if (fullyCollectedChannelId) {
-                await manager.update(Channel,
+                await manager.update(
+                    Channel,
                     { id: fullyCollectedChannelId },
                     { fullyCollected: true }
                 )

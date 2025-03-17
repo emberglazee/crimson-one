@@ -1,4 +1,4 @@
-import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel, EmbedBuilder, Message } from 'discord.js'
+import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel, EmbedBuilder, Message, ChatInputCommandInteraction } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
 import { DataSource } from '../modules/MarkovChain/DataSource'
@@ -35,24 +35,22 @@ interface MessageUpdater {
 
 // Class to handle message updating with fallback support
 class InteractionMessageManager implements MessageUpdater {
-    private interaction: any
+    private interaction: ChatInputCommandInteraction
     private followUpMessagePromise: Promise<Message<boolean> | null> | null = null
     private followUpMessage: Message | null = null
     private useFollowUp = false
     private ephemeral: boolean
-    private logger: any
 
-    constructor(interaction: any, ephemeral: boolean, logger: any) {
+    constructor(interaction: ChatInputCommandInteraction, ephemeral: boolean) {
         this.interaction = interaction
         this.ephemeral = ephemeral
-        this.logger = logger
     }
 
     // Switch to using follow-up message
     public switchToFollowUp(): void {
         if (this.useFollowUp) return
         this.useFollowUp = true
-        
+
         this.followUpMessagePromise = this.createFollowUpMessage()
     }
 
@@ -63,8 +61,8 @@ class InteractionMessageManager implements MessageUpdater {
                 `⏳ Operation in progress...\n` +
                 `⚠️ This operation is taking longer than 14 minutes. ` +
                 `Real-time updates will continue in a follow-up message to avoid token expiration.`
-            ).catch((err: any) => {
-                this.logger.warn(`Failed to update original message about timeout: ${err.message}`)
+            ).catch((err: Error) => {
+                logger.warn(`Failed to update original message about timeout: ${err.message}`)
             })
 
             // Create a follow-up message that we'll update from now on
@@ -74,10 +72,10 @@ class InteractionMessageManager implements MessageUpdater {
             })
 
             this.followUpMessage = followUp
-            this.logger.ok(`Created follow-up message with ID ${followUp.id}`)
+            logger.ok(`Created follow-up message with ID ${followUp.id}`)
             return followUp
         } catch (error) {
-            this.logger.warn(`Failed to create follow-up message: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            logger.warn(`Failed to create follow-up message: ${error instanceof Error ? error.message : 'Unknown error'}`)
             return null
         }
     }
@@ -89,7 +87,7 @@ class InteractionMessageManager implements MessageUpdater {
                 if (this.followUpMessagePromise && !this.followUpMessage) {
                     this.followUpMessage = await this.followUpMessagePromise
                 }
-                
+
                 if (this.followUpMessage) {
                     await this.followUpMessage.edit(content)
                 } else {
@@ -100,7 +98,7 @@ class InteractionMessageManager implements MessageUpdater {
                 await this.interaction.editReply(content)
             }
         } catch (error) {
-            this.logger.warn(`Failed to update message: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            logger.warn(`Failed to update message: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
     }
 
@@ -117,14 +115,14 @@ class InteractionMessageManager implements MessageUpdater {
             }
         } catch (error) {
             // If both methods fail, try to send a new follow-up message with the results
-            this.logger.warn(`Failed to send final message: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            logger.warn(`Failed to send final message: ${error instanceof Error ? error.message : 'Unknown error'}`)
             try {
                 await this.interaction.followUp({
                     content: `${content}\n⚠️ (Posted as a new message because the original interaction expired)`,
                     ephemeral: this.ephemeral
                 })
             } catch (finalError) {
-                this.logger.error(`Failed to send any completion message: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`)
+                logger.error(`Failed to send any completion message: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`)
             }
         }
     }
@@ -333,11 +331,11 @@ export default {
                 const timeEnd = Date.now()
 
                 // Format timestamps to readable dates
-                const oldestDate = stats.oldestMessageTimestamp 
-                    ? new Date(stats.oldestMessageTimestamp).toLocaleString() 
+                const oldestDate = stats.oldestMessageTimestamp
+                    ? new Date(stats.oldestMessageTimestamp).toLocaleString()
                     : 'N/A'
-                const newestDate = stats.newestMessageTimestamp 
-                    ? new Date(stats.newestMessageTimestamp).toLocaleString() 
+                const newestDate = stats.newestMessageTimestamp
+                    ? new Date(stats.newestMessageTimestamp).toLocaleString()
                     : 'N/A'
 
                 const embed = new EmbedBuilder()
@@ -399,7 +397,6 @@ export default {
                 logger.info(`Collecting messages from ${channel}${user ? ` by ${user.tag}` : ''}, limit: ${limit}, wasFullyCollected: ${wasFullyCollected}`)
 
                 // Setup progress updates
-                let lastUpdateBatch = 0
                 let totalMessageCount = null
                 let percentCompleteEmoji = '⏳'
 
@@ -407,13 +404,12 @@ export default {
                 const interactionStartTime = Date.now()
 
                 // Create the message manager for handling follow-up messages
-                const messageManager = new InteractionMessageManager(interaction, ephemeral, logger)
+                const messageManager = new InteractionMessageManager(interaction, ephemeral)
 
                 markov.on('collectProgress', async progress => {
                     // Update every 10 batches
                     if (progress.batchNumber % 10 === 0 || progress.batchNumber === 1) {
                         logger.ok(`Progress update: ${progress.batchNumber} batches, ${progress.totalCollected}/${progress.limit === 'entire' ? 'ALL' : progress.limit} messages (${progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%'})`)
-                        lastUpdateBatch = progress.batchNumber
 
                         // Check if we're approaching the interaction token timeout
                         const elapsedSinceInteraction = Date.now() - interactionStartTime
