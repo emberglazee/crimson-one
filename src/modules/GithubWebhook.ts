@@ -49,7 +49,7 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
 
     public async init(client: Client) {
         this.client = client
-        this.channel = await client.channels.fetch('1335992675459141632') as TextChannel
+        this.channel = await client.channels.fetch('1331556083776487444') as TextChannel
         if (!this.channel) {
             throw new Error('Could not find webhook channel')
         }
