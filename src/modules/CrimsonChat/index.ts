@@ -1,4 +1,4 @@
-import { Client, TextChannel, Message, ChatInputCommandInteraction, type MessageReplyOptions, MessagePayload, EmbedBuilder, GuildMember } from 'discord.js'
+import { Client, TextChannel, Message, ChatInputCommandInteraction, type MessageReplyOptions, MessagePayload, EmbedBuilder } from 'discord.js'
 import { MessageProcessor } from './MessageProcessor'
 import { HistoryManager } from './HistoryManager'
 import { Logger } from '../../util/logger'
@@ -92,7 +92,7 @@ export default class CrimsonChat {
             clearInterval(typingInterval)
 
             // Process responses in a loop to handle command chaining
-            let messageHistory: (string | ChatResponse)[] = [] // Keep track of message parts to avoid repeating
+            const messageHistory: (string | ChatResponse)[] = [] // Keep track of message parts to avoid repeating
             let iterationCount = 0
             const MAX_ITERATIONS = 5 // Prevent infinite loops
 
@@ -113,9 +113,9 @@ export default class CrimsonChat {
                     }
 
                     // Cast and process the command
-                    const commandMsg = (currentResponse[commandIndex] as any).command as { name: string; params?: string[] }
+                    const commandMsg = (currentResponse[commandIndex] as { command: { name: string; params?: string[] } }).command
                     const commandResult = await this.getMessageProcessor().commandParser.parseCommand(commandMsg, originalMessage)
-                    
+
                     if (commandResult) {
                         await this.sendResponseToDiscord(commandResult, targetChannel)
 
@@ -169,7 +169,7 @@ export default class CrimsonChat {
                     try {
                         return JSON.parse(msg)
                     } catch {
-                        return msg
+                        return msg satisfies ChatResponse
                     }
                 }
                 return msg
@@ -183,7 +183,7 @@ export default class CrimsonChat {
 
             // Special handling for timeout errors
             if (error.message.includes('Response timeout')) {
-                const timeoutMessage = "⚠️ 30 second timeout reached for processing message"
+                const timeoutMessage = "⚠️ 120 second timeout reached for processing message"
                 await this.sendResponseToDiscord(timeoutMessage, targetChannel)
                 return null
             }
@@ -336,7 +336,7 @@ export default class CrimsonChat {
         try {
             const data = await fs.readFile(ignoredUsersPath, 'utf-8')
             this.ignoredUsers = new Set(JSON.parse(data))
-        } catch (error) {
+        } catch {
             this.ignoredUsers = new Set()
         }
     }
@@ -380,7 +380,7 @@ export default class CrimsonChat {
     public async trackCommandUsage(interaction: ChatInputCommandInteraction) {
         const command = `/${interaction.commandName}`
         const options = interaction.options.data
-        const optionStr = options.length > 0 
+        const optionStr = options.length > 0
             ? ' ' + options.map((opt) => `${opt.name}:${opt.value ?? '[no value]'}`).join(' ')
             : ''
         const user = await this.client!.users.fetch(interaction.user.id)

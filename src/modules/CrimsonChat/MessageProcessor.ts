@@ -70,7 +70,7 @@ export class MessageProcessor {
             }
 
             // Format message in the specified JSON structure
-            let messageText = content
+            const messageText = content
 
             const messageData = {
                 username: options.username,
@@ -140,7 +140,7 @@ export class MessageProcessor {
             }
 
             const messageForCompletion = await this.parseMessagesForChatCompletion(
-                formattedMessage, 
+                formattedMessage,
                 Array.from(imageUrls)
             )
 
@@ -151,14 +151,14 @@ export class MessageProcessor {
 
             // Save first response to history - but remove replyMessages and embed if command exists
             if (response) {
-                const historyResponse = response.command ? 
-                    { command: response.command } : 
+                const historyResponse = response.command ?
+                    { command: response.command } :
                     response
                 await this.historyManager.appendMessage('assistant', JSON.stringify(historyResponse))
             }
 
             // Process and send initial response
-            let processedResponse = await this.processResponse(response, options, originalMessage)
+            let processedResponse = await this.processResponse(response, options)
 
             // Handle command if present after sending the initial response
             if (response?.command && response.command.name !== 'noOp') {
@@ -193,7 +193,7 @@ export class MessageProcessor {
                         await this.historyManager.appendMessage('assistant', JSON.stringify(response))
 
                         // Process new response
-                        processedResponse = await this.processResponse(response, options, originalMessage)
+                        processedResponse = await this.processResponse(response, options)
                     }
                 }
             }
@@ -211,8 +211,8 @@ export class MessageProcessor {
         }
     }
 
-    private async generateAIResponse(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]) {
-        const RESPONSE_TIMEOUT_MS = 30000; // 30 seconds timeout
+    private async generateAIResponse(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]): Promise<z.infer<typeof CRIMSONCHAT_RESPONSE_SCHEMA>> {
+        const RESPONSE_TIMEOUT_MS = 120_000
 
         try {
             const responsePromise = this.openai.beta.chat.completions.parse({
@@ -226,7 +226,11 @@ export class MessageProcessor {
             })
 
             const response = await Promise.race([responsePromise, timeoutPromise]) as ParsedChatCompletion<z.infer<typeof CRIMSONCHAT_RESPONSE_SCHEMA>>
-            return response.choices[0].message.parsed
+            return response.choices[0].message.parsed || {
+                replyMessages: [],
+                embed: undefined,
+                command: undefined
+            }
         } catch (error) {
             if (error instanceof Error && error.message.includes('Response timeout')) {
                 logger.error(`${chalk.red(error.message)}`)
@@ -236,7 +240,7 @@ export class MessageProcessor {
         }
     }
 
-    private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<ChatResponseArray | null> {
+    private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<ChatResponseArray | undefined> {
         if (this.forceNextBreakdown || Math.random() < this.BREAKDOWN_CHANCE) {
             logger.info(`Triggering ${chalk.yellow(this.forceNextBreakdown ? 'forced' : 'random')} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
@@ -297,9 +301,9 @@ export class MessageProcessor {
                 await this.historyManager.appendMessage('assistant', response)
                 return response
             }
-            return null
+            return undefined
         }
-        return null
+        return undefined
     }
 
     private async parseMessagesForChatCompletion(content: string, attachments: string[] = []): Promise<ChatMessage> {
@@ -403,15 +407,15 @@ export class MessageProcessor {
         return `${Math.floor(seconds / 86400)}d ago`
     }
 
-    private convertToResponseArray(response: any): ChatResponseArray {
+    private convertToResponseArray(response: z.infer<typeof CRIMSONCHAT_RESPONSE_SCHEMA>): ChatResponseArray {
         const result: ChatResponseArray = []
         if (response.replyMessages) result.push(...response.replyMessages)
-        if (response.embed) result.push({ embed: response.embed })
+        if (response.embed) result.push({ embed: { ...response.embed, color: response.embed.color ?? 0x8B0000 } })
         if (response.command) result.push({ command: { name: response.command.name, params: response.command.params || [] } })
         return result
     }
 
-    private async processResponse(content: any, options: UserMessageOptions, originalMessage?: Message): Promise<ChatResponseArray> {
+    private async processResponse(content: z.infer<typeof CRIMSONCHAT_RESPONSE_SCHEMA>, options: UserMessageOptions): Promise<ChatResponseArray> {
         const response: ChatResponseArray = []
 
         // Only add text messages and embeds to response, skip raw command outputs
@@ -438,9 +442,9 @@ export class MessageProcessor {
 
         // Add embed if present and store it in memory
         if (content.embed) {
-            response.push({ embed: content.embed })
+            response.push({ embed: { ...content.embed, color: content.embed.color ?? 0x8B0000 } })
             await this.crimsonChat.memoryManager.evaluateAndStore(
-                { embed: content.embed },
+                { embed: { ...content.embed, color: content.embed.color ?? 0x8B0000 } },
                 `Assistant's embed response to ${options.username}`
             )
         }
