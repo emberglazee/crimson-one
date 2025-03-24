@@ -31,6 +31,7 @@ export function extractChannelId(channelIdResolvable: ChannelIdResolvable) {
         || channelIdResolvable instanceof CommandInteraction
         || channelIdResolvable instanceof ChatInputCommandInteraction
     ) id = channelIdResolvable.channelId
+    return id
 }
 export function extractGuildId(guildIdResolvable: GuildIdResolvable) {
     let id: string | null = ''
@@ -51,7 +52,7 @@ export const relativeTimestamp = (seconds: number) => `<t:${seconds}:R>` as cons
 
 export function stringToAttachment(string: string, filename?: string) {
     if (!filename) filename = 'file.txt'
-    let buffer = Buffer.from(string, 'utf-8')
+    const buffer = Buffer.from(string, 'utf-8')
     return new AttachmentBuilder(buffer).setName(filename)
 }
 export function pluralize(count: number, singular: string, few: string, many: string) {
