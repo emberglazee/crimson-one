@@ -76,14 +76,15 @@ export class ScreamOnSight {
                     'https://tenor.com/view/shots-fired-smoke-shoot-gif-15830209',
                     'https://tenor.com/view/dog-swing-gif-23878746',
                     'https://tenor.com/view/grand-theft-auto-gta-gta5-gta-v-davey-gif-25947802',
-                    'https://tenor.com/view/project-wingman-crimson-1-cordium-consequence-of-power-gif-18137013603651714218'
+                    'https://tenor.com/view/project-wingman-crimson-1-cordium-consequence-of-power-gif-18137013603651714218',
+                    'https://tenor.com/view/%D0%BF%D1%80%D0%B0%D1%86%D1%8E%D1%94-%D0%BF%D0%BF%D0%BE-%D0%BF%D0%BF%D0%BE-%D0%BF%D0%B2%D0%BE-%D0%BF%D0%B5%D1%82%D1%80%D1%96%D0%BE%D1%82-%D0%BF%D0%B0%D1%82%D1%80%D1%96%D0%BE%D1%82-gif-12934051785885241735'
                 ]
                 const variant = randArr(variants)
                 await message.reply(variant)
             },
         },
         {
-            pattern: [/embi/gmi, /ember/gmi],
+            pattern: [/embi/gmi, /\bember/gmi],
             async action(message) {
                 const variants = [
                     '<@341123308844220447> mentioned',
@@ -94,7 +95,8 @@ export class ScreamOnSight {
                     '<@341123308844220447> https://tenor.com/view/%D1%87%D0%B7%D1%85-gif-27194350',
                     '<@341123308844220447> https://media.discordapp.net/attachments/350326557929242626/1144400452918710332/ezgif-2-b9e8a376f7.gif?ex=67e1def9&is=67e08d79&hm=4d20c66d9582fe30d06a024a5c0ef29414d72816a4af7291a7dc3a023cf072ce&',
                     '<@341123308844220447> https://tenor.com/view/cat-silly-gif-yellow-cat-gif-16281670106766812594',
-                    '<@341123308844220447> добрый вечер я диспетчер чекни что за пиздёшь тут происходит'
+                    '<@341123308844220447> добрый вечер я диспетчер чекни что за пиздёшь тут происходит',
+                    '<@341123308844220447> https://tenor.com/view/cat-grab-project-wingman-eminent-domain-project-wingman-cascadia-captain-woodward-gif-8486343655825859387'
                 ]
                 const variant = randArr(variants)
                 await message.reply(variant)
@@ -105,6 +107,19 @@ export class ScreamOnSight {
             async action(message) {
                 await message.reply('https://media.discordapp.net/attachments/311334325402599425/1327830607094485073/youtube__uj7Ztu3Alg_576x742_h264.mp4?ex=67e2189e&is=67e0c71e&hm=492a1e8d4e21cdc2495cc0c83111982cfd9ef07f3b0bf4a5240c622259830473&')
             }
+        },
+        {
+            pattern: [/\bash\b/gmi, /ashleigh/gmi],
+            async action(message) {
+                const variants = [
+                    'https://cdn.discordapp.com/attachments/1267488539503886386/1331344509036003338/file.jpg?ex=67e25af2&is=67e10972&hm=847306a43bf42323c2ffa3e1b641d1a4bd1c3a737d89a526e84df7e034694dc0&',
+                    'https://media.discordapp.net/attachments/1351770874625130577/1351770895559164004/image.png?ex=67e2d680&is=67e18500&hm=235591676beae2c24528840dc66a2b78ee4fbef5fb16747edb0783b8ef561cb3&format=webp&quality=lossless&',
+                    'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/segsymg2.png',
+                    'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/ddwyn9pr.png'
+                ]
+                const variant = randArr(variants)
+                await message.reply(variant)
+            },
         }
     ]
     async processMessage(message: Message) {

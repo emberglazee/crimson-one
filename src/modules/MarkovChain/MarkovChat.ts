@@ -6,7 +6,7 @@ import { Logger } from '../../util/logger'
 import chalk from 'chalk'
 import { getChannelMessageCount } from './DiscordUserApi'
 
-const logger = Logger.new('MarkovChain.Chat')
+const logger = Logger.new('MarkovChain | Chat')
 
 interface MarkovGenerateOptions {
     guild?: Guild
