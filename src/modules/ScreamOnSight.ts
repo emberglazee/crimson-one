@@ -28,7 +28,9 @@ export class ScreamOnSight {
                     'https://tenor.com/view/mgs-metal-gear-solid-phantom-pain-venom-snake-gif-5631901306578330322',
                     'https://tenor.com/view/venom-snake-walk-mgsv-mgs-mgs5-gif-27690753',
                     'https://tenor.com/view/metal-gear-venom-snake-gif-26285931',
-                    'https://tenor.com/view/metal-gear-solid-snake-big-boss-gif-12248663'
+                    'https://tenor.com/view/metal-gear-solid-snake-big-boss-gif-12248663',
+                    'https://tenor.com/view/metal-gear-solid-phantom-pain-metal-gear-solid-v-snake-big-boss-gif-6526414909388443363',
+                    'https://tenor.com/view/mgs-mgsv-metal-gear-solid-big-boss-gif-27478240'
                 ]
                 const variant = randArr(variants)
                 await message.reply(variant)
@@ -69,6 +71,23 @@ export class ScreamOnSight {
                     'https://tenor.com/view/dog-swing-gif-23878746',
                     'https://tenor.com/view/grand-theft-auto-gta-gta5-gta-v-davey-gif-25947802',
                     'https://tenor.com/view/project-wingman-crimson-1-cordium-consequence-of-power-gif-18137013603651714218'
+                ]
+                const variant = randArr(variants)
+                await message.reply(variant)
+            },
+        },
+        {
+            pattern: [/embi/gmi, /ember/gmi],
+            async action(message) {
+                const variants = [
+                    '<@341123308844220447> mentioned',
+                    '<@341123308844220447> yo they yapping abt you or smth',
+                    'is that a fucking <@341123308844220447> reference!?',
+                    '<@341123308844220447> :3',
+                    '<@341123308844220447> https://tenor.com/view/cat-blahaj-kneading-biscuits-high-quality-gif-3582884063670662005',
+                    '<@341123308844220447> https://tenor.com/view/%D1%87%D0%B7%D1%85-gif-27194350',
+                    '<@341123308844220447> https://media.discordapp.net/attachments/350326557929242626/1144400452918710332/ezgif-2-b9e8a376f7.gif?ex=67e1def9&is=67e08d79&hm=4d20c66d9582fe30d06a024a5c0ef29414d72816a4af7291a7dc3a023cf072ce&',
+                    '<@341123308844220447> https://tenor.com/view/cat-silly-gif-yellow-cat-gif-16281670106766812594'
                 ]
                 const variant = randArr(variants)
                 await message.reply(variant)
