@@ -17,7 +17,7 @@ export class ScreamOnSight {
                     'https://cdn.discordapp.com/attachments/1125900471924699178/1303877939049402409/cachedVideo.mov?ex=67e1f7f5&is=67e0a675&hm=108fde1dc8376d2db90d81300944d2e232d9fdecb3ea0bbc139567bb2473233a&', // Q2
                     'https://media.discordapp.net/attachments/1267488539503886386/1346032804449882172/lv_0_20250302125127.mp4?ex=67e1bcfc&is=67e06b7c&hm=ba256a66f0c02d41be35bef627b7b84d1629df3e0aee8158c3b83615eadb279e&' // Q4
                 ]
-                const variant = variants[randRange(1, variants.length)]
+                const variant = variants[randRange(1, variants.length) - 1]
                 await message.reply(variant)
             },
         },
@@ -30,7 +30,7 @@ export class ScreamOnSight {
                     'https://tenor.com/view/metal-gear-venom-snake-gif-26285931',
                     'https://tenor.com/view/metal-gear-solid-snake-big-boss-gif-12248663'
                 ]
-                const variant = variants[randRange(1, variants.length)]
+                const variant = variants[randRange(1, variants.length) - 1]
                 await message.reply(variant)
             },
         },
@@ -55,7 +55,7 @@ export class ScreamOnSight {
                     'https://tenor.com/view/scary-scream-aaaa-martin-scorsese-scorsese-gif-1034167448643503493',
                     'https://tenor.com/view/absolute-cinema-absolute-freaky-gif-479618626165428928'
                 ]
-                const variant = variants[randRange(1, variants.length)]
+                const variant = variants[randRange(1, variants.length) - 1]
                 await message.reply(variant)
             },
         }
