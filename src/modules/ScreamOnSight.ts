@@ -55,7 +55,13 @@ export class ScreamOnSight {
                     'https://tenor.com/view/majin-buu-absolute-cinema-dragon-ball-z-dragon-ball-gif-2677998243209392972',
                     'https://tenor.com/view/jinx-lol-arcane-absolute-cinema-absolutecinema-gif-2823717891940156292',
                     'https://tenor.com/view/scary-scream-aaaa-martin-scorsese-scorsese-gif-1034167448643503493',
-                    'https://tenor.com/view/absolute-cinema-absolute-freaky-gif-479618626165428928'
+                    'https://tenor.com/view/absolute-cinema-absolute-freaky-gif-479618626165428928',
+                    'https://tenor.com/view/absolute-cinema-cinema-neqsil-neqsil-gif-tokidoki-bosotto-russia-go-de-dereru-tonari-no-alya-san-gif-7194922688176180121',
+                    'https://tenor.com/view/absolute-cinema-zerep-neovox-gif-6586104594546620988',
+                    'https://tenor.com/view/absolute-cinema-miside-mita-peak-smash-gif-6314619750132899497',
+                    'https://tenor.com/view/absolute-cinema-ryo-yamada-ry-ryo-meme-gif-9636831842365625847',
+                    'https://tenor.com/view/absolute-cinema-absolute-cinema-boykisser-gif-8548693639845499838',
+                    'https://tenor.com/view/mattis-ai-generated-absolute-cinema-black-and-white-greyscale-gif-15545318427947589245'
                 ]
                 const variant = randArr(variants)
                 await message.reply(variant)
@@ -87,11 +93,18 @@ export class ScreamOnSight {
                     '<@341123308844220447> https://tenor.com/view/cat-blahaj-kneading-biscuits-high-quality-gif-3582884063670662005',
                     '<@341123308844220447> https://tenor.com/view/%D1%87%D0%B7%D1%85-gif-27194350',
                     '<@341123308844220447> https://media.discordapp.net/attachments/350326557929242626/1144400452918710332/ezgif-2-b9e8a376f7.gif?ex=67e1def9&is=67e08d79&hm=4d20c66d9582fe30d06a024a5c0ef29414d72816a4af7291a7dc3a023cf072ce&',
-                    '<@341123308844220447> https://tenor.com/view/cat-silly-gif-yellow-cat-gif-16281670106766812594'
+                    '<@341123308844220447> https://tenor.com/view/cat-silly-gif-yellow-cat-gif-16281670106766812594',
+                    '<@341123308844220447> добрый вечер я диспетчер чекни что за пиздёшь тут происходит'
                 ]
                 const variant = randArr(variants)
                 await message.reply(variant)
             },
+        },
+        {
+            pattern: [/shelby/gmi],
+            async action(message) {
+                await message.reply('https://media.discordapp.net/attachments/311334325402599425/1327830607094485073/youtube__uj7Ztu3Alg_576x742_h264.mp4?ex=67e2189e&is=67e0c71e&hm=492a1e8d4e21cdc2495cc0c83111982cfd9ef07f3b0bf4a5240c622259830473&')
+            }
         }
     ]
     async processMessage(message: Message) {
