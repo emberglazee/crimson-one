@@ -4,6 +4,7 @@ import { normalizeUrl } from '../modules/CrimsonChat/utils/urlUtils'
 import util from 'util'
 import { Logger } from '../util/logger'
 import { parseMentions } from '../modules/CrimsonChat/utils/formatters'
+import { screamOnSight } from '..'
 
 const logger = Logger.new('event.messageCreate')
 
@@ -30,6 +31,7 @@ export default async function onMessageCreate(client: Client) {
     client.on('messageCreate', async message => {
         try {
             if (message.author === client.user) return
+            screamOnSight.processMessage(message)
 
             const isMainChannel = message.channel.id === '1335992675459141632'
             const isTestingServer = message.guildId === '1335971145014579263'

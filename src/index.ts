@@ -14,6 +14,7 @@ import { GithubWebhook } from './modules/GithubWebhook'
 import type { DiscordEventListener } from './types/types'
 import { MarkovChat } from './modules/MarkovChain/MarkovChat'
 import { AWACSFeed } from './modules/AWACSFeed'
+import { ScreamOnSight } from './modules/ScreamOnSight'
 
 import { registerFont } from 'canvas'
 import { QuoteImageFactory } from './modules/QuoteImageFactory'
@@ -44,6 +45,7 @@ const commandHandler = CommandHandler.getInstance()
 const crimsonChat = CrimsonChat.getInstance()
 export const quoteFactory = new QuoteFactory(bot)
 export const awacsFeed = new AWACSFeed(bot)
+export const screamOnSight = new ScreamOnSight()
 
 bot.once('ready', async () => {
     logger.info(`Logged in as ${chalk.yellow(bot.user!.tag)}`)
