@@ -136,3 +136,8 @@ export interface DiscordEmbed {
 
 export type ChatResponse = string | { embed: DiscordEmbed } | { command: { name: string, params: string[] } }
 export type ChatResponseArray = ChatResponse[]
+
+export interface ScreamOnSightTrigger {
+    regex: RegExp
+    action: (message: Message) => Promise<void>
+}
