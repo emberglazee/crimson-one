@@ -20,7 +20,7 @@ export class ScreamOnSight {
             },
         },
         {
-            pattern: [/invisible/gmi],
+            pattern: [/invisible/gmi, /big boss/gmi, /solid snake/gmi],
             async action(message) {
                 await message.reply(randArr([
                     'https://tenor.com/view/mgs-metal-gear-solid-phantom-pain-venom-snake-gif-5631901306578330322',
@@ -109,6 +109,16 @@ export class ScreamOnSight {
                     'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/97ggmkis.png',
                     'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/xp4356ma.png',
                     'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/1g2x2058.png'
+                ]))
+            },
+        },
+        {
+            pattern: [/fish/gmi, /\byou know what that means\b/gmi],
+            async action(message) {
+                await message.reply(randArr([
+                    'https://tenor.com/view/fish-gas-station-you-know-what-that-means-gif-1113666392679473186',
+                    'https://tenor.com/view/fish-meme-you-know-what-that-means-gif-12503956388971591256',
+                    'https://cdn.discordapp.com/attachments/1331556083776487444/1350097724204122212/caption.gif?ex=67e2aefd&is=67e15d7d&hm=aad1f8a3b156e93e539c279544f985eab49277c6100c4104ccaf3a7151cb325d&'
                 ]))
             },
         }
