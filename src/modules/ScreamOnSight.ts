@@ -124,6 +124,17 @@ export class ScreamOnSight {
         }
     ]
     async processMessage(message: Message) {
-        for (const { pattern, action } of this.triggers) if (pattern.some(r => r instanceof RegExp ? r.test(message.content) : message.content.includes(r))) await action(message)
+        const matchingTriggers: ScreamOnSightTrigger[] = []
+        for (const { pattern, action } of this.triggers) {
+            if (pattern.some(r => r instanceof RegExp ? r.test(message.content) : message.content.includes(r))) {
+                matchingTriggers.push({ pattern, action })
+            }
+        }
+
+        // If there are matching triggers, pick a random one and execute the action
+        if (matchingTriggers.length > 0) {
+            const randomTrigger = randArr(matchingTriggers)
+            await randomTrigger.action(message)
+        }
     }
 }
