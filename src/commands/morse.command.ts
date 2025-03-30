@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { Logger } from '../util/logger'
+import { PING_EMBERGLAZE } from '../util/constants'
 const logger = new Logger('/morse')
 
 export default {
@@ -42,7 +43,7 @@ export default {
         } catch (e) {
             const error = e as Error
             logger.error(error.stack ?? error.message ?? error)
-            await interaction.reply(`<@341123308844220447> something went wrong with the morse command -> \`${error.message ?? error}\`\n-# check the full error stack in the console, nerd`)
+            await interaction.reply(`${PING_EMBERGLAZE} something went wrong with the morse command -> \`${error.message ?? error}\`\n-# check the full error stack in the console, nerd`)
         }
     }
 } satisfies SlashCommand
