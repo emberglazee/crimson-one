@@ -1,6 +1,7 @@
 import type { Message } from 'discord.js'
 import type { ScreamOnSightTrigger } from '../types/types'
 import { randArr } from '../util/functions'
+import { PING_EMBERGLAZE } from '../util/constants'
 
 export class ScreamOnSight {
     triggers: ScreamOnSightTrigger[] = [
@@ -79,16 +80,17 @@ export class ScreamOnSight {
             pattern: [/embi/gmi, /\bember/gmi],
             async action(message) {
                 await message.reply(randArr([
-                    '<@341123308844220447> mentioned',
-                    '<@341123308844220447> yo they yapping abt you or smth',
-                    'is that a fucking <@341123308844220447> reference!?',
-                    '<@341123308844220447> :3',
-                    '<@341123308844220447> https://tenor.com/view/cat-blahaj-kneading-biscuits-high-quality-gif-3582884063670662005',
-                    '<@341123308844220447> https://tenor.com/view/%D1%87%D0%B7%D1%85-gif-27194350',
-                    '<@341123308844220447> https://media.discordapp.net/attachments/350326557929242626/1144400452918710332/ezgif-2-b9e8a376f7.gif?ex=67e1def9&is=67e08d79&hm=4d20c66d9582fe30d06a024a5c0ef29414d72816a4af7291a7dc3a023cf072ce&',
-                    '<@341123308844220447> https://tenor.com/view/cat-silly-gif-yellow-cat-gif-16281670106766812594',
-                    '<@341123308844220447> добрый вечер я диспетчер чекни что за пиздёшь тут происходит',
-                    '<@341123308844220447> https://tenor.com/view/cat-grab-project-wingman-eminent-domain-project-wingman-cascadia-captain-woodward-gif-8486343655825859387'
+                    `${PING_EMBERGLAZE} mentioned`,
+                    `${PING_EMBERGLAZE} yo they yapping abt you or smth`,
+                    `is that a fucking ${PING_EMBERGLAZE} reference!?`,
+                    `${PING_EMBERGLAZE} :3`,
+                    `${PING_EMBERGLAZE} https://tenor.com/view/cat-blahaj-kneading-biscuits-high-quality-gif-3582884063670662005`,
+                    `${PING_EMBERGLAZE} https://tenor.com/view/%D1%87%D0%B7%D1%85-gif-27194350`,
+                    `${PING_EMBERGLAZE} https://media.discordapp.net/attachments/350326557929242626/1144400452918710332/ezgif-2-b9e8a376f7.gif?ex=67e1def9&is=67e08d79&hm=4d20c66d9582fe30d06a024a5c0ef29414d72816a4af7291a7dc3a023cf072ce&`,
+                    `${PING_EMBERGLAZE} https://tenor.com/view/cat-silly-gif-yellow-cat-gif-16281670106766812594`,
+                    `${PING_EMBERGLAZE} добрый вечер я диспетчер чекни что за пиздёшь тут происходит`,
+                    `${PING_EMBERGLAZE} https://tenor.com/view/cat-grab-project-wingman-eminent-domain-project-wingman-cascadia-captain-woodward-gif-8486343655825859387`,
+                    `${PING_EMBERGLAZE} i promise this ping is not for him to stalk the convo`
                 ]))
             },
         },
@@ -108,7 +110,8 @@ export class ScreamOnSight {
                     'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/ddwyn9pr.png',
                     'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/97ggmkis.png',
                     'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/xp4356ma.png',
-                    'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/1g2x2058.png'
+                    'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/1g2x2058.png',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1355768084924989540/image.png?ex=67ea20ec&is=67e8cf6c&hm=9342543ff6bdec05d9e8e5346f08a9cbe9bfe9772632e0d8989ec1b4c41658da&'
                 ]))
             },
         },
@@ -118,7 +121,8 @@ export class ScreamOnSight {
                 await message.reply(randArr([
                     'https://tenor.com/view/fish-gas-station-you-know-what-that-means-gif-1113666392679473186',
                     'https://tenor.com/view/fish-meme-you-know-what-that-means-gif-12503956388971591256',
-                    'https://cdn.discordapp.com/attachments/1331556083776487444/1350097724204122212/caption.gif?ex=67e2aefd&is=67e15d7d&hm=aad1f8a3b156e93e539c279544f985eab49277c6100c4104ccaf3a7151cb325d&'
+                    'https://cdn.discordapp.com/attachments/1331556083776487444/1350097724204122212/caption.gif?ex=67e2aefd&is=67e15d7d&hm=aad1f8a3b156e93e539c279544f985eab49277c6100c4104ccaf3a7151cb325d&',
+                    'https://tenor.com/view/funny-fish-launch-gif-14878073'
                 ]))
             },
         }
