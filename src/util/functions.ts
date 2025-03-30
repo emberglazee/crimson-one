@@ -69,3 +69,10 @@ export function formatBytes(bytes: number): string {
     const i = Math.floor(Math.log(bytes) / Math.log(1024))
     return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`
 }
+
+export function chance(percentage: number): boolean {
+    const clamped = Math.max(0, Math.min(100, percentage))
+    if (clamped === 100) return true
+    if (clamped === 0) return false
+    return Math.random() * 100 < clamped
+}
