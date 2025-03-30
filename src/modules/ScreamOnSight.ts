@@ -1,6 +1,6 @@
 import type { Message } from 'discord.js'
 import type { ScreamOnSightTrigger } from '../types/types'
-import { randArr } from '../util/functions'
+import { chance, randArr } from '../util/functions'
 import { PING_EMBERGLAZE } from '../util/constants'
 
 export class ScreamOnSight {
@@ -116,8 +116,13 @@ export class ScreamOnSight {
             },
         },
         {
-            pattern: [/fish/gmi, /\byou know what that means\b/gmi],
+            pattern: [/fish/gmi, /\byou know what that means\b/gmi, /effic/gmi /* intended pun in pronounciation: 'effish' (efficient => ef_fish_ient) */],
             async action(message) {
+                // 90% chance to react instead of sending gif
+                if (chance(90)) {
+                    await message.react('🐟')
+                    return
+                }
                 await message.reply(randArr([
                     'https://tenor.com/view/fish-gas-station-you-know-what-that-means-gif-1113666392679473186',
                     'https://tenor.com/view/fish-meme-you-know-what-that-means-gif-12503956388971591256',
