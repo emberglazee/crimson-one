@@ -2,7 +2,7 @@ import { AttachmentBuilder, BaseInteraction, ChatInputCommandInteraction, Comman
 import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable } from '../types/types'
 
 export const randRange = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
-export const randArr = <T>(array: T[]) => array[Math.floor(Math.random() * array.length)]
+export const randArr = <T>(array: T[]): T => array[Math.floor(Math.random() * array.length)]
 export const hexStringToNumber = (hex: string) => parseInt(hex.replace('#', ''), 16)
 export const getr = async (url: string) => {
     const res = await fetch(url)
