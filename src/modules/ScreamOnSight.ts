@@ -111,7 +111,8 @@ export class ScreamOnSight {
                     'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/97ggmkis.png',
                     'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/xp4356ma.png',
                     'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/1g2x2058.png',
-                    'https://cdn.discordapp.com/attachments/982138135653793804/1355768084924989540/image.png?ex=67ea20ec&is=67e8cf6c&hm=9342543ff6bdec05d9e8e5346f08a9cbe9bfe9772632e0d8989ec1b4c41658da&'
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1355768084924989540/image.png?ex=67ea20ec&is=67e8cf6c&hm=9342543ff6bdec05d9e8e5346f08a9cbe9bfe9772632e0d8989ec1b4c41658da&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1356649100799381504/image.png?ex=67ed556e&is=67ec03ee&hm=605345c9967419e100425cbff6cb7038ee695917873bd1078f0eb28224b75838&'
                 ]))
             },
         },
