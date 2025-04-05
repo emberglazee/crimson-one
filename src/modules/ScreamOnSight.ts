@@ -1,7 +1,7 @@
 import type { Message } from 'discord.js'
 import type { ScreamOnSightTrigger } from '../types/types'
 import { chance, randArr } from '../util/functions'
-import { PING_EMBERGLAZE } from '../util/constants'
+import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
 
 export class ScreamOnSight {
     triggers: ScreamOnSightTrigger[] = [
@@ -79,19 +79,8 @@ export class ScreamOnSight {
         {
             pattern: [/embi/gmi, /\bember/gmi],
             async action(message) {
-                await message.reply(randArr([
-                    `${PING_EMBERGLAZE} mentioned`,
-                    `${PING_EMBERGLAZE} yo they yapping abt you or smth`,
-                    `is that a fucking ${PING_EMBERGLAZE} reference!?`,
-                    `${PING_EMBERGLAZE} :3`,
-                    `${PING_EMBERGLAZE} https://tenor.com/view/cat-blahaj-kneading-biscuits-high-quality-gif-3582884063670662005`,
-                    `${PING_EMBERGLAZE} https://tenor.com/view/%D1%87%D0%B7%D1%85-gif-27194350`,
-                    `${PING_EMBERGLAZE} https://media.discordapp.net/attachments/350326557929242626/1144400452918710332/ezgif-2-b9e8a376f7.gif?ex=67e1def9&is=67e08d79&hm=4d20c66d9582fe30d06a024a5c0ef29414d72816a4af7291a7dc3a023cf072ce&`,
-                    `${PING_EMBERGLAZE} https://tenor.com/view/cat-silly-gif-yellow-cat-gif-16281670106766812594`,
-                    `${PING_EMBERGLAZE} добрый вечер я диспетчер чекни что за пиздёшь тут происходит`,
-                    `${PING_EMBERGLAZE} https://tenor.com/view/cat-grab-project-wingman-eminent-domain-project-wingman-cascadia-captain-woodward-gif-8486343655825859387`,
-                    `${PING_EMBERGLAZE} i promise this ping is not for him to stalk the convo`
-                ]))
+                const emberglaze = await message.client.users.fetch(EMBERGLAZE_ID)
+                await emberglaze.send(`${PING_EMBERGLAZE} https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}\n-# Guild ${message.guild?.name || 'null'} (${message.guild?.id || 'null'})`)
             },
         },
         {
