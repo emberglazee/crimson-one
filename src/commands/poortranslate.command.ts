@@ -26,6 +26,7 @@ export default {
         ),
 
     async execute(interaction: ChatInputCommandInteraction) {
+        const time1 = Date.now()
         const inputText = interaction.options.getString('text', true)
         const randomizeChain = interaction.options.getBoolean('randomizechain') ?? false
         const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
@@ -86,7 +87,7 @@ export default {
 
         // Clear the interval and update with the final translation.
         clearInterval(progressInterval)
-        const finalProgressBar = createProgressBar(totalSteps, totalSteps)
-        await interaction.editReply(`Translating... ${finalProgressBar} (${totalSteps}/${totalSteps})\n\n**Final Translation:**\n${translatedText}`)
+        const time2 = Date.now()
+        await interaction.editReply(`**Poorly translated:**\n${inputText}\n**into:**\n${translatedText}\n-# Time: ${(time2 - time1) / 1000}s`)
     }
 } satisfies SlashCommand
