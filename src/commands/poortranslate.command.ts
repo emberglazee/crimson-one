@@ -40,7 +40,10 @@ export default {
             'ceb', 'haw', 'gl', 'fy',
             'mr', 'eu', 'en'
         ]
-        if (randomizeChain) languages = shuffleArray(languages)
+        if (randomizeChain) {
+            languages = shuffleArray(languages)
+            if (languages[languages.length - 1] !== 'en') languages.push('en')
+        }
 
         // Defer the reply to allow time for processing.
         await interaction.deferReply({
