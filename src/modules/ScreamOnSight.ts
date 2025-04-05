@@ -122,7 +122,7 @@ export class ScreamOnSight {
             },
         },
         {
-            pattern: [/\bi miss my wife\b/],
+            pattern: [/\bi miss my wife\b/gmi],
             async action(message) {
                 await message.reply('https://tenor.com/view/dance-gecko-gif-21029304')
             },
