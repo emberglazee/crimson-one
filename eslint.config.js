@@ -12,7 +12,8 @@ export default [
   {
     rules: {
       'no-trailing-spaces': 'error',
-      'no-explicit-any': 'off'
+      'no-explicit-any': 'off',
+      'no-case-declarations': 'off'
     }
   },
 ];

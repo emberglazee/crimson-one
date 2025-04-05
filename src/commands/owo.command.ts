@@ -10,14 +10,14 @@ export default {
             .setDescription('OwO what\'s this?')
             .setRequired(true)
         ).addBooleanOption(bo => bo
-            .setName('ephermal')
-            .setDescription('Should the message be ephermal?')
+            .setName('ephemeral')
+            .setDescription('Should the message be ephemeral?')
             .setRequired(false)
         ),
     async execute(interaction) {
         const inputText = interaction.options.getString('text', true)
         const outputText = owoTranslate(inputText)
-        const ephermal = interaction.options.getBoolean('ephermal') || false
+        const ephemeral = interaction.options.getBoolean('ephemeral') || false
 
         if (outputText.length > 2000) {
             const buffer = Buffer.from(outputText, 'utf-8')
@@ -25,12 +25,12 @@ export default {
 
             await interaction.reply({
                 files: [attachment],
-                flags: ephermal ? MessageFlags.Ephemeral : undefined
+                flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
         } else {
             await interaction.reply({
                 content: outputText,
-                flags: ephermal ? MessageFlags.Ephemeral : undefined
+                flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
         }
     }

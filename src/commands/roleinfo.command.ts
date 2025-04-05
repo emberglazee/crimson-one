@@ -9,8 +9,7 @@ export default {
             .setName('role')
             .setDescription('The role to get information about')
             .setRequired(true)
-        )
-        .addBooleanOption(bo => bo
+        ).addBooleanOption(bo => bo
             .setName('ephemeral')
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
