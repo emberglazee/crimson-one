@@ -3,12 +3,16 @@ import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable } from '.
 
 export const randRange = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
 export const randArr = <T>(array: T[]): T => array[Math.floor(Math.random() * array.length)]
-export const hexStringToNumber = (hex: string) => parseInt(hex.replace('#', ''), 16)
-export const getr = async (url: string) => {
-    const res = await fetch(url)
-    const json = await res.json()
-    return json
+export function shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    return shuffled
 }
+
+export const hexStringToNumber = (hex: string) => parseInt(hex.replace('#', ''), 16)
 export const appendDateAndTime = (message: string) => {
     const date = new Date()
     return `<${date.toUTCString()}>\n${message}` as const
