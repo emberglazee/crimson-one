@@ -120,6 +120,12 @@ export class ScreamOnSight {
                     'https://tenor.com/view/funny-fish-launch-gif-14878073'
                 ]))
             },
+        },
+        {
+            pattern: [/\bi miss my wife\b/],
+            async action(message) {
+                await message.reply('https://tenor.com/view/dance-gecko-gif-21029304')
+            },
         }
     ]
     async processMessage(message: Message) {
