@@ -8,7 +8,6 @@ import { Client, IntentsBitField, Partials } from 'discord.js'
 import chalk from 'chalk'
 
 import CommandHandler from './modules/CommandManager'
-import CrimsonChat from './modules/CrimsonChat'
 import QuoteFactory from './modules/QuoteFactory'
 import { GithubWebhook } from './modules/GithubWebhook'
 import type { DiscordEventListener } from './types/types'
@@ -42,7 +41,6 @@ const bot = new Client({
 })
 
 const commandHandler = CommandHandler.getInstance()
-const crimsonChat = CrimsonChat.getInstance()
 export const quoteFactory = new QuoteFactory(bot)
 export const awacsFeed = new AWACSFeed(bot)
 export const screamOnSight = new ScreamOnSight()
@@ -64,10 +62,6 @@ bot.once('ready', async () => {
     await commandHandler.refreshGlobalCommands()
     await commandHandler.refreshAllGuildCommands()
 
-    // initialize CrimsonChat
-    crimsonChat.setClient(bot)
-    await crimsonChat.init()
-
     // Initialize Github webhook and quote factory
     const webhook = GithubWebhook.getInstance({
         port: Number(process.env.GITHUB_WEBHOOK_PORT) || 3000,
@@ -75,9 +69,6 @@ bot.once('ready', async () => {
     })
     await webhook.init(bot)
     await quoteFactory.init()
-
-    // Send startup message
-    await crimsonChat.handleStartup()
 
     const eventFiles = (
         await readdir(path.join(__dirname, 'events'))
@@ -94,7 +85,6 @@ bot.once('ready', async () => {
 const handleShutdown = async () => {
     logger.warn('Shutting down...')
     bot.user!.setStatus('dnd')
-    await crimsonChat.handleShutdown()
     await bot.destroy()
     process.exit(0)
 }
