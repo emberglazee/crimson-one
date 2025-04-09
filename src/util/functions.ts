@@ -80,3 +80,10 @@ export function chance(percentage: number): boolean {
     if (clamped === 0) return false
     return Math.random() * 100 < clamped
 }
+
+export function hasProp<T extends object, K extends PropertyKey>(
+    obj: unknown,
+    prop: K
+): obj is T & Record<K, unknown> {
+    return typeof obj === 'object' && obj !== null && prop in obj
+}

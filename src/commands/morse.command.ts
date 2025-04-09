@@ -23,7 +23,7 @@ export default {
                 .setDescription('text to encode into morse code')
             )
         ),
-    async execute(interaction) {
+    async execute(interaction, { reply }) {
         try {
             const subcommand = interaction.options.getSubcommand(true)
             const morse = await import('morse')
@@ -32,18 +32,18 @@ export default {
                 case 'decode':
                     code = interaction.options.getString('code', true)
                     text = morse.decode(code)
-                    await interaction.reply(text)
+                    await reply(text)
                     return
                 case 'encode':
                     text = interaction.options.getString('text', true)
                     code = morse.encode(text)
-                    await interaction.reply(code)
+                    await reply(code)
                     return
             }
         } catch (e) {
             const error = e as Error
             logger.error(error.stack ?? error.message ?? error)
-            await interaction.reply(`${PING_EMBERGLAZE} something went wrong with the morse command -> \`${error.message ?? error}\`\n-# check the full error stack in the console, nerd`)
+            await reply(`${PING_EMBERGLAZE} something went wrong with the morse command -> \`${error.message ?? error}\`\n-# check the full error stack in the console, nerd`)
         }
     }
 } satisfies SlashCommand

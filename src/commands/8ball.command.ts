@@ -11,8 +11,7 @@ export default {
             .setName('question')
             .setDescription('The question you want to ask the magic 8ball.')
             .setRequired(true)
-        )
-        .addStringOption(so => so
+        ).addStringOption(so => so
             .setName('theme')
             .setDescription('Choose the theme of the answer.')
             .addChoices(
@@ -25,7 +24,7 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    async execute(interaction) {
+    async execute(interaction, { reply, editReply }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const question = interaction.options.getString('question', true)
         const theme = interaction.options.getString('theme', false)
@@ -90,11 +89,11 @@ export default {
         const msgAnswer = `🎱 **8ball says:** ${response}`
         const msgLoading = '🔮 *Shaking the magic 8ball...*'
 
-        await interaction.reply({
+        await reply({
             content: msgPrefix + msgLoading,
             flags: ephemeral ? MessageFlags.Ephemeral : undefined,
         })
         await sleep(randRange(600, 3000))
-        await interaction.editReply(msgPrefix + msgAnswer)
+        await editReply(msgPrefix + msgAnswer)
     }
 } satisfies SlashCommand

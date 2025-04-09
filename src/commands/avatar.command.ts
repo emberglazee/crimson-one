@@ -52,13 +52,13 @@ export default {
             .setRequired(false)
         ),
 
-    async execute(interaction) {
+    async execute(interaction, { reply }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const user = interaction.options.getUser('user', false) ?? interaction.user
         const raw = interaction.options.getBoolean('raw', false) ?? false
         const ext = interaction.options.getString('extension', false) as ImageExtension ?? 'png'
         const size = interaction.options.getNumber('size', false) as ImageSize ?? 1024
-        let guildOrGlobal = interaction.options.getString('guildorglobal', false) ?? 'guild'
+        const guildOrGlobal = interaction.options.getString('guildorglobal', false) ?? 'guild'
 
         let avatar = ''
         if (guildOrGlobal === 'guild') {
@@ -67,7 +67,7 @@ export default {
                 avatar = user.displayAvatarURL({ extension: ext, size: size })
             } else {
                 const member = await interaction.guild.members.fetch(user.id)
-                if (!member) await interaction.reply('❌ User not found in this server')
+                if (!member) await reply('❌ User not found in this server')
                 avatar = member.displayAvatarURL({ extension: ext, size: size })
             }
         } else if (guildOrGlobal === 'global') {
@@ -78,7 +78,7 @@ export default {
             response += '\n-# This is the global avatar, as the command was ran outside a server'
         }
         if (raw) {
-            await interaction.reply(avatar)
+            await reply(response)
             return
         }
         const embed = new EmbedBuilder()
@@ -90,7 +90,7 @@ export default {
                 text: 'This is the global avatar, as the command was ran outside a server'
             })
         }
-        await interaction.reply({
+        await reply({
             embeds: [embed],
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })

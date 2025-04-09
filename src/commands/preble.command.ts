@@ -10,12 +10,12 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    async execute(interaction) {
+    async execute(interaction, { deferReply, editReply }) {
         const epheremal = interaction.options.getBoolean('ephemeral', false)
-        await interaction.deferReply({
+        await deferReply({
             flags: epheremal ? MessageFlags.Ephemeral : undefined
         })
-        await interaction.editReply({
+        await editReply({
             files: [{
                 attachment: './data/preble.wav',
                 name: 'preble.wav'

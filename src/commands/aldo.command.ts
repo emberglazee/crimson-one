@@ -12,13 +12,13 @@ export default {
             .setDescription('Should the response show up only for you?')
             .setRequired(false)
         ),
-    async execute(interaction) {
+    async execute(interaction, { deferReply, editReply }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
-        await interaction.deferReply({
+        await deferReply({
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
         const url = await randomUnusualArticle().catch(() => '❌ Failed to get article')
-        await interaction.editReply(url)
+        await editReply(url)
     },
 } satisfies SlashCommand
 
