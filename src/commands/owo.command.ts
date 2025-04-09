@@ -14,7 +14,7 @@ export default {
             .setDescription('Should the message be ephemeral?')
             .setRequired(false)
         ),
-    async execute(interaction) {
+    async execute(interaction, { reply }) {
         const inputText = interaction.options.getString('text', true)
         const outputText = owoTranslate(inputText)
         const ephemeral = interaction.options.getBoolean('ephemeral') || false
@@ -23,12 +23,12 @@ export default {
             const buffer = Buffer.from(outputText, 'utf-8')
             const attachment = new AttachmentBuilder(buffer, { name: 'OwO.txt' })
 
-            await interaction.reply({
+            await reply({
                 files: [attachment],
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
         } else {
-            await interaction.reply({
+            await reply({
                 content: outputText,
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })

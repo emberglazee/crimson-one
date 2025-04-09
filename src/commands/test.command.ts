@@ -10,9 +10,9 @@ export default {
             .setDescription('Should the response show up only for you?')
             .setRequired(false)
         ),
-    async execute(interaction) {
+    async execute(interaction, { reply }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
-        await interaction.reply({
+        await reply({
             content: `Test command executed, ephemeral: ${ephemeral}`,
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })

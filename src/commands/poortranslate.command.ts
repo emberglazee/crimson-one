@@ -1,6 +1,5 @@
 import { SlashCommand } from '../modules/CommandManager'
 import {
-    ChatInputCommandInteraction,
     SlashCommandBuilder,
     MessageFlags
 } from 'discord.js'
@@ -25,7 +24,7 @@ export default {
             .setRequired(false)
         ),
 
-    async execute(interaction: ChatInputCommandInteraction) {
+    async execute(interaction, { deferReply, editReply }) {
         const time1 = Date.now()
         const inputText = interaction.options.getString('text', true)
         const randomizeChain = interaction.options.getBoolean('randomizechain') ?? false
@@ -45,8 +44,7 @@ export default {
             if (languages[languages.length - 1] !== 'en') languages.push('en')
         }
 
-        // Defer the reply to allow time for processing.
-        await interaction.deferReply({
+        await deferReply({
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
 
@@ -68,7 +66,7 @@ export default {
             if (currentStep > lastReportedStep) {
                 lastReportedStep = currentStep
                 const progressBar = createProgressBar(currentStep, totalSteps)
-                interaction.editReply(`Translating... ${progressBar} (${currentStep}/${totalSteps})`)
+                editReply(`Translating... ${progressBar} (${currentStep}/${totalSteps})`)
                     .catch(console.error)
             }
         }, 5000)
@@ -84,13 +82,13 @@ export default {
         } catch (error) {
             console.error('Translation error:', error)
             clearInterval(progressInterval)
-            await interaction.editReply({ content: `An error occurred during translation: ${error}` })
+            await editReply({ content: `An error occurred during translation: ${error}` })
             return
         }
 
         // Clear the interval and update with the final translation.
         clearInterval(progressInterval)
         const time2 = Date.now()
-        await interaction.editReply(`**Poorly translated:**\n${inputText}\n**into:**\n${translatedText}\n-# Time: ${(time2 - time1) / 1000}s`)
+        await editReply(`**Poorly translated:**\n${inputText}\n**into:**\n${translatedText}\n-# Time: ${(time2 - time1) / 1000}s`)
     }
 } satisfies SlashCommand

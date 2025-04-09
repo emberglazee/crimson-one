@@ -16,19 +16,19 @@ export default {
             .setDescription('Should the response show up only for you?')
             .setRequired(false)
         ),
-    async execute(interaction) {
+    async execute(interaction, { reply, deferReply, editReply }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
 
         const user = interaction.user
         if (user.id !== EMBERGLAZE_ID) {
-            await interaction.reply({
+            await reply({
                 content: '❌ You, solely, are responsible for this',
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
             return
         }
 
-        await interaction.deferReply({
+        await deferReply({
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
 
@@ -36,9 +36,9 @@ export default {
         try {
             const result = eval(code)
             const output = typeof result === 'string' ? result : inspect(result)
-            await interaction.editReply(`\`\`\`js\n${output}\n\`\`\``)
+            await editReply(`\`\`\`js\n${output}\n\`\`\``)
         } catch (error) {
-            await interaction.editReply(`\`\`\`js\n${error}\n\`\`\``)
+            await editReply(`\`\`\`js\n${error}\n\`\`\``)
         }
     }
 } satisfies SlashCommand

@@ -10,7 +10,7 @@ export const slashCommand = {
             .setDescription('The user to get info about (defaults to yourself)')
             .setRequired(false)
         ),
-    async execute(interaction) {
+    async execute(interaction, { reply }) {
         const targetUser = interaction.options.getUser('user') ?? interaction.user
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
@@ -27,14 +27,14 @@ export const slashCommand = {
                 embed.addFields(
                     { name: 'Joined Server', value: `<t:${Math.floor(member.joinedTimestamp! / 1000)}:R>`, inline: true },
                     { name: 'Nickname', value: member.nickname ?? 'None', inline: true },
-                    { name: 'Roles', value: member.roles.cache.size > 1 
+                    { name: 'Roles', value: member.roles.cache.size > 1
                         ? member.roles.cache.filter(role => role.id !== interaction.guild!.id).map(role => `<@&${role.id}>`).join(', ')
                         : 'None'
                     }
                 )
             }
         }
-        await interaction.reply({ embeds: [embed] })
+        await reply({ embeds: [embed] })
     }
 } satisfies SlashCommand
 
@@ -43,7 +43,7 @@ export const userContextMenuCommand = {
         .setName('User information')
         .setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     type: ApplicationCommandType.User,
-    async execute(interaction) {
+    async execute(interaction, { reply }) {
         const targetUser = interaction.targetUser
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
@@ -60,13 +60,13 @@ export const userContextMenuCommand = {
                 embed.addFields(
                     { name: 'Joined Server', value: `<t:${Math.floor(member.joinedTimestamp! / 1000)}:R>`, inline: true },
                     { name: 'Nickname', value: member.nickname ?? 'None', inline: true },
-                    { name: 'Roles', value: member.roles.cache.size > 1 
+                    { name: 'Roles', value: member.roles.cache.size > 1
                         ? member.roles.cache.filter(role => role.id !== interaction.guild!.id).map(role => `<@&${role.id}>`).join(', ')
                         : 'None'
                     }
                 )
             }
         }
-        await interaction.reply({ embeds: [embed] })
+        await reply({ embeds: [embed] })
     }
 } satisfies ContextMenuCommand<ApplicationCommandType.User>

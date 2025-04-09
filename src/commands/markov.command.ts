@@ -218,12 +218,12 @@ export default {
                 .setRequired(false)
             )
         ),
-    async execute(interaction) {
+    async execute(interaction, { reply, editReply, deferReply, followUp }) {
         const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
 
         if (!interaction.guild) {
             logger.info('Command used outside of a server')
-            await interaction.reply({
+            await reply({
                 content: '❌ This command can only be used in a server',
                 flags: MessageFlags.Ephemeral
             })
@@ -244,7 +244,7 @@ export default {
             // Validate channel is provided when source is 'channel'
             if (source === 'channel' && !channel) {
                 logger.info('Channel not provided for "Specific Channel" source')
-                await interaction.reply({
+                await reply({
                     content: '❌ You must specify a channel when using "Specific Channel" as the source',
                     flags: MessageFlags.Ephemeral
                 })
@@ -254,14 +254,14 @@ export default {
             // Validate channel is not provided for other sources
             if (source !== 'channel' && channel) {
                 logger.info('Channel provided for non-"Specific Channel" source')
-                await interaction.reply({
+                await reply({
                     content: '❌ Channel option should only be used with "Specific Channel" source',
                     flags: MessageFlags.Ephemeral
                 })
                 return
             }
 
-            await interaction.deferReply({ ephemeral })
+            await deferReply({ ephemeral })
 
             try {
                 logger.info(`Generating message with source: ${source}, user: ${user?.tag}, channel: ${channel?.name}, words: ${words}, seed: ${seed}`)
@@ -276,7 +276,7 @@ export default {
                 })
                 const timeEnd = Date.now()
                 logger.ok(`Generated message: ${result}`)
-                await interaction.editReply(
+                await editReply(
                     `${result}\n` +
                     `-# - Generated in ${timeEnd - timeStart}ms\n` +
                     `-# - Filters: ${[
@@ -288,7 +288,7 @@ export default {
                 )
             } catch (error) {
                 logger.warn(`Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`)
-                await interaction.editReply({
+                await editReply({
                     content: `❌ Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`
                 })
             }
@@ -300,7 +300,7 @@ export default {
             // Validate channel is provided when source is 'channel'
             if (source === 'channel' && !channel) {
                 logger.info('Channel not provided for "Specific Channel" source')
-                await interaction.reply({
+                await reply({
                     content: '❌ You must specify a channel when using "Specific Channel" as the source',
                     flags: MessageFlags.Ephemeral
                 })
@@ -310,14 +310,14 @@ export default {
             // Validate channel is not provided for other sources
             if (source !== 'channel' && channel) {
                 logger.info('Channel provided for non-"Specific Channel" source')
-                await interaction.reply({
+                await reply({
                     content: '❌ Channel option should only be used with "Specific Channel" source',
                     flags: MessageFlags.Ephemeral
                 })
                 return
             }
 
-            await interaction.deferReply({ ephemeral })
+            await deferReply({ ephemeral })
 
             try {
                 logger.info(`Getting Markov info with source: ${source}, user: ${user?.tag}, channel: ${channel?.name}`)
@@ -363,10 +363,10 @@ export default {
                 )
 
                 logger.ok(`Generated Markov info in ${timeEnd - timeStart}ms`)
-                await interaction.editReply({ embeds: [embed] })
+                await editReply({ embeds: [embed] })
             } catch (error) {
                 logger.warn(`Failed to get Markov info: ${error instanceof Error ? error.message : 'Unknown error'}`)
-                await interaction.editReply({
+                await editReply({
                     content: `❌ Failed to get Markov info: ${error instanceof Error ? error.message : 'Unknown error'}`
                 })
             }
@@ -388,7 +388,7 @@ export default {
                 replyContent += `\n💡 Using Discord User API to fetch the total message count.`
             }
 
-            await interaction.reply({
+            await reply({
                 content: replyContent,
                 ephemeral
             })
@@ -504,14 +504,14 @@ export default {
                 logger.warn(`Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
 
                 try {
-                    await interaction.editReply({
+                    await editReply({
                         content: `❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`
                     })
                 } catch (replyError) {
                     // If editReply fails, the token might have expired, so try to send a follow-up
                     logger.warn(`Failed to edit reply with error message: ${replyError instanceof Error ? replyError.message : 'Unknown error'}`)
                     try {
-                        await interaction.followUp({
+                        await followUp({
                             content: `❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`,
                             ephemeral
                         })

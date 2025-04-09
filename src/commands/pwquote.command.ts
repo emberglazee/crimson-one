@@ -52,29 +52,29 @@ export const slashCommand = {
             .setDescription('Make the response visible only to you')
             .setRequired(false)
         ),
-    async execute(interaction) {
-        let ephemeral = interaction.options.getBoolean('ephemeral', false)
+    async execute(interaction, { reply, deferReply, editReply }) {
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const speaker = interaction.options.getString('speaker', true)
         const quote = interaction.options.getString('quote', true)
         const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
         const roleColor = interaction.options.getString('rolecolor')
         const plainColor = interaction.options.getString('color')
-        const color = roleColor 
+        const color = roleColor
             ? ROLE_COLORS.find(c => c.name === roleColor)?.hex ?? null
-            : plainColor 
+            : plainColor
                 ? COLORS.find(c => c.name === plainColor)?.hex ?? null
                 : null
         const stretchGradient = interaction.options.getBoolean('stretch') ?? false
         const interpretNewlines = interaction.options.getBoolean('interpretNewlines') ?? true
         if (!color && gradient === 'none') {
-            await interaction.reply({
+            await reply({
                 content: '❌ You must provide either a color/role color or a gradient effect',
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
             return
         }
 
-        await interaction.deferReply({
+        await deferReply({
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
         const factory = QuoteImageFactory.getInstance()
@@ -82,11 +82,11 @@ export const slashCommand = {
         try {
             const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw', interpretNewlines)
             const attachment = new AttachmentBuilder(result.buffer).setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
-            await interaction.editReply({
+            await editReply({
                 files: [attachment]
             })
         } catch (error) {
-            await interaction.editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error'))
+            await editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
 } satisfies SlashCommand
@@ -96,24 +96,24 @@ export const contextMenuCommand = {
         .setName('Quick Project Wingman subtitle')
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
-    async execute(interaction) {
+    async execute(interaction, { deferReply, editReply }) {
         const speaker = interaction.targetMessage.member?.displayName || interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const quote = interaction.targetMessage.content
 
-        await interaction.deferReply()
+        await deferReply()
         const factory = QuoteImageFactory.getInstance()
         factory.setGuild(interaction.guild!)
         try {
             const result = await factory.createQuoteImage(speaker, quote, color, 'none', false, 'pw', true)
-            await interaction.editReply({
+            await editReply({
                 files: [
                     new AttachmentBuilder(result.buffer)
                         .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
                 ]
             })
         } catch (error) {
-            await interaction.editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error'))
+            await editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
 } satisfies ContextMenuCommand<ApplicationCommandType.Message>

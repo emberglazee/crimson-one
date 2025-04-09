@@ -15,17 +15,31 @@ import { readdir } from 'fs/promises'
 import type { Dirent } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { hasProp } from '../util/functions'
 const esmodules = !!import.meta.url
 
-export interface ISlashCommand {
+
+type SlashCommandHelpers = {
+    reply: ChatInputCommandInteraction['reply'],
+    deferReply: ChatInputCommandInteraction['deferReply'],
+    editReply: ChatInputCommandInteraction['editReply'],
+    followUp: ChatInputCommandInteraction['followUp'],
+    client: ChatInputCommandInteraction['client']
+}
+type SlashCommandProps = {
     data: SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommandGroup' | 'addSubcommand'> | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder
     permissions?: PermissionsBitField[]
-    execute: (interaction: ChatInputCommandInteraction) => Promise<void>
+    execute: (
+        interaction: ChatInputCommandInteraction,
+        helpers: SlashCommandHelpers
+    ) => Promise<void>
 }
+
+export interface ISlashCommand extends SlashCommandProps {}
 export abstract class SlashCommand implements ISlashCommand {
-    data!: SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommandGroup' | 'addSubcommand'> | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder
-    permissions?: PermissionsBitField[]
-    execute!: (interaction: ChatInputCommandInteraction) => Promise<void>
+    data!: SlashCommandProps['data']
+    permissions?: SlashCommandProps['permissions']
+    execute!: SlashCommandProps['execute']
 }
 
 export interface IGuildSlashCommand extends ISlashCommand {
@@ -35,21 +49,28 @@ export abstract class GuildSlashCommand extends SlashCommand implements IGuildSl
     guildId!: string
 }
 
-type ContextMenuInteractionType<T extends 2 | 3> = T extends 2 
-    ? UserContextMenuCommandInteraction 
-    : MessageContextMenuCommandInteraction
 
-export interface IContextMenuCommand<T extends 2 | 3 = 2 | 3> {
+
+type ContextMenuCommandProps<T extends 2 | 3 = 2 | 3> = {
     data: ContextMenuCommandBuilder
     type: T
-    execute: (interaction: ContextMenuInteractionType<T>) => Promise<void>
+    execute: (
+        interaction: ContextMenuInteractionType<T>,
+        helpers: SlashCommandHelpers
+    ) => Promise<void>
+}
+type ContextMenuInteractionType<T extends 2 | 3> = T extends 2
+    ? UserContextMenuCommandInteraction
+    : MessageContextMenuCommandInteraction
+
+export interface IContextMenuCommand<T extends 2 | 3 = 2 | 3> extends ContextMenuCommandProps<T> {}
+export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements IContextMenuCommand<T> {
+    data!: ContextMenuCommandProps<T>['data']
+    type!: ContextMenuCommandProps<T>['type']
+    execute!: ContextMenuCommandProps<T>['execute']
 }
 
-export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements IContextMenuCommand<T> {
-    data!: ContextMenuCommandBuilder
-    type!: T
-    execute!: (interaction: ContextMenuInteractionType<T>) => Promise<void>
-}
+
 
 export default class CommandHandler {
     private static instance: CommandHandler
@@ -189,13 +210,21 @@ export default class CommandHandler {
             throw new Error(`Command ${interaction.commandName} does not have an execute method`)
         }
 
+        const helpers: SlashCommandHelpers = {
+            reply: interaction.reply.bind(interaction),
+            deferReply: interaction.deferReply.bind(interaction),
+            editReply: interaction.editReply.bind(interaction),
+            followUp: interaction.followUp.bind(interaction),
+            client: interaction.client
+        }
+
         if (interaction.isChatInputCommand() && CommandHandler.isSlashCommand(command)) {
-            await command.execute(interaction)
+            await command.execute(interaction, helpers)
         } else if (interaction.isContextMenuCommand() && CommandHandler.isContextMenuCommand(command)) {
             if (interaction.isUserContextMenuCommand() && command.type === 2) {
-                await (command.execute as (i: UserContextMenuCommandInteraction) => Promise<void>)(interaction)
+                await (command.execute as (i: UserContextMenuCommandInteraction, helpers: SlashCommandHelpers) => Promise<void>)(interaction, helpers)
             } else if (interaction.isMessageContextMenuCommand() && command.type === 3) {
-                await (command.execute as (i: MessageContextMenuCommandInteraction) => Promise<void>)(interaction)
+                await (command.execute as (i: MessageContextMenuCommandInteraction, helpers: SlashCommandHelpers) => Promise<void>)(interaction, helpers)
             } else {
                 throw new Error('Context menu command type mismatch with interaction type')
             }
@@ -248,17 +277,35 @@ export default class CommandHandler {
         logger.ok('{refreshAllGuildCommands}')
     }
 
-    public static isSlashCommand = (obj: any): obj is SlashCommand => {
-        return obj.data instanceof SlashCommandBuilder
+    public static isSlashCommand = (obj: unknown): obj is SlashCommand => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return hasProp(obj, 'data') && (obj as any).data instanceof SlashCommandBuilder
     }
-    public static isGuildSlashCommand = (obj: any): obj is GuildSlashCommand => {
-        return CommandHandler.isSlashCommand(obj) && 'guildId' in obj
+    public static isGuildSlashCommand = (obj: unknown): obj is GuildSlashCommand => {
+        return (
+            CommandHandler.isSlashCommand(obj) &&
+            'guildId' in obj &&
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            typeof (obj as any).guildId === 'string'
+        )
     }
-    public static isGlobalSlashCommand = (obj: any): obj is SlashCommand => {
-        return CommandHandler.isSlashCommand(obj) && !('guildId' in obj)
+    public static isGlobalSlashCommand = (obj: unknown): obj is SlashCommand => {
+        return (
+            CommandHandler.isSlashCommand(obj) &&
+            !('guildId' in obj)
+        )
     }
-    public static isContextMenuCommand = (obj: any): obj is ContextMenuCommand => {
-        return obj.data instanceof ContextMenuCommandBuilder && (obj.type === 2 || obj.type === 3)
+    public static isContextMenuCommand = (obj: unknown): obj is ContextMenuCommand => {
+        return (
+            typeof obj === 'object' &&
+            obj !== null &&
+            'data' in obj &&
+            'type' in obj &&
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (obj as any).data instanceof ContextMenuCommandBuilder &&
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ((obj as any).type === 2 || (obj as any).type === 3)
+        )
     }
 }
 

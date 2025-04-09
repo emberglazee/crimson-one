@@ -11,17 +11,17 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    async execute(interaction) {
+    async execute(interaction, { deferReply, editReply, client }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
-        await interaction.deferReply({
+        await deferReply({
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
         const { heapUsed, heapTotal, rss } = process.memoryUsage()
         const uptime = Math.floor(process.uptime())
         const uptimeStr = `${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`
 
-        const application = await interaction.client.application.fetch()
-        await interaction.editReply({
+        const application = await client.application.fetch()
+        await editReply({
             embeds: [{
                 title: '🤖 Bot Information',
                 fields: [

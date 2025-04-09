@@ -22,7 +22,7 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    async execute(interaction) {
+    async execute(interaction, { reply }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const user = interaction.options.getUser('user') || interaction.user
         const channel = interaction.channel
@@ -32,13 +32,13 @@ export default {
         const roll = Math.floor(Math.random() * sides) + 1
         const isNat = roll === 1 || roll === sides
         const rollText = isNat ? `nat ${roll}` : roll.toString()
-        let message = action 
-            ? `${user} rolls ${rollText} (🎲 d${sides}) for ${action}` 
+        let message = action
+            ? `${user} rolls ${rollText} (🎲 d${sides}) for ${action}`
             : `${user} rolls ${rollText} (🎲 d${sides})`
         if (channel && channel.id === '311334325402599425') {
             message += '\n-# dont spam the command here or else'
         }
-        await interaction.reply({
+        await reply({
             content: message,
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })

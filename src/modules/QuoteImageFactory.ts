@@ -1,4 +1,4 @@
-import { createCanvas, loadImage, registerFont } from 'canvas'
+import { createCanvas, loadImage } from 'canvas'
 import { Logger } from '../util/logger'
 import { Buffer } from 'buffer'
 import { spawn } from 'child_process'
@@ -307,7 +307,7 @@ export class QuoteImageFactory {
 
         const usernames = new Map(
             await Promise.all(
-                [...new Set(allPings)].map(async id => 
+                [...new Set(allPings)].map(async id =>
                     [id, await this.fetchUsername(id)] as [string, string]
                 )
             )
@@ -365,8 +365,8 @@ export class QuoteImageFactory {
 
             const measureWordWidth = (word: string, startIndex: number, emojis: ReturnType<typeof parseEmojis>) => {
                 let width = measureCtx.measureText(word).width
-                const wordEmojis = emojis.filter(e => 
-                    e.index >= startIndex && 
+                const wordEmojis = emojis.filter(e =>
+                    e.index >= startIndex &&
                     e.index < startIndex + word.length
                 )
                 for (const emoji of wordEmojis) {
@@ -389,14 +389,14 @@ export class QuoteImageFactory {
 
                 for (const line of lines) {
                     let lineWidth = 0
-                    const lineEmojis = emojis.filter(e => 
-                        e.index >= currentIndex && 
+                    const lineEmojis = emojis.filter(e =>
+                        e.index >= currentIndex &&
                         e.index < currentIndex + line.length
                     )
 
                     const words = line.split(' ')
                     for (const word of words) {
-                        lineWidth += measureWordWidth(word, currentIndex, emojis) + 
+                        lineWidth += measureWordWidth(word, currentIndex, emojis) +
                             (lineWidth > 0 ? measureCtx.measureText(' ').width : 0)
                     }
 
@@ -613,8 +613,8 @@ export class QuoteImageFactory {
                 }
 
                 const speakerColor = color || '#FFFFFF'
-                const gradientColors = gradient === 'trans' ? TRANS_COLORS 
-                    : gradient === 'rainbow' ? RAINBOW_COLORS 
+                const gradientColors = gradient === 'trans' ? TRANS_COLORS
+                    : gradient === 'rainbow' ? RAINBOW_COLORS
                     : ITALIAN_COLORS
 
                 ctx.clearRect(0, 0, width, height)
@@ -633,7 +633,7 @@ export class QuoteImageFactory {
                         const lineStart = speakerStartIndices[i]
                         const nextLineStart = speakerStartIndices[i + 1] || speaker.length
 
-                        const lineEmojis = speakerEmojis.filter(e => 
+                        const lineEmojis = speakerEmojis.filter(e =>
                             e.index >= lineStart && e.index < nextLineStart
                         ).sort((a, b) => a.index - b.index)
 
@@ -674,8 +674,8 @@ export class QuoteImageFactory {
                                 currentX += pingWidth
                             } else {
                                 // Existing emoji drawing code
-                                const loadedEmoji = emojiImages.find(e => 
-                                    (emoji.id && e.id === emoji.id) || 
+                                const loadedEmoji = emojiImages.find(e =>
+                                    (emoji.id && e.id === emoji.id) ||
                                     (!emoji.id && e.full === emoji.full)
                                 )
                                 if (loadedEmoji) {
@@ -699,7 +699,7 @@ export class QuoteImageFactory {
                         let x = width / 2 - ctx.measureText(line).width / 2
                         for (let i = 0; i < line.length; i++) {
                             const char = line[i]
-                            const colorIndex = stretchGradient 
+                            const colorIndex = stretchGradient
                                 ? Math.floor((i / line.length) * gradientColors.length)
                                 : i % gradientColors.length
                             ctx.fillStyle = gradientColors[colorIndex]
@@ -722,7 +722,7 @@ export class QuoteImageFactory {
                     const lineStart = lineStartIndices[i]
                     const nextLineStart = lineStartIndices[i + 1] || quote.length
 
-                    const lineEmojis = quoteEmojis.filter(e => 
+                    const lineEmojis = quoteEmojis.filter(e =>
                         e.index >= lineStart && e.index < nextLineStart
                     ).sort((a, b) => a.index - b.index)
 
@@ -779,9 +779,9 @@ export class QuoteImageFactory {
                             currentX += pingWidth
                         } else {
                             // Find and draw the loaded emoji image
-                            const loadedEmoji = emojiImages.find(e => 
+                            const loadedEmoji = emojiImages.find(e =>
                                 // For Discord emojis, match by ID
-                                (emoji.id && e.id === emoji.id) || 
+                                (emoji.id && e.id === emoji.id) ||
                                 // For Twemojis, match by full text
                                 (!emoji.id && e.full === emoji.full)
                             )
@@ -824,7 +824,7 @@ export class QuoteImageFactory {
                 let targetFramerate = 20 // default
                 if (uniqueAnimatedIds.size === 1) {
                     const firstAnimatedEmoji = animatedEmojis[0] as any
-                    targetFramerate = firstAnimatedEmoji.frameDelays ? 
+                    targetFramerate = firstAnimatedEmoji.frameDelays ?
                         Math.round(1000 / firstAnimatedEmoji.frameDelays[0]) : 20
                 }
 

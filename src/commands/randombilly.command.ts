@@ -16,12 +16,12 @@ export default {
             .setDescription('Should the response show up only for you?')
             .setRequired(false)
         ),
-    async execute(interaction) {
+    async execute(interaction, { deferReply, editReply, reply }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
 
         let deferred = false
         if (!emojis.length) {
-            await interaction.deferReply({
+            await deferReply({
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
             deferred = true
@@ -34,7 +34,9 @@ export default {
         const emojiName = Object.keys(emoji)[0]
         const emojiID = Object.values(emoji)[0]
         const str = `<:${emojiName}:${emojiID}>`
-        deferred ? await interaction.editReply(str) : await interaction.reply({
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        deferred ? await editReply(str) : await reply({
             content: str,
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
