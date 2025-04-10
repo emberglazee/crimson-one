@@ -7,6 +7,7 @@ import { Channel } from './entities/Channel'
 import { Guild as ChainGuild } from './entities/Guild'
 import { User as ChainUser } from './entities/User'
 import { Tag } from './entities/Tag'
+import { inspect } from 'util'
 
 const logger = Logger.new('MarkovChain.DataSource')
 
@@ -131,7 +132,7 @@ export class DataSource {
             query.andWhere('message.authorId = :authorId', { authorId: options.user.id })
         }
 
-        logger.info(`[getMessages] query: ${query.getSql()}`)
+        logger.info(`[getMessages]\nquery: ${query.getSql()}\nparameters: ${inspect(query.getParameters(), true, Infinity, true)}`)
 
         return query.getMany()
     }
