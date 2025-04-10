@@ -72,7 +72,7 @@ export class DataSource {
                     Channel,
                     chunk.map(msg => ({
                         id: msg.channelId,
-                        guildId: guild.id,
+                        guild: { id: guild.id },
                         name: (msg.channel as TextChannel).name,
                         fullyCollected: false
                     })),
@@ -85,9 +85,9 @@ export class DataSource {
                     chunk.map(msg => ({
                         id: msg.id,
                         text: msg.content,
-                        authorId: msg.author.id,
-                        channelId: msg.channelId,
-                        guildId: guild.id,
+                        author: { id: msg.author.id },
+                        channel: { id: msg.channelId },
+                        guild: { id: guild.id },
                         timestamp: msg.createdTimestamp
                     }))
                 )
