@@ -233,8 +233,13 @@ export default class CommandHandler {
                 throw new Error('Command type mismatch with interaction type')
             }
         } catch (err) {
-            logger.warn(`{executeCommand} Error in ${chalk.yellow(command.data.name)} => ${chalk.red(err instanceof Error ? err.message : err)}`)
-            logger.warn(`{executeCommand} Error catched here for debugging, throwing it again to continue the command execution pipeline`)
+            const error = err as Error
+            logger.warn(`{executeCommand} Error in ${chalk.yellow(command.data.name)} => ${chalk.red(error.message)}`)
+            if (error.message === 'Unknown interaction') {
+                logger.warn(`{executeCommand} Error is "Unknown interaction", did the interaction time out on Discord's end?`)
+                return
+            }
+            logger.warn(`{executeCommand} Error isn't "Unknown interaction", throwing it again, let "handleError()" deal with it`)
             throw err
         }
     }
