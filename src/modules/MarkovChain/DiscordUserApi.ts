@@ -17,7 +17,7 @@ export async function getChannelMessageCount(guildId: string, channelId: string)
 
     try {
         const url = `https://discord.com/api/v9/guilds/${guildId}/messages/search?channel_id=${channelId}`
-        
+
         const response = await fetch(url, {
             headers: {
                 'Authorization': userToken,
@@ -32,13 +32,12 @@ export async function getChannelMessageCount(guildId: string, channelId: string)
         }
 
         const data = await response.json()
-        
-        // The total_results property contains the total message count
+
         if (data && typeof data.total_results === 'number') {
             logger.ok(`Found ${chalk.yellow(data.total_results)} total messages in channel ${chalk.yellow(channelId)}`)
             return data.total_results
         }
-        
+
         return null
     } catch (error) {
         logger.warn(`Failed to fetch message count: ${error instanceof Error ? error.message : 'Unknown error'}`)
