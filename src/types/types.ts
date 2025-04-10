@@ -3,7 +3,6 @@ import {
     ChatInputCommandInteraction, type APIInteractionDataResolvedChannel, Client, User,
     TextChannel
 } from 'discord.js'
-import type { ChatCompletionContentPart } from 'openai/resources/index.mjs'
 
 export type GuildIdResolvable = string | Guild | BaseInteraction | GuildChannel | Message
 export type UserIdResolvable = GuildMember | User | string | Message
@@ -89,12 +88,6 @@ export interface FormattedUserMessage {
         targetText: string
     }
     userStatus: UserStatus | 'unknown'
-}
-
-// Additional types needed for message processing
-export interface ChatMessage {
-    role: 'system' | 'assistant' | 'user'
-    content?: string | ChatCompletionContentPart[]
 }
 
 export interface ProcessedCommand {
