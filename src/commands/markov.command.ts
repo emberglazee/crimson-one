@@ -3,6 +3,7 @@ import type { SlashCommand } from '../modules/CommandManager'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
 import { DataSource } from '../modules/MarkovChain/DataSource'
 import { Logger } from '../util/logger'
+import { inspect } from 'util'
 
 const logger = Logger.new('/markov')
 
@@ -383,6 +384,7 @@ export default {
 
 
         } else if (subcommand === 'collect') {
+            logger.info(`{collect} Interaction options: ${inspect(interaction.options.resolved, true, Infinity, true)}`)
             const user = interaction.options.getUser('user') ?? undefined
             const collectEntireChannel = interaction.options.getBoolean('entirechannel') ?? false
             const limit = collectEntireChannel ? 'entire' : (interaction.options.getInteger('limit') ?? 100_000_000)
