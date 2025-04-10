@@ -8,7 +8,7 @@ import { Guild as ChainGuild } from './entities/Guild'
 import { User as ChainUser } from './entities/User'
 import { Tag } from './entities/Tag'
 
-const logger = Logger.new('MarkovChain | DataSource')
+const logger = Logger.new('MarkovChain.DataSource')
 
 export class DataSource {
     private static instance: DataSource
@@ -114,10 +114,10 @@ export class DataSource {
         await this.init()
 
         const query = this.orm
-        .getRepository(Message)
-        .createQueryBuilder('message')
-        .leftJoinAndSelect('message.author', 'author')
-        .leftJoinAndSelect('message.channel', 'channel')
+            .getRepository(Message)
+            .createQueryBuilder('message')
+            .leftJoinAndSelect('message.author', 'author')
+            .leftJoinAndSelect('message.channel', 'channel')
 
         if (options.global) {
             // No additional filters for global scope
@@ -130,6 +130,8 @@ export class DataSource {
         if (options.user) {
             query.andWhere('message.authorId = :authorId', { authorId: options.user.id })
         }
+
+        logger.info(`[getMessages] query: ${query.getSql()}`)
 
         return query.getMany()
     }
