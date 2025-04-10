@@ -392,15 +392,17 @@ export default {
 
             const allChannels = interaction.options.getBoolean('allchannels') ?? false
             if (allChannels) {
-                const textChannels = interaction.guild.channels.cache
-                    .filter(c =>
+                logger.info(`{collect} "allChannels" is true, collecting from every channel`)
+                const textChannels = (await interaction.guild.channels.fetch())
+                    .filter(c => c &&
                         (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) &&
                         c.viewable
                     ) as Map<string, TextChannel>
+                logger.ok(`{collect} Fetched ${textChannels.size} text channels`)
 
                 const threadPromises = [...textChannels.values()].map(async c => {
                     try {
-                        const threads = await c.threads.fetchActive()
+                        const threads = await c.threads.fetch()
                         return threads.threads.filter(t => t.viewable)
                     } catch {
                         return []
@@ -408,15 +410,17 @@ export default {
                 })
 
                 const threads = (await Promise.all(threadPromises)).flatMap(t => [...t.values()])
+                logger.ok(`{collect} Fetched ${threads.length} threads`)
 
                 const allTargets = [...textChannels.values(), ...threads]
+                logger.info(`{collect} ${textChannels.size} + ${threads.length} = ${textChannels.size + threads.length} total collection targets`)
 
                 await reply({
                     content: `📡 Starting collection from **${allTargets.length} channels and threads**...`,
                     flags: ephemeral ? MessageFlags.Ephemeral : undefined
                 })
 
-                for (const targetChannel of allTargets) {
+                for await (const targetChannel of allTargets) {
                     try {
                         logger.info(`Collecting from #${targetChannel.name} (${targetChannel.id})`)
                         const count = await markov.collectMessages(targetChannel as TextChannel, {
