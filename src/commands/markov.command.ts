@@ -317,7 +317,7 @@ export default {
                 return
             }
 
-            await deferReply({ ephemeral })
+            await deferReply({ flags: ephemeral ? MessageFlags.Ephemeral : undefined })
 
             try {
                 logger.info(`Getting Markov info with source: ${source}, user: ${user?.tag}, channel: ${channel?.name}`)
@@ -390,7 +390,7 @@ export default {
 
             await reply({
                 content: replyContent,
-                ephemeral
+                flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
 
             try {
@@ -513,7 +513,7 @@ export default {
                     try {
                         await followUp({
                             content: `❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                            ephemeral
+                            flags: ephemeral ? MessageFlags.Ephemeral : undefined
                         })
                     } catch (finalError) {
                         logger.error(`Failed to send any error message: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`)
