@@ -47,6 +47,7 @@ export const screamOnSight = new ScreamOnSight()
 
 bot.once('ready', async () => {
     logger.info(`Logged in as ${chalk.yellow(bot.user!.tag)}`)
+    bot.user!.setStatus('dnd')
 
     // Set client on QuoteImageFactory
     QuoteImageFactory.getInstance().setClient(bot)
@@ -79,6 +80,7 @@ bot.once('ready', async () => {
     }
 
     logger.ok('Commands initialized, bot ready')
+    bot.user!.setStatus('online')
 })
 
 // Add shutdown handlers
