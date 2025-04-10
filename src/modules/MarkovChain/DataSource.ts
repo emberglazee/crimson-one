@@ -119,13 +119,14 @@ export class DataSource {
             .createQueryBuilder('message')
             .leftJoinAndSelect('message.author', 'author')
             .leftJoinAndSelect('message.channel', 'channel')
+            .leftJoinAndSelect('message.guild', 'guild')
 
         if (options.global) {
             // No additional filters for global scope
         } else if (options.guild) {
-            query.where('message.guildId = :guildId', { guildId: options.guild.id })
+            query.where('guild.id = :guildId', { guildId: options.guild.id })
         } else if (options.channel) {
-            query.where('message.channelId = :channelId', { channelId: options.channel.id })
+            query.where('channel.id = :channelId', { channelId: options.channel.id })
         }
 
         if (options.user) {
