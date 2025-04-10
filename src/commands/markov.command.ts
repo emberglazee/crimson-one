@@ -224,6 +224,8 @@ export default {
             )
         ),
     async execute(interaction, { reply, editReply, deferReply, followUp }) {
+        logger.info(`Interaction subcommand: "${interaction.options.getSubcommand()}"`)
+        logger.info(`Interaction options: ${inspect(interaction.options.resolved, true, 2, true)}`)
         const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
 
         if (!interaction.guild) {
@@ -384,7 +386,6 @@ export default {
 
 
         } else if (subcommand === 'collect') {
-            logger.info(`{collect} Interaction options: ${inspect(interaction.options.resolved, true, 2, true)}`)
             const user = interaction.options.getUser('user') ?? undefined
             const collectEntireChannel = interaction.options.getBoolean('entirechannel') ?? false
             const limit = collectEntireChannel ? 'entire' : (interaction.options.getInteger('limit') ?? 100_000_000)
