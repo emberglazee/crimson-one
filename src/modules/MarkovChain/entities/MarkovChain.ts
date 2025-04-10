@@ -50,7 +50,7 @@ export class ChainBuilder {
         if (seed && seed.length > 0) {
             // Try to start with the last word of the seed if it exists in the chain
             const lastSeedWord = seed[seed.length - 1]
-            current = this.chain.has(lastSeedWord) 
+            current = this.chain.has(lastSeedWord)
                 ? lastSeedWord
                 : Array.from(this.chain.keys())[Math.floor(Math.random() * this.chain.size)]
         } else {
