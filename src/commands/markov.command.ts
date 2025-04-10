@@ -384,7 +384,7 @@ export default {
 
 
         } else if (subcommand === 'collect') {
-            logger.info(`{collect} Interaction options: ${inspect(interaction.options.resolved, true, Infinity, true)}`)
+            logger.info(`{collect} Interaction options: ${inspect(interaction.options.resolved, true, 2, true)}`)
             const user = interaction.options.getUser('user') ?? undefined
             const collectEntireChannel = interaction.options.getBoolean('entirechannel') ?? false
             const limit = collectEntireChannel ? 'entire' : (interaction.options.getInteger('limit') ?? 100_000_000)
