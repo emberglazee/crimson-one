@@ -21,7 +21,7 @@ export default {
         const user = interaction.user
         if (user.id !== EMBERGLAZE_ID) {
             await reply({
-                content: '❌ You, solely, are responsible for this',
+                content: '❌ You, solely, are responsible for this.',
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
             return

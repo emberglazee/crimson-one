@@ -213,6 +213,10 @@ export default {
                 .setDescription('Collect ALL messages from the channel (overrides limit)')
                 .setRequired(false)
             ).addBooleanOption(bo => bo
+                .setName('allchannels')
+                .setDescription('Collect messages from ALL accessible text channels (including threads)')
+                .setRequired(false)
+            ).addBooleanOption(bo => bo
                 .setName('ephemeral')
                 .setDescription('Only show the response to you')
                 .setRequired(false)
@@ -230,9 +234,11 @@ export default {
             return
         }
 
-        const subcommand = interaction.options.getSubcommand()
+        const subcommand = interaction.options.getSubcommand() as 'generate' | 'info' | 'collect'
         const markov = MarkovChat.getInstance()
         const dataSource = DataSource.getInstance()
+
+
 
         if (subcommand === 'generate') {
             const user = interaction.options.getUser('user') ?? undefined
@@ -292,6 +298,9 @@ export default {
                     content: `❌ Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`
                 })
             }
+
+
+
         } else if (subcommand === 'info') {
             const user = interaction.options.getUser('user') ?? undefined
             const source = interaction.options.getString('source') ?? 'guild'
@@ -370,18 +379,75 @@ export default {
                     content: `❌ Failed to get Markov info: ${error instanceof Error ? error.message : 'Unknown error'}`
                 })
             }
+
+
+
         } else if (subcommand === 'collect') {
-            const channel = interaction.options.getChannel('channel', true) as TextChannel
             const user = interaction.options.getUser('user') ?? undefined
             const collectEntireChannel = interaction.options.getBoolean('entirechannel') ?? false
             const limit = collectEntireChannel ? 'entire' : (interaction.options.getInteger('limit') ?? 100_000_000)
 
+            const allChannels = interaction.options.getBoolean('allchannels') ?? false
+            if (allChannels) {
+                const textChannels = interaction.guild.channels.cache
+                    .filter(c =>
+                        (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) &&
+                        c.viewable
+                    ) as Map<string, TextChannel>
+
+                const threadPromises = [...textChannels.values()].map(async c => {
+                    try {
+                        const threads = await c.threads.fetchActive()
+                        return threads.threads.filter(t => t.viewable)
+                    } catch {
+                        return []
+                    }
+                })
+
+                const threads = (await Promise.all(threadPromises)).flatMap(t => [...t.values()])
+
+                const allTargets = [...textChannels.values(), ...threads]
+
+                await reply({
+                    content: `📡 Starting collection from **${allTargets.length} channels and threads**...`,
+                    flags: ephemeral ? MessageFlags.Ephemeral : undefined
+                })
+
+                for (const targetChannel of allTargets) {
+                    try {
+                        logger.info(`Collecting from #${targetChannel.name} (${targetChannel.id})`)
+                        const count = await markov.collectMessages(targetChannel as TextChannel, {
+                            user,
+                            limit,
+                        })
+                        logger.ok(`Collected ${count} messages from #${targetChannel.name}`)
+                    } catch (err) {
+                        logger.warn(`Failed to collect from #${targetChannel.name}: ${err instanceof Error ? err.message : err}`)
+                    }
+                }
+
+                await followUp({
+                    content: `✅ Finished collecting from all channels and threads.`,
+                    flags: ephemeral ? MessageFlags.Ephemeral : undefined
+                })
+                return
+            }
+            const channel = interaction.options.getChannel('channel') as TextChannel
+
+            if (!allChannels && !channel) {
+                await reply({
+                    content: '❌ You must specify a channel unless `allchannels` is enabled.',
+                    flags: ephemeral ? MessageFlags.Ephemeral : undefined
+                })
+                return
+            }
+
             // Check if channel was previously fully collected
-            const wasFullyCollected = dataSource.isChannelFullyCollected(interaction.guild.id, channel.id)
+            const wasFullyCollected = await dataSource.isChannelFullyCollected(interaction.guild.id, channel.id)
 
             // Reply with appropriate message
             let replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'ALL' : limit} messages from ${channel}${user ? ` by ${user}` : ''}...`
-            if (await wasFullyCollected) {
+            if (wasFullyCollected) {
                 replyContent += `\n⚠️ This channel was already fully collected before. Only collecting new messages since the last collection.`
             }
             if (collectEntireChannel) {
@@ -453,7 +519,7 @@ export default {
 
                         progressMessage += `📚 Batches processed: ${progress.batchNumber}`
 
-                        if (await wasFullyCollected) {
+                        if (wasFullyCollected) {
                             progressMessage += `\n⚠️ Only collecting new messages since last collection.`
                         }
 
