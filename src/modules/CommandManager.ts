@@ -206,30 +206,36 @@ export default class CommandHandler {
     }
 
     private async executeCommand(command: SlashCommand | ContextMenuCommand<2 | 3>, interaction: CommandInteraction | ContextMenuCommandInteraction) {
-        if (!command.execute) {
-            throw new Error(`Command ${interaction.commandName} does not have an execute method`)
-        }
-
-        const helpers: SlashCommandHelpers = {
-            reply: interaction.reply.bind(interaction),
-            deferReply: interaction.deferReply.bind(interaction),
-            editReply: interaction.editReply.bind(interaction),
-            followUp: interaction.followUp.bind(interaction),
-            client: interaction.client
-        }
-
-        if (interaction.isChatInputCommand() && CommandHandler.isSlashCommand(command)) {
-            await command.execute(interaction, helpers)
-        } else if (interaction.isContextMenuCommand() && CommandHandler.isContextMenuCommand(command)) {
-            if (interaction.isUserContextMenuCommand() && command.type === 2) {
-                await (command.execute as (i: UserContextMenuCommandInteraction, helpers: SlashCommandHelpers) => Promise<void>)(interaction, helpers)
-            } else if (interaction.isMessageContextMenuCommand() && command.type === 3) {
-                await (command.execute as (i: MessageContextMenuCommandInteraction, helpers: SlashCommandHelpers) => Promise<void>)(interaction, helpers)
-            } else {
-                throw new Error('Context menu command type mismatch with interaction type')
+        try {
+            if (!command.execute) {
+                throw new Error(`Command ${interaction.commandName} does not have an execute method`)
             }
-        } else {
-            throw new Error('Command type mismatch with interaction type')
+
+            const helpers: SlashCommandHelpers = {
+                reply: interaction.reply.bind(interaction),
+                deferReply: interaction.deferReply.bind(interaction),
+                editReply: interaction.editReply.bind(interaction),
+                followUp: interaction.followUp.bind(interaction),
+                client: interaction.client
+            }
+
+            if (interaction.isChatInputCommand() && CommandHandler.isSlashCommand(command)) {
+                await command.execute(interaction, helpers)
+            } else if (interaction.isContextMenuCommand() && CommandHandler.isContextMenuCommand(command)) {
+                if (interaction.isUserContextMenuCommand() && command.type === 2) {
+                    await (command.execute as (i: UserContextMenuCommandInteraction, helpers: SlashCommandHelpers) => Promise<void>)(interaction, helpers)
+                } else if (interaction.isMessageContextMenuCommand() && command.type === 3) {
+                    await (command.execute as (i: MessageContextMenuCommandInteraction, helpers: SlashCommandHelpers) => Promise<void>)(interaction, helpers)
+                } else {
+                    throw new Error('Context menu command type mismatch with interaction type')
+                }
+            } else {
+                throw new Error('Command type mismatch with interaction type')
+            }
+        } catch (err) {
+            logger.warn(`{executeCommand} Error in ${chalk.yellow(command.data.name)} => ${chalk.red(err instanceof Error ? err.message : err)}`)
+            logger.warn(`{executeCommand} Error catched here for debugging, throwing it again to continue the command execution pipeline`)
+            throw err
         }
     }
 
