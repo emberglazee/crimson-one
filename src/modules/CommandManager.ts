@@ -234,9 +234,13 @@ export default class CommandHandler {
     }
 
     private handleError(e: Error, interaction: CommandInteraction | ContextMenuCommandInteraction) {
-        if (!interaction.deferred) interaction.reply(`❌ Deferred interraction error: \`${e.message}\``)
-        else interaction.editReply(`❌ Interaction error: \`${e.message}\``)
-        logger.error(`{handleInteraction} Error in ${chalk.yellow(interaction.commandName)}: ${chalk.red(e.message)}`)
+        logger.warn(`{handleInteraction} Error in ${chalk.yellow(interaction.commandName)}: ${chalk.red(e.message)}`)
+        try {
+            if (!interaction.deferred) interaction.reply(`❌ Deferred interraction error: \`${e.message}\``)
+            else interaction.editReply(`❌ Interaction error: \`${e.message}\``)
+        } catch (err) {
+            logger.warn(`{handleInteraction} Could not reply to the interaction to signal the error; did the interaction time out? [${err instanceof Error ? err.message : err}]`)
+        }
     }
 
     public async refreshGlobalCommands() {
