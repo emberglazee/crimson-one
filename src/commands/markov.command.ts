@@ -69,7 +69,7 @@ class InteractionMessageManager implements MessageUpdater {
             // Create a follow-up message that we'll update from now on
             const followUp = await this.interaction.followUp({
                 content: `🔄 Continuing operation...\nUpdates will now appear in this message.`,
-                ephemeral: this.ephemeral
+                flags: this.ephemeral ? MessageFlags.Ephemeral : undefined
             })
 
             this.followUpMessage = followUp
@@ -120,7 +120,7 @@ class InteractionMessageManager implements MessageUpdater {
             try {
                 await this.interaction.followUp({
                     content: `${content}\n⚠️ (Posted as a new message because the original interaction expired)`,
-                    ephemeral: this.ephemeral
+                    flags: this.ephemeral ? MessageFlags.Ephemeral : undefined
                 })
             } catch (finalError) {
                 logger.error(`Failed to send any completion message: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`)
