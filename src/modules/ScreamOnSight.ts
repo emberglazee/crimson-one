@@ -92,7 +92,7 @@ export class ScreamOnSight {
         {
             pattern: [/\bash\b/gmi, /ashleigh/gmi],
             async action(message) {
-                await message.reply(randArr([
+                if (chance(50)) await message.reply(randArr([
                     'https://cdn.discordapp.com/attachments/1267488539503886386/1331344509036003338/file.jpg?ex=67e25af2&is=67e10972&hm=847306a43bf42323c2ffa3e1b641d1a4bd1c3a737d89a526e84df7e034694dc0&',
                     'https://media.discordapp.net/attachments/1351770874625130577/1351770895559164004/image.png?ex=67e2d680&is=67e18500&hm=235591676beae2c24528840dc66a2b78ee4fbef5fb16747edb0783b8ef561cb3&format=webp&quality=lossless&',
                     'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/segsymg2.png',
@@ -101,19 +101,18 @@ export class ScreamOnSight {
                     'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/xp4356ma.png',
                     'https://r2.e-z.host/553257c7-6ffa-45c8-9d1c-531ea7d264db/1g2x2058.png',
                     'https://cdn.discordapp.com/attachments/982138135653793804/1355768084924989540/image.png?ex=67ea20ec&is=67e8cf6c&hm=9342543ff6bdec05d9e8e5346f08a9cbe9bfe9772632e0d8989ec1b4c41658da&',
-                    'https://cdn.discordapp.com/attachments/982138135653793804/1356649100799381504/image.png?ex=67ed556e&is=67ec03ee&hm=605345c9967419e100425cbff6cb7038ee695917873bd1078f0eb28224b75838&'
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1356649100799381504/image.png?ex=67ed556e&is=67ec03ee&hm=605345c9967419e100425cbff6cb7038ee695917873bd1078f0eb28224b75838&',
+                    'https://cdn.discordapp.com/attachments/1267488539503886386/1362140010224029696/Screenshot_20250331_171833_Discord.png?ex=68014f3d&is=67fffdbd&hm=bf1471b101589b11f81978e3fc15226656ccb347e5b4da4b04a45f4e4deaba05&',
+                    'https://cdn.discordapp.com/attachments/1267488539503886386/1362140010559705260/image.png?ex=68014f3d&is=67fffdbd&hm=ff8f1cd3bf09fd0d8dca408a43c81f89ebcfa2fbb33aaeae1a07eddc0d74455c&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1362142160606199988/image.png?ex=6801513e&is=67ffffbe&hm=3920645809825cd0a04615a6d78beae4e44dcbdd89532af8b95cc0390d4c85fa&'
                 ]))
             },
         },
         {
             pattern: [/fish/gmi, /\byou know what that means\b/gmi, /effic/gmi /* intended pun in pronounciation: 'effish' (efficient => ef_fish_ient) */],
             async action(message) {
-                // 90% chance to react instead of sending gif
-                if (chance(90)) {
-                    await message.react('🐟')
-                    return
-                }
-                await message.reply(randArr([
+                await message.react('🐟')
+                if (chance(10)) await message.reply(randArr([
                     'https://tenor.com/view/fish-gas-station-you-know-what-that-means-gif-1113666392679473186',
                     'https://tenor.com/view/fish-meme-you-know-what-that-means-gif-12503956388971591256',
                     'https://cdn.discordapp.com/attachments/1331556083776487444/1350097724204122212/caption.gif?ex=67e2aefd&is=67e15d7d&hm=aad1f8a3b156e93e539c279544f985eab49277c6100c4104ccaf3a7151cb325d&',
@@ -125,6 +124,15 @@ export class ScreamOnSight {
             pattern: [/\bi miss my wife\b/gmi],
             async action(message) {
                 await message.reply('https://tenor.com/view/dance-gecko-gif-21029304')
+            },
+        },
+        {
+            pattern: [/\bhungry\b/],
+            async action(message) {
+                await message.reply(randArr([
+                    'https://tenor.com/view/horse-you-have-alerted-the-horse-alert-alert-horse-horse-alert-gif-10675569724654458517',
+                    'https://tenor.com/view/order-of-iris-how-hungry-horse-honse-gif-14835892721220569918'
+                ]))
             },
         }
     ]
