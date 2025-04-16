@@ -1,22 +1,25 @@
+const esmodules = !!import.meta.url
+
 import { Logger } from '../util/logger'
-const logger = Logger.new('CommandManager')
+const logger = new Logger('CommandManager')
 
 import {
     SlashCommandBuilder, ChatInputCommandInteraction, PermissionsBitField,
     ContextMenuCommandBuilder, ContextMenuCommandInteraction, Client,
     type SlashCommandSubcommandsOnlyBuilder, CommandInteraction,
-    type SlashCommandOptionsOnlyBuilder,
-    UserContextMenuCommandInteraction,
+    type SlashCommandOptionsOnlyBuilder, UserContextMenuCommandInteraction,
     MessageContextMenuCommandInteraction
 } from 'discord.js'
+
 import chalk from 'chalk'
+const { yellow, red } = chalk
 
 import { readdir } from 'fs/promises'
 import type { Dirent } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { hasProp } from '../util/functions'
-const esmodules = !!import.meta.url
+import { operationTracker } from './OperationTracker'
 
 
 type SlashCommandHelpers = {
@@ -101,11 +104,11 @@ export default class CommandHandler {
         this.initialized = true
         const initEndTime = Date.now()
         const totalTime = (initEndTime - initStartTime) / 1000
-        logger.ok(`{init} Total time: ${chalk.yellow(totalTime)}s`)
+        logger.ok(`{init} Total time: ${yellow(totalTime)}s`)
     }
 
     private async importCommand(file: Dirent) {
-        logger.info(`{importCommand} Importing ${chalk.yellow(file.name)}...`)
+        logger.info(`{importCommand} Importing ${yellow(file.name)}...`)
         const startTime = Date.now()
         try {
             const importedModule = await import(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, `../commands/${file.name}`))
@@ -122,27 +125,27 @@ export default class CommandHandler {
 
                 if (CommandHandler.isContextMenuCommand(command)) {
                     const type = command.type === 2 ? 'user' : 'message'
-                    logger.ok(`{importCommand} Found ${chalk.yellow(type)} context menu command ${chalk.yellow(command.data.name)}`)
+                    logger.ok(`{importCommand} Found ${yellow(type)} context menu command ${yellow(command.data.name)}`)
                     command.data.setType(command.type)
                     this.contextMenuCommands.push(command)
                     commands.push(command)
                 } else if (CommandHandler.isGuildSlashCommand(command)) {
-                    logger.ok(`{importCommand} Found guild slash command /${chalk.yellow(command.data.name)} for guild ${chalk.yellow(command.guildId)}`)
+                    logger.ok(`{importCommand} Found guild slash command /${yellow(command.data.name)} for guild ${yellow(command.guildId)}`)
                     this.guildCommands.push(command)
                     commands.push(command)
                 } else if (CommandHandler.isGlobalSlashCommand(command)) {
-                    logger.ok(`{importCommand} Found slash command /${chalk.yellow(command.data.name)}`)
+                    logger.ok(`{importCommand} Found slash command /${yellow(command.data.name)}`)
                     this.globalCommands.push(command)
                     commands.push(command)
                 }
             }
 
             if (commands.length === 0) {
-                logger.warn(`{importCommand} No valid commands found in ${chalk.yellow(file.name)}`)
+                logger.warn(`{importCommand} No valid commands found in ${yellow(file.name)}`)
                 return null
             }
 
-            logger.ok(`{importCommand} Imported ${chalk.yellow(commands.length)} commands from file ${chalk.yellow(file.name)} in ${chalk.yellow((Date.now() - startTime) / 1000)}s`)
+            logger.ok(`{importCommand} Imported ${yellow(commands.length)} commands from file ${yellow(file.name)} in ${yellow((Date.now() - startTime) / 1000)}s`)
             return commands
         } catch (err) {
             console.log(err)
@@ -151,9 +154,9 @@ export default class CommandHandler {
     }
 
     private async loadCommands(dir: string) {
-        logger.info(`{loadCommands} Reading commands from ${chalk.yellow(dir)}...`)
+        logger.info(`{loadCommands} Reading commands from ${yellow(dir)}...`)
         const files = await readdir(dir, { withFileTypes: true })
-        logger.info(`{loadCommands} Found ${chalk.yellow(files.length)} files in ${chalk.yellow(dir)}`)
+        logger.info(`{loadCommands} Found ${yellow(files.length)} files in ${yellow(dir)}`)
         for (const file of files) {
             if (file.isDirectory()) {
                 await this.loadCommands(path.join(dir, file.name))
@@ -161,7 +164,7 @@ export default class CommandHandler {
                 await this.importCommand(file)
             }
         }
-        logger.ok(`{loadCommands} Finished loading commands in ${chalk.yellow(dir)}`)
+        logger.ok(`{loadCommands} Finished loading commands in ${yellow(dir)}`)
     }
 
     public async handleInteraction(interaction: CommandInteraction | ContextMenuCommandInteraction): Promise<void> {
@@ -169,7 +172,7 @@ export default class CommandHandler {
         const matchingCommand = this.findMatchingCommand(interaction)
         if (!matchingCommand) {
             const errorMessage = `Command ${interaction.commandName} not found`
-            logger.warn(`{handleInteraction} Unknown command /${chalk.yellow(interaction.commandName)}`)
+            logger.warn(`{handleInteraction} Unknown command /${yellow(interaction.commandName)}`)
             const error = new Error(errorMessage)
             this.handleError(error, interaction)
             return
@@ -206,51 +209,57 @@ export default class CommandHandler {
     }
 
     private async executeCommand(command: SlashCommand | ContextMenuCommand<2 | 3>, interaction: CommandInteraction | ContextMenuCommandInteraction) {
-        try {
-            if (!command.execute) {
-                throw new Error(`Command ${interaction.commandName} does not have an execute method`)
-            }
+        return operationTracker.track(
+            `command:${interaction.commandName}`,
+            'COMMAND',
+            async () => {
+                try {
+                    if (!command.execute) {
+                        throw new Error(`Command ${interaction.commandName} does not have an execute method`)
+                    }
 
-            const helpers: SlashCommandHelpers = {
-                reply: interaction.reply.bind(interaction),
-                deferReply: interaction.deferReply.bind(interaction),
-                editReply: interaction.editReply.bind(interaction),
-                followUp: interaction.followUp.bind(interaction),
-                client: interaction.client
-            }
+                    const helpers: SlashCommandHelpers = {
+                        reply: interaction.reply.bind(interaction),
+                        deferReply: interaction.deferReply.bind(interaction),
+                        editReply: interaction.editReply.bind(interaction),
+                        followUp: interaction.followUp.bind(interaction),
+                        client: interaction.client
+                    }
 
-            if (interaction.isChatInputCommand() && CommandHandler.isSlashCommand(command)) {
-                await command.execute(interaction, helpers)
-            } else if (interaction.isContextMenuCommand() && CommandHandler.isContextMenuCommand(command)) {
-                if (interaction.isUserContextMenuCommand() && command.type === 2) {
-                    await (command.execute as (i: UserContextMenuCommandInteraction, helpers: SlashCommandHelpers) => Promise<void>)(interaction, helpers)
-                } else if (interaction.isMessageContextMenuCommand() && command.type === 3) {
-                    await (command.execute as (i: MessageContextMenuCommandInteraction, helpers: SlashCommandHelpers) => Promise<void>)(interaction, helpers)
-                } else {
-                    throw new Error('Context menu command type mismatch with interaction type')
+                    if (interaction.isChatInputCommand() && CommandHandler.isSlashCommand(command)) {
+                        await command.execute(interaction, helpers)
+                    } else if (interaction.isContextMenuCommand() && CommandHandler.isContextMenuCommand(command)) {
+                        if (interaction.isUserContextMenuCommand() && command.type === 2) {
+                            await (command.execute as (i: UserContextMenuCommandInteraction, helpers: SlashCommandHelpers) => Promise<void>)(interaction, helpers)
+                        } else if (interaction.isMessageContextMenuCommand() && command.type === 3) {
+                            await (command.execute as (i: MessageContextMenuCommandInteraction, helpers: SlashCommandHelpers) => Promise<void>)(interaction, helpers)
+                        } else {
+                            throw new Error('Context menu command type mismatch with interaction type')
+                        }
+                    } else {
+                        throw new Error('Command type mismatch with interaction type')
+                    }
+                } catch (err) {
+                    const error = err as Error
+                    logger.warn(`{executeCommand} Error in ${yellow(command.data.name)} => ${red(error.message)}`)
+                    if (error.message === 'Unknown interaction') {
+                        logger.warn(`{executeCommand} Error is "Unknown interaction", did the interaction time out on Discord's end?`)
+                        return
+                    }
+                    logger.warn(`{executeCommand} Error isn't "Unknown interaction", throwing it again, let "handleError()" deal with it`)
+                    throw err
                 }
-            } else {
-                throw new Error('Command type mismatch with interaction type')
             }
-        } catch (err) {
-            const error = err as Error
-            logger.warn(`{executeCommand} Error in ${chalk.yellow(command.data.name)} => ${chalk.red(error.message)}`)
-            if (error.message === 'Unknown interaction') {
-                logger.warn(`{executeCommand} Error is "Unknown interaction", did the interaction time out on Discord's end?`)
-                return
-            }
-            logger.warn(`{executeCommand} Error isn't "Unknown interaction", throwing it again, let "handleError()" deal with it`)
-            throw err
-        }
+        )
     }
 
     private handleError(e: Error, interaction: CommandInteraction | ContextMenuCommandInteraction) {
-        logger.warn(`{handleInteraction} Error in ${chalk.yellow(interaction.commandName)}: ${chalk.red(e.message)}`)
+        logger.warn(`{handleInteraction} Error in ${yellow(interaction.commandName)}: ${red(e.message)}`)
         try {
             if (!interaction.deferred) interaction.reply(`❌ Deferred interraction error: \`${e.message}\``)
             else interaction.editReply(`❌ Interaction error: \`${e.message}\``)
         } catch (err) {
-            logger.warn(`{handleInteraction} Could not reply to the interaction to signal the error; did the interaction time out? [${err instanceof Error ? err.message : err}]`)
+            logger.warn(`{handleInteraction} Could not reply to the interaction to signal the error; did the interaction time out? [${red(err instanceof Error ? err.message : String(err))}]`)
         }
     }
 
@@ -273,13 +282,13 @@ export default class CommandHandler {
         logger.info(`{refreshGuildCommands}...`)
         const guild = await this.client.guilds.fetch(guildId)
         if (!guild) {
-            logger.error(`{refreshGuildCommands} ${chalk.yellow(guildId)}!`)
+            logger.error(`{refreshGuildCommands} ${yellow(guildId)}!`)
             return
         }
-        logger.info(`{refreshGuildCommands} ${chalk.yellow(guildId)} - ${chalk.yellow(guild.name)}`)
+        logger.info(`{refreshGuildCommands} ${yellow(guildId)} - ${yellow(guild.name)}`)
         const guildCommands = this.guildCommands.filter(command => command.guildId === guildId)
         await guild.commands.set(guildCommands.map(command => command.data))
-        logger.ok(`{refreshGuildCommands} ${chalk.yellow(guildId)} - ${chalk.yellow(guild.name)}`)
+        logger.ok(`{refreshGuildCommands} ${yellow(guildId)} - ${yellow(guild.name)}`)
     }
     public async refreshAllGuildCommands() {
         if (!this.initialized) throw new ClassNotInitializedError()

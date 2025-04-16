@@ -1,7 +1,8 @@
 import { Logger } from '../../util/logger'
-import chalk from 'chalk'
+const logger = Logger.new('MarkovChain | DiscordUserApi')
 
-const logger = Logger.new('MarkovChain.DiscordUserApi')
+import chalk from 'chalk'
+const { yellow, red } = chalk
 
 /**
  * Fetches the total message count from a Discord channel using the Discord User API
@@ -27,20 +28,20 @@ export async function getChannelMessageCount(guildId: string, channelId: string)
 
         if (!response.ok) {
             const errorText = await response.text()
-            logger.warn(`Discord API error: ${response.status} - ${errorText}`)
+            logger.warn(`Discord API error: ${red(response.status)} - ${red(errorText)}`)
             return null
         }
 
         const data = await response.json()
 
         if (data && typeof data.total_results === 'number') {
-            logger.ok(`Found ${chalk.yellow(data.total_results)} total messages in channel ${chalk.yellow(channelId)}`)
+            logger.ok(`Found ${yellow(data.total_results)} total messages in channel ${yellow(channelId)}`)
             return data.total_results
         }
 
         return null
     } catch (error) {
-        logger.warn(`Failed to fetch message count: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        logger.warn(`Failed to fetch message count: ${red(error instanceof Error ? error.message : String(error))}`)
         return null
     }
 }

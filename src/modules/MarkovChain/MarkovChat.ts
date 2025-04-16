@@ -1,12 +1,14 @@
+import { Logger } from '../../util/logger'
+const logger = Logger.new('MarkovChain | Chat')
+
 import { Client, Guild, Message as DiscordMessage, TextChannel, User } from 'discord.js'
 import { EventEmitter } from 'tseep'
 import { ChainBuilder } from './entities'
 import { DataSource } from './DataSource'
-import { Logger } from '../../util/logger'
-import chalk from 'chalk'
 import { getChannelMessageCount } from './DiscordUserApi'
 
-const logger = Logger.new('MarkovChain | Chat')
+import chalk from 'chalk'
+const { yellow } = chalk
 
 interface MarkovGenerateOptions {
     guild?: Guild
@@ -96,7 +98,7 @@ export class MarkovChat extends EventEmitter<{
             logger.info(`Attempting to fetch total message count for channel ${channel.id}`)
             totalMessageCount = await getChannelMessageCount(channel.guild.id, channel.id)
             if (totalMessageCount) {
-                logger.ok(`Total messages in channel according to Discord API: ${chalk.yellow(totalMessageCount)}`)
+                logger.ok(`Total messages in channel according to Discord API: ${yellow(totalMessageCount)}`)
             } else {
                 logger.warn('Could not get message count from Discord API. Progress percentage will not be available.')
             }
@@ -114,7 +116,7 @@ export class MarkovChat extends EventEmitter<{
             }
             if (lastId) fetchOptions.before = lastId
 
-            logger.info(`Fetching batch #${chalk.yellow(batchCount + 1)} (${chalk.yellow(fetchOptions.limit)} messages)`)
+            logger.info(`Fetching batch #${yellow(batchCount + 1)} (${yellow(fetchOptions.limit)} messages)`)
             const batch = await channel.messages.fetch(fetchOptions)
             if (!batch.size) break
 
@@ -127,7 +129,7 @@ export class MarkovChat extends EventEmitter<{
                 // Check if we've found a message that already exists in our database
                 for (const [id] of validMessages) {
                     if (existingMessageIds.has(id)) {
-                        logger.info(`Found existing message with ID ${chalk.yellow(id)}. Stopping collection.`)
+                        logger.info(`Found existing message with ID ${yellow(id)}. Stopping collection.`)
                         foundExistingMessage = true
                         break
                     }
@@ -181,7 +183,7 @@ export class MarkovChat extends EventEmitter<{
 
         if (messages.length > 0) {
             await this.dataSource.addMessages(messages, channel.guild, isEntireChannel ? channel.id : undefined)
-            logger.ok(`Collected ${chalk.yellow(messages.length)} messages from ${chalk.yellow(channel.name)}${isEntireChannel ? ' (entire channel)' : ''}`)
+            logger.ok(`Collected ${yellow(messages.length)} messages from ${yellow(channel.name)}${isEntireChannel ? ' (entire channel)' : ''}`)
         }
 
         // Emit completion event

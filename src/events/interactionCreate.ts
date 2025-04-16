@@ -1,8 +1,11 @@
-import { Client } from 'discord.js'
 import { Logger } from '../util/logger'
+const logger = new Logger('events.interactionCreate')
+
+import { Client } from 'discord.js'
 import CommandHandler from '../modules/CommandManager'
+
 import chalk from 'chalk'
-const logger = Logger.new('event.interactionCreate')
+const { red } = chalk
 
 export default function onInteractionCreate(client: Client) {
     client.on('interactionCreate', async interaction => {
@@ -13,7 +16,7 @@ export default function onInteractionCreate(client: Client) {
         }
 
         commandHandler.handleInteraction(interaction).catch(err => {
-            logger.warn(`Error while handling interaction!\n${chalk.red(err.stack)}`)
+            logger.warn(`Error while handling interaction!\n${red(err.stack)}`)
         })
     })
 }

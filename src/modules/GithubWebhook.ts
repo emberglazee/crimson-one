@@ -5,7 +5,9 @@ import crypto from 'crypto'
 import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
 import { Logger } from '../util/logger'
 import type { GitHubPushEvent } from '../types/types'
+
 import chalk from 'chalk'
+const { yellow } = chalk
 
 const logger = Logger.new('GithubWebhook')
 
@@ -68,7 +70,7 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
         })
 
         await this.start()
-        logger.ok(`Github webhook initialized and listening on port ${chalk.yellow(this.port)}`)
+        logger.ok(`Github webhook initialized and listening on port ${yellow(this.port)}`)
     }
 
     private verifySignature(payload: string, signature: string): boolean {
