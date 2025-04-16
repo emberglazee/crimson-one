@@ -1,7 +1,8 @@
+import { Logger } from '../../util/logger'
+const logger = Logger.new('MarkovChain | DataSource')
+
 import { Guild, Message as DiscordMessage, TextChannel, User } from 'discord.js'
 import { DataSource as ORMDataSource } from 'typeorm'
-import { Logger } from '../../util/logger'
-import chalk from 'chalk'
 import { Message } from './entities/Message'
 import { Channel } from './entities/Channel'
 import { Guild as ChainGuild } from './entities/Guild'
@@ -9,7 +10,8 @@ import { User as ChainUser } from './entities/User'
 import { Tag } from './entities/Tag'
 import { inspect } from 'util'
 
-const logger = Logger.new('MarkovChain.DataSource')
+import chalk from 'chalk'
+const { yellow } = chalk
 
 export class DataSource {
     private static instance: DataSource
@@ -45,19 +47,19 @@ export class DataSource {
         await this.init()
 
         const BATCH_SIZE = 100
-        logger.info(`{addMessages} BATCH_SIZE = ${chalk.yellow(BATCH_SIZE)}`)
+        logger.info(`{addMessages} BATCH_SIZE = ${yellow(BATCH_SIZE)}`)
 
         return this.orm.transaction(async manager => {
             // Upsert guild
             await manager.upsert(ChainGuild, {
                 id: guild.id
             }, ['id'])
-            logger.ok(`{addMessages} Guild ${chalk.yellow(guild.id)} upserted`)
+            logger.ok(`{addMessages} Guild ${yellow(guild.id)} upserted`)
 
             // Process in batches
             logger.info('{addMessages} Beginning to process batches')
             for (let i = 0; i < messages.length; i += BATCH_SIZE) {
-                logger.info(`{addMessages} Processing batch ${chalk.yellow(i)}`)
+                logger.info(`{addMessages} Processing batch ${yellow(i)}`)
                 const chunk = messages.slice(i, i + BATCH_SIZE)
 
                 // Upsert users
@@ -99,7 +101,7 @@ export class DataSource {
                     { id: fullyCollectedChannelId },
                     { fullyCollected: true }
                 )
-                logger.ok(`{addMessages} Marked channel ${chalk.yellow(fullyCollectedChannelId)} as fully collected`)
+                logger.ok(`{addMessages} Marked channel ${yellow(fullyCollectedChannelId)} as fully collected`)
             }
             logger.ok('{addMessages} Finished!')
         })

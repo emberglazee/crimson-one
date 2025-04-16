@@ -1,19 +1,22 @@
 import { Logger } from './util/logger'
-const logger = Logger.new()
+const logger = new Logger()
 logger.info('Starting bot')
 
 import { readdir } from 'fs/promises'
 import path from 'path'
 import { Client, IntentsBitField, Partials } from 'discord.js'
+import type { DiscordEventListener } from './types/types'
+
 import chalk from 'chalk'
+const { yellow, red } = chalk
 
 import CommandHandler from './modules/CommandManager'
 import QuoteFactory from './modules/QuoteFactory'
 import { GithubWebhook } from './modules/GithubWebhook'
-import type { DiscordEventListener } from './types/types'
 import { MarkovChat } from './modules/MarkovChain/MarkovChat'
 import { AWACSFeed } from './modules/AWACSFeed'
 import { ScreamOnSight } from './modules/ScreamOnSight'
+import { gracefulShutdown } from './modules/GracefulShutdown'
 
 import { registerFont } from 'canvas'
 import { QuoteImageFactory } from './modules/QuoteImageFactory'
@@ -47,6 +50,8 @@ export const screamOnSight = new ScreamOnSight()
 
 bot.once('ready', async () => {
     logger.info(`Logged in as ${chalk.yellow(bot.user!.tag)}`)
+    gracefulShutdown.setClient(bot)
+    gracefulShutdown.registerShutdownHandlers()
     bot.user!.setStatus('dnd')
 
     // Set client on QuoteImageFactory
@@ -83,29 +88,23 @@ bot.once('ready', async () => {
     bot.user!.setStatus('online')
 })
 
-// Add shutdown handlers
-const handleShutdown = async () => {
-    logger.warn('Shutting down...')
-    bot.user!.setStatus('dnd')
-    await bot.destroy()
-    process.exit(0)
-}
-
-process.on('SIGINT', handleShutdown)
-process.on('SIGTERM', handleShutdown)
-process.on('SIGUSR2', handleShutdown) // For pm2 restarts
+// Handle uncaught exceptions
 process.on('uncaughtException', async err => {
-    logger.error(`Uncaught exception! -> ${chalk.red(err.message)}`)
-    await handleShutdown()
+    logger.error(`Uncaught exception: ${red(err.message)}`)
+    await gracefulShutdown.shutdown('uncaughtException')
+})
+process.on('unhandledRejection', async (reason, promise) => {
+    logger.error(`Unhandled rejection at: ${promise}, reason: ${reason}`)
+    await gracefulShutdown.shutdown('unhandledRejection')
 })
 
 bot.rest.on('rateLimited', rateLimitInfo => {
     logger.warn(
         'REST rate limit!\n'+
-        `  Timeout:     ${chalk.yellow(rateLimitInfo.sublimitTimeout)}\n`+
-        `  Limit:       ${chalk.yellow(rateLimitInfo.limit)}\n`+
-        `  Method:      ${chalk.yellow(rateLimitInfo.method)}\n`+
-        `  Retry after: ${chalk.yellow(rateLimitInfo.retryAfter)}`
+        `  Timeout:     ${yellow(rateLimitInfo.sublimitTimeout)}\n`+
+        `  Limit:       ${yellow(rateLimitInfo.limit)}\n`+
+        `  Method:      ${yellow(rateLimitInfo.method)}\n`+
+        `  Retry after: ${yellow(rateLimitInfo.retryAfter)}`
     )
 })
 

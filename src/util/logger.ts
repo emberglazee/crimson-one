@@ -1,9 +1,10 @@
 import { EventEmitter } from 'tseep'
-import chalk from 'chalk'
 import fs from 'fs'
 import path from 'path'
 import url from 'url'
 
+import chalk from 'chalk'
+const { yellow, red, cyan, green } = chalk
 // Force colors to be enabled
 chalk.level = 2
 
@@ -72,10 +73,10 @@ export function formatDate() {
 function logoutput(level: 'err' | 'warn' | 'info' | 'ok', data: JSONResolvable, module?: string, formatting = false) {
     let str = ''
     const displayLevelsColored = {
-        'err' : chalk.red(' err'),
-        'warn': chalk.yellow('warn'),
-        'info': chalk.cyan('info'),
-        'ok'  : chalk.green('  ok')
+        'err' : red(' err'),
+        'warn': yellow('warn'),
+        'info': cyan('info'),
+        'ok'  : green('  ok')
     }
     const displayLevels = {
         'err' : ' err',
