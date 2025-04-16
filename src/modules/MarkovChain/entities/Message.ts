@@ -1,4 +1,4 @@
-import { Column, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryColumn } from 'typeorm'
+import { Column, Entity, Index, JoinTable, ManyToMany, ManyToOne, PrimaryColumn } from 'typeorm'
 
 import { Tag } from './Tag'
 import { User, type User as UserType } from './User'
@@ -17,9 +17,11 @@ export class Message {
     author!: UserType
 
     @ManyToOne(() => Channel, channel => channel.messages)
+    @Index()
     channel!: ChannelType
 
     @ManyToOne(() => Guild, guild => guild.messages)
+    @Index()
     guild!: GuildType
 
     @ManyToMany(() => Tag)

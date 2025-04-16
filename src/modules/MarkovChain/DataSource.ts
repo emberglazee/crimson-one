@@ -51,47 +51,32 @@ export class DataSource {
                 id: guild.id
             }, ['id'])
 
-            logger.info('Beginning to upsert users, channels and messages in chunks of 500')
-            // Process messages in chunks of 500
-            for (let i = 0; i < messages.length; i += 500) {
-                const chunk = messages.slice(i, i + 500)
+            logger.info('Preparing to upsert users, channels, and messages')
+            const usersToUpsert = messages.map(msg => ({
+                id: msg.author.id,
+                username: msg.author.username,
+                discriminator: msg.author.discriminator
+            }))
+            const channelsToUpsert = messages.map(msg => ({
+                id: msg.channelId,
+                guild: { id: guild.id },
+                name: (msg.channel as TextChannel).name,
+                fullyCollected: false
+            }))
+            const messagesToInsert = messages.map(msg => ({
+                id: msg.id,
+                text: msg.content,
+                author: { id: msg.author.id },
+                channel: { id: msg.channelId },
+                guild: { id: guild.id },
+                timestamp: msg.createdTimestamp
+            }))
 
-                // Upsert users first
-                await manager.upsert(
-                    ChainUser,
-                    chunk.map(msg => ({
-                        id: msg.author.id,
-                        username: msg.author.username,
-                        discriminator: msg.author.discriminator
-                    })),
-                    ['id']
-                )
-
-                // Upsert channels
-                await manager.upsert(
-                    Channel,
-                    chunk.map(msg => ({
-                        id: msg.channelId,
-                        guild: { id: guild.id },
-                        name: (msg.channel as TextChannel).name,
-                        fullyCollected: false
-                    })),
-                    ['id']
-                )
-
-                // Insert messages
-                await manager.insert(
-                    Message,
-                    chunk.map(msg => ({
-                        id: msg.id,
-                        text: msg.content,
-                        author: { id: msg.author.id },
-                        channel: { id: msg.channelId },
-                        guild: { id: guild.id },
-                        timestamp: msg.createdTimestamp
-                    }))
-                )
-            }
+            // Perform upserts in bulk
+            logger.info('Upserting users, channels, and messages in bulk...')
+            await manager.upsert(ChainUser, usersToUpsert, ['id'])
+            await manager.upsert(Channel, channelsToUpsert, ['id'])
+            await manager.insert(Message, messagesToInsert)
             logger.ok('User, channel, and message upsert completed')
 
             // Mark channel as fully collected if specified
