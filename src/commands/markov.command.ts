@@ -60,8 +60,7 @@ class InteractionMessageManager implements MessageUpdater {
             // First update the original message to inform users
             await this.interaction.editReply(
                 `⏳ Operation in progress...\n` +
-                `⚠️ This operation is taking longer than 14 minutes. ` +
-                `Real-time updates will continue in a follow-up message to avoid token expiration.`
+                `⚠️ *This is taking longer than 14 minutes. Real-time updates will continue in a follow-up message.*`
             ).catch((err: Error) => {
                 logger.warn(`Failed to update original message about timeout: ${err.message}`)
             })
