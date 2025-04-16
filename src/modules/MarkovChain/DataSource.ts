@@ -38,46 +38,59 @@ export class DataSource {
 
         await this.orm.initialize()
         this.initialized = true
-        logger.ok('SQLite database initialized')
+        logger.ok('{init} SQLite database initialized')
     }
 
     public async addMessages(messages: DiscordMessage[], guild: Guild, fullyCollectedChannelId?: string) {
         await this.init()
 
+        const BATCH_SIZE = 100
+        logger.info(`{addMessages} BATCH_SIZE = ${chalk.yellow(BATCH_SIZE)}`)
+
         return this.orm.transaction(async manager => {
             // Upsert guild
-            logger.info(`Upserting guild ${guild.id}`)
             await manager.upsert(ChainGuild, {
                 id: guild.id
             }, ['id'])
+            logger.ok(`{addMessages} Guild ${chalk.yellow(guild.id)} upserted`)
 
-            logger.info('Preparing to upsert users, channels, and messages')
-            const usersToUpsert = messages.map(msg => ({
-                id: msg.author.id,
-                username: msg.author.username,
-                discriminator: msg.author.discriminator
-            }))
-            const channelsToUpsert = messages.map(msg => ({
-                id: msg.channelId,
-                guild: { id: guild.id },
-                name: (msg.channel as TextChannel).name,
-                fullyCollected: false
-            }))
-            const messagesToInsert = messages.map(msg => ({
-                id: msg.id,
-                text: msg.content,
-                author: { id: msg.author.id },
-                channel: { id: msg.channelId },
-                guild: { id: guild.id },
-                timestamp: msg.createdTimestamp
-            }))
+            // Process in batches
+            logger.info('{addMessages} Beginning to process batches')
+            for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+                logger.info(`{addMessages} Processing batch ${chalk.yellow(i)}`)
+                const chunk = messages.slice(i, i + BATCH_SIZE)
 
-            // Perform upserts in bulk
-            logger.info('Upserting users, channels, and messages in bulk...')
-            await manager.upsert(ChainUser, usersToUpsert, ['id'])
-            await manager.upsert(Channel, channelsToUpsert, ['id'])
-            await manager.insert(Message, messagesToInsert)
-            logger.ok('User, channel, and message upsert completed')
+                // Upsert users
+                const usersToUpsert = chunk.map(msg => ({
+                    id: msg.author.id,
+                    username: msg.author.username,
+                    discriminator: msg.author.discriminator
+                }))
+                await manager.upsert(ChainUser, usersToUpsert, ['id'])
+                logger.ok('{addMessages} Users upserted')
+
+                // Upsert channels
+                const channelsToUpsert = chunk.map(msg => ({
+                    id: msg.channelId,
+                    guild: { id: guild.id },
+                    name: (msg.channel as TextChannel).name,
+                    fullyCollected: false
+                }))
+                await manager.upsert(Channel, channelsToUpsert, ['id'])
+                logger.ok('{addMessages} Channels upserted')
+
+                // Insert messages
+                const messagesToInsert = chunk.map(msg => ({
+                    id: msg.id,
+                    text: msg.content,
+                    author: { id: msg.author.id },
+                    channel: { id: msg.channelId },
+                    guild: { id: guild.id },
+                    timestamp: msg.createdTimestamp
+                }))
+                await manager.insert(Message, messagesToInsert)
+                logger.ok('{addMessages} Messages inserted, batch processed')
+            }
 
             // Mark channel as fully collected if specified
             if (fullyCollectedChannelId) {
@@ -86,8 +99,9 @@ export class DataSource {
                     { id: fullyCollectedChannelId },
                     { fullyCollected: true }
                 )
-                logger.ok(`Marked channel ${chalk.yellow(fullyCollectedChannelId)} as fully collected`)
+                logger.ok(`{addMessages} Marked channel ${chalk.yellow(fullyCollectedChannelId)} as fully collected`)
             }
+            logger.ok('{addMessages} Finished!')
         })
     }
 
