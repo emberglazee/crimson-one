@@ -1,7 +1,7 @@
 import { Logger, yellow } from '../../util/logger'
 const logger = Logger.new('MarkovChain | Chat')
 
-import { Client, Guild, Message as DiscordMessage, TextChannel, User } from 'discord.js'
+import { Client, Guild, Message as DiscordMessage, TextChannel, User, ChannelType } from 'discord.js'
 import { EventEmitter } from 'tseep'
 import { ChainBuilder } from './entities'
 import { DataSource } from './DataSource'
@@ -91,8 +91,8 @@ export class MarkovChat extends EventEmitter<{
 
         // Get total message count from Discord API if collecting entire channel
         let totalMessageCount: number | null = null
-        if (isEntireChannel && !user) {
-            logger.info(`Attempting to fetch total message count for channel ${channel.id}`)
+        if (isEntireChannel && !user && channel.type === ChannelType.GuildText) {
+            logger.info(`Attempting to fetch total message count for channel ${yellow(channel.id)}`)
             totalMessageCount = await getChannelMessageCount(channel.guild.id, channel.id)
             if (totalMessageCount) {
                 logger.ok(`Total messages in channel according to Discord API: ${yellow(totalMessageCount)}`)

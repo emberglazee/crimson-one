@@ -5,7 +5,6 @@ import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel, EmbedBuild
 import type { SlashCommand } from '../modules/CommandManager'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
 import { DataSource } from '../modules/MarkovChain/DataSource'
-import { inspect } from 'util'
 
 // Discord interaction tokens expire after 15 minutes
 const INTERACTION_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes in milliseconds
@@ -223,8 +222,6 @@ export default {
             )
         ),
     async execute(interaction, { reply, editReply, deferReply, followUp }) {
-        logger.info(`Interaction subcommand: "${interaction.options.getSubcommand()}"`)
-        logger.info(`Interaction options: ${inspect(interaction.options.resolved, true, 2, true)}`)
         const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
 
         if (!interaction.guild) {

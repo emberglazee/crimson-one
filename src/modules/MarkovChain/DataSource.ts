@@ -46,7 +46,7 @@ export class DataSource {
     public async addMessages(messages: DiscordMessage[], guild: DiscordGuild, fullyCollectedChannelId?: string) {
         await this.init()
 
-        const BATCH_SIZE = 100
+        const BATCH_SIZE = 500
         logger.info(`{addMessages} BATCH_SIZE = ${yellow(BATCH_SIZE)}`)
 
         return this.orm.transaction(async manager => {
