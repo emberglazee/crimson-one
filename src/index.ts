@@ -1,4 +1,4 @@
-import { Logger } from './util/logger'
+import { Logger, yellow, red } from './util/logger'
 const logger = new Logger()
 logger.info('Starting bot')
 
@@ -6,9 +6,6 @@ import { readdir } from 'fs/promises'
 import path from 'path'
 import { Client, IntentsBitField, Partials } from 'discord.js'
 import type { DiscordEventListener } from './types/types'
-
-import chalk from 'chalk'
-const { yellow, red } = chalk
 
 import CommandHandler from './modules/CommandManager'
 import QuoteFactory from './modules/QuoteFactory'
@@ -49,7 +46,7 @@ export const awacsFeed = new AWACSFeed(bot)
 export const screamOnSight = new ScreamOnSight()
 
 bot.once('ready', async () => {
-    logger.info(`Logged in as ${chalk.yellow(bot.user!.tag)}`)
+    logger.info(`Logged in as ${yellow(bot.user!.tag)}`)
     gracefulShutdown.setClient(bot)
     gracefulShutdown.registerShutdownHandlers()
     bot.user!.setStatus('dnd')
@@ -94,7 +91,7 @@ process.on('uncaughtException', async err => {
     await gracefulShutdown.shutdown('uncaughtException')
 })
 process.on('unhandledRejection', async (reason, promise) => {
-    logger.error(`Unhandled rejection at: ${promise}, reason: ${reason}`)
+    logger.error(`Unhandled rejection at: ${red(promise)}, reason: ${red(reason)}`)
     await gracefulShutdown.shutdown('unhandledRejection')
 })
 

@@ -1,11 +1,8 @@
-import { Logger } from '../util/logger'
+import { Logger, yellow, red } from '../util/logger'
 const logger = new Logger('GracefulShutdown')
 
 import { operationTracker } from './OperationTracker'
 import { Client } from 'discord.js'
-
-import chalk from 'chalk'
-const { yellow, red } = chalk
 
 export class GracefulShutdown {
     private static instance: GracefulShutdown

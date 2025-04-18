@@ -1,11 +1,11 @@
+import { Logger } from '../util/logger'
+const logger = new Logger('/markov')
+
 import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel, EmbedBuilder, Message, ChatInputCommandInteraction } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
 import { DataSource } from '../modules/MarkovChain/DataSource'
-import { Logger } from '../util/logger'
 import { inspect } from 'util'
-
-const logger = Logger.new('/markov')
 
 // Discord interaction tokens expire after 15 minutes
 const INTERACTION_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes in milliseconds

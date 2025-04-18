@@ -1,5 +1,7 @@
+import { Logger, yellow, red } from '../util/logger'
+const logger = new Logger('QuoteImageFactory')
+
 import { createCanvas, loadImage } from 'canvas'
-import { Logger } from '../util/logger'
 import { Buffer } from 'buffer'
 import { spawn } from 'child_process'
 import fs from 'fs/promises'
@@ -8,10 +10,6 @@ import path from 'path'
 import { TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS, type GradientType } from '../util/colors'
 import { type Client, type Guild } from 'discord.js'
 
-import chalk from 'chalk'
-const { yellow, red } = chalk
-
-const logger = Logger.new('QuoteImageFactory')
 
 export type QuoteImageResult = {
     buffer: Buffer,

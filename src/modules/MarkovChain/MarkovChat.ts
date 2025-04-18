@@ -1,4 +1,4 @@
-import { Logger } from '../../util/logger'
+import { Logger, yellow } from '../../util/logger'
 const logger = Logger.new('MarkovChain | Chat')
 
 import { Client, Guild, Message as DiscordMessage, TextChannel, User } from 'discord.js'
@@ -6,9 +6,6 @@ import { EventEmitter } from 'tseep'
 import { ChainBuilder } from './entities'
 import { DataSource } from './DataSource'
 import { getChannelMessageCount } from './DiscordUserApi'
-
-import chalk from 'chalk'
-const { yellow } = chalk
 
 interface MarkovGenerateOptions {
     guild?: Guild
@@ -183,7 +180,7 @@ export class MarkovChat extends EventEmitter<{
 
         if (messages.length > 0) {
             await this.dataSource.addMessages(messages, channel.guild, isEntireChannel ? channel.id : undefined)
-            logger.ok(`Collected ${yellow(messages.length)} messages from ${yellow(channel.name)}${isEntireChannel ? ' (entire channel)' : ''}`)
+            logger.ok(`Collected ${yellow(messages.length)} messages from ${yellow(channel.name)}${isEntireChannel ? yellow(' (entire channel)') : ''}`)
         }
 
         // Emit completion event

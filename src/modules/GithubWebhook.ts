@@ -1,15 +1,13 @@
+import { Logger, yellow } from '../util/logger'
+const logger = new Logger('GithubWebhook')
+
 import { EventEmitter } from 'tseep'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { createServer } from 'http'
 import crypto from 'crypto'
 import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
-import { Logger } from '../util/logger'
 import type { GitHubPushEvent } from '../types/types'
 
-import chalk from 'chalk'
-const { yellow } = chalk
-
-const logger = Logger.new('GithubWebhook')
 
 type WebhookEvents = {
     push: (payload: GitHubPushEvent) => void
