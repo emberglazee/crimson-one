@@ -1,7 +1,7 @@
 import { Client, Events, GuildMember, GuildBan, ChannelType, TextChannel } from 'discord.js'
 import type { PartialGuildMember, ClientEvents } from 'discord.js'
 import { AWACS_FEED_CHANNEL } from '../util/constants'
-import { randArr } from '../util/functions'
+import { getRandomElement } from '../util/functions'
 
 export class AWACSFeed {
     private client: Client
@@ -49,7 +49,7 @@ export class AWACSFeed {
         for (const handler of AWACSFeed.EventHandlers) {
             this.client.on(handler.event as keyof ClientEvents, async (...args: any[]) => {
                 const params = handler.extract(args[0])
-                const message = randArr(handler.messages)(params[0])
+                const message = getRandomElement(handler.messages)(params[0])
                 const channel = await this.client.channels.fetch(AWACS_FEED_CHANNEL)
                 if (channel?.isTextBased() && channel.type === ChannelType.GuildText) {
                     await (channel as TextChannel).send(message)

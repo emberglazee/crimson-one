@@ -2,6 +2,7 @@ import { SlashCommand } from '../modules/CommandManager'
 import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import axios from 'axios'
 import { load } from 'cheerio'
+import { getRandomElement } from '../util/functions'
 
 export default {
     data: new SlashCommandBuilder()
@@ -17,22 +18,25 @@ export default {
         await deferReply({
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
-        const url = await randomUnusualArticle().catch(() => '❌ Failed to get article')
+        const url = await randomProjectWingmanArticle().catch(() => '❌ Failed to get article')
         await editReply(url)
     },
 } satisfies SlashCommand
 
-async function randomUnusualArticle(): Promise<string> {
-    const url = 'https://en.wikipedia.org/wiki/Wikipedia:Unusual_articles'
+async function randomProjectWingmanArticle(): Promise<string> {
+    const url = 'https://projectwingman.wiki.gg/wiki/Special:AllPages'
     const res = await axios.get(url)
     const $ = load(res.data)
+
+    // Select all the <a> tags within the list items.
     const articleLinks: string[] = []
-    $('div.mw-parser-output ul li a').each((_, element) => {
+    $('#mw-content-text > div.mw-allpages-body > ul > li > a').each((_, element) => {
         const href = $(element).attr('href')
         if (href && href.startsWith('/wiki/') && !href.includes(':')) {
-            articleLinks.push(`https://en.wikipedia.org${href}`)
+            articleLinks.push(`https://projectwingman.wiki.gg${href}`)
         }
     })
-    const randomLink = articleLinks[Math.floor(Math.random() * articleLinks.length)]
+
+    const randomLink = getRandomElement(articleLinks)
     return randomLink
 }
