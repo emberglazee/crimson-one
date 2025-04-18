@@ -2,7 +2,7 @@ import { AttachmentBuilder, BaseInteraction, ChatInputCommandInteraction, Comman
 import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable } from '../types/types'
 
 export const randRange = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
-export const randArr = <T>(array: T[]): T => array[Math.floor(Math.random() * array.length)]
+export const getRandomElement = <T>(array: T[]): T => array[Math.floor(Math.random() * array.length)]
 export function shuffleArray<T>(array: T[]): T[] {
     const shuffled = [...array]
     for (let i = shuffled.length - 1; i > 0; i--) {

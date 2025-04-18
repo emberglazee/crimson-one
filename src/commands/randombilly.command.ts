@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import type { SlashCommand } from '../modules/CommandManager'
 import fs from 'fs/promises'
-import { randArr } from '../util/functions'
+import { getRandomElement } from '../util/functions'
 import { join } from 'path'
 import type { Emoji, Emojis } from '../types/types'
 
@@ -30,7 +30,7 @@ export default {
             ) as Emojis
             emojis = json.billy
         }
-        const emoji = randArr(emojis)
+        const emoji = getRandomElement(emojis)
         const emojiName = Object.keys(emoji)[0]
         const emojiID = Object.values(emoji)[0]
         const str = `<:${emojiName}:${emojiID}>`
