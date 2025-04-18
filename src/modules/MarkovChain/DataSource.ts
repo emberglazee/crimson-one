@@ -61,6 +61,7 @@ export class DataSource {
             for (let i = 0; i < messages.length; i += BATCH_SIZE) {
                 logger.info(`{addMessages} Processing batch ${yellow(i)}`)
                 const chunk = messages.slice(i, i + BATCH_SIZE)
+                logger.info(`{addMessages} Chunk size: ${yellow(chunk.length)}`)
 
                 // Upsert users
                 const usersToUpsert = chunk.map(msg => ({
@@ -68,6 +69,7 @@ export class DataSource {
                     username: msg.author.username,
                     discriminator: msg.author.discriminator
                 }))
+                logger.info(`{addMessages} Upserting ${yellow(usersToUpsert.length)} users`)
                 await manager.upsert(ChainUser, usersToUpsert, ['id'])
                 logger.ok('{addMessages} Users upserted')
 
@@ -78,6 +80,7 @@ export class DataSource {
                     name: (msg.channel as TextChannel).name,
                     fullyCollected: false
                 }))
+                logger.info(`{addMessages} Upserting ${yellow(channelsToUpsert.length)} channels`)
                 await manager.upsert(Channel, channelsToUpsert, ['id'])
                 logger.ok('{addMessages} Channels upserted')
 
@@ -90,7 +93,14 @@ export class DataSource {
                     guild: { id: guild.id },
                     timestamp: msg.createdTimestamp
                 }))
-                await manager.insert(Message, messagesToInsert)
+                logger.info(`{addMessages} Executing custom insert query for ${messagesToInsert.length} messages`)
+                await manager
+                    .createQueryBuilder()
+                    .insert()
+                    .into(Message)
+                    .values(messagesToInsert)
+                    .orUpdate(['text', 'timestamp'], ['id'])
+                    .execute()
                 logger.ok('{addMessages} Messages inserted, batch processed')
             }
 
