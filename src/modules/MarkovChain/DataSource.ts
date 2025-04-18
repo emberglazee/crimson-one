@@ -77,25 +77,31 @@ export class DataSource {
                 logger.ok('{addMessages} Users upserted')
 
                 // Upsert channels
-                const channelsToUpsert = chunk.map(msg => ({
-                    id: msg.channelId,
-                    guild: { id: guild.id },
-                    name: (msg.channel as TextChannel).name,
-                    fullyCollected: false
-                }))
+                const channelsToUpsert = removeDuplicatesByKey(
+                    chunk.map(msg => ({
+                        id: msg.channelId,
+                        guild: { id: guild.id },
+                        name: (msg.channel as TextChannel).name,
+                        fullyCollected: false
+                    })),
+                    channel => channel.id
+                )
                 logger.info(`{addMessages} Upserting ${yellow(channelsToUpsert.length)} channels`)
                 await manager.upsert(Channel, channelsToUpsert, ['id'])
                 logger.ok('{addMessages} Channels upserted')
 
                 // Insert messages
-                const messagesToInsert = chunk.map(msg => ({
-                    id: msg.id,
-                    text: msg.content,
-                    author: { id: msg.author.id },
-                    channel: { id: msg.channelId },
-                    guild: { id: guild.id },
-                    timestamp: msg.createdTimestamp
-                }))
+                const messagesToInsert = removeDuplicatesByKey(
+                    chunk.map(msg => ({
+                        id: msg.id,
+                        text: msg.content,
+                        author: { id: msg.author.id },
+                        channel: { id: msg.channelId },
+                        guild: { id: guild.id },
+                        timestamp: msg.createdTimestamp
+                    })),
+                    message => message.id
+                )
                 logger.info(`{addMessages} Executing custom insert query for ${yellow(messagesToInsert.length)} messages`)
                 await manager
                     .createQueryBuilder()
