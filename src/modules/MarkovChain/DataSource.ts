@@ -1,4 +1,4 @@
-import { Logger } from '../../util/logger'
+import { Logger, yellow } from '../../util/logger'
 const logger = Logger.new('MarkovChain | DataSource')
 
 import { Guild, Message as DiscordMessage, TextChannel, User } from 'discord.js'
@@ -9,9 +9,6 @@ import { Guild as ChainGuild } from './entities/Guild'
 import { User as ChainUser } from './entities/User'
 import { Tag } from './entities/Tag'
 import { inspect } from 'util'
-
-import chalk from 'chalk'
-const { yellow } = chalk
 
 export class DataSource {
     private static instance: DataSource
@@ -93,7 +90,7 @@ export class DataSource {
                     guild: { id: guild.id },
                     timestamp: msg.createdTimestamp
                 }))
-                logger.info(`{addMessages} Executing custom insert query for ${messagesToInsert.length} messages`)
+                logger.info(`{addMessages} Executing custom insert query for ${yellow(messagesToInsert.length)} messages`)
                 await manager
                     .createQueryBuilder()
                     .insert()

@@ -1,12 +1,14 @@
 import { EventEmitter } from 'tseep'
+import type { JSONResolvable } from '../types/types'
 import fs from 'fs'
 import path from 'path'
 import url from 'url'
 
 import chalk from 'chalk'
-const { yellow, red, cyan, green } = chalk
 // Force colors to be enabled
 chalk.level = 2
+// Shortcut for using chalk colors alongside logger
+export const { yellow, red, cyan, green } = chalk
 
 const esmodules = !!import.meta.url
 
@@ -90,5 +92,3 @@ function logoutput(level: 'err' | 'warn' | 'info' | 'ok', data: JSONResolvable, 
     else str += ` ${JSON.stringify(data)}`
     return str
 }
-
-type JSONResolvable = string | number | boolean | {[key: string]: JSONResolvable} | {[key: string]: JSONResolvable}[] | null

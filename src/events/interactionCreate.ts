@@ -1,11 +1,8 @@
-import { Logger } from '../util/logger'
+import { Logger, red } from '../util/logger'
 const logger = new Logger('events.interactionCreate')
 
 import { Client } from 'discord.js'
 import CommandHandler from '../modules/CommandManager'
-
-import chalk from 'chalk'
-const { red } = chalk
 
 export default function onInteractionCreate(client: Client) {
     client.on('interactionCreate', async interaction => {

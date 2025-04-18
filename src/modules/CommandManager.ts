@@ -1,6 +1,6 @@
 const esmodules = !!import.meta.url
 
-import { Logger } from '../util/logger'
+import { Logger, yellow, red } from '../util/logger'
 const logger = new Logger('CommandManager')
 
 import {
@@ -10,9 +10,6 @@ import {
     type SlashCommandOptionsOnlyBuilder, UserContextMenuCommandInteraction,
     MessageContextMenuCommandInteraction
 } from 'discord.js'
-
-import chalk from 'chalk'
-const { yellow, red } = chalk
 
 import { readdir } from 'fs/promises'
 import type { Dirent } from 'fs'

@@ -134,3 +134,5 @@ export interface ScreamOnSightTrigger {
     pattern: Array<RegExp | string>
     action: (message: Message) => Promise<void>
 }
+
+export type JSONResolvable = string | number | boolean | {[key: string]: JSONResolvable} | {[key: string]: JSONResolvable}[] | null
