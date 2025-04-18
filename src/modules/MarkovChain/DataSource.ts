@@ -1,14 +1,17 @@
 import { Logger, yellow } from '../../util/logger'
 const logger = Logger.new('MarkovChain | DataSource')
 
-import { Guild, Message as DiscordMessage, TextChannel, User } from 'discord.js'
+import { Guild as DiscordGuild, Message as DiscordMessage, TextChannel, User as DiscordUser } from 'discord.js'
+import { inspect } from 'util'
 import { DataSource as ORMDataSource } from 'typeorm'
+
+import { removeDuplicatesByKey } from '../../util/functions'
+
 import { Message } from './entities/Message'
 import { Channel } from './entities/Channel'
-import { Guild as ChainGuild } from './entities/Guild'
-import { User as ChainUser } from './entities/User'
+import { Guild } from './entities/Guild'
+import { User } from './entities/User'
 import { Tag } from './entities/Tag'
-import { inspect } from 'util'
 
 export class DataSource {
     private static instance: DataSource
@@ -30,7 +33,7 @@ export class DataSource {
         this.orm = new ORMDataSource({
             type: 'sqlite',
             database: 'data/markov.sqlite',
-            entities: [Channel, Message, ChainGuild, ChainUser, Tag],
+            entities: [Channel, Message, Guild, User, Tag],
             synchronize: true,
             logging: false
         })
@@ -40,7 +43,7 @@ export class DataSource {
         logger.ok('{init} SQLite database initialized')
     }
 
-    public async addMessages(messages: DiscordMessage[], guild: Guild, fullyCollectedChannelId?: string) {
+    public async addMessages(messages: DiscordMessage[], guild: DiscordGuild, fullyCollectedChannelId?: string) {
         await this.init()
 
         const BATCH_SIZE = 100
@@ -48,7 +51,7 @@ export class DataSource {
 
         return this.orm.transaction(async manager => {
             // Upsert guild
-            await manager.upsert(ChainGuild, {
+            await manager.upsert(Guild, {
                 id: guild.id
             }, ['id'])
             logger.ok(`{addMessages} Guild ${yellow(guild.id)} upserted`)
@@ -61,13 +64,16 @@ export class DataSource {
                 logger.info(`{addMessages} Chunk size: ${yellow(chunk.length)}`)
 
                 // Upsert users
-                const usersToUpsert = chunk.map(msg => ({
-                    id: msg.author.id,
-                    username: msg.author.username,
-                    discriminator: msg.author.discriminator
-                }))
+                const usersToUpsert = removeDuplicatesByKey(
+                    chunk.map(msg => ({
+                        id: msg.author.id,
+                        username: msg.author.username,
+                        discriminator: msg.author.discriminator
+                    })),
+                    user => user.id
+                )
                 logger.info(`{addMessages} Upserting ${yellow(usersToUpsert.length)} users`)
-                await manager.upsert(ChainUser, usersToUpsert, ['id'])
+                await manager.upsert(User, usersToUpsert, ['id'])
                 logger.ok('{addMessages} Users upserted')
 
                 // Upsert channels
@@ -115,9 +121,9 @@ export class DataSource {
     }
 
     public async getMessages(options: {
-        guild?: Guild
+        guild?: DiscordGuild
         channel?: TextChannel
-        user?: User
+        user?: DiscordUser
         global?: boolean
     }): Promise<Message[]> {
         await this.init()

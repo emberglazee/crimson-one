@@ -87,3 +87,15 @@ export function hasProp<T extends object, K extends PropertyKey>(
 ): obj is T & Record<K, unknown> {
     return typeof obj === 'object' && obj !== null && prop in obj
 }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function removeDuplicatesByKey<T>(arr: T[], key: (item: T) => any): T[] {
+    const map = new Map()
+    return arr.reduce((acc: T[], item: T) => {
+        if (!map.has(key(item))) {
+            map.set(key(item), true)
+            acc.push(item)
+        }
+        return acc
+    }, [])
+}
