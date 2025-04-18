@@ -99,3 +99,21 @@ export function removeDuplicatesByKey<T>(arr: T[], key: (item: T) => any): T[] {
         return acc
     }, [])
 }
+
+/**
+ * Format seconds into a human-readable time string
+ */
+export function formatTimeRemaining(seconds: number): string {
+    if (seconds < 60) {
+        return `${Math.round(seconds)}s`
+    } else if (seconds < 3600) {
+        const minutes = Math.floor(seconds / 60)
+        const remainingSeconds = Math.round(seconds % 60)
+        return `${minutes}m ${remainingSeconds}s`
+    } else {
+        const hours = Math.floor(seconds / 3600)
+        const minutes = Math.floor((seconds % 3600) / 60)
+        const remainingSeconds = Math.round(seconds % 60)
+        return `${hours}h ${minutes}m ${remainingSeconds}s`
+    }
+}

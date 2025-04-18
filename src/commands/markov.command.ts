@@ -1,7 +1,9 @@
-import { Logger } from '../util/logger'
+import { Logger, red, yellow } from '../util/logger'
 const logger = new Logger('/markov')
 
 import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel, EmbedBuilder, Message, ChatInputCommandInteraction } from 'discord.js'
+
+import { formatTimeRemaining } from '../util/functions'
 import type { SlashCommand } from '../modules/CommandManager'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
 import { DataSource } from '../modules/MarkovChain/DataSource'
@@ -9,24 +11,6 @@ import { DataSource } from '../modules/MarkovChain/DataSource'
 // Discord interaction tokens expire after 15 minutes
 const INTERACTION_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes in milliseconds
 const SAFETY_MARGIN_MS = 1 * 60 * 1000 // Switch to new message 1 minute before expiry (at 14 minutes)
-
-/**
- * Format seconds into a human-readable time string
- */
-function formatTimeRemaining(seconds: number): string {
-    if (seconds < 60) {
-        return `${Math.round(seconds)}s`
-    } else if (seconds < 3600) {
-        const minutes = Math.floor(seconds / 60)
-        const remainingSeconds = Math.round(seconds % 60)
-        return `${minutes}m ${remainingSeconds}s`
-    } else {
-        const hours = Math.floor(seconds / 3600)
-        const minutes = Math.floor((seconds % 3600) / 60)
-        const remainingSeconds = Math.round(seconds % 60)
-        return `${hours}h ${minutes}m ${remainingSeconds}s`
-    }
-}
 
 // Helper interface to manage message updates
 interface MessageUpdater {
@@ -61,7 +45,7 @@ class InteractionMessageManager implements MessageUpdater {
                 `⏳ Operation in progress...\n` +
                 `⚠️ *This is taking longer than 14 minutes. Real-time updates will continue in a follow-up message.*`
             ).catch((err: Error) => {
-                logger.warn(`Failed to update original message about timeout: ${err.message}`)
+                logger.warn(`Failed to update original message about timeout: ${red(err.message)}`)
             })
 
             // Create a follow-up message that we'll update from now on
@@ -71,10 +55,10 @@ class InteractionMessageManager implements MessageUpdater {
             })
 
             this.followUpMessage = followUp
-            logger.ok(`Created follow-up message with ID ${followUp.id}`)
+            logger.ok(`Created follow-up message with ID ${yellow(followUp.id)}`)
             return followUp
         } catch (error) {
-            logger.warn(`Failed to create follow-up message: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            logger.warn(`Failed to create follow-up message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
             return null
         }
     }
@@ -97,7 +81,7 @@ class InteractionMessageManager implements MessageUpdater {
                 await this.interaction.editReply(content)
             }
         } catch (error) {
-            logger.warn(`Failed to update message: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            logger.warn(`Failed to update message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
         }
     }
 
@@ -114,14 +98,14 @@ class InteractionMessageManager implements MessageUpdater {
             }
         } catch (error) {
             // If both methods fail, try to send a new follow-up message with the results
-            logger.warn(`Failed to send final message: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            logger.warn(`Failed to send final message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
             try {
                 await this.interaction.followUp({
                     content: `${content}\n⚠️ (Posted as a new message because the original interaction expired)`,
                     flags: this.ephemeral ? MessageFlags.Ephemeral : undefined
                 })
             } catch (finalError) {
-                logger.error(`Failed to send any completion message: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`)
+                logger.error(`Failed to send any completion message: ${red(finalError instanceof Error ? finalError.message : 'Unknown error')}`)
             }
         }
     }
@@ -269,7 +253,7 @@ export default {
             await deferReply({ ephemeral })
 
             try {
-                logger.info(`Generating message with source: ${source}, user: ${user?.tag}, channel: ${channel?.name}, words: ${words}, seed: ${seed}`)
+                logger.info(`Generating message with source: ${yellow(source)}, user: ${yellow(user?.tag)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
                 const timeStart = Date.now()
                 const result = await markov.generateMessage({
                     guild: source === 'guild' ? interaction.guild : undefined,
@@ -280,7 +264,7 @@ export default {
                     global: source === 'global'
                 })
                 const timeEnd = Date.now()
-                logger.ok(`Generated message: ${result}`)
+                logger.ok(`Generated message: ${yellow(result)}`)
                 await editReply(
                     `${result}\n` +
                     `-# - Generated in ${timeEnd - timeStart}ms\n` +
@@ -292,9 +276,9 @@ export default {
                     ].filter(Boolean).join(', ') || 'None'}`
                 )
             } catch (error) {
-                logger.warn(`Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`)
+                logger.warn(`Failed to generate message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
                 await editReply({
-                    content: `❌ Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`
+                    content: `❌ Failed to generate message: ${red(error instanceof Error ? error.message : 'Unknown error')}`
                 })
             }
 
@@ -328,7 +312,7 @@ export default {
             await deferReply({ flags: ephemeral ? MessageFlags.Ephemeral : undefined })
 
             try {
-                logger.info(`Getting Markov info with source: ${source}, user: ${user?.tag}, channel: ${channel?.name}`)
+                logger.info(`Getting Markov info with source: ${yellow(source)}, user: ${yellow(user?.tag)}, channel: ${yellow(channel?.name)}`)
                 const timeStart = Date.now()
                 const stats = await markov.getMessageStats({
                     guild: source === 'guild' ? interaction.guild : undefined,
@@ -370,10 +354,10 @@ export default {
                     ].filter(Boolean).join('\n')}`
                 )
 
-                logger.ok(`Generated Markov info in ${timeEnd - timeStart}ms`)
+                logger.ok(`Generated Markov info in ${yellow(timeEnd - timeStart)}ms`)
                 await editReply({ embeds: [embed] })
             } catch (error) {
-                logger.warn(`Failed to get Markov info: ${error instanceof Error ? error.message : 'Unknown error'}`)
+                logger.warn(`Failed to get Markov info: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
                 await editReply({
                     content: `❌ Failed to get Markov info: ${error instanceof Error ? error.message : 'Unknown error'}`
                 })
@@ -394,7 +378,7 @@ export default {
                         (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) &&
                         c.viewable
                     ) as Map<string, TextChannel>
-                logger.ok(`{collect} Fetched ${textChannels.size} text channels`)
+                logger.ok(`{collect} Fetched ${yellow(textChannels.size)} text channels`)
 
                 const threadPromises = [...textChannels.values()].map(async c => {
                     try {
@@ -406,10 +390,10 @@ export default {
                 })
 
                 const threads = (await Promise.all(threadPromises)).flatMap(t => [...t.values()])
-                logger.ok(`{collect} Fetched ${threads.length} threads`)
+                logger.ok(`{collect} Fetched ${yellow(threads.length)} threads`)
 
                 const allTargets = [...textChannels.values(), ...threads]
-                logger.info(`{collect} ${textChannels.size} + ${threads.length} = ${textChannels.size + threads.length} total collection targets`)
+                logger.info(`{collect} ${yellow(textChannels.size)} + ${yellow(threads.length)} = ${yellow(textChannels.size + threads.length)} total collection targets`)
 
                 await reply({
                     content: `📡 Starting collection from **${allTargets.length} channels and threads**...`,
@@ -418,14 +402,14 @@ export default {
 
                 for await (const targetChannel of allTargets) {
                     try {
-                        logger.info(`Collecting from #${targetChannel.name} (${targetChannel.id})`)
+                        logger.info(`Collecting from #${yellow(targetChannel.name)} (${yellow(targetChannel.id)})`)
                         const count = await markov.collectMessages(targetChannel as TextChannel, {
                             user,
                             limit,
                         })
-                        logger.ok(`Collected ${count} messages from #${targetChannel.name}`)
+                        logger.ok(`Collected ${yellow(count)} messages from #${yellow(targetChannel.name)}`)
                     } catch (err) {
-                        logger.warn(`Failed to collect from #${targetChannel.name}: ${err instanceof Error ? err.message : err}`)
+                        logger.warn(`Failed to collect from #${yellow(targetChannel.name)}: ${red(err instanceof Error ? err.message : err)}`)
                     }
                 }
 
@@ -463,7 +447,7 @@ export default {
             })
 
             try {
-                logger.info(`Collecting messages from ${channel}${user ? ` by ${user.tag}` : ''}, limit: ${limit}, wasFullyCollected: ${wasFullyCollected}`)
+                logger.info(`Collecting messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : ''}, limit: ${yellow(limit)}, wasFullyCollected: ${yellow(wasFullyCollected)}`)
 
                 // Setup progress updates
                 let totalMessageCount = null
@@ -478,14 +462,14 @@ export default {
                 markov.on('collectProgress', async progress => {
                     // Update every 10 batches
                     if (progress.batchNumber % 10 === 0 || progress.batchNumber === 1) {
-                        logger.ok(`Progress update: ${progress.batchNumber} batches, ${progress.totalCollected}/${progress.limit === 'entire' ? 'ALL' : progress.limit} messages (${progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%'})`)
+                        logger.ok(`Progress update: ${yellow(progress.batchNumber)} batches, ${yellow(progress.totalCollected)}/${yellow(progress.limit === 'entire' ? 'ALL' : progress.limit)} messages (${yellow(progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%')})`)
 
                         // Check if we're approaching the interaction token timeout
                         const elapsedSinceInteraction = Date.now() - interactionStartTime
 
                         // If we're reaching the timeout limit and haven't switched to follow-up message yet
                         if (elapsedSinceInteraction > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
-                            logger.warn(`Approaching interaction timeout (${elapsedSinceInteraction}ms elapsed). Switching to follow-up message.`)
+                            logger.info(`Approaching interaction timeout (${yellow(elapsedSinceInteraction)}ms elapsed). Switching to follow-up message.`)
                             messageManager.switchToFollowUp()
                         }
 
@@ -534,7 +518,7 @@ export default {
                 // Listen for collection completion to get total message count
                 markov.on('collectComplete', result => {
                     totalMessageCount = result.totalMessageCount
-                    logger.ok(`Collection complete. ${result.totalCollected} messages collected${totalMessageCount ? ` out of ${totalMessageCount} total` : ''}.`)
+                    logger.ok(`Collection complete. ${yellow(result.totalCollected)} messages collected${totalMessageCount ? ` out of ${yellow(totalMessageCount)} total` : ''}.`)
                 })
 
                 // Process in one go
@@ -547,7 +531,7 @@ export default {
                 markov.removeAllListeners('collectProgress')
                 markov.removeAllListeners('collectComplete')
 
-                logger.ok(`Collected ${count} messages from ${channel}${user ? ` by ${user.tag}` : ''}`)
+                logger.ok(`Collected ${yellow(count)} messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : ''}`)
 
                 // Customize completion message based on whether it was a previously collected channel
                 let completionMessage = `✅ Successfully collected ${count} messages from ${channel}${user ? ` by ${user}` : ''}\n`
@@ -570,7 +554,7 @@ export default {
                 markov.removeAllListeners('collectProgress')
                 markov.removeAllListeners('collectComplete')
 
-                logger.warn(`Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
+                logger.warn(`Failed to collect messages: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
 
                 try {
                     await editReply({
@@ -578,14 +562,14 @@ export default {
                     })
                 } catch (replyError) {
                     // If editReply fails, the token might have expired, so try to send a follow-up
-                    logger.warn(`Failed to edit reply with error message: ${replyError instanceof Error ? replyError.message : 'Unknown error'}`)
+                    logger.warn(`Failed to edit reply with error message: ${red(replyError instanceof Error ? replyError.message : 'Unknown error')}`)
                     try {
                         await followUp({
                             content: `❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`,
                             flags: ephemeral ? MessageFlags.Ephemeral : undefined
                         })
                     } catch (finalError) {
-                        logger.error(`Failed to send any error message: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`)
+                        logger.error(`Failed to send any error message: ${red(finalError instanceof Error ? finalError.message : 'Unknown error')}`)
                     }
                 }
             }
