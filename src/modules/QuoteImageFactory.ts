@@ -16,6 +16,7 @@ export type QuoteImageResult = {
     type: 'image/gif' | 'image/png'
 }
 
+/** Subtitle style: Project Wingman, or Ace Combat 7 */
 export type QuoteStyle = 'pw' | 'ac7'
 
 export class QuoteImageFactory {
@@ -151,13 +152,7 @@ export class QuoteImageFactory {
                 '-of', 'default=nokey=1:noprint_wrappers=1',
                 gifPath
             ])
-
-            let frameCount = ''
-            ffprobe.stdout.on('data', data => {
-                frameCount += data.toString()
-            })
-
-            await new Promise((resolve) => ffprobe.on('close', resolve))
+            await new Promise(resolve => ffprobe.on('close', resolve))
 
             // Get frame durations using ffprobe
             const ffprobeDurations = spawn('ffprobe', [
@@ -167,13 +162,11 @@ export class QuoteImageFactory {
                 '-of', 'csv=p=0',
                 gifPath
             ])
-
             let durationsStr = ''
             ffprobeDurations.stdout.on('data', data => {
                 durationsStr += data.toString()
             })
-
-            await new Promise((resolve) => ffprobeDurations.on('close', resolve))
+            await new Promise(resolve => ffprobeDurations.on('close', resolve))
             const durations = durationsStr.trim().split('\n').map(Number)
             const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length
             const framerate = Math.round(1 / avgDuration)
@@ -185,19 +178,16 @@ export class QuoteImageFactory {
                 '-frame_pts', '1',
                 path.join(outputDir, 'frame-%d.png')
             ])
-
             let stderr = ''
             ffmpeg.stderr.on('data', data => {
                 stderr += data.toString()
             })
-
-            ffmpeg.on('close', async (code) => {
+            ffmpeg.on('close', async code => {
                 if (code === 0) {
                     const frames = []
-                    const delays = durations.map(d => d * 1000) // Convert to milliseconds
+                    const delays = durations.map(d => d * 1000) // s => ms
                     const frameFiles = await fs.readdir(outputDir)
                     const pngFiles = frameFiles.filter(f => f.startsWith('frame-') && f.endsWith('.png'))
-
                     for (const file of pngFiles.sort((a, b) => {
                         const numA = parseInt(a.match(/frame-(\d+)\.png/)?.[1] || '0')
                         const numB = parseInt(b.match(/frame-(\d+)\.png/)?.[1] || '0')
@@ -207,7 +197,6 @@ export class QuoteImageFactory {
                         // Assuming default 100ms delay between frames
                         delays.push(100)
                     }
-
                     resolve({ frames, delays, framerate })
                 } else {
                     reject(new Error(`FFmpeg failed with code ${code}: ${stderr}`))
@@ -389,10 +378,6 @@ export class QuoteImageFactory {
 
                 for (const line of lines) {
                     let lineWidth = 0
-                    const lineEmojis = emojis.filter(e =>
-                        e.index >= currentIndex &&
-                        e.index < currentIndex + line.length
-                    )
 
                     const words = line.split(' ')
                     for (const word of words) {
@@ -823,12 +808,12 @@ export class QuoteImageFactory {
                 // If there's only one unique animated emoji, use its framerate
                 let targetFramerate = 20 // default
                 if (uniqueAnimatedIds.size === 1) {
-                    const firstAnimatedEmoji = animatedEmojis[0] as any
+                    const firstAnimatedEmoji = animatedEmojis[0]
                     targetFramerate = firstAnimatedEmoji.frameDelays ?
                         Math.round(1000 / firstAnimatedEmoji.frameDelays[0]) : 20
                 }
 
-                const maxFrames = Math.max(...animatedEmojis.map(e => (e as any).frames.length))
+                const maxFrames = Math.max(...animatedEmojis.map(e => e.frames.length))
                 logger.info(`Creating animated image with ${yellow(maxFrames)} frames at ${yellow(targetFramerate)}fps`)
 
                 const tmpDir = await this.createTempDir()

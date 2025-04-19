@@ -1,5 +1,5 @@
 import { AttachmentBuilder, BaseInteraction, ChatInputCommandInteraction, CommandInteraction, Guild, GuildChannel, GuildMember, Message, User } from 'discord.js'
-import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable } from '../types/types'
+import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable, ExplicitAny } from '../types/types'
 
 export const randRange = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
 export const getRandomElement = <T>(array: T[]): T => array[Math.floor(Math.random() * array.length)]
@@ -88,8 +88,7 @@ export function hasProp<T extends object, K extends PropertyKey>(
     return typeof obj === 'object' && obj !== null && prop in obj
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function removeDuplicatesByKey<T>(arr: T[], key: (item: T) => any): T[] {
+export function removeDuplicatesByKey<T>(arr: T[], key: (item: T) => ExplicitAny): T[] {
     const map = new Map()
     return arr.reduce((acc: T[], item: T) => {
         if (!map.has(key(item))) {

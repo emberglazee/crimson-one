@@ -17,6 +17,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { hasProp } from '../util/functions'
 import { operationTracker } from './OperationTracker'
+import type { ExplicitAny } from '../types/types'
 
 
 type SlashCommandHelpers = {
@@ -72,8 +73,8 @@ export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements ICo
 
 
 
-export default class CommandHandler {
-    private static instance: CommandHandler
+export default class CommandManager {
+    private static instance: CommandManager
     private globalCommands: SlashCommand[] = []
     private guildCommands: GuildSlashCommand[] = []
     private contextMenuCommands: ContextMenuCommand[] = []
@@ -82,11 +83,11 @@ export default class CommandHandler {
 
     private constructor() {}
 
-    public static getInstance(): CommandHandler {
-        if (!CommandHandler.instance) {
-            CommandHandler.instance = new CommandHandler()
+    public static getInstance(): CommandManager {
+        if (!CommandManager.instance) {
+            CommandManager.instance = new CommandManager()
         }
-        return CommandHandler.instance
+        return CommandManager.instance
     }
 
     public setClient(client: Client) {
@@ -120,17 +121,17 @@ export default class CommandHandler {
 
                 const command = exportedItem as SlashCommand | ContextMenuCommand
 
-                if (CommandHandler.isContextMenuCommand(command)) {
+                if (CommandManager.isContextMenuCommand(command)) {
                     const type = command.type === 2 ? 'user' : 'message'
                     logger.ok(`{importCommand} Found ${yellow(type)} context menu command ${yellow(command.data.name)}`)
                     command.data.setType(command.type)
                     this.contextMenuCommands.push(command)
                     commands.push(command)
-                } else if (CommandHandler.isGuildSlashCommand(command)) {
+                } else if (CommandManager.isGuildSlashCommand(command)) {
                     logger.ok(`{importCommand} Found guild slash command /${yellow(command.data.name)} for guild ${yellow(command.guildId)}`)
                     this.guildCommands.push(command)
                     commands.push(command)
-                } else if (CommandHandler.isGlobalSlashCommand(command)) {
+                } else if (CommandManager.isGlobalSlashCommand(command)) {
                     logger.ok(`{importCommand} Found slash command /${yellow(command.data.name)}`)
                     this.globalCommands.push(command)
                     commands.push(command)
@@ -223,9 +224,9 @@ export default class CommandHandler {
                         client: interaction.client
                     }
 
-                    if (interaction.isChatInputCommand() && CommandHandler.isSlashCommand(command)) {
+                    if (interaction.isChatInputCommand() && CommandManager.isSlashCommand(command)) {
                         await command.execute(interaction, helpers)
-                    } else if (interaction.isContextMenuCommand() && CommandHandler.isContextMenuCommand(command)) {
+                    } else if (interaction.isContextMenuCommand() && CommandManager.isContextMenuCommand(command)) {
                         if (interaction.isUserContextMenuCommand() && command.type === 2) {
                             await (command.execute as (i: UserContextMenuCommandInteraction, helpers: SlashCommandHelpers) => Promise<void>)(interaction, helpers)
                         } else if (interaction.isMessageContextMenuCommand() && command.type === 3) {
@@ -243,7 +244,7 @@ export default class CommandHandler {
                         logger.warn(`{executeCommand} Error is "Unknown interaction", did the interaction time out on Discord's end?`)
                         return
                     }
-                    logger.warn(`{executeCommand} Error isn't "Unknown interaction", throwing it again, let "handleError()" deal with it`)
+                    logger.warn('{executeCommand} Error isn\'t "Unknown interaction", throwing it again, let `handleError()` deal with it')
                     throw err
                 }
             }
@@ -299,20 +300,18 @@ export default class CommandHandler {
     }
 
     public static isSlashCommand = (obj: unknown): obj is SlashCommand => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return hasProp(obj, 'data') && (obj as any).data instanceof SlashCommandBuilder
+        return hasProp(obj, 'data') && (obj as ExplicitAny).data instanceof SlashCommandBuilder
     }
     public static isGuildSlashCommand = (obj: unknown): obj is GuildSlashCommand => {
         return (
-            CommandHandler.isSlashCommand(obj) &&
+            CommandManager.isSlashCommand(obj) &&
             'guildId' in obj &&
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            typeof (obj as any).guildId === 'string'
+            typeof (obj as ExplicitAny).guildId === 'string'
         )
     }
     public static isGlobalSlashCommand = (obj: unknown): obj is SlashCommand => {
         return (
-            CommandHandler.isSlashCommand(obj) &&
+            CommandManager.isSlashCommand(obj) &&
             !('guildId' in obj)
         )
     }
@@ -322,10 +321,8 @@ export default class CommandHandler {
             obj !== null &&
             'data' in obj &&
             'type' in obj &&
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (obj as any).data instanceof ContextMenuCommandBuilder &&
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ((obj as any).type === 2 || (obj as any).type === 3)
+            (obj as ExplicitAny).data instanceof ContextMenuCommandBuilder &&
+            ((obj as ExplicitAny).type === 2 || (obj as ExplicitAny).type === 3)
         )
     }
 }

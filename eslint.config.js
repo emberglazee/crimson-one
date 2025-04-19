@@ -12,7 +12,7 @@ export default [
   {
     rules: {
       'no-trailing-spaces': 'error',
-      'no-explicit-any': 'off',
+      'no-async-promise-executor': 'off',
       'no-case-declarations': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',
       '@typescript-eslint/no-unused-vars': ['error', {
