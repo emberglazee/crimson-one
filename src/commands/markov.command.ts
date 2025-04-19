@@ -372,6 +372,9 @@ export default {
 
             const allChannels = interaction.options.getBoolean('allchannels') ?? false
             if (allChannels) {
+                await deferReply({
+                    flags: ephemeral ? MessageFlags.Ephemeral : undefined
+                })
                 logger.info(`{collect} "allChannels" is true, collecting from every channel`)
                 const textChannels = (await interaction.guild.channels.fetch())
                     .filter(c => c &&
@@ -395,10 +398,7 @@ export default {
                 const allTargets = [...textChannels.values(), ...threads]
                 logger.info(`{collect} ${yellow(textChannels.size)} + ${yellow(threads.length)} = ${yellow(textChannels.size + threads.length)} total collection targets`)
 
-                await reply({
-                    content: `📡 Starting collection from **${allTargets.length} channels and threads**...`,
-                    flags: ephemeral ? MessageFlags.Ephemeral : undefined
-                })
+                await editReply(`📡 Starting collection from **${allTargets.length} channels and threads**...`)
 
                 for await (const targetChannel of allTargets) {
                     try {
