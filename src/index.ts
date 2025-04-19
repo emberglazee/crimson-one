@@ -7,7 +7,7 @@ import path from 'path'
 import { Client, IntentsBitField, Partials } from 'discord.js'
 import type { DiscordEventListener } from './types/types'
 
-import CommandHandler from './modules/CommandManager'
+import CommandManager from './modules/CommandManager'
 import QuoteFactory from './modules/QuoteFactory'
 import { GithubWebhook } from './modules/GithubWebhook'
 import { MarkovChat } from './modules/MarkovChain/MarkovChat'
@@ -40,7 +40,7 @@ const bot = new Client({
     }
 })
 
-const commandHandler = CommandHandler.getInstance()
+const commandManager = CommandManager.getInstance()
 export const quoteFactory = new QuoteFactory(bot)
 export const awacsFeed = new AWACSFeed(bot)
 export const screamOnSight = new ScreamOnSight()
@@ -60,10 +60,10 @@ bot.once('ready', async () => {
     logger.ok('AWACS system initialized')
 
     // Set client and initialize command handler
-    commandHandler.setClient(bot)
-    await commandHandler.init()
-    await commandHandler.refreshGlobalCommands()
-    await commandHandler.refreshAllGuildCommands()
+    commandManager.setClient(bot)
+    await commandManager.init()
+    await commandManager.refreshGlobalCommands()
+    await commandManager.refreshAllGuildCommands()
 
     // Initialize Github webhook and quote factory
     const webhook = GithubWebhook.getInstance({

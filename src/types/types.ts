@@ -136,3 +136,9 @@ export interface ScreamOnSightTrigger {
 }
 
 export type JSONResolvable = string | number | boolean | {[key: string]: JSONResolvable} | {[key: string]: JSONResolvable}[] | null
+
+/**
+ * the "i know what im doing" or "i acknowledge how fucked up this is" `any` type
+ * */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ExplicitAny = any
