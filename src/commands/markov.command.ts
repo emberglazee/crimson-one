@@ -120,16 +120,15 @@ export default {
             .setDescription('Generate a message using collected data')
             .addStringOption(so => so
                 .setName('source')
-                .setDescription('Where to generate messages from')
+                .setDescription('Higher scope source of messages (ignores `channel`)')
                 .setRequired(false)
                 .addChoices(
-                    { name: '🏠 This Server', value: 'guild' },
-                    { name: '📝 Specific Channel', value: 'channel' },
-                    { name: '🌐 Global (All Servers)', value: 'global' }
+                    { name: '🏠 This entire server', value: 'guild' },
+                    { name: '🌐 Global (all servers)', value: 'global' }
                 )
             ).addChannelOption(co => co
                 .setName('channel')
-                .setDescription('Channel to generate from (only if source is "Specific Channel")')
+                .setDescription('Specific channel to generate from')
                 .setRequired(false)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
             ).addUserOption(uo => uo
@@ -154,21 +153,20 @@ export default {
             .setDescription('Display information about available Markov chain data')
             .addStringOption(so => so
                 .setName('source')
-                .setDescription('Where to get data from')
+                .setDescription('Higher scope source of messages (ignores `channel`)')
                 .setRequired(false)
                 .addChoices(
-                    { name: '🏠 This Server', value: 'guild' },
-                    { name: '📝 Specific Channel', value: 'channel' },
-                    { name: '🌐 Global (All Servers)', value: 'global' }
+                    { name: '🏠 This entire server', value: 'guild' },
+                    { name: '🌐 Global (all servers)', value: 'global' }
                 )
             ).addChannelOption(co => co
                 .setName('channel')
-                .setDescription('Channel to get info from (only if source is "Specific Channel")')
+                .setDescription('Specific channel to get messages from')
                 .setRequired(false)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
             ).addUserOption(uo => uo
                 .setName('user')
-                .setDescription('Filter info to this user')
+                .setDescription('Filter messages to this user')
                 .setRequired(false)
             ).addBooleanOption(bo => bo
                 .setName('ephemeral')
@@ -225,39 +223,19 @@ export default {
 
         if (subcommand === 'generate') {
             const user = interaction.options.getUser('user') ?? undefined
-            const source = interaction.options.getString('source') ?? 'guild'
-            const channel = (interaction.options.getChannel('channel') as TextChannel | null) ?? undefined
+            const source = (interaction.options.getString('source') as Source)
+            const channel = source === null ? (interaction.options.getChannel('channel') as TextChannel | null) ?? undefined : undefined
             const words = interaction.options.getInteger('words') ?? 20
             const seed = interaction.options.getString('seed') ?? undefined
 
-            // Validate channel is provided when source is 'channel'
-            if (source === 'channel' && !channel) {
-                logger.info('Channel not provided for "Specific Channel" source')
-                await reply({
-                    content: '❌ You must specify a channel when using "Specific Channel" as the source',
-                    flags: MessageFlags.Ephemeral
-                })
-                return
-            }
-
-            // Validate channel is not provided for other sources
-            if (source !== 'channel' && channel) {
-                logger.info('Channel provided for non-"Specific Channel" source')
-                await reply({
-                    content: '❌ Channel option should only be used with "Specific Channel" source',
-                    flags: MessageFlags.Ephemeral
-                })
-                return
-            }
-
-            await deferReply({ ephemeral })
+            await deferReply({ flags: ephemeral ? MessageFlags.Ephemeral : undefined })
 
             try {
                 logger.info(`Generating message with source: ${yellow(source)}, user: ${yellow(user?.tag)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
                 const timeStart = Date.now()
                 const result = await markov.generateMessage({
                     guild: source === 'guild' ? interaction.guild : undefined,
-                    channel: source === 'channel' ? channel : undefined,
+                    channel: channel,
                     user,
                     words,
                     seed,
@@ -269,7 +247,7 @@ export default {
                     `${result}\n` +
                     `-# - Generated in ${timeEnd - timeStart}ms\n` +
                     `-# - Filters: ${[
-                        source === 'global' ? 'Global' : source === 'channel' ? `Channel: #${channel?.name}` : 'Server-only',
+                        source === 'global' ? 'Global' : 'This server',
                         user ? `User: @${user.tag}` : null,
                         words !== 20 ? `Words: ${words}` : null,
                         seed ? `Seed: "${seed}"` : null
@@ -286,28 +264,8 @@ export default {
 
         } else if (subcommand === 'info') {
             const user = interaction.options.getUser('user') ?? undefined
-            const source = interaction.options.getString('source') ?? 'guild'
-            const channel = (interaction.options.getChannel('channel') as TextChannel | null) ?? undefined
-
-            // Validate channel is provided when source is 'channel'
-            if (source === 'channel' && !channel) {
-                logger.info('Channel not provided for "Specific Channel" source')
-                await reply({
-                    content: '❌ You must specify a channel when using "Specific Channel" as the source',
-                    flags: MessageFlags.Ephemeral
-                })
-                return
-            }
-
-            // Validate channel is not provided for other sources
-            if (source !== 'channel' && channel) {
-                logger.info('Channel provided for non-"Specific Channel" source')
-                await reply({
-                    content: '❌ Channel option should only be used with "Specific Channel" source',
-                    flags: MessageFlags.Ephemeral
-                })
-                return
-            }
+            const source = (interaction.options.getString('source') as Source)
+            const channel = source === null ? (interaction.options.getChannel('channel') as TextChannel | null) ?? undefined : undefined
 
             await deferReply({ flags: ephemeral ? MessageFlags.Ephemeral : undefined })
 
@@ -316,7 +274,7 @@ export default {
                 const timeStart = Date.now()
                 const stats = await markov.getMessageStats({
                     guild: source === 'guild' ? interaction.guild : undefined,
-                    channel: source === 'channel' ? channel : undefined,
+                    channel: !source ? channel : undefined,
                     user,
                     global: source === 'global'
                 })
@@ -349,7 +307,7 @@ export default {
                 // Add description with filter info
                 embed.setDescription(
                     `**Filters Applied:**\n${[
-                        source === 'global' ? '🌐 Global' : source === 'channel' ? `📝 Channel: #${channel?.name}` : '🏠 Server-only',
+                        source === 'global' ? '🌐 Global' : !source ? `📝 Channel: #${channel?.name}` : '🏠 This server',
                         user ? `👤 User: @${user.tag}` : null
                     ].filter(Boolean).join('\n')}`
                 )
@@ -576,3 +534,5 @@ export default {
         }
     }
 } satisfies SlashCommand
+
+type Source = 'guild' | 'global' | null
