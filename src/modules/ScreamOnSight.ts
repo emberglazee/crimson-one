@@ -3,6 +3,8 @@ import type { ScreamOnSightTrigger } from '../types/types'
 import { chance, getRandomElement } from '../util/functions'
 import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
 
+const youtubeLinkRegex = /(?:https?:)?(?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.)?youtube\.com\/(?:watch|v|embed)(?:\.php)?(?:\?.*v=|\/))([a-zA-Z0-9_-]{7,15})(?:[?&][a-zA-Z0-9_-]+=[a-zA-Z0-9_-]+)*(?:[&/#].*)?/gm
+
 export class ScreamOnSight {
     triggers: ScreamOnSightTrigger[] = [
         {
@@ -18,7 +20,7 @@ export class ScreamOnSight {
                     'https://cdn.discordapp.com/attachments/1125900471924699178/1303877939049402409/cachedVideo.mov?ex=67e1f7f5&is=67e0a675&hm=108fde1dc8376d2db90d81300944d2e232d9fdecb3ea0bbc139567bb2473233a&', // Q2
                     'https://media.discordapp.net/attachments/1267488539503886386/1346032804449882172/lv_0_20250302125127.mp4?ex=67e1bcfc&is=67e06b7c&hm=ba256a66f0c02d41be35bef627b7b84d1629df3e0aee8158c3b83615eadb279e&' // Q4
                 ]))
-            },
+            }
         },
         {
             pattern: [/invisible/gmi, /big boss/gmi, /solid snake/gmi],
@@ -31,7 +33,7 @@ export class ScreamOnSight {
                     'https://tenor.com/view/metal-gear-solid-phantom-pain-metal-gear-solid-v-snake-big-boss-gif-6526414909388443363',
                     'https://tenor.com/view/mgs-mgsv-metal-gear-solid-big-boss-gif-27478240'
                 ]))
-            },
+            }
         },
         {
             pattern: [/absolute cinema/gmi],
@@ -74,14 +76,14 @@ export class ScreamOnSight {
                     'https://tenor.com/view/project-wingman-crimson-1-cordium-consequence-of-power-gif-18137013603651714218',
                     'https://tenor.com/view/%D0%BF%D1%80%D0%B0%D1%86%D1%8E%D1%94-%D0%BF%D0%BF%D0%BE-%D0%BF%D0%BF%D0%BE-%D0%BF%D0%B2%D0%BE-%D0%BF%D0%B5%D1%82%D1%80%D1%96%D0%BE%D1%82-%D0%BF%D0%B0%D1%82%D1%80%D1%96%D0%BE%D1%82-gif-12934051785885241735'
                 ]))
-            },
+            }
         },
         {
             pattern: [/embi/gmi, /\bember/gmi],
             async action(message) {
                 const emberglaze = await message.client.users.fetch(EMBERGLAZE_ID)
                 await emberglaze.send(`${PING_EMBERGLAZE} https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}\n-# Guild ${message.guild?.name || 'null'} (${message.guild?.id || 'null'})`)
-            },
+            }
         },
         {
             pattern: [/shelby/gmi],
@@ -106,7 +108,7 @@ export class ScreamOnSight {
                     'https://cdn.discordapp.com/attachments/1267488539503886386/1362140010559705260/image.png?ex=68014f3d&is=67fffdbd&hm=ff8f1cd3bf09fd0d8dca408a43c81f89ebcfa2fbb33aaeae1a07eddc0d74455c&',
                     'https://cdn.discordapp.com/attachments/982138135653793804/1362142160606199988/image.png?ex=6801513e&is=67ffffbe&hm=3920645809825cd0a04615a6d78beae4e44dcbdd89532af8b95cc0390d4c85fa&'
                 ]))
-            },
+            }
         },
         {
             pattern: [/fish/gmi, /\byou know what that means\b/gmi, /effic/gmi /* intended pun in pronounciation: 'effish' (efficient => ef_fish_ient) */],
@@ -118,13 +120,13 @@ export class ScreamOnSight {
                     'https://cdn.discordapp.com/attachments/1331556083776487444/1350097724204122212/caption.gif?ex=67e2aefd&is=67e15d7d&hm=aad1f8a3b156e93e539c279544f985eab49277c6100c4104ccaf3a7151cb325d&',
                     'https://tenor.com/view/funny-fish-launch-gif-14878073'
                 ]))
-            },
+            }
         },
         {
             pattern: [/\bi miss my wife\b/gmi],
             async action(message) {
                 await message.reply('https://tenor.com/view/dance-gecko-gif-21029304')
-            },
+            }
         },
         {
             pattern: [/\bhungry\b/],
@@ -133,7 +135,18 @@ export class ScreamOnSight {
                     'https://tenor.com/view/horse-you-have-alerted-the-horse-alert-alert-horse-horse-alert-gif-10675569724654458517',
                     'https://tenor.com/view/order-of-iris-how-hungry-horse-honse-gif-14835892721220569918'
                 ]))
-            },
+            }
+        },
+        {
+            pattern: [youtubeLinkRegex],
+            async action(message) {
+                const match = youtubeLinkRegex.exec(message.content)
+                if (!match) return
+                const link = match[0]
+                const url = new URL(link)
+                if (!url.searchParams.has('si')) return
+                await message.reply('https://cdn.discordapp.com/attachments/958528148545347634/1363588014130860254/Sanitize-1.webp?ex=680693cc&is=6805424c&hm=963ce86f5ef79e9fe70c0f7cdff5c4ef41fdd3eb0fe905f0a292cf40a1d5f30e&')
+            }
         }
     ]
     async processMessage(message: Message) {
