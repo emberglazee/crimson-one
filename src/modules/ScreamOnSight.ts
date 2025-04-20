@@ -1,3 +1,6 @@
+import { Logger, yellow } from '../util/logger'
+const logger = new Logger('ScreamOnSight')
+
 import type { Message } from 'discord.js'
 import type { ScreamOnSightTrigger } from '../types/types'
 import { chance, getRandomElement } from '../util/functions'
@@ -143,9 +146,9 @@ export class ScreamOnSight {
                 const match = youtubeLinkRegex.exec(message.content)
                 if (!match) return
                 const link = match[0]
+                logger.info(`Youtube link regex found a match: ${yellow(match[0])}`)
                 const url = new URL(link)
-                if (!url.searchParams.has('si')) return
-                await message.reply('https://cdn.discordapp.com/attachments/958528148545347634/1363588014130860254/Sanitize-1.webp?ex=680693cc&is=6805424c&hm=963ce86f5ef79e9fe70c0f7cdff5c4ef41fdd3eb0fe905f0a292cf40a1d5f30e&')
+                if (url.searchParams.has('si')) await message.reply('https://cdn.discordapp.com/attachments/958528148545347634/1363588014130860254/Sanitize-1.webp?ex=680693cc&is=6805424c&hm=963ce86f5ef79e9fe70c0f7cdff5c4ef41fdd3eb0fe905f0a292cf40a1d5f30e&')
             }
         }
     ]
