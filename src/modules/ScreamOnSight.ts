@@ -143,6 +143,7 @@ export class ScreamOnSight {
         {
             pattern: [youtubeLinkRegex],
             async action(message) {
+                logger.info('Youtube link regex test returned true and triggered action()')
                 const match = youtubeLinkRegex.exec(message.content)
                 if (!match) return
                 const link = match[0]
