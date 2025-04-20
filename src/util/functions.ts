@@ -116,3 +116,19 @@ export function formatTimeRemaining(seconds: number): string {
         return `${hours}h ${minutes}m ${remainingSeconds}s`
     }
 }
+
+export function hasYouTubeLinkWithSI(input: string): boolean {
+    const youtubeUrlRegex = /(https?:\/\/(?:www\.|music\.)?(youtube\.com|youtu\.be)\/[^\s]+)/gi
+    const matches = input.match(youtubeUrlRegex)
+    if (!matches) return false
+    for (const urlStr of matches) {
+        try {
+            const url = new URL(urlStr)
+            const hasYouTubeDomain = url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')
+
+            if (hasYouTubeDomain && url.searchParams.has('si')) return true
+        } catch { continue }
+    }
+    return false
+}
+export const screamOnSightCheckYoutubeLinkForSI = (message: Message): boolean => hasYouTubeLinkWithSI(message.content)
