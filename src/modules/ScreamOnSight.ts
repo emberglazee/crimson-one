@@ -5,6 +5,7 @@ import type { Message } from 'discord.js'
 import type { ScreamOnSightTrigger } from '../types/types'
 import { chance, getRandomElement } from '../util/functions'
 import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
+import { inspect } from 'util'
 
 const youtubeLinkRegex = /(?:https?:)?(?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.)?youtube\.com\/(?:watch|v|embed)(?:\.php)?(?:\?.*v=|\/))([a-zA-Z0-9_-]{7,15})(?:[?&][a-zA-Z0-9_-]+=[a-zA-Z0-9_-]+)*(?:[&/#].*)?/gm
 
@@ -145,6 +146,7 @@ export class ScreamOnSight {
             async action(message) {
                 logger.info('Youtube link regex test returned true and triggered action()')
                 const match = youtubeLinkRegex.exec(message.content)
+                logger.ok('\n' + inspect(match, true, 2, true))
                 if (!match) return
                 const link = match[0]
                 logger.info(`Youtube link regex found a match: ${yellow(match[0])}`)
