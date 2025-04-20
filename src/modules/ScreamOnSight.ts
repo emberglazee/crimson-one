@@ -1,13 +1,7 @@
-import { Logger, yellow } from '../util/logger'
-const logger = new Logger('ScreamOnSight')
-
 import type { Message } from 'discord.js'
 import type { ScreamOnSightTrigger } from '../types/types'
-import { chance, getRandomElement } from '../util/functions'
+import { chance, getRandomElement, screamOnSightCheckYoutubeLinkForSI } from '../util/functions'
 import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
-import { inspect } from 'util'
-
-const youtubeLinkRegex = /(?:https?:)?(?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.)?youtube\.com\/(?:watch|v|embed)(?:\.php)?(?:\?.*v=|\/))([a-zA-Z0-9_-]{7,15})(?:[?&][a-zA-Z0-9_-]+=[a-zA-Z0-9_-]+)*(?:[&/#].*)?/gm
 
 export class ScreamOnSight {
     triggers: ScreamOnSightTrigger[] = [
@@ -142,23 +136,22 @@ export class ScreamOnSight {
             }
         },
         {
-            pattern: [youtubeLinkRegex],
+            pattern: [screamOnSightCheckYoutubeLinkForSI],
             async action(message) {
-                logger.info('Youtube link regex test returned true and triggered action()')
-                const match = youtubeLinkRegex.exec(message.content)
-                logger.ok('\n' + inspect(match, true, 2, true))
-                if (!match) return
-                const link = match[0]
-                logger.info(`Youtube link regex found a match: ${yellow(match[0])}`)
-                const url = new URL(link)
-                if (url.searchParams.has('si')) await message.reply('https://cdn.discordapp.com/attachments/958528148545347634/1363588014130860254/Sanitize-1.webp?ex=680693cc&is=6805424c&hm=963ce86f5ef79e9fe70c0f7cdff5c4ef41fdd3eb0fe905f0a292cf40a1d5f30e&')
+                await message.reply(
+                    'https://cdn.discordapp.com/attachments/958528148545347634/1363588014130860254/Sanitize-1.webp?ex=680693cc&is=6805424c&hm=963ce86f5ef79e9fe70c0f7cdff5c4ef41fdd3eb0fe905f0a292cf40a1d5f30e&'
+                )
             }
         }
     ]
     async processMessage(message: Message) {
         const matchingTriggers: ScreamOnSightTrigger[] = []
         for (const { pattern, action } of this.triggers) {
-            if (pattern.some(r => r instanceof RegExp ? r.test(message.content) : message.content.includes(r))) {
+            if (pattern.some(
+                r => r instanceof RegExp
+                    ? r.test(message.content) : typeof r === 'function'
+                    ? r(message) : message.content.includes(r)
+            )) {
                 matchingTriggers.push({ pattern, action })
             }
         }
