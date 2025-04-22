@@ -35,7 +35,6 @@ export default {
         const emojiID = Object.values(emoji)[0]
         const str = `<:${emojiName}:${emojiID}>`
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         deferred ? await editReply(str) : await reply({
             content: str,
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
