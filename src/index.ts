@@ -27,7 +27,7 @@ const bot = new Client({
         IntentsBitField.Flags.GuildPresences,
         IntentsBitField.Flags.GuildMessages,
         IntentsBitField.Flags.MessageContent,
-        IntentsBitField.Flags.GuildModeration // For audit logs
+        IntentsBitField.Flags.GuildModeration
     ]),
     partials: [
         Partials.Channel,
@@ -51,21 +51,15 @@ bot.once('ready', async () => {
     gracefulShutdown.registerShutdownHandlers()
     bot.user!.setStatus('dnd')
 
-    // Set client on QuoteImageFactory
     QuoteImageFactory.getInstance().setClient(bot)
 
-    // Set client on MarkovChat
     MarkovChat.getInstance().setClient(bot)
 
-    logger.ok('AWACS system initialized')
-
-    // Set client and initialize command handler
     commandManager.setClient(bot)
     await commandManager.init()
     await commandManager.refreshGlobalCommands()
     await commandManager.refreshAllGuildCommands()
 
-    // Initialize Github webhook and quote factory
     const webhook = GithubWebhook.getInstance({
         port: Number(process.env.GITHUB_WEBHOOK_PORT) || 3000,
         secret: process.env.GITHUB_WEBHOOK_SECRET!
@@ -75,7 +69,7 @@ bot.once('ready', async () => {
 
     const eventFiles = (
         await readdir(path.join(__dirname, 'events'))
-    ).filter(file => file.endsWith('.ts') && file !== 'awacsEvents.ts') // Skip awacsEvents as it's handled separately
+    ).filter(file => file.endsWith('.ts') && file !== 'awacsEvents.ts') // awacsEvents is handled differently
     for (const file of eventFiles) {
         const event = await import(path.join(__dirname, `events/${file}`)) as DiscordEventListener
         event.default(bot)
@@ -85,7 +79,6 @@ bot.once('ready', async () => {
     bot.user!.setStatus('online')
 })
 
-// Handle uncaught exceptions
 process.on('uncaughtException', async err => {
     logger.error(`Uncaught exception: ${red(err.message)}`)
     await gracefulShutdown.shutdown('uncaughtException')

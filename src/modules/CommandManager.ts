@@ -8,7 +8,8 @@ import {
     ContextMenuCommandBuilder, ContextMenuCommandInteraction, Client,
     type SlashCommandSubcommandsOnlyBuilder, CommandInteraction,
     type SlashCommandOptionsOnlyBuilder, UserContextMenuCommandInteraction,
-    MessageContextMenuCommandInteraction
+    MessageContextMenuCommandInteraction,
+    type PermissionsString
 } from 'discord.js'
 
 import { readdir } from 'fs/promises'
@@ -59,6 +60,7 @@ type ContextMenuCommandProps<T extends 2 | 3 = 2 | 3> = {
         interaction: ContextMenuInteractionType<T>,
         helpers: SlashCommandHelpers
     ) => Promise<void>
+    permissions?: SlashCommandProps['permissions']
 }
 type ContextMenuInteractionType<T extends 2 | 3> = T extends 2
     ? UserContextMenuCommandInteraction
@@ -69,6 +71,7 @@ export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements ICo
     data!: ContextMenuCommandProps<T>['data']
     type!: ContextMenuCommandProps<T>['type']
     execute!: ContextMenuCommandProps<T>['execute']
+    permissions?: ContextMenuCommandProps['permissions']
 }
 
 
@@ -224,6 +227,11 @@ export default class CommandManager {
                         client: interaction.client
                     }
 
+                    const memberPermissions = interaction.memberPermissions ?? new PermissionsBitField()
+                    if (command.permissions && memberPermissions.missing(command.permissions)) {
+                        throw new MissingPermissionsError('Missing permissions to run the command', memberPermissions.missing(command.permissions))
+                    }
+
                     if (interaction.isChatInputCommand() && CommandManager.isSlashCommand(command)) {
                         await command.execute(interaction, helpers)
                     } else if (interaction.isContextMenuCommand() && CommandManager.isContextMenuCommand(command)) {
@@ -331,8 +339,8 @@ class ClassNotInitializedError extends Error {
     message = 'Command handler has not been initialized! Call init() first'
 }
 export class MissingPermissionsError extends Error {
-    permissions: PermissionsBitField[]
-    constructor(message: string, permissions: PermissionsBitField[]) {
+    permissions: PermissionsBitField[] | PermissionsString[]
+    constructor(message: string, permissions: PermissionsBitField[] | PermissionsString[]) {
         super(message)
         this.permissions = permissions
     }
