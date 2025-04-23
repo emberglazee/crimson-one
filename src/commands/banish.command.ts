@@ -1,4 +1,4 @@
-import { ChannelType, GuildMember, InteractionContextType, PermissionsBitField, SlashCommandBuilder } from 'discord.js'
+import { ChannelType, GuildMember, InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import type { GuildSlashCommand } from '../modules/CommandManager'
 import { PING_EMBERGLAZE } from '../util/constants'
 
@@ -59,6 +59,5 @@ export default {
         }
         await banishedChannel.send(`${targetMember} you've been banished for anti regime behavior, hope you enjoy your stay`)
     },
-    permissions: [new PermissionsBitField('ManageRoles')],
     guildId: '958518067690868796'
 } satisfies GuildSlashCommand
