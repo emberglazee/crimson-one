@@ -9,7 +9,7 @@ export default async function onMessageCreate(client: Client) {
     client.on('messageCreate', async message => {
         try {
             if (message.author === client.user) return
-            screamOnSight.processMessage(message)
+            await screamOnSight.processMessage(message)
 
             const isMainChannel = message.channel.id === '1335992675459141632'
             const isTestingServer = message.guildId === '1335971145014579263'
