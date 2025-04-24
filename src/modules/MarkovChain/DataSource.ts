@@ -4,6 +4,8 @@ const logger = Logger.new('MarkovChain | DataSource')
 import { Guild as DiscordGuild, Message as DiscordMessage, TextChannel, User as DiscordUser } from 'discord.js'
 import { inspect } from 'util'
 import { DataSource as ORMDataSource } from 'typeorm'
+import { existsSync, mkdirSync } from 'fs'
+import { join } from 'path'
 
 import { removeDuplicatesByKey } from '../../util/functions'
 
@@ -17,6 +19,7 @@ export class DataSource {
     private static instance: DataSource
     private orm!: ORMDataSource
     private initialized = false
+    private readonly databasePath = join(process.cwd(), 'data', 'markov.sqlite')
 
     private constructor() {}
 
@@ -27,37 +30,63 @@ export class DataSource {
         return DataSource.instance
     }
 
+    private ensureDataDirectory() {
+        const dataDir = join(process.cwd(), 'data')
+        if (!existsSync(dataDir)) {
+            logger.info('Creating data directory')
+            mkdirSync(dataDir, { recursive: true })
+        }
+    }
+
     public async init() {
         if (this.initialized) return
 
-        this.orm = new ORMDataSource({
-            type: 'sqlite',
-            database: 'data/markov.sqlite',
-            entities: [Channel, Message, Guild, User, Tag],
-            synchronize: true,
-            logging: false,
-            extra: {
-                // Add connection pool settings
-                connectionLimit: 10,
-                queueLimit: 0
-            }
-        })
+        try {
+            this.ensureDataDirectory()
+            
+            this.orm = new ORMDataSource({
+                type: 'sqlite',
+                database: this.databasePath,
+                entities: [Channel, Message, Guild, User, Tag],
+                synchronize: true,
+                logging: true, // Enable logging temporarily to debug table creation
+                extra: {
+                    connectionLimit: 10,
+                    queueLimit: 0
+                }
+            })
 
-        await this.orm.initialize()
-        
-        // Create indexes for better query performance
-        await this.orm.query(`
-            CREATE INDEX IF NOT EXISTS idx_message_id ON message(id);
-            CREATE INDEX IF NOT EXISTS idx_message_channel_id ON message(channelId);
-            CREATE INDEX IF NOT EXISTS idx_message_guild_id ON message(guildId);
-            CREATE INDEX IF NOT EXISTS idx_message_author_id ON message(authorId);
-            CREATE INDEX IF NOT EXISTS idx_channel_id ON channel(id);
-            CREATE INDEX IF NOT EXISTS idx_guild_id ON guild(id);
-            CREATE INDEX IF NOT EXISTS idx_user_id ON user(id);
-        `)
-        
-        this.initialized = true
-        logger.ok('{init} SQLite database initialized')
+            await this.orm.initialize()
+            
+            // Verify tables exist
+            const tables = await this.orm.query(`
+                SELECT name FROM sqlite_master 
+                WHERE type='table' 
+                AND name IN ('message', 'channel', 'guild', 'user', 'tag')
+            `)
+            
+            if (tables.length < 5) {
+                logger.warn('Some tables are missing, forcing table creation')
+                await this.orm.synchronize(true)
+            }
+            
+            // Create indexes for better query performance
+            await this.orm.query(`
+                CREATE INDEX IF NOT EXISTS idx_message_id ON message(id);
+                CREATE INDEX IF NOT EXISTS idx_message_channel_id ON message(channelId);
+                CREATE INDEX IF NOT EXISTS idx_message_guild_id ON message(guildId);
+                CREATE INDEX IF NOT EXISTS idx_message_author_id ON message(authorId);
+                CREATE INDEX IF NOT EXISTS idx_channel_id ON channel(id);
+                CREATE INDEX IF NOT EXISTS idx_guild_id ON guild(id);
+                CREATE INDEX IF NOT EXISTS idx_user_id ON user(id);
+            `)
+            
+            this.initialized = true
+            logger.ok('{init} SQLite database initialized')
+        } catch (error) {
+            logger.error(`Failed to initialize database: ${error}`)
+            throw error
+        }
     }
 
     public async addMessages(messages: DiscordMessage[], guild: DiscordGuild, fullyCollectedChannelId?: string) {
