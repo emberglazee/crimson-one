@@ -75,7 +75,7 @@ export class MarkovChat extends EventEmitter<{
         const messages: DiscordMessage[] = []
         const startTime = Date.now()
         const MAX_RETRIES = 3
-        const BATCH_SIZE = 200
+        const BATCH_SIZE = 100
 
         // Check if channel was previously fully collected
         const wasFullyCollected = await this.dataSource.isChannelFullyCollected(channel.guild.id, channel.id)
