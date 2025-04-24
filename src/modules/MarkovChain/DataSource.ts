@@ -62,7 +62,7 @@ export class DataSource {
             const tables = await this.orm.query(`
                 SELECT name FROM sqlite_master 
                 WHERE type='table' 
-                AND name IN ('message', 'channel', 'guild', 'user', 'tag')
+                AND name IN ('messages', 'channels', 'guilds', 'users', 'tags')
             `)
             
             if (tables.length < 5) {
@@ -72,13 +72,13 @@ export class DataSource {
             
             // Create indexes for better query performance
             await this.orm.query(`
-                CREATE INDEX IF NOT EXISTS idx_message_id ON message(id);
-                CREATE INDEX IF NOT EXISTS idx_message_channel_id ON message(channelId);
-                CREATE INDEX IF NOT EXISTS idx_message_guild_id ON message(guildId);
-                CREATE INDEX IF NOT EXISTS idx_message_author_id ON message(authorId);
-                CREATE INDEX IF NOT EXISTS idx_channel_id ON channel(id);
-                CREATE INDEX IF NOT EXISTS idx_guild_id ON guild(id);
-                CREATE INDEX IF NOT EXISTS idx_user_id ON user(id);
+                CREATE INDEX IF NOT EXISTS idx_messages_id ON messages(id);
+                CREATE INDEX IF NOT EXISTS idx_messages_channel_id ON messages(channelId);
+                CREATE INDEX IF NOT EXISTS idx_messages_guild_id ON messages(guildId);
+                CREATE INDEX IF NOT EXISTS idx_messages_author_id ON messages(authorId);
+                CREATE INDEX IF NOT EXISTS idx_channels_id ON channels(id);
+                CREATE INDEX IF NOT EXISTS idx_guilds_id ON guilds(id);
+                CREATE INDEX IF NOT EXISTS idx_users_id ON users(id);
             `)
             
             this.initialized = true
