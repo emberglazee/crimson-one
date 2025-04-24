@@ -112,9 +112,7 @@ export class DataSource {
                 // Bulk upsert users
                 const usersToUpsert = removeDuplicatesByKey(
                     chunk.map(msg => ({
-                        id: msg.author.id,
-                        username: msg.author.username,
-                        discriminator: msg.author.discriminator
+                        id: msg.author.id
                     })),
                     user => user.id
                 )
@@ -124,7 +122,6 @@ export class DataSource {
                     .insert()
                     .into(User)
                     .values(usersToUpsert)
-                    .orUpdate(['username', 'discriminator'], ['id'])
                     .execute()
                 logger.ok('{addMessages} Users upserted')
 
