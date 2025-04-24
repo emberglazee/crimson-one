@@ -141,7 +141,7 @@ export class DataSource {
                     .insert()
                     .into(Channel)
                     .values(channelsToUpsert)
-                    .orUpdate(['name', 'fullyCollected'], ['id'])
+                    .orUpdate(['fullyCollected'], ['id'])
                     .execute()
                 logger.ok('{addMessages} Channels upserted')
 
