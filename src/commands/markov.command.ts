@@ -256,7 +256,7 @@ export default {
             } catch (error) {
                 logger.warn(`Failed to generate message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
                 await editReply({
-                    content: `❌ Failed to generate message: ${red(error instanceof Error ? error.message : 'Unknown error')}`
+                    content: `❌ Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`
                 })
             }
 
