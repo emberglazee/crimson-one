@@ -71,7 +71,7 @@ export class MarkovChat extends EventEmitter<{
     } = {}) {
         if (!this.client) throw new Error('Client not set')
 
-        const { user, limit = 1000, delayMs = 500 } = options
+        const { user, limit = 1000, delayMs = 1000 } = options
         const messages: DiscordMessage[] = []
         const startTime = Date.now()
         const MAX_RETRIES = 3
