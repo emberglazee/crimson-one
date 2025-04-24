@@ -78,9 +78,9 @@ export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements ICo
 
 export default class CommandManager {
     private static instance: CommandManager
-    private globalCommands: SlashCommand[] = []
-    private guildCommands: GuildSlashCommand[] = []
-    private contextMenuCommands: ContextMenuCommand[] = []
+    private globalCommands: Map<string, SlashCommand> = new Map()
+    private guildCommands: Map<string, Map<string, GuildSlashCommand>> = new Map()
+    private contextMenuCommands: Map<string, ContextMenuCommand> = new Map()
     private initialized = false
     private client: Client | null = null
 
@@ -128,15 +128,18 @@ export default class CommandManager {
                     const type = command.type === 2 ? 'user' : 'message'
                     logger.ok(`{importCommand} Found ${yellow(type)} context menu command ${yellow(command.data.name)}`)
                     command.data.setType(command.type)
-                    this.contextMenuCommands.push(command)
+                    this.contextMenuCommands.set(command.data.name, command)
                     commands.push(command)
                 } else if (CommandManager.isGuildSlashCommand(command)) {
                     logger.ok(`{importCommand} Found guild slash command /${yellow(command.data.name)} for guild ${yellow(command.guildId)}`)
-                    this.guildCommands.push(command)
+                    if (!this.guildCommands.has(command.guildId)) {
+                        this.guildCommands.set(command.guildId, new Map())
+                    }
+                    this.guildCommands.get(command.guildId)!.set(command.data.name, command)
                     commands.push(command)
                 } else if (CommandManager.isGlobalSlashCommand(command)) {
                     logger.ok(`{importCommand} Found slash command /${yellow(command.data.name)}`)
-                    this.globalCommands.push(command)
+                    this.globalCommands.set(command.data.name, command)
                     commands.push(command)
                 }
             }
@@ -189,22 +192,16 @@ export default class CommandManager {
     private findMatchingCommand(interaction: CommandInteraction | ContextMenuCommandInteraction) {
         if (interaction.isChatInputCommand()) {
             // First check guild commands
-            const guildCommand = this.guildCommands.find(
-                command => command.data.name === interaction.commandName &&
-                command.guildId === interaction.guildId
-            )
-            if (guildCommand) return guildCommand
+            const guildCommands = this.guildCommands.get(interaction.guildId!)
+            if (guildCommands) {
+                const guildCommand = guildCommands.get(interaction.commandName)
+                if (guildCommand) return guildCommand
+            }
 
             // Then check global commands
-            return this.globalCommands.find(
-                command => command.data.name === interaction.commandName
-            )
+            return this.globalCommands.get(interaction.commandName)
         } else if (interaction.isContextMenuCommand()) {
-            return this.contextMenuCommands.find(
-                command => command.data.name === interaction.commandName &&
-                ((interaction.isUserContextMenuCommand() && command.type === 2) ||
-                (interaction.isMessageContextMenuCommand() && command.type === 3))
-            )
+            return this.contextMenuCommands.get(interaction.commandName)
         }
         return undefined
     }
@@ -275,8 +272,8 @@ export default class CommandManager {
 
         logger.info('{refreshGlobalCommands}...')
         await this.client.application!.commands.set([
-            ...this.globalCommands,
-            ...this.contextMenuCommands
+            ...this.globalCommands.values(),
+            ...this.contextMenuCommands.values()
         ].map(command => command.data))
         logger.ok('{refreshGlobalCommands}')
     }
@@ -292,8 +289,10 @@ export default class CommandManager {
             return
         }
         logger.info(`{refreshGuildCommands} ${yellow(guildId)} - ${yellow(guild.name)}`)
-        const guildCommands = this.guildCommands.filter(command => command.guildId === guildId)
-        await guild.commands.set(guildCommands.map(command => command.data))
+        const guildCommands = this.guildCommands.get(guildId)
+        if (guildCommands) {
+            await guild.commands.set([...guildCommands.values()].map(command => command.data))
+        }
         logger.ok(`{refreshGuildCommands} ${yellow(guildId)} - ${yellow(guild.name)}`)
     }
     public async refreshAllGuildCommands() {
@@ -301,8 +300,10 @@ export default class CommandManager {
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
         logger.info('{refreshAllGuildCommands}...')
-        for (const command of this.guildCommands) {
-            await this.refreshGuildCommands(command.guildId)
+        for (const command of this.guildCommands.values()) {
+            for (const commandInGuild of command.values()) {
+                await this.refreshGuildCommands(commandInGuild.guildId)
+            }
         }
         logger.ok('{refreshAllGuildCommands}')
     }
