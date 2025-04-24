@@ -35,10 +35,27 @@ export class DataSource {
             database: 'data/markov.sqlite',
             entities: [Channel, Message, Guild, User, Tag],
             synchronize: true,
-            logging: false
+            logging: false,
+            extra: {
+                // Add connection pool settings
+                connectionLimit: 10,
+                queueLimit: 0
+            }
         })
 
         await this.orm.initialize()
+        
+        // Create indexes for better query performance
+        await this.orm.query(`
+            CREATE INDEX IF NOT EXISTS idx_message_id ON message(id);
+            CREATE INDEX IF NOT EXISTS idx_message_channel_id ON message(channelId);
+            CREATE INDEX IF NOT EXISTS idx_message_guild_id ON message(guildId);
+            CREATE INDEX IF NOT EXISTS idx_message_author_id ON message(authorId);
+            CREATE INDEX IF NOT EXISTS idx_channel_id ON channel(id);
+            CREATE INDEX IF NOT EXISTS idx_guild_id ON guild(id);
+            CREATE INDEX IF NOT EXISTS idx_user_id ON user(id);
+        `)
+        
         this.initialized = true
         logger.ok('{init} SQLite database initialized')
     }
@@ -46,11 +63,11 @@ export class DataSource {
     public async addMessages(messages: DiscordMessage[], guild: DiscordGuild, fullyCollectedChannelId?: string) {
         await this.init()
 
-        const BATCH_SIZE = 500
+        const BATCH_SIZE = 1000
         logger.info(`{addMessages} BATCH_SIZE = ${yellow(BATCH_SIZE)}`)
 
         return this.orm.transaction(async manager => {
-            // Upsert guild
+            // Upsert guild in a single operation
             await manager.upsert(Guild, {
                 id: guild.id
             }, ['id'])
@@ -63,7 +80,7 @@ export class DataSource {
                 const chunk = messages.slice(i, i + BATCH_SIZE)
                 logger.info(`{addMessages} Chunk size: ${yellow(chunk.length)}`)
 
-                // Upsert users
+                // Bulk upsert users
                 const usersToUpsert = removeDuplicatesByKey(
                     chunk.map(msg => ({
                         id: msg.author.id,
@@ -73,10 +90,16 @@ export class DataSource {
                     user => user.id
                 )
                 logger.info(`{addMessages} Upserting ${yellow(usersToUpsert.length)} users`)
-                await manager.upsert(User, usersToUpsert, ['id'])
+                await manager
+                    .createQueryBuilder()
+                    .insert()
+                    .into(User)
+                    .values(usersToUpsert)
+                    .orUpdate(['username', 'discriminator'], ['id'])
+                    .execute()
                 logger.ok('{addMessages} Users upserted')
 
-                // Upsert channels
+                // Bulk upsert channels
                 const channelsToUpsert = removeDuplicatesByKey(
                     chunk.map(msg => ({
                         id: msg.channelId,
@@ -87,10 +110,16 @@ export class DataSource {
                     channel => channel.id
                 )
                 logger.info(`{addMessages} Upserting ${yellow(channelsToUpsert.length)} channels`)
-                await manager.upsert(Channel, channelsToUpsert, ['id'])
+                await manager
+                    .createQueryBuilder()
+                    .insert()
+                    .into(Channel)
+                    .values(channelsToUpsert)
+                    .orUpdate(['name', 'fullyCollected'], ['id'])
+                    .execute()
                 logger.ok('{addMessages} Channels upserted')
 
-                // Insert messages
+                // Bulk insert messages with conflict handling
                 const messagesToInsert = removeDuplicatesByKey(
                     chunk.map(msg => ({
                         id: msg.id,
@@ -140,6 +169,7 @@ export class DataSource {
             .leftJoinAndSelect('message.author', 'author')
             .leftJoinAndSelect('message.channel', 'channel')
             .leftJoinAndSelect('message.guild', 'guild')
+            .orderBy('message.timestamp', 'DESC') // Add ordering for consistent results
 
         if (options.global) {
             // No additional filters for global scope

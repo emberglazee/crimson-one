@@ -1,7 +1,7 @@
 import { Logger, yellow } from '../../util/logger'
 const logger = Logger.new('MarkovChain | Chat')
 
-import { Client, Guild, Message as DiscordMessage, TextChannel, User, ChannelType } from 'discord.js'
+import { Client, Guild, Message as DiscordMessage, TextChannel, User, ChannelType, Collection } from 'discord.js'
 import { EventEmitter } from 'tseep'
 import { ChainBuilder } from './entities'
 import { DataSource } from './DataSource'
@@ -71,9 +71,11 @@ export class MarkovChat extends EventEmitter<{
     } = {}) {
         if (!this.client) throw new Error('Client not set')
 
-        const { user, limit = 1000, delayMs = 1000 } = options
+        const { user, limit = 1000, delayMs = 500 } = options
         const messages: DiscordMessage[] = []
         const startTime = Date.now()
+        const MAX_RETRIES = 3
+        const BATCH_SIZE = 200
 
         // Check if channel was previously fully collected
         const wasFullyCollected = await this.dataSource.isChannelFullyCollected(channel.guild.id, channel.id)
@@ -109,17 +111,31 @@ export class MarkovChat extends EventEmitter<{
             if (batchCount > 0) await Bun.sleep(delayMs)
 
             const fetchOptions: { limit: number; before?: string } = {
-                limit: Math.min(100, isEntireChannel ? 100 : numericLimit - messages.length)
+                limit: Math.min(BATCH_SIZE, isEntireChannel ? BATCH_SIZE : numericLimit - messages.length)
             }
             if (lastId) fetchOptions.before = lastId
 
-            logger.info(`Fetching batch #${yellow(batchCount + 1)} (${yellow(fetchOptions.limit)} messages)`)
-            const batch = await channel.messages.fetch(fetchOptions)
-            if (!batch.size) break
+            let retries = 0
+            let batch: Collection<string, DiscordMessage> | null = null
+
+            while (retries < MAX_RETRIES) {
+                try {
+                    logger.info(`Fetching batch #${yellow(batchCount + 1)} (${yellow(fetchOptions.limit)} messages)`)
+                    batch = await channel.messages.fetch(fetchOptions)
+                    break
+                } catch (error) {
+                    retries++
+                    if (retries === MAX_RETRIES) throw error
+                    logger.warn(`Failed to fetch batch, retrying (${retries}/${MAX_RETRIES})...`)
+                    await Bun.sleep(delayMs * retries) // Exponential backoff
+                }
+            }
+
+            if (!batch?.size) break
 
             let validMessages = user
-                ? batch.filter(msg => msg.author.id === user.id && msg.content.length > 0)
-                : batch.filter(msg => msg.content.length > 0)
+                ? batch.filter((msg: DiscordMessage) => msg.author.id === user.id && msg.content.length > 0)
+                : batch.filter((msg: DiscordMessage) => msg.content.length > 0)
 
             // For previously fully collected channels, check for message ID matches
             if (wasFullyCollected) {
