@@ -1,5 +1,5 @@
 import { Logger, yellow, red } from '../../util/logger'
-const logger = Logger.new('MarkovChain | DiscordUserApi')
+const logger = new Logger('MarkovChain | DiscordUserApi')
 
 /**
  * Fetches the total message count from a Discord channel using the Discord User API

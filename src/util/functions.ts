@@ -131,4 +131,3 @@ export function hasYouTubeLinkWithSI(input: string): boolean {
     }
     return false
 }
-export const screamOnSightCheckYoutubeLinkForSI = (message: Message): boolean => hasYouTubeLinkWithSI(message.content)

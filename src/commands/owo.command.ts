@@ -53,7 +53,7 @@ function owoTranslate(input: string): string {
         "dick": "peepee",
         "penis": "peepee",
         "damn": "darn"
-    };
+    }
 
     const prefixes = ["OwO", "hehe", "*nuzzles*", "*blushes*", "*giggles*", "*waises paw*", "OwO whats this?"]
     const suffixes = [":3", ">:3", "xox", ">3<", "UwU", "hehe", "r@^eJ", "(- • w •)", "(>• w •<)", "murr~", "(  • ⌒ •)", "(* ⌒Д⌒)", "(  ▁¡  ▁)", "(  • ω •)", "*gwomps*", "(＾ ω＾)"]
@@ -74,7 +74,7 @@ function owoTranslate(input: string): string {
     input = input.replace(/(\b\w*y\b)/gi, "$1 $1")
 
     // Stuttering effect (10% chance per word)
-    input = input.replace(/\b(\w)/g, (match) => Math.random() < 0.1 ? `${match}-${match}` : match)
+    input = input.replace(/\b(\w)/g, match => Math.random() < 0.1 ? `${match}-${match}` : match)
 
     // Add a random prefix (10% chance)
     if (Math.random() < 0.1) {

@@ -114,13 +114,13 @@ class InteractionMessageManager implements MessageUpdater {
 export default {
     data: new SlashCommandBuilder()
         .setName('markov')
-        .setDescription('Generate messages using Markov chains')
+        .setDescription('Generate text using Markov chains trained on chat messages')
         .addSubcommand(sc => sc
             .setName('generate')
-            .setDescription('Generate a message using collected data')
+            .setDescription('Create a new message based on collected chat data')
             .addStringOption(so => so
                 .setName('source')
-                .setDescription('Higher scope source of messages (ignores `channel`)')
+                .setDescription('Where to get messages from for generation')
                 .setRequired(false)
                 .addChoices(
                     { name: '🏠 This entire server', value: 'guild' },
@@ -128,32 +128,32 @@ export default {
                 )
             ).addChannelOption(co => co
                 .setName('channel')
-                .setDescription('Specific channel to generate from')
+                .setDescription('Specific channel to use for message generation')
                 .setRequired(false)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
             ).addUserOption(uo => uo
                 .setName('user')
-                .setDescription('Filter messages to this user')
+                .setDescription('Generate text in the style of a specific user')
                 .setRequired(false)
             ).addIntegerOption(io => io
                 .setName('words')
-                .setDescription('Number of words to generate (default: 20)')
+                .setDescription('How many words to generate (default: 20)')
                 .setRequired(false)
             ).addStringOption(so => so
                 .setName('seed')
-                .setDescription('Start the chain with these words')
+                .setDescription('Start the generated text with specific words')
                 .setRequired(false)
             ).addBooleanOption(bo => bo
                 .setName('ephemeral')
-                .setDescription('Only show the response to you')
+                .setDescription('Show the generated text only to you')
                 .setRequired(false)
             )
         ).addSubcommand(sc => sc
             .setName('info')
-            .setDescription('Display information about available Markov chain data')
+            .setDescription('View statistics about available message data')
             .addStringOption(so => so
                 .setName('source')
-                .setDescription('Higher scope source of messages (ignores `channel`)')
+                .setDescription('Where to get message statistics from')
                 .setRequired(false)
                 .addChoices(
                     { name: '🏠 This entire server', value: 'guild' },
@@ -161,21 +161,21 @@ export default {
                 )
             ).addChannelOption(co => co
                 .setName('channel')
-                .setDescription('Specific channel to get messages from')
+                .setDescription('Specific channel to view statistics for')
                 .setRequired(false)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
             ).addUserOption(uo => uo
                 .setName('user')
-                .setDescription('Filter messages to this user')
+                .setDescription('View statistics for a specific user\'s messages')
                 .setRequired(false)
             ).addBooleanOption(bo => bo
                 .setName('ephemeral')
-                .setDescription('Only show the response to you')
+                .setDescription('Show statistics only to you')
                 .setRequired(false)
             )
         ).addSubcommand(sc => sc
             .setName('collect')
-            .setDescription('Collect messages to build Markov chains from')
+            .setDescription('Gather messages to train the Markov chain')
             .addChannelOption(co => co
                 .setName('channel')
                 .setDescription('Channel to collect messages from')
@@ -191,15 +191,15 @@ export default {
                 .setRequired(false)
             ).addBooleanOption(bo => bo
                 .setName('entirechannel')
-                .setDescription('Collect ALL messages from the channel (overrides limit)')
+                .setDescription('Collect every message from the channel (ignores limit)')
                 .setRequired(false)
             ).addBooleanOption(bo => bo
                 .setName('allchannels')
-                .setDescription('Collect messages from ALL accessible text channels (including threads)')
+                .setDescription('Collect messages from every text channel and thread in the server')
                 .setRequired(false)
             ).addBooleanOption(bo => bo
                 .setName('ephemeral')
-                .setDescription('Only show the response to you')
+                .setDescription('Show collection progress only to you')
                 .setRequired(false)
             )
         ),

@@ -3,7 +3,7 @@ import util from 'util'
 import { Logger } from '../util/logger'
 import { screamOnSight } from '..'
 
-const logger = Logger.new('event.messageCreate')
+const logger = new Logger('event.messageCreate')
 
 export default async function onMessageCreate(client: Client) {
     client.on('messageCreate', async message => {
