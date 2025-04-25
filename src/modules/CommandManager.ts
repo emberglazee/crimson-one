@@ -161,13 +161,15 @@ export default class CommandManager {
         logger.info(`{loadCommands} Reading commands from ${yellow(dir)}...`)
         const files = await readdir(dir, { withFileTypes: true })
         logger.info(`{loadCommands} Found ${yellow(files.length)} files in ${yellow(dir)}`)
+        const importPromises: Promise<void>[] = []
         for (const file of files) {
             if (file.isDirectory()) {
-                await this.loadCommands(path.join(dir, file.name))
+                importPromises.push(this.loadCommands(path.join(dir, file.name)))
             } else if (file.isFile() && file.name.endsWith('.ts')) {
-                await this.importCommand(file)
+                importPromises.push(this.importCommand(file).then(() => {}))
             }
         }
+        await Promise.all(importPromises)
         logger.ok(`{loadCommands} Finished loading commands in ${yellow(dir)}`)
     }
 
