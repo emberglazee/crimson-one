@@ -109,11 +109,11 @@ export default class CommandManager {
     }
 
     private async importCommand(file: Dirent) {
-        logger.info(`{importCommand} Importing ${yellow(file.name)}...`)
         const startTime = Date.now()
         try {
             const importedModule = await import(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, `../commands/${file.name}`))
             const commands: (SlashCommand | ContextMenuCommand)[] = []
+            const commandInfo: { name: string, type: string, guildId?: string }[] = []
 
             // Handle both default and named exports
             for (const [_, exportedItem] of Object.entries(importedModule)) {
@@ -126,34 +126,32 @@ export default class CommandManager {
 
                 if (CommandManager.isContextMenuCommand(command)) {
                     const type = command.type === 2 ? 'user' : 'message'
-                    logger.ok(`{importCommand} Found ${yellow(type)} context menu command ${yellow(command.data.name)}`)
                     command.data.setType(command.type)
                     this.contextMenuCommands.set(command.data.name, command)
                     commands.push(command)
+                    commandInfo.push({ name: command.data.name, type: `${type} context menu` })
                 } else if (CommandManager.isGuildSlashCommand(command)) {
-                    logger.ok(`{importCommand} Found guild slash command /${yellow(command.data.name)} for guild ${yellow(command.guildId)}`)
                     if (!this.guildCommands.has(command.guildId)) {
                         this.guildCommands.set(command.guildId, new Map())
                     }
                     this.guildCommands.get(command.guildId)!.set(command.data.name, command)
                     commands.push(command)
+                    commandInfo.push({ name: command.data.name, type: 'guild slash', guildId: command.guildId })
                 } else if (CommandManager.isGlobalSlashCommand(command)) {
-                    logger.ok(`{importCommand} Found slash command /${yellow(command.data.name)}`)
                     this.globalCommands.set(command.data.name, command)
                     commands.push(command)
+                    commandInfo.push({ name: command.data.name, type: 'global slash' })
                 }
             }
 
             if (commands.length === 0) {
-                logger.warn(`{importCommand} No valid commands found in ${yellow(file.name)}`)
-                return null
+                return { file: file.name, commands: [], time: Date.now() - startTime }
             }
 
-            logger.ok(`{importCommand} Imported ${yellow(commands.length)} commands from file ${yellow(file.name)} in ${yellow((Date.now() - startTime) / 1000)}s`)
-            return commands
+            return { file: file.name, commands: commandInfo, time: Date.now() - startTime }
         } catch (err) {
             console.log(err)
-            return null
+            return { file: file.name, commands: [], time: Date.now() - startTime, error: err }
         }
     }
 
@@ -161,15 +159,41 @@ export default class CommandManager {
         logger.info(`{loadCommands} Reading commands from ${yellow(dir)}...`)
         const files = await readdir(dir, { withFileTypes: true })
         logger.info(`{loadCommands} Found ${yellow(files.length)} files in ${yellow(dir)}`)
-        const importPromises: Promise<void>[] = []
+        const importPromises: Promise<{ file: string; commands: { name: string; type: string; guildId?: string }[]; time: number; error?: unknown }>[] = []
         for (const file of files) {
             if (file.isDirectory()) {
-                importPromises.push(this.loadCommands(path.join(dir, file.name)))
+                await this.loadCommands(path.join(dir, file.name))
             } else if (file.isFile() && file.name.endsWith('.ts')) {
-                importPromises.push(this.importCommand(file).then(() => {}))
+                importPromises.push(this.importCommand(file))
             }
         }
-        await Promise.all(importPromises)
+        const results = await Promise.all(importPromises)
+        // Log summary
+        const totalCommands = results.reduce((acc, result) => acc + result.commands.length, 0)
+        const totalTime = results.reduce((acc, result) => acc + result.time, 0)
+        logger.ok(`{loadCommands} Loaded ${yellow(totalCommands)} commands from ${yellow(results.length)} files in ${yellow(totalTime / 1000)}s`)
+        // Log command details
+        const commandTypes = new Map<string, number>()
+        const guildCommands = new Map<string, number>()
+        results.forEach(result => {
+            result.commands.forEach(cmd => {
+                commandTypes.set(cmd.type, (commandTypes.get(cmd.type) || 0) + 1)
+                if (cmd.guildId) {
+                    guildCommands.set(cmd.guildId, (guildCommands.get(cmd.guildId) || 0) + 1)
+                }
+            })
+        })
+        // Log command type breakdown
+        commandTypes.forEach((count, type) => {
+            logger.info(`{loadCommands} ${yellow(count)} ${type} commands`)
+        })
+        // Log guild command breakdown
+        if (guildCommands.size > 0) {
+            logger.info('{loadCommands} Guild command distribution:')
+            guildCommands.forEach((count, guildId) => {
+                logger.info(`{loadCommands}   ${yellow(guildId)}: ${yellow(count)} commands`)
+            })
+        }
         logger.ok(`{loadCommands} Finished loading commands in ${yellow(dir)}`)
     }
 
