@@ -17,6 +17,7 @@ import { gracefulShutdown } from './modules/GracefulShutdown'
 
 import { registerFont } from 'canvas'
 import { QuoteImageFactory } from './modules/QuoteImageFactory'
+import { quoteImageConfig } from './util/constants'
 registerFont(path.join(__dirname, '../data/Roboto.ttf'), { family: 'Roboto' })
 registerFont(path.join(__dirname, '../data/Aces07.ttf'), { family: 'Aces07' })
 
@@ -51,7 +52,7 @@ bot.once('ready', async () => {
     gracefulShutdown.registerShutdownHandlers()
     bot.user!.setStatus('dnd')
 
-    QuoteImageFactory.getInstance().setClient(bot)
+    QuoteImageFactory.getInstance(quoteImageConfig)
 
     MarkovChat.getInstance().setClient(bot)
 
