@@ -11,11 +11,8 @@ import type { GitHubPushEvent } from '../types/types'
 
 type WebhookEvents = {
     push: (payload: GitHubPushEvent) => void
-    pull_request: (payload: any) => void
-    issues: (payload: any) => void
-    error: (error: Error) => void
 } & {
-    [key: string]: (...args: any[]) => void
+    [key: string]: (...args: unknown[]) => void
 }
 
 export class GithubWebhook extends EventEmitter<WebhookEvents> {
