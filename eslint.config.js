@@ -12,6 +12,8 @@ export default [
   {
     rules: {
       'no-trailing-spaces': 'error',
+      '@/eol-last': 'error',
+      'semi': ['error', 'never'],
       'no-async-promise-executor': 'off',
       'no-case-declarations': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',

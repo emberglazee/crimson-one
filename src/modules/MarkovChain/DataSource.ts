@@ -43,7 +43,7 @@ export class DataSource {
 
         try {
             this.ensureDataDirectory()
-            
+
             this.orm = new ORMDataSource({
                 type: 'sqlite',
                 database: this.databasePath,
@@ -57,19 +57,19 @@ export class DataSource {
             })
 
             await this.orm.initialize()
-            
+
             // Verify tables exist
             const tables = await this.orm.query(`
                 SELECT name FROM sqlite_master 
                 WHERE type='table' 
                 AND name IN ('messages', 'channels', 'guilds', 'users', 'tags')
             `)
-            
+
             if (tables.length < 5) {
                 logger.warn('Some tables are missing, forcing table creation')
                 await this.orm.synchronize(true)
             }
-            
+
             // Create indexes for better query performance
             await this.orm.query(`
                 CREATE INDEX IF NOT EXISTS idx_messages_id ON messages(id);
@@ -80,7 +80,7 @@ export class DataSource {
                 CREATE INDEX IF NOT EXISTS idx_guilds_id ON guilds(id);
                 CREATE INDEX IF NOT EXISTS idx_users_id ON users(id);
             `)
-            
+
             this.initialized = true
             logger.ok('{init} SQLite database initialized')
         } catch (error) {
@@ -122,6 +122,7 @@ export class DataSource {
                     .insert()
                     .into(User)
                     .values(usersToUpsert)
+                    .orUpdate(['id'], ['id'])
                     .execute()
                 logger.ok('{addMessages} Users upserted')
 
