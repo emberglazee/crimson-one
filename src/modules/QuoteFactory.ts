@@ -2,7 +2,6 @@ import { AttachmentBuilder, type Client, type ThreadChannel } from 'discord.js'
 import { QuoteImageFactory } from './QuoteImageFactory'
 import { readFile } from 'fs/promises'
 import path from 'path'
-import { quoteImageConfig } from '../util/constants'
 
 export default class QuoteFactory {
     client: Client
@@ -24,7 +23,8 @@ export default class QuoteFactory {
                 const color = message.member!.displayHexColor
                 const gradient = 'none'
                 const stretchGradient = false
-                const factory = QuoteImageFactory.getInstance(quoteImageConfig)
+                const factory = QuoteImageFactory.getInstance()
+                factory.setGuild(message.guild!)
                 const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw', false)
                 const image = new AttachmentBuilder(result.buffer)
                     .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
