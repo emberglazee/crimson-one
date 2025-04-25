@@ -2,6 +2,8 @@ import { AttachmentBuilder, MessageFlags, SlashCommandBuilder, ContextMenuComman
 import type { SlashCommand, ContextMenuCommand } from '../modules/CommandManager'
 import { QuoteImageFactory } from '../modules/QuoteImageFactory'
 import { type GradientType, COLORS, ROLE_COLORS } from '../util/colors'
+import { quoteImageConfig } from '../util/constants'
+
 
 export const slashCommand = {
     data: new SlashCommandBuilder()
@@ -77,8 +79,7 @@ export const slashCommand = {
         await deferReply({
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
-        const factory = QuoteImageFactory.getInstance()
-        factory.setGuild(interaction.guild!)
+        const factory = QuoteImageFactory.getInstance(quoteImageConfig)
         try {
             const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'ac7', interpretNewlines)
             await editReply({
@@ -104,8 +105,7 @@ export const contextMenuCommand = {
         const quote = interaction.targetMessage.content
 
         await deferReply()
-        const factory = QuoteImageFactory.getInstance()
-        factory.setGuild(interaction.guild!)
+        const factory = QuoteImageFactory.getInstance(quoteImageConfig)
         try {
             const result = await factory.createQuoteImage(speaker, quote, color, 'none', false, 'ac7', true)
             await editReply({
