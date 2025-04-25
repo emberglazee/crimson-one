@@ -21,7 +21,8 @@ export default [
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_'
       }],
-      '@typescript-eslint/no-unused-expressions': 'off'
+      '@typescript-eslint/no-unused-expressions': 'off',
+      'arrow-parens': ['error', 'as-needed']
     }
   },
 ]

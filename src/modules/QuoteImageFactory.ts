@@ -111,10 +111,10 @@ export class QuoteImageFactory {
                 outputPath
             ])
             let stderr = ''
-            ffmpeg.stderr.on('data', (data) => {
+            ffmpeg.stderr.on('data', data => {
                 stderr += data.toString()
             })
-            ffmpeg.on('close', async (code) => {
+            ffmpeg.on('close', async code => {
                 if (code === 0) {
                     try {
                         const buffer = await fs.readFile(outputPath)
@@ -126,7 +126,7 @@ export class QuoteImageFactory {
                     reject(new Error(`FFmpeg failed with code ${code}: ${stderr}`))
                 }
             })
-            ffmpeg.on('error', (error) => {
+            ffmpeg.on('error', error => {
                 reject(new Error(`Failed to start FFmpeg: ${error}`))
             })
         })
@@ -274,7 +274,7 @@ export class QuoteImageFactory {
             })))
 
             // Parse Unicode emojis with better handling of flags and combined emojis
-            const unicodeEmojiRegex = /(?:\p{RI}\p{RI})|(?:[\u{1F3F3}\u{1F3F4}](?:\u{FE0F}\u{200D}[\u{1F308}\u{2620}]|\u{E0067}\u{E0062}(?:\u{E0077}\u{E006C}\u{E0073}|\u{E0073}\u{E0063}\u{E0074}|\u{E0065}\u{E006E}\u{E0067})\u{E007F})?|(?:[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?(?:\u200D(?:[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?)*|\uFE0F|\u20E3|[\u{1F3FB}-\u{1F3FF}])?))/gu;
+            const unicodeEmojiRegex = /(?:\p{RI}\p{RI})|(?:[\u{1F3F3}\u{1F3F4}](?:\u{FE0F}\u{200D}[\u{1F308}\u{2620}]|\u{E0067}\u{E0062}(?:\u{E0077}\u{E006C}\u{E0073}|\u{E0073}\u{E0063}\u{E0074}|\u{E0065}\u{E006E}\u{E0067})\u{E007F})?|(?:[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?(?:\u200D(?:[\u{1F300}-\u{1F9FF}]|[\u{1F000}-\u{1FFFF}][\u{FE00}-\u{FE0F}]?(?:[\u{1F3FB}-\u{1F3FF}])?)*|\uFE0F|\u20E3|[\u{1F3FB}-\u{1F3FF}])?))/gu
 
             const unicodeMatches = [...text.matchAll(unicodeEmojiRegex)]
 

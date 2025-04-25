@@ -126,7 +126,7 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
 
     public stop(): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.server.close((err) => {
+            this.server.close(err => {
                 if (err) reject(err)
                 else resolve()
             })

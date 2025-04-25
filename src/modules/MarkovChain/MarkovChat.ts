@@ -1,5 +1,5 @@
 import { Logger, yellow } from '../../util/logger'
-const logger = Logger.new('MarkovChain | Chat')
+const logger = new Logger('MarkovChain | Chat')
 
 import { Client, Guild, Message as DiscordMessage, TextChannel, User, ChannelType, Collection } from 'discord.js'
 import { EventEmitter } from 'tseep'

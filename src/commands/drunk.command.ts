@@ -72,8 +72,8 @@ const shiftSpecials = {
 }
 
 function isRussianText(text: string): boolean {
-    const russianChars = /[а-яА-ЯёЁ]/;
-    return russianChars.test(text);
+    const russianChars = /[а-яА-ЯёЁ]/
+    return russianChars.test(text)
 }
 
 function drunkWrite(inputText: string): string {

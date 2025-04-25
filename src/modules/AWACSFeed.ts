@@ -1,15 +1,27 @@
-import { Client, Events, GuildMember, GuildBan, ChannelType, TextChannel } from 'discord.js'
-import type { PartialGuildMember, ClientEvents } from 'discord.js'
+import { Client, Events, ChannelType, TextChannel } from 'discord.js'
+import type { ClientEvents } from 'discord.js'
 import { AWACS_FEED_CHANNEL } from '../util/constants'
 import { getRandomElement } from '../util/functions'
+
+type EventHandler<T extends keyof ClientEvents> = {
+    event: T
+    extract: (arg: ClientEvents[T][0]) => string[]
+    messages: ((name: string) => string)[]
+}
+
+type ExtractableUser = {
+    user: {
+        username: string
+    }
+}
 
 export class AWACSFeed {
     private client: Client
 
-    private static EventHandlers = [
+    private static EventHandlers: EventHandler<keyof ClientEvents>[] = [
         {
             event: Events.GuildMemberAdd,
-            extract: (member: GuildMember) => [member.user.username],
+            extract: member => [(member as ExtractableUser).user.username],
             messages: [
                 (name: string) => `${name} has arrived in the AO.`,
                 (name: string) => `${name} has penetrated the CAP line.`,
@@ -19,7 +31,7 @@ export class AWACSFeed {
         },
         {
             event: Events.GuildMemberRemove,
-            extract: (member: GuildMember | PartialGuildMember) => [member.user?.username || 'Unknown user'],
+            extract: member => [(member as ExtractableUser).user?.username || 'Unknown user'],
             messages: [
                 (name: string) => `${name} has retreated out of the AO.`,
                 (name: string) => `${name} has left the AO.`,
@@ -29,7 +41,7 @@ export class AWACSFeed {
         },
         {
             event: Events.GuildBanAdd,
-            extract: (ban: GuildBan) => [ban.user.username],
+            extract: ban => [(ban as ExtractableUser).user.username],
             messages: [
                 (name: string) => `${name} blew up.`,
                 (name: string) => `${name} was slain.`,
@@ -47,7 +59,7 @@ export class AWACSFeed {
     constructor(client: Client) {
         this.client = client
         for (const handler of AWACSFeed.EventHandlers) {
-            this.client.on(handler.event as keyof ClientEvents, async (...args: any[]) => {
+            this.client.on(handler.event, async (...args) => {
                 const params = handler.extract(args[0])
                 const message = getRandomElement(handler.messages)(params[0])
                 const channel = await this.client.channels.fetch(AWACS_FEED_CHANNEL)

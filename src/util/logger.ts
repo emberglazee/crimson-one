@@ -60,9 +60,6 @@ export class Logger extends EventEmitter<{
     writeLogLine(str: string) {
         fs.appendFileSync(this.file, `${str}\n`)
     }
-    static new(module?: string): Logger {
-        return new Logger(module)
-    }
 }
 export function formatDate() {
     const d = new Date()

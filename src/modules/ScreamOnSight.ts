@@ -1,6 +1,6 @@
 import type { Message } from 'discord.js'
 import type { ScreamOnSightTrigger } from '../types/types'
-import { chance, getRandomElement, screamOnSightCheckYoutubeLinkForSI } from '../util/functions'
+import { chance, getRandomElement } from '../util/functions'
 import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
 
 export class ScreamOnSight {
@@ -133,14 +133,6 @@ export class ScreamOnSight {
                     'https://tenor.com/view/horse-you-have-alerted-the-horse-alert-alert-horse-horse-alert-gif-10675569724654458517',
                     'https://tenor.com/view/order-of-iris-how-hungry-horse-honse-gif-14835892721220569918'
                 ]))
-            }
-        },
-        {
-            pattern: [screamOnSightCheckYoutubeLinkForSI],
-            async action(message) {
-                await message.reply(
-                    'https://cdn.discordapp.com/attachments/958528148545347634/1363588014130860254/Sanitize-1.webp?ex=680693cc&is=6805424c&hm=963ce86f5ef79e9fe70c0f7cdff5c4ef41fdd3eb0fe905f0a292cf40a1d5f30e&'
-                )
             }
         }
     ]

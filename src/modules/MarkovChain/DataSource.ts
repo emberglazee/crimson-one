@@ -1,5 +1,5 @@
 import { Logger, yellow } from '../../util/logger'
-const logger = Logger.new('MarkovChain | DataSource')
+const logger = new Logger('MarkovChain | DataSource')
 
 import { Guild as DiscordGuild, Message as DiscordMessage, TextChannel, User as DiscordUser } from 'discord.js'
 import { inspect } from 'util'
