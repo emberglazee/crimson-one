@@ -1,6 +1,5 @@
 import { SlashCommand } from '../modules/CommandManager'
 import { SlashCommandBuilder, MessageFlags } from 'discord.js'
-import axios from 'axios'
 import { load } from 'cheerio'
 import { getRandomElement } from '../util/functions'
 
@@ -25,8 +24,9 @@ export default {
 
 async function randomProjectWingmanArticle(): Promise<string> {
     const url = 'https://projectwingman.wiki.gg/wiki/Special:AllPages'
-    const res = await axios.get(url)
-    const $ = load(res.data)
+    const res = await fetch(url)
+    const html = await res.text()
+    const $ = load(html)
 
     // Select all the <a> tags within the list items.
     const articleLinks: string[] = []
