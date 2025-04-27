@@ -1,18 +1,26 @@
 import { AttachmentBuilder, MessageFlags, SlashCommandBuilder, ContextMenuCommandBuilder, InteractionContextType, ApplicationCommandType } from 'discord.js'
 import type { SlashCommand, ContextMenuCommand } from '../modules/CommandManager'
 import { QuoteImageFactory } from '../modules/QuoteImageFactory'
-import { type GradientType, COLORS, ROLE_COLORS } from '../util/colors'
+import { type GradientType, COLORS, ROLE_COLORS, CHARACTER_COLORS } from '../util/colors'
 
 export const slashCommand = {
     data: new SlashCommandBuilder()
-        .setName('ac7quote')
-        .setDescription('Generate an Ace Combat 7-styled subtitle image with custom text and speaker')
+        .setName('subtitle')
+        .setDescription('Generate an Ace Combat 7 or Project Wingman-styled subtitle image')
         .addStringOption(so => so
+            .setName('style')
+            .setDescription('The subtitle style to use')
+            .setRequired(true)
+            .setChoices(
+                { name: 'Ace Combat 7', value: 'ac7' },
+                { name: 'Project Wingman', value: 'pw' }
+            )
+        ).addStringOption(so => so
             .setName('speaker')
             .setDescription('The name of the speaker')
             .setRequired(true)
         ).addStringOption(so => so
-            .setName('quote')
+            .setName('text')
             .setDescription('The text to display')
             .setRequired(true)
         ).addStringOption(so => so
@@ -28,6 +36,13 @@ export const slashCommand = {
             .setRequired(false)
             .setChoices(
                 ROLE_COLORS.map(color => ({ name: color.name, value: color.name }))
+            )
+        ).addStringOption(so => so
+            .setName('charactercolor')
+            .setDescription('Use a character color for the speaker\'s name')
+            .setRequired(false)
+            .setChoices(
+                CHARACTER_COLORS.map(color => ({ name: color.name, value: color.name }))
             )
         ).addStringOption(so => so
             .setName('gradient')
@@ -47,28 +62,33 @@ export const slashCommand = {
             .setName('interpretnewlines')
             .setDescription('Convert <newline> tags into line breaks')
             .setRequired(false)
-        ).addBooleanOption(so => so
+        ).addBooleanOption(bo => bo
             .setName('ephemeral')
             .setDescription('Make the response visible only to you')
             .setRequired(false)
         ),
     async execute(interaction, { reply, deferReply, editReply }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
+        const style = interaction.options.getString('style', true) as 'ac7' | 'pw'
         const speaker = interaction.options.getString('speaker', true)
-        const quote = interaction.options.getString('quote', true)
+        const text = interaction.options.getString('text', true)
         const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
         const roleColor = interaction.options.getString('rolecolor')
         const plainColor = interaction.options.getString('color')
+        const characterColor = interaction.options.getString('charactercolor')
         const color = roleColor
             ? ROLE_COLORS.find(c => c.name === roleColor)?.hex ?? null
             : plainColor
                 ? COLORS.find(c => c.name === plainColor)?.hex ?? null
-                : null
+                : characterColor
+                    ? CHARACTER_COLORS.find(c => c.name === characterColor)?.hex ?? null
+                    : null
         const stretchGradient = interaction.options.getBoolean('stretch') ?? false
         const interpretNewlines = interaction.options.getBoolean('interpretNewlines') ?? true
+
         if (!color && gradient === 'none') {
             await reply({
-                content: '❌ You must provide either a color/role color or a gradient effect',
+                content: '❌ You must provide either a color, role color, character color, or a gradient color',
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
             return
@@ -80,20 +100,20 @@ export const slashCommand = {
         const factory = QuoteImageFactory.getInstance()
         factory.setGuild(interaction.guild!)
         try {
-            const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'ac7', interpretNewlines)
+            const result = await factory.createQuoteImage(speaker, text, color, gradient, stretchGradient, style, interpretNewlines)
             await editReply({
                 files: [
                     new AttachmentBuilder(result.buffer)
-                        .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
+                        .setName(`subtitle.${result.type === 'image/gif' ? 'gif' : 'png'}`)
                 ]
             })
         } catch (error) {
-            await editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error'))
+            await editReply('❌ Failed to generate subtitle image: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
 } satisfies SlashCommand
 
-export const contextMenuCommand = {
+export const contextMenuCommandAC7 = {
     data: new ContextMenuCommandBuilder()
         .setName('Quick Ace Combat 7 subtitle')
         .setContexts(InteractionContextType.Guild),
@@ -101,21 +121,48 @@ export const contextMenuCommand = {
     async execute(interaction, { deferReply, editReply }) {
         const speaker = interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
-        const quote = interaction.targetMessage.content
+        const text = interaction.targetMessage.content
 
         await deferReply()
         const factory = QuoteImageFactory.getInstance()
         factory.setGuild(interaction.guild!)
         try {
-            const result = await factory.createQuoteImage(speaker, quote, color, 'none', false, 'ac7', true)
+            const result = await factory.createQuoteImage(speaker, text, color, 'none', false, 'ac7', true)
             await editReply({
                 files: [
                     new AttachmentBuilder(result.buffer)
-                        .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
+                        .setName(`subtitle.${result.type === 'image/gif' ? 'gif' : 'png'}`)
                 ]
             })
         } catch (error) {
-            await editReply('❌ Failed to generate quote image: ' + (error instanceof Error ? error.message : 'Unknown error'))
+            await editReply('❌ Failed to generate subtitle image: ' + (error instanceof Error ? error.message : 'Unknown error'))
+        }
+    }
+} satisfies ContextMenuCommand<ApplicationCommandType.Message>
+
+export const contextMenuCommandPW = {
+    data: new ContextMenuCommandBuilder()
+        .setName('Quick Project Wingman subtitle')
+        .setContexts(InteractionContextType.Guild),
+    type: ApplicationCommandType.Message,
+    async execute(interaction, { deferReply, editReply }) {
+        const speaker = interaction.targetMessage.author.displayName
+        const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
+        const text = interaction.targetMessage.content
+
+        await deferReply()
+        const factory = QuoteImageFactory.getInstance()
+        factory.setGuild(interaction.guild!)
+        try {
+            const result = await factory.createQuoteImage(speaker, text, color, 'none', false, 'pw', true)
+            await editReply({
+                files: [
+                    new AttachmentBuilder(result.buffer)
+                        .setName(`subtitle.${result.type === 'image/gif' ? 'gif' : 'png'}`)
+                ]
+            })
+        } catch (error) {
+            await editReply('❌ Failed to generate subtitle image: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
 } satisfies ContextMenuCommand<ApplicationCommandType.Message>
