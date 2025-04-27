@@ -127,7 +127,9 @@ export default class CommandManager {
                 if (CommandManager.isContextMenuCommand(command)) {
                     const type = command.type === 2 ? 'user' : 'message'
                     command.data.setType(command.type)
-                    this.contextMenuCommands.set(command.data.name, command)
+                    // Generate a unique key for the context menu command
+                    const key = `${command.data.name}-${type}`
+                    this.contextMenuCommands.set(key, command)
                     commands.push(command)
                     commandInfo.push({ name: command.data.name, type: `${type} context menu` })
                 } else if (CommandManager.isGuildSlashCommand(command)) {
@@ -227,7 +229,10 @@ export default class CommandManager {
             // Then check global commands
             return this.globalCommands.get(interaction.commandName)
         } else if (interaction.isContextMenuCommand()) {
-            return this.contextMenuCommands.get(interaction.commandName)
+            // Find the matching context menu command by name and type
+            const type = interaction.isUserContextMenuCommand() ? 'user' : 'message'
+            const key = `${interaction.commandName}-${type}`
+            return this.contextMenuCommands.get(key)
         }
         return undefined
     }

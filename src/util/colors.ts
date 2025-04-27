@@ -1,19 +1,11 @@
 import type { HexColor } from '../types/types'
 
-export type ColorName = 'Gray' | 'Red' | 'Green' | 'Yellow' | 'Blue' | 'Pink' | 'Cyan' |
-    'White' | 'Orange' | 'Purple' | 'Brown' | 'Lime' | 'Teal' | 'Navy' |
-    'Peacekeeper Red' | 'Faust/Goblin Green' | 'The Home Depot Orange' | 'FakeDev Orange' |
-    'Wikiyellow' | 'Federation Dark Blue' | 'Cascadian Teal' | 'Mercenary Yellow' |
-    'PWcord Moderator Turquoise' | 'Voice Actor Blue' | 'Mugged Pink' | 'Potato Brown' | '⭐ Yellow' |
-    'Priority Red' | 'Ridel Purple' | 'OG Member Orange' | 'Mad Yellow' | 'Gremlin Pink' |
-    'Friendly Blue' | 'Hostile Red'
-
-export interface ColorDefinition {
-    name: ColorName
+type BasicColorDefinition = {
+    name: string
     hex: HexColor
 }
 
-export const COLORS: ColorDefinition[] = [
+const basicColors: BasicColorDefinition[] = [
     { name: 'Gray', hex: '#B0B0B0' },
     { name: 'Red', hex: '#FF5555' },
     { name: 'Green', hex: '#55FF55' },
@@ -29,7 +21,8 @@ export const COLORS: ColorDefinition[] = [
     { name: 'Teal', hex: '#008080' },
     { name: 'Navy', hex: '#000080' }
 ]
-export const ROLE_COLORS: ColorDefinition[] = [
+
+const basicRoleColors: BasicColorDefinition[] = [
     { name: 'Peacekeeper Red', hex: '#992D22' },
     { name: 'Priority Red', hex: '#FF0000' },
     { name: 'Hostile Red', hex:'#e74c3c' },
@@ -50,6 +43,24 @@ export const ROLE_COLORS: ColorDefinition[] = [
     { name: 'Ridel Purple', hex: '#71368A' },
     { name: 'Potato Brown', hex: '#c8a186' },
 ]
+
+const basicCharacterColors: BasicColorDefinition[] = [
+    { name: 'Bocchi Pink', hex: '#f5b2c4' },
+    { name: 'Nijika Yellow', hex: '#f8dc88' },
+    { name: 'Ikuyo Red', hex: '#d8615d' },
+    { name: 'Ryo Blue', hex: '#5378af' }
+]
+
+export type ColorName = typeof basicColors[number]['name'] | typeof basicRoleColors[number]['name'] | typeof basicCharacterColors[number]['name']
+
+export interface ColorDefinition {
+    name: ColorName
+    hex: HexColor
+}
+
+export const COLORS = basicColors as ColorDefinition[]
+export const ROLE_COLORS = basicRoleColors as ColorDefinition[]
+export const CHARACTER_COLORS = basicCharacterColors as ColorDefinition[]
 
 export type GradientType = 'none' | 'trans' | 'rainbow' | 'italian'
 
