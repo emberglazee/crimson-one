@@ -670,7 +670,11 @@ export class QuoteImageFactory {
 
                     // Update y position for any subsequent drawing
                     y = boxY + boxHeight + padding
-                } else if (gradient === 'none') {
+                    return canvas
+                }
+
+                // Non-HD2 styles continue here
+                if (gradient === 'none') {
                     ctx.fillStyle = speakerColor
                     for (let i = 0; i < speakerLines.length; i++) {
                         const line = speakerLines[i]
@@ -761,7 +765,7 @@ export class QuoteImageFactory {
                 ctx.fillStyle = 'white'
                 y += 2
 
-                if (style === 'hd2') {
+                if (style === 'hd2' as QuoteStyle) {
                     // Calculate total width needed for speaker name and text
                     const speakerWidth = ctx.measureText(speaker).width
                     const maxTextWidth = Math.max(...quoteLines.map(line => ctx.measureText(line).width))
