@@ -633,8 +633,8 @@ export class QuoteImageFactory {
                         speakerWidth + hd2SpeakerTextGap + maxTextWidth + (hd2TextPadding * 2)
                     )
 
-                    // Calculate box height based on number of lines (no extra space)
-                    const boxHeight = hd2BaselineOffset * 2 // Just enough for one line
+                    // Calculate box height based on number of lines
+                    const boxHeight = (quoteLines.length > 1 ? quoteLines.length * hd2LineHeight : hd2LineHeight)
                     const boxWidth = totalWidth
                     const boxX = (canvas.width - boxWidth) / 2
                     const hd2VerticalOffset = canvas.height * 0.6 // Position lower in the frame, at 60% from top
@@ -657,15 +657,7 @@ export class QuoteImageFactory {
 
                     for (let i = 0; i < quoteLines.length; i++) {
                         const line = quoteLines[i]
-                        const lineWidth = ctx.measureText(line).width
-
-                        // Center the line if it's shorter than the previous line
-                        let lineX = textX
-                        if (i > 0 && lineWidth < ctx.measureText(quoteLines[i - 1]).width) {
-                            lineX = textX + (maxTextWidth - lineWidth) / 2
-                        }
-
-                        ctx.fillText(line, lineX, currentY)
+                        ctx.fillText(line, textX, currentY)
                         currentY += hd2LineHeight
                     }
 
