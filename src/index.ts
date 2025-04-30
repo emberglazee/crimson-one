@@ -17,8 +17,9 @@ import { gracefulShutdown } from './modules/GracefulShutdown'
 
 import { registerFont } from 'canvas'
 import { QuoteImageFactory } from './modules/QuoteImageFactory'
-registerFont(path.join(__dirname, '../data/Roboto.ttf'), { family: 'Roboto' })
-registerFont(path.join(__dirname, '../data/Aces07.ttf'), { family: 'Aces07' })
+registerFont(path.join(__dirname, '../data/Roboto.ttf'), { family: 'Roboto' }) // Project Wingman
+registerFont(path.join(__dirname, '../data/Aces07.ttf'), { family: 'Aces07' }) // Ace Combat 7
+registerFont(path.join(__dirname, '../data/FSSinclairRegular.otf'), { family: 'FSSinclair' }) // Helldivers 2
 
 const bot = new Client({
     intents: new IntentsBitField([

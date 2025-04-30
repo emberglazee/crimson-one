@@ -16,8 +16,8 @@ export type QuoteImageResult = {
     type: 'image/gif' | 'image/png'
 }
 
-/** Subtitle style: Project Wingman, or Ace Combat 7 */
-export type QuoteStyle = 'pw' | 'ac7'
+/** Subtitle style: Project Wingman, Ace Combat 7, or Helldivers 2 */
+export type QuoteStyle = 'pw' | 'ac7' | 'hd2'
 
 export class QuoteImageFactory {
     private static instance: QuoteImageFactory
@@ -227,13 +227,21 @@ export class QuoteImageFactory {
         const padding = 40
         const minWidth = 1024
         const maxWidth = 2048
-        const font = style === 'pw' ? 'Roboto' : 'Aces07'
+        const font = style === 'pw' ? 'Roboto' : style === 'ac7' ? 'Aces07' : 'FSSinclair'
         const arrowQuoteWidth = style === 'ac7' ? 80 : 0 // Width for << and >> in AC7 style
+
+        // HD2-specific measurements
+        const hd2FontSize = 12
+        const hd2LineHeight = 48 // Total box height
+        const hd2TextPadding = 15 // Space between text and box edges
+        const hd2SpeakerTextGap = 20 // Space between speaker name and text
+        const hd2MaxWidth = 1100 // Maximum width of the box
+        const hd2BaselineOffset = 17 // Space from top/bottom to baseline
 
         // Create canvas for measurements
         const measureCanvas = createCanvas(1, 1)
         const measureCtx = measureCanvas.getContext('2d')
-        measureCtx.font = `${fontSize}px ${font}`
+        measureCtx.font = `${style === 'hd2' ? hd2FontSize : fontSize}px ${font}`
 
         // Updated helper function to detect and parse both Discord and Unicode emoji
         const parseEmojis = (text: string) => {
@@ -702,97 +710,144 @@ export class QuoteImageFactory {
                 ctx.fillStyle = 'white'
                 y += 2
 
-                for (let i = 0; i < quoteLines.length; i++) {
-                    const line = quoteLines[i]
-                    const lineStart = lineStartIndices[i]
-                    const nextLineStart = lineStartIndices[i + 1] || quote.length
+                if (style === 'hd2') {
+                    // Calculate total width needed for speaker name and text
+                    const speakerWidth = ctx.measureText(speaker).width
+                    const maxTextWidth = Math.max(...quoteLines.map(line => ctx.measureText(line).width))
+                    const totalWidth = Math.min(
+                        hd2MaxWidth,
+                        speakerWidth + hd2SpeakerTextGap + maxTextWidth + hd2TextPadding * 2
+                    )
 
-                    const lineEmojis = quoteEmojis.filter(e =>
-                        e.index >= lineStart && e.index < nextLineStart
-                    ).sort((a, b) => a.index - b.index)
+                    // Draw black box
+                    const boxHeight = hd2LineHeight
+                    const boxWidth = totalWidth
+                    const boxX = (width - boxWidth) / 2
+                    const boxY = y - hd2BaselineOffset
 
-                    // Adjust emoji indices relative to line start
-                    const adjustedEmojis = lineEmojis.map(emoji => ({
-                        ...emoji,
-                        relativeIndex: emoji.index - lineStart
-                    }))
+                    ctx.fillStyle = 'black'
+                    ctx.fillRect(boxX, boxY, boxWidth, boxHeight)
 
-                    // Calculate line width including emojis
-                    let totalWidth = 0
-                    let currentPos = 0
-                    const lineText = line
+                    // Draw speaker name
+                    ctx.fillStyle = speakerColor
+                    ctx.textAlign = 'left'
+                    ctx.textBaseline = 'alphabetic'
+                    ctx.font = `${hd2FontSize}px ${font}`
+                    const speakerX = boxX + hd2TextPadding
+                    const speakerY = boxY + hd2BaselineOffset
+                    ctx.fillText(speaker, speakerX, speakerY)
 
-                    // Pre-calculate total width with emoji replacements
-                    for (const emoji of adjustedEmojis) {
-                        const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
-                        if (emoji.type === 'ping') {
-                            const username = this.usernames.get(emoji.id!) || emoji.full
-                            totalWidth += ctx.measureText(textBefore).width
-                            totalWidth += ctx.measureText('@' + username).width
-                        } else {
-                            totalWidth += ctx.measureText(textBefore).width + fontSize
+                    // Draw quote text
+                    ctx.fillStyle = 'white'
+                    const textX = speakerX + speakerWidth + hd2SpeakerTextGap
+                    let currentY = speakerY
+
+                    for (let i = 0; i < quoteLines.length; i++) {
+                        const line = quoteLines[i]
+                        const lineWidth = ctx.measureText(line).width
+
+                        // Center the line if it's shorter than the previous line
+                        let lineX = textX
+                        if (i > 0 && lineWidth < ctx.measureText(quoteLines[i - 1]).width) {
+                            lineX = textX + (maxTextWidth - lineWidth) / 2
                         }
-                        currentPos = emoji.relativeIndex + emoji.length
+
+                        ctx.fillText(line, lineX, currentY)
+                        currentY += hd2LineHeight
                     }
-                    totalWidth += ctx.measureText(lineText.substring(currentPos)).width
+                } else {
+                    for (let i = 0; i < quoteLines.length; i++) {
+                        const line = quoteLines[i]
+                        const lineStart = lineStartIndices[i]
+                        const nextLineStart = lineStartIndices[i + 1] || quote.length
 
-                    // Center alignment calculations
-                    const centerX = width / 2
-                    let currentX = centerX - totalWidth / 2
+                        const lineEmojis = quoteEmojis.filter(e =>
+                            e.index >= lineStart && e.index < nextLineStart
+                        ).sort((a, b) => a.index - b.index)
 
-                    // Draw AC7 opening arrows if needed
-                    if (style === 'ac7' && i === 0) {
-                        ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
-                        ctx.fillText('<<', currentX - 40, y)
-                        ctx.fillStyle = 'white'
-                    }
+                        // Adjust emoji indices relative to line start
+                        const adjustedEmojis = lineEmojis.map(emoji => ({
+                            ...emoji,
+                            relativeIndex: emoji.index - lineStart
+                        }))
 
-                    // Reset for actual drawing
-                    currentPos = 0
-                    for (const emoji of adjustedEmojis) {
-                        const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
-                        if (textBefore) {
-                            const textWidth = ctx.measureText(textBefore).width
-                            drawText(textBefore, currentX + textWidth/2, y)
+                        // Calculate line width including emojis
+                        let totalWidth = 0
+                        let currentPos = 0
+                        const lineText = line
+
+                        // Pre-calculate total width with emoji replacements
+                        for (const emoji of adjustedEmojis) {
+                            const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
+                            if (emoji.type === 'ping') {
+                                const username = this.usernames.get(emoji.id!) || emoji.full
+                                totalWidth += ctx.measureText(textBefore).width
+                                totalWidth += ctx.measureText('@' + username).width
+                            } else {
+                                totalWidth += ctx.measureText(textBefore).width + fontSize
+                            }
+                            currentPos = emoji.relativeIndex + emoji.length
+                        }
+                        totalWidth += ctx.measureText(lineText.substring(currentPos)).width
+
+                        // Center alignment calculations
+                        const centerX = width / 2
+                        let currentX = centerX - totalWidth / 2
+
+                        // Draw AC7 opening arrows if needed
+                        if (style === 'ac7' && i === 0) {
+                            ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
+                            ctx.fillText('<<', currentX - 40, y)
+                            ctx.fillStyle = 'white'
+                        }
+
+                        // Reset for actual drawing
+                        currentPos = 0
+                        for (const emoji of adjustedEmojis) {
+                            const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
+                            if (textBefore) {
+                                const textWidth = ctx.measureText(textBefore).width
+                                drawText(textBefore, currentX + textWidth/2, y)
+                                currentX += textWidth
+                            }
+
+                            if (emoji.type === 'ping') {
+                                const username = this.usernames.get(emoji.id!) || emoji.full
+                                const pingWidth = ctx.measureText('@' + username).width
+                                drawText(emoji.full, currentX + pingWidth/2, y, true, emoji.id)
+                                currentX += pingWidth
+                            } else {
+                                // Find and draw the loaded emoji image
+                                const loadedEmoji = emojiImages.find(e =>
+                                    // For Discord emojis, match by ID
+                                    (emoji.id && e.id === emoji.id) ||
+                                    // For Twemojis, match by full text
+                                    (!emoji.id && e.full === emoji.full)
+                                )
+                                if (loadedEmoji) {
+                                    drawEmoji(loadedEmoji, currentX, y)
+                                }
+                                currentX += fontSize
+                            }
+                            currentPos = emoji.relativeIndex + emoji.length
+                        }
+
+                        // Draw remaining text
+                        const remainingText = lineText.substring(currentPos)
+                        if (remainingText) {
+                            const textWidth = ctx.measureText(remainingText).width
+                            drawText(remainingText, currentX + textWidth/2, y)
                             currentX += textWidth
                         }
 
-                        if (emoji.type === 'ping') {
-                            const username = this.usernames.get(emoji.id!) || emoji.full
-                            const pingWidth = ctx.measureText('@' + username).width
-                            drawText(emoji.full, currentX + pingWidth/2, y, true, emoji.id)
-                            currentX += pingWidth
-                        } else {
-                            // Find and draw the loaded emoji image
-                            const loadedEmoji = emojiImages.find(e =>
-                                // For Discord emojis, match by ID
-                                (emoji.id && e.id === emoji.id) ||
-                                // For Twemojis, match by full text
-                                (!emoji.id && e.full === emoji.full)
-                            )
-                            if (loadedEmoji) {
-                                drawEmoji(loadedEmoji, currentX, y)
-                            }
-                            currentX += fontSize
+                        // Draw AC7 closing arrows if needed
+                        if (style === 'ac7' && i === quoteLines.length - 1) {
+                            ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
+                            ctx.fillText('>>', currentX + 40, y)
                         }
-                        currentPos = emoji.relativeIndex + emoji.length
-                    }
 
-                    // Draw remaining text
-                    const remainingText = lineText.substring(currentPos)
-                    if (remainingText) {
-                        const textWidth = ctx.measureText(remainingText).width
-                        drawText(remainingText, currentX + textWidth/2, y)
-                        currentX += textWidth
+                        y += lineHeight
                     }
-
-                    // Draw AC7 closing arrows if needed
-                    if (style === 'ac7' && i === quoteLines.length - 1) {
-                        ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
-                        ctx.fillText('>>', currentX + 40, y)
-                    }
-
-                    y += lineHeight
                 }
 
                 const endTime = performance.now()
