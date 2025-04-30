@@ -552,11 +552,11 @@ export class QuoteImageFactory {
                 const ctx = canvas.getContext('2d')
 
                 // HD2-specific measurements
-                const hd2FontSize = Math.floor(canvas.width * 0.012) // Font size proportional to width
-                const hd2LineHeight = hd2FontSize * 2 // Line height based on font size
-                const hd2TextPadding = Math.floor(canvas.width * 0.015) // Padding proportional to width
-                const hd2SpeakerTextGap = Math.floor(canvas.width * 0.02) // Gap between speaker and text
-                const hd2BaselineOffset = Math.floor(hd2LineHeight * 0.7) // Distance from box edge to text baseline
+                const hd2FontSize = Math.floor(canvas.width * 0.025) // Increased from 0.012 to make text larger
+                const hd2LineHeight = hd2FontSize * 1.6 // Adjusted multiplier for better text spacing
+                const hd2TextPadding = Math.floor(hd2FontSize * 1.2) // Padding relative to font size
+                const hd2SpeakerTextGap = Math.floor(hd2FontSize * 1.5) // Gap relative to font size
+                const hd2BaselineOffset = Math.floor(hd2LineHeight * 0.65) // Adjusted for better vertical alignment
 
                 // Define drawEmoji at the start of renderFrame so it's available everywhere
                 const drawEmoji = (emoji: typeof emojiImages[0], x: number, y: number) => {
@@ -629,12 +629,12 @@ export class QuoteImageFactory {
                     const speakerWidth = ctx.measureText(speaker).width
                     const maxTextWidth = Math.max(...quoteLines.map(line => ctx.measureText(line).width))
                     const totalWidth = Math.min(
-                        width * 0.95, // 95% of canvas width
+                        width * 0.8, // Reduced from 0.95 to match the more compact look
                         speakerWidth + hd2SpeakerTextGap + maxTextWidth + (hd2TextPadding * 2)
                     )
 
-                    // Fixed box height as per game measurements
-                    const boxHeight = hd2LineHeight * 2 // Two lines of text height
+                    // Box height proportional to line height
+                    const boxHeight = hd2LineHeight * 1.4 // Adjusted multiplier for taller box
                     const boxWidth = totalWidth
                     const boxX = (canvas.width - boxWidth) / 2
                     const hd2VerticalOffset = canvas.height * 0.6 // Position lower in the frame, at 60% from top
