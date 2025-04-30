@@ -232,7 +232,7 @@ export class QuoteImageFactory {
 
         // HD2-specific measurements
         const hd2FontSize = 12
-        const hd2LineHeight = 48 // Total box height
+        const hd2LineHeight = 24 // Height per line
         const hd2TextPadding = 15 // Space between text and box edges
         const hd2SpeakerTextGap = 20 // Space between speaker name and text
         const hd2MaxWidth = 1100 // Maximum width of the box
@@ -618,8 +618,59 @@ export class QuoteImageFactory {
                 ctx.shadowBlur = 8
                 let y = 50
 
-                // Draw speaker name
-                if (gradient === 'none') {
+                // Draw speaker name and quote
+                if (style === 'hd2') {
+                    // Set up font and measurements for HD2 style
+                    ctx.font = `${hd2FontSize}px ${font}`
+                    ctx.textBaseline = 'alphabetic'
+                    ctx.textAlign = 'left'
+
+                    // Calculate dimensions
+                    const speakerWidth = ctx.measureText(speaker).width
+                    const maxTextWidth = Math.max(...quoteLines.map(line => ctx.measureText(line).width))
+                    const totalWidth = Math.min(
+                        hd2MaxWidth,
+                        speakerWidth + hd2SpeakerTextGap + maxTextWidth + (hd2TextPadding * 2)
+                    )
+
+                    // Calculate box height based on number of lines
+                    const boxHeight = hd2LineHeight + (hd2BaselineOffset * 2)
+                    const boxWidth = totalWidth
+                    const boxX = (width - boxWidth) / 2
+                    const boxY = y - hd2BaselineOffset
+
+                    // Draw black box
+                    ctx.fillStyle = 'black'
+                    ctx.fillRect(boxX, boxY, boxWidth, boxHeight)
+
+                    // Draw speaker name
+                    ctx.fillStyle = speakerColor
+                    const speakerX = boxX + hd2TextPadding
+                    const speakerY = boxY + hd2BaselineOffset
+                    ctx.fillText(speaker, speakerX, speakerY)
+
+                    // Draw quote text
+                    ctx.fillStyle = 'white'
+                    const textX = speakerX + speakerWidth + hd2SpeakerTextGap
+                    let currentY = speakerY
+
+                    for (let i = 0; i < quoteLines.length; i++) {
+                        const line = quoteLines[i]
+                        const lineWidth = ctx.measureText(line).width
+
+                        // Center the line if it's shorter than the previous line
+                        let lineX = textX
+                        if (i > 0 && lineWidth < ctx.measureText(quoteLines[i - 1]).width) {
+                            lineX = textX + (maxTextWidth - lineWidth) / 2
+                        }
+
+                        ctx.fillText(line, lineX, currentY)
+                        currentY += hd2LineHeight
+                    }
+
+                    // Update y position for any subsequent drawing
+                    y = boxY + boxHeight + padding
+                } else if (gradient === 'none') {
                     ctx.fillStyle = speakerColor
                     for (let i = 0; i < speakerLines.length; i++) {
                         const line = speakerLines[i]
