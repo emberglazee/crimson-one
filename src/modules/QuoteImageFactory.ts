@@ -231,12 +231,11 @@ export class QuoteImageFactory {
         const arrowQuoteWidth = style === 'ac7' ? 80 : 0 // Width for << and >> in AC7 style
 
         // HD2-specific measurements
-        const hd2FontSize = 12
-        const hd2LineHeight = 24 // Height per line
-        const hd2TextPadding = 15 // Space between text and box edges
-        const hd2SpeakerTextGap = 20 // Space between speaker name and text
-        const hd2MaxWidth = 1100 // Maximum width of the box
-        const hd2BaselineOffset = 17 // Space from top/bottom to baseline
+        const hd2FontSize = 24 // Doubled from 12 to scale up
+        const hd2LineHeight = 48 // Doubled from 24 to scale up
+        const hd2TextPadding = 30 // Doubled from 15 to scale up
+        const hd2SpeakerTextGap = 40 // Doubled from 20 to scale up
+        const hd2BaselineOffset = 34 // Doubled from 17 to scale up
 
         // Create canvas for measurements
         const measureCanvas = createCanvas(1, 1)
@@ -629,15 +628,15 @@ export class QuoteImageFactory {
                     const speakerWidth = ctx.measureText(speaker).width
                     const maxTextWidth = Math.max(...quoteLines.map(line => ctx.measureText(line).width))
                     const totalWidth = Math.min(
-                        hd2MaxWidth,
+                        canvas.width - 40, // Almost full width, leaving 20px on each side
                         speakerWidth + hd2SpeakerTextGap + maxTextWidth + (hd2TextPadding * 2)
                     )
 
-                    // Calculate box height based on number of lines
-                    const boxHeight = hd2LineHeight + (hd2BaselineOffset * 2)
+                    // Calculate box height based on number of lines (no extra space)
+                    const boxHeight = hd2BaselineOffset * 2 // Just enough for one line
                     const boxWidth = totalWidth
-                    const boxX = (width - boxWidth) / 2
-                    const boxY = y - hd2BaselineOffset
+                    const boxX = (canvas.width - boxWidth) / 2
+                    const boxY = (canvas.height - boxHeight) / 2 // Center vertically in image
 
                     // Draw black box
                     ctx.fillStyle = 'black'
@@ -668,8 +667,6 @@ export class QuoteImageFactory {
                         currentY += hd2LineHeight
                     }
 
-                    // Update y position for any subsequent drawing
-                    y = boxY + boxHeight + padding
                     return canvas
                 }
 
@@ -770,8 +767,8 @@ export class QuoteImageFactory {
                     const speakerWidth = ctx.measureText(speaker).width
                     const maxTextWidth = Math.max(...quoteLines.map(line => ctx.measureText(line).width))
                     const totalWidth = Math.min(
-                        hd2MaxWidth,
-                        speakerWidth + hd2SpeakerTextGap + maxTextWidth + hd2TextPadding * 2
+                        canvas.width - 40, // Almost full width, leaving 20px on each side
+                        speakerWidth + hd2SpeakerTextGap + maxTextWidth + (hd2TextPadding * 2)
                     )
 
                     // Draw black box
