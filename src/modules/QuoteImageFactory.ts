@@ -555,7 +555,7 @@ export class QuoteImageFactory {
                 const hd2FontSize = Math.floor(canvas.width * 0.025) // Increased from 0.012 to make text larger
                 const hd2LineHeight = hd2FontSize * 1.6 // Adjusted multiplier for better text spacing
                 const hd2TextPadding = Math.floor(hd2FontSize * 1.2) // Padding relative to font size
-                const hd2SpeakerTextGap = Math.floor(hd2FontSize * 1.5) // Gap relative to font size
+                const hd2SpeakerTextGap = Math.floor(hd2FontSize * 0.75) // Reduced from 1.5 to 0.75 for tighter spacing
                 const hd2BaselineOffset = Math.floor(hd2LineHeight * 0.65) // Adjusted for better vertical alignment
 
                 // Define drawEmoji at the start of renderFrame so it's available everywhere
@@ -687,7 +687,7 @@ export class QuoteImageFactory {
                     for (let i = 0; i < wrappedQuoteLines.length; i++) {
                         const line = wrappedQuoteLines[i]
                         ctx.fillText(line, textX, currentY)
-                        currentY += hd2LineHeight * 0.4
+                        currentY += hd2LineHeight * 0.4 + 6 // Added 6 pixels to prevent tall letters from clipping
                     }
 
                     return canvas
