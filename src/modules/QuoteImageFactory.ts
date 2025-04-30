@@ -231,11 +231,11 @@ export class QuoteImageFactory {
         const arrowQuoteWidth = style === 'ac7' ? 80 : 0 // Width for << and >> in AC7 style
 
         // HD2-specific measurements
-        const hd2FontSize = 12 // Back to original size to match game
-        const hd2LineHeight = 24 // Back to original size
-        const hd2TextPadding = 15 // Back to original size
-        const hd2SpeakerTextGap = 10 // Reduced from 20 to match game's tighter spacing
-        const hd2BaselineOffset = 17 // Back to original size
+        const hd2FontSize = 12 // Font size in pixels
+        const hd2LineHeight = 24 // Line height
+        const hd2TextPadding = 15 // Padding from text to box edges
+        const hd2SpeakerTextGap = 20 // Gap between speaker and text
+        const hd2BaselineOffset = 17 // Distance from box edge to text baseline
 
         // Create canvas for measurements
         const measureCanvas = createCanvas(1, 1)
@@ -629,12 +629,12 @@ export class QuoteImageFactory {
                     const speakerWidth = ctx.measureText(speaker).width
                     const maxTextWidth = Math.max(...quoteLines.map(line => ctx.measureText(line).width))
                     const totalWidth = Math.min(
-                        canvas.width - 40, // Almost full width, leaving 20px on each side
+                        1100, // Maximum width as per game measurements
                         speakerWidth + hd2SpeakerTextGap + maxTextWidth + (hd2TextPadding * 2)
                     )
 
-                    // Calculate box height based on number of lines
-                    const boxHeight = (quoteLines.length > 1 ? quoteLines.length * hd2LineHeight : hd2LineHeight)
+                    // Fixed box height as per game measurements
+                    const boxHeight = 48 // Fixed height from game measurements
                     const boxWidth = totalWidth
                     const boxX = (canvas.width - boxWidth) / 2
                     const hd2VerticalOffset = canvas.height * 0.6 // Position lower in the frame, at 60% from top
@@ -653,13 +653,7 @@ export class QuoteImageFactory {
                     // Draw quote text
                     ctx.fillStyle = 'white'
                     const textX = speakerX + speakerWidth + hd2SpeakerTextGap
-                    let currentY = speakerY
-
-                    for (let i = 0; i < quoteLines.length; i++) {
-                        const line = quoteLines[i]
-                        ctx.fillText(line, textX, currentY)
-                        currentY += hd2LineHeight
-                    }
+                    ctx.fillText(quoteLines[0], textX, speakerY) // Always align with speaker text
 
                     return canvas
                 }
