@@ -231,11 +231,11 @@ export class QuoteImageFactory {
         const arrowQuoteWidth = style === 'ac7' ? 80 : 0 // Width for << and >> in AC7 style
 
         // HD2-specific measurements
-        const hd2FontSize = 24 // Doubled from 12 to scale up
-        const hd2LineHeight = 48 // Doubled from 24 to scale up
-        const hd2TextPadding = 30 // Doubled from 15 to scale up
-        const hd2SpeakerTextGap = 40 // Doubled from 20 to scale up
-        const hd2BaselineOffset = 34 // Doubled from 17 to scale up
+        const hd2FontSize = 12 // Back to original size to match game
+        const hd2LineHeight = 24 // Back to original size
+        const hd2TextPadding = 15 // Back to original size
+        const hd2SpeakerTextGap = 10 // Reduced from 20 to match game's tighter spacing
+        const hd2BaselineOffset = 17 // Back to original size
 
         // Create canvas for measurements
         const measureCanvas = createCanvas(1, 1)
@@ -623,6 +623,7 @@ export class QuoteImageFactory {
                     ctx.font = `${hd2FontSize}px ${font}`
                     ctx.textBaseline = 'alphabetic'
                     ctx.textAlign = 'left'
+                    ctx.shadowBlur = 0 // Remove shadow effect for HD2 style
 
                     // Calculate dimensions
                     const speakerWidth = ctx.measureText(speaker).width
@@ -636,14 +637,15 @@ export class QuoteImageFactory {
                     const boxHeight = hd2BaselineOffset * 2 // Just enough for one line
                     const boxWidth = totalWidth
                     const boxX = (canvas.width - boxWidth) / 2
-                    const boxY = (canvas.height - boxHeight) / 2 // Center vertically in image
+                    const hd2VerticalOffset = canvas.height * 0.6 // Position lower in the frame, at 60% from top
+                    const boxY = hd2VerticalOffset - (boxHeight / 2) // Center around the vertical offset point
 
                     // Draw black box
-                    ctx.fillStyle = 'black'
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)' // Slightly transparent black to match game
                     ctx.fillRect(boxX, boxY, boxWidth, boxHeight)
 
-                    // Draw speaker name
-                    ctx.fillStyle = speakerColor
+                    // Draw speaker name with game-accurate yellow
+                    ctx.fillStyle = gradient === 'none' ? '#FFE81F' : speakerColor // Use Star Wars yellow if no specific color
                     const speakerX = boxX + hd2TextPadding
                     const speakerY = boxY + hd2BaselineOffset
                     ctx.fillText(speaker, speakerX, speakerY)
