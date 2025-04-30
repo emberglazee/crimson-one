@@ -13,7 +13,8 @@ export const slashCommand = {
             .setRequired(true)
             .setChoices(
                 { name: 'Ace Combat 7', value: 'ac7' },
-                { name: 'Project Wingman', value: 'pw' }
+                { name: 'Project Wingman', value: 'pw' },
+                { name: 'Helldivers 2', value: 'hd2' }
             )
         ).addStringOption(so => so
             .setName('speaker')
@@ -69,7 +70,7 @@ export const slashCommand = {
         ),
     async execute(interaction, { reply, deferReply, editReply }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
-        const style = interaction.options.getString('style', true) as 'ac7' | 'pw'
+        const style = interaction.options.getString('style', true) as 'ac7' | 'pw' | 'hd2'
         const speaker = interaction.options.getString('speaker', true)
         const text = interaction.options.getString('text', true)
         const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
@@ -155,6 +156,34 @@ export const contextMenuCommandPW = {
         factory.setGuild(interaction.guild!)
         try {
             const result = await factory.createQuoteImage(speaker, text, color, 'none', false, 'pw', true)
+            await editReply({
+                files: [
+                    new AttachmentBuilder(result.buffer)
+                        .setName(`subtitle.${result.type === 'image/gif' ? 'gif' : 'png'}`)
+                ]
+            })
+        } catch (error) {
+            await editReply('❌ Failed to generate subtitle image: ' + (error instanceof Error ? error.message : 'Unknown error'))
+        }
+    }
+} satisfies ContextMenuCommand<ApplicationCommandType.Message>
+
+export const contextMenuCommandHD2 = {
+    data: new ContextMenuCommandBuilder()
+        .setName('Quick Helldivers 2 subtitle')
+        .setContexts(InteractionContextType.Guild),
+    type: ApplicationCommandType.Message,
+    async execute(interaction, { deferReply, editReply }) {
+        const speaker = interaction.targetMessage.author.displayName
+        const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
+        const text = interaction.targetMessage.content
+
+        await deferReply()
+        const factory = QuoteImageFactory.getInstance()
+        factory.setGuild(interaction.guild!)
+        try {
+            // TODO: Implement proper HD2 subtitle format
+            const result = await factory.createQuoteImage(speaker, text, color, 'none', false, 'hd2', true)
             await editReply({
                 files: [
                     new AttachmentBuilder(result.buffer)
