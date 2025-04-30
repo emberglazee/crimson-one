@@ -3,6 +3,7 @@ import type { SlashCommand } from '../modules/CommandManager'
 import { randRange } from '../util/functions'
 
 const MAX_SIDES = 1000 // Prevent abuse with extremely large numbers
+const MAX_ROLLS = 100 // Maximum number of rolls allowed
 
 function rollDice(sides: number): { result: number; isNat: boolean } {
     const result = randRange(1, sides)
@@ -22,6 +23,12 @@ export default {
             .setRequired(false)
             .setMinValue(1)
             .setMaxValue(MAX_SIDES)
+        ).addNumberOption(no => no
+            .setName('rolls')
+            .setDescription('Number of times to roll the dice (default: 1)')
+            .setRequired(false)
+            .setMinValue(1)
+            .setMaxValue(MAX_ROLLS)
         ).addStringOption(so => so
             .setName('action')
             .setDescription('What action is the roll for?')
@@ -38,19 +45,20 @@ export default {
     async execute(interaction, { reply }) {
         try {
             const ephemeral = interaction.options.getBoolean('ephemeral', false)
-            const user = interaction.options.getUser('user') || interaction.user
-            const channel = interaction.channel
+            const user = interaction.options.getUser('user') ?? interaction.user
 
-            const sides = interaction.options.getNumber('sides') || 20
+            const sides = interaction.options.getNumber('sides') ?? 20
+            const rolls = interaction.options.getNumber('rolls') ?? 1
             const action = interaction.options.getString('action')
-            const { result, isNat } = rollDice(sides)
-            const rollText = isNat ? `nat ${result}` : result.toString()
-            let message = action
-                ? `${user} rolls ${rollText} (🎲 d${sides}) for ${action}`
-                : `${user} rolls ${rollText} (🎲 d${sides})`
-            if (channel?.id === '311334325402599425') {
-                message += '\n-# dont spam the command here or else'
-            }
+
+            const results = Array.from({ length: rolls }, () => rollDice(sides))
+            const rollTexts = results.map(({ result, isNat }) => isNat ? `nat ${result}` : result.toString())
+            const rollText = rollTexts.join(', ')
+
+            const message = action
+                ? `${user} rolls ${rollText} (🎲 ${rolls}d${sides}) for ${action}`
+                : `${user} rolls ${rollText} (🎲 ${rolls}d${sides})`
+
             await reply({
                 content: message,
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined
