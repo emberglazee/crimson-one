@@ -230,17 +230,10 @@ export class QuoteImageFactory {
         const font = style === 'pw' ? 'Roboto' : style === 'ac7' ? 'Aces07' : 'FSSinclair'
         const arrowQuoteWidth = style === 'ac7' ? 80 : 0 // Width for << and >> in AC7 style
 
-        // HD2-specific measurements
-        const hd2FontSize = 12 // Font size in pixels
-        const hd2LineHeight = 24 // Line height
-        const hd2TextPadding = 15 // Padding from text to box edges
-        const hd2SpeakerTextGap = 20 // Gap between speaker and text
-        const hd2BaselineOffset = 17 // Distance from box edge to text baseline
-
         // Create canvas for measurements
         const measureCanvas = createCanvas(1, 1)
         const measureCtx = measureCanvas.getContext('2d')
-        measureCtx.font = `${style === 'hd2' ? hd2FontSize : fontSize}px ${font}`
+        measureCtx.font = `${style === 'hd2' ? 48 : fontSize}px ${font}`
 
         // Updated helper function to detect and parse both Discord and Unicode emoji
         const parseEmojis = (text: string) => {
@@ -558,6 +551,13 @@ export class QuoteImageFactory {
                 const canvas = createCanvas(width, height)
                 const ctx = canvas.getContext('2d')
 
+                // HD2-specific measurements
+                const hd2FontSize = Math.floor(canvas.width * 0.012) // Font size proportional to width
+                const hd2LineHeight = hd2FontSize * 2 // Line height based on font size
+                const hd2TextPadding = Math.floor(canvas.width * 0.015) // Padding proportional to width
+                const hd2SpeakerTextGap = Math.floor(canvas.width * 0.02) // Gap between speaker and text
+                const hd2BaselineOffset = Math.floor(hd2LineHeight * 0.7) // Distance from box edge to text baseline
+
                 // Define drawEmoji at the start of renderFrame so it's available everywhere
                 const drawEmoji = (emoji: typeof emojiImages[0], x: number, y: number) => {
                     if ('frames' in emoji && emoji.frames) {
@@ -629,12 +629,12 @@ export class QuoteImageFactory {
                     const speakerWidth = ctx.measureText(speaker).width
                     const maxTextWidth = Math.max(...quoteLines.map(line => ctx.measureText(line).width))
                     const totalWidth = Math.min(
-                        1100, // Maximum width as per game measurements
+                        width * 0.95, // 95% of canvas width
                         speakerWidth + hd2SpeakerTextGap + maxTextWidth + (hd2TextPadding * 2)
                     )
 
                     // Fixed box height as per game measurements
-                    const boxHeight = 48 // Fixed height from game measurements
+                    const boxHeight = hd2LineHeight * 2 // Two lines of text height
                     const boxWidth = totalWidth
                     const boxX = (canvas.width - boxWidth) / 2
                     const hd2VerticalOffset = canvas.height * 0.6 // Position lower in the frame, at 60% from top
