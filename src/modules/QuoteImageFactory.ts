@@ -627,25 +627,54 @@ export class QuoteImageFactory {
 
                     // Calculate dimensions
                     const speakerWidth = ctx.measureText(speaker).width
-                    const maxTextWidth = Math.max(...quoteLines.map(line => ctx.measureText(line).width))
+                    const maxBoxWidth = width * 0.8 // Maximum allowed width
+
+                    // Word wrap the quote text
+                    const wrappedQuoteLines: string[] = []
+                    const words = quote.split(' ')
+                    let currentLine = ''
+
+                    for (const word of words) {
+                        const testLine = currentLine ? `${currentLine} ${word}` : word
+                        const testWidth = ctx.measureText(testLine).width
+
+                        if (testWidth > maxBoxWidth - speakerWidth - hd2SpeakerTextGap - (hd2TextPadding * 2)) {
+                            if (currentLine) {
+                                wrappedQuoteLines.push(currentLine)
+                                currentLine = word
+                            } else {
+                                // If a single word is too long, force it on its own line
+                                wrappedQuoteLines.push(word)
+                                currentLine = ''
+                            }
+                        } else {
+                            currentLine = testLine
+                        }
+                    }
+                    if (currentLine) {
+                        wrappedQuoteLines.push(currentLine)
+                    }
+
+                    // Calculate final box dimensions
+                    const maxTextWidth = Math.max(...wrappedQuoteLines.map(line => ctx.measureText(line).width))
                     const totalWidth = Math.min(
-                        width * 0.8, // Reduced from 0.95 to match the more compact look
+                        maxBoxWidth,
                         speakerWidth + hd2SpeakerTextGap + maxTextWidth + (hd2TextPadding * 2)
                     )
 
-                    // Box height proportional to line height
-                    const boxHeight = hd2LineHeight * 1.4 // Adjusted multiplier for taller box
+                    // Box height needs to account for multiple lines
+                    const boxHeight = hd2LineHeight * (1 + (wrappedQuoteLines.length > 1 ? 0.4 * (wrappedQuoteLines.length - 1) : 0))
                     const boxWidth = totalWidth
                     const boxX = (canvas.width - boxWidth) / 2
-                    const hd2VerticalOffset = canvas.height * 0.6 // Position lower in the frame, at 60% from top
-                    const boxY = hd2VerticalOffset - (boxHeight / 2) // Center around the vertical offset point
+                    const hd2VerticalOffset = canvas.height * 0.6
+                    const boxY = hd2VerticalOffset - (boxHeight / 2)
 
                     // Draw black box
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)' // Slightly transparent black to match game
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
                     ctx.fillRect(boxX, boxY, boxWidth, boxHeight)
 
-                    // Draw speaker name with game-accurate yellow
-                    ctx.fillStyle = gradient === 'none' ? '#FFE81F' : speakerColor // Use Star Wars yellow if no specific color
+                    // Draw speaker name
+                    ctx.fillStyle = gradient === 'none' ? '#FFE81F' : speakerColor
                     const speakerX = boxX + hd2TextPadding
                     const speakerY = boxY + hd2BaselineOffset
                     ctx.fillText(speaker, speakerX, speakerY)
@@ -653,7 +682,13 @@ export class QuoteImageFactory {
                     // Draw quote text
                     ctx.fillStyle = 'white'
                     const textX = speakerX + speakerWidth + hd2SpeakerTextGap
-                    ctx.fillText(quoteLines[0], textX, speakerY) // Always align with speaker text
+                    let currentY = speakerY
+
+                    for (let i = 0; i < wrappedQuoteLines.length; i++) {
+                        const line = wrappedQuoteLines[i]
+                        ctx.fillText(line, textX, currentY)
+                        currentY += hd2LineHeight * 0.4
+                    }
 
                     return canvas
                 }
