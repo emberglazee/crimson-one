@@ -9,7 +9,7 @@ import {
     type SlashCommandSubcommandsOnlyBuilder, CommandInteraction,
     type SlashCommandOptionsOnlyBuilder, UserContextMenuCommandInteraction,
     MessageContextMenuCommandInteraction,
-    type PermissionsString
+    type PermissionsString, REST, Routes
 } from 'discord.js'
 
 import { readdir } from 'fs/promises'
@@ -83,6 +83,7 @@ export default class CommandManager {
     private contextMenuCommands: Map<string, ContextMenuCommand> = new Map()
     private initialized = false
     private client: Client | null = null
+    private rest: REST | null = null
 
     private constructor() {}
 
@@ -95,6 +96,7 @@ export default class CommandManager {
 
     public setClient(client: Client) {
         this.client = client
+        this.rest = new REST().setToken(client.token!)
     }
 
     public async init() {
@@ -300,31 +302,53 @@ export default class CommandManager {
     public async refreshGlobalCommands() {
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
+        if (!this.rest) throw new Error('REST client not initialized')
 
         logger.info('{refreshGlobalCommands}...')
-        await this.client.application!.commands.set([
-            ...this.globalCommands.values(),
-            ...this.contextMenuCommands.values()
-        ].map(command => command.data))
-        logger.ok('{refreshGlobalCommands}')
+        try {
+            const commands = [
+                ...this.globalCommands.values(),
+                ...this.contextMenuCommands.values()
+            ].map(command => command.data.toJSON())
+
+            await this.rest.put(
+                Routes.applicationCommands(this.client.application!.id),
+                { body: commands }
+            )
+            logger.ok('{refreshGlobalCommands}')
+        } catch (error) {
+            logger.error(`{refreshGlobalCommands} Failed: ${red(error)}`)
+            throw error
+        }
     }
 
     public async refreshGuildCommands(guildId: string) {
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
+        if (!this.rest) throw new Error('REST client not initialized')
 
         logger.info(`{refreshGuildCommands}...`)
-        const guild = await this.client.guilds.fetch(guildId)
-        if (!guild) {
-            logger.error(`{refreshGuildCommands} ${yellow(guildId)}!`)
-            return
+        try {
+            const guild = await this.client.guilds.fetch(guildId)
+            if (!guild) {
+                logger.error(`{refreshGuildCommands} Guild ${yellow(guildId)} not found!`)
+                return
+            }
+            logger.info(`{refreshGuildCommands} ${yellow(guildId)} - ${yellow(guild.name)}`)
+
+            const guildCommands = this.guildCommands.get(guildId)
+            if (guildCommands) {
+                const commands = [...guildCommands.values()].map(command => command.data.toJSON())
+                await this.rest.put(
+                    Routes.applicationGuildCommands(this.client.application!.id, guildId),
+                    { body: commands }
+                )
+            }
+            logger.ok(`{refreshGuildCommands} ${yellow(guildId)} - ${yellow(guild.name)}`)
+        } catch (error) {
+            logger.error(`{refreshGuildCommands} Failed for guild ${yellow(guildId)}: ${red(error)}`)
+            throw error
         }
-        logger.info(`{refreshGuildCommands} ${yellow(guildId)} - ${yellow(guild.name)}`)
-        const guildCommands = this.guildCommands.get(guildId)
-        if (guildCommands) {
-            await guild.commands.set([...guildCommands.values()].map(command => command.data))
-        }
-        logger.ok(`{refreshGuildCommands} ${yellow(guildId)} - ${yellow(guild.name)}`)
     }
     public async refreshAllGuildCommands() {
         if (!this.initialized) throw new ClassNotInitializedError()
