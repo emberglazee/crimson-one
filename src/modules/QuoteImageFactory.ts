@@ -688,7 +688,7 @@ export class QuoteImageFactory {
                     for (let i = 0; i < wrappedQuoteLines.length; i++) {
                         const line = wrappedQuoteLines[i]
                         ctx.fillText(line, textX, currentY)
-                        currentY += hd2LineHeight * 0.4 + 10 // Added 10 pixels to prevent tall letters from clipping
+                        currentY += hd2LineHeight * 0.4 + 14 // Added 14 pixels to prevent tall letters from clipping
                     }
 
                     return canvas
