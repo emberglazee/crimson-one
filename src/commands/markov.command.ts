@@ -307,7 +307,7 @@ export default {
                 // Add description with filter info
                 embed.setDescription(
                     `**Filters Applied:**\n${[
-                        source === 'global' ? '🌐 Global' : !source ? `📝 Channel: #${channel?.name}` : '🏠 This server',
+                        source === 'global' ? '🌐 Global' : !source && channel ? `📝 Channel: #${channel.name}` : '🏠 This server',
                         user ? `👤 User: @${user.tag}` : null
                     ].filter(Boolean).join('\n')}`
                 )
