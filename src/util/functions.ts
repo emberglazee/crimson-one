@@ -1,12 +1,13 @@
 import { AttachmentBuilder, BaseInteraction, ChatInputCommandInteraction, CommandInteraction, Guild, GuildChannel, GuildMember, Message, User } from 'discord.js'
 import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable, ExplicitAny } from '../types/types'
+import { randomInt } from 'crypto'
 
-export const randRange = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
-export const getRandomElement = <T>(array: T[]): T => array[Math.floor(Math.random() * array.length)]
+export const randRange = (min: number, max: number) => randomInt(min, max + 1)
+export const getRandomElement = <T>(array: T[]): T => array[randomInt(array.length)]
 export function shuffleArray<T>(array: T[]): T[] {
     const shuffled = [...array]
     for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = randomInt(i + 1);
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
     }
     return shuffled
@@ -78,7 +79,7 @@ export function chance(percentage: number): boolean {
     const clamped = Math.max(0, Math.min(100, percentage))
     if (clamped === 100) return true
     if (clamped === 0) return false
-    return Math.random() * 100 < clamped
+    return randomInt(100) < clamped
 }
 
 export function hasProp<T extends object, K extends PropertyKey>(
