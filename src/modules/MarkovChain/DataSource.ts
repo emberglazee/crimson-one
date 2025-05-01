@@ -76,15 +76,78 @@ export class DataSource {
                 CREATE INDEX IF NOT EXISTS idx_messages_channel_id ON messages(channelId);
                 CREATE INDEX IF NOT EXISTS idx_messages_guild_id ON messages(guildId);
                 CREATE INDEX IF NOT EXISTS idx_messages_author_id ON messages(authorId);
+                CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
                 CREATE INDEX IF NOT EXISTS idx_channels_id ON channels(id);
                 CREATE INDEX IF NOT EXISTS idx_guilds_id ON guilds(id);
                 CREATE INDEX IF NOT EXISTS idx_users_id ON users(id);
             `)
 
+            // Run migration to add new columns if needed
+            await this.migrateMessageColumns()
+
             this.initialized = true
             logger.ok('{init} SQLite database initialized')
         } catch (error) {
             logger.error(`Failed to initialize database: ${error}`)
+            throw error
+        }
+    }
+
+    private async migrateMessageColumns() {
+        try {
+            // Check if columns exist
+            const columns = await this.orm.query(`
+                PRAGMA table_info(messages)
+            `)
+
+            const hasAuthorId = columns.some((col: { name: string }) => col.name === 'authorId')
+            const hasChannelId = columns.some((col: { name: string }) => col.name === 'channelId')
+            const hasGuildId = columns.some((col: { name: string }) => col.name === 'guildId')
+
+            if (!hasAuthorId || !hasChannelId || !hasGuildId) {
+                logger.info('Running message table migration...')
+
+                // Add new columns if they don't exist
+                if (!hasAuthorId) {
+                    await this.orm.query(`
+                        ALTER TABLE messages ADD COLUMN authorId TEXT
+                    `)
+                }
+                if (!hasChannelId) {
+                    await this.orm.query(`
+                        ALTER TABLE messages ADD COLUMN channelId TEXT
+                    `)
+                }
+                if (!hasGuildId) {
+                    await this.orm.query(`
+                        ALTER TABLE messages ADD COLUMN guildId TEXT
+                    `)
+                }
+
+                // Update the new columns with data from relations
+                await this.orm.query(`
+                    UPDATE messages 
+                    SET authorId = (
+                        SELECT author.id 
+                        FROM users author 
+                        WHERE author.id = messages.authorId
+                    ),
+                    channelId = (
+                        SELECT channel.id 
+                        FROM channels channel 
+                        WHERE channel.id = messages.channelId
+                    ),
+                    guildId = (
+                        SELECT guild.id 
+                        FROM guilds guild 
+                        WHERE guild.id = messages.guildId
+                    )
+                `)
+
+                logger.ok('Message table migration completed')
+            }
+        } catch (error) {
+            logger.error(`Failed to migrate message columns: ${error}`)
             throw error
         }
     }
@@ -151,6 +214,9 @@ export class DataSource {
                     chunk.map(msg => ({
                         id: msg.id,
                         text: msg.content,
+                        authorId: msg.author.id,
+                        channelId: msg.channelId,
+                        guildId: guild.id,
                         author: { id: msg.author.id },
                         channel: { id: msg.channelId },
                         guild: { id: guild.id },
@@ -193,17 +259,22 @@ export class DataSource {
         const query = this.orm
             .getRepository(Message)
             .createQueryBuilder('message')
-            .leftJoinAndSelect('message.author', 'author')
-            .leftJoinAndSelect('message.channel', 'channel')
-            .leftJoinAndSelect('message.guild', 'guild')
-            .orderBy('message.timestamp', 'DESC') // Add ordering for consistent results
+            .select([
+                'message.id',
+                'message.text',
+                'message.timestamp',
+                'message.authorId',
+                'message.channelId',
+                'message.guildId'
+            ])
+            .orderBy('message.timestamp', 'DESC')
 
         if (options.global) {
             // No additional filters for global scope
         } else if (options.guild) {
-            query.where('guild.id = :guildId', { guildId: options.guild.id })
+            query.where('message.guildId = :guildId', { guildId: options.guild.id })
         } else if (options.channel) {
-            query.where('channel.id = :channelId', { channelId: options.channel.id })
+            query.where('message.channelId = :channelId', { channelId: options.channel.id })
         }
 
         if (options.user) {
