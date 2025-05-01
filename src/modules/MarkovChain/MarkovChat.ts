@@ -266,9 +266,9 @@ export class MarkovChat extends EventEmitter<{
             // Process each message in the chunk
             for (const msg of chunk) {
                 // Add unique identifiers
-                uniqueAuthors.add(msg.author.id)
-                uniqueChannels.add(msg.channel.id)
-                if (msg.guild.id) uniqueGuilds.add(msg.guild.id)
+                uniqueAuthors.add(msg.authorId)
+                uniqueChannels.add(msg.channelId)
+                uniqueGuilds.add(msg.guildId)
 
                 // Process words
                 if (msg.text) {
