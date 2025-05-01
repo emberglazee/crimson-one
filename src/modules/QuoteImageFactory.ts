@@ -663,7 +663,8 @@ export class QuoteImageFactory {
                     )
 
                     // Box height needs to account for multiple lines
-                    const boxHeight = hd2LineHeight * (1 + (wrappedQuoteLines.length > 1 ? 0.4 * (wrappedQuoteLines.length - 1) : 0))
+                    const boxHeight = hd2LineHeight * (1.2 + (wrappedQuoteLines.length > 1 ? 0.4 * (wrappedQuoteLines.length - 1) : 0)) +
+                        (wrappedQuoteLines.length > 1 ? (wrappedQuoteLines.length - 1) * 10 : 0) // Add the extra line spacing to box height
                     const boxWidth = totalWidth
                     const boxX = (canvas.width - boxWidth) / 2
                     const hd2VerticalOffset = canvas.height * 0.6
