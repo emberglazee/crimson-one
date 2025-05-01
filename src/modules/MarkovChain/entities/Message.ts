@@ -13,6 +13,15 @@ export class Message {
     @Column('text')
     text!: string
 
+    @Column()
+    authorId!: string
+
+    @Column()
+    channelId!: string
+
+    @Column()
+    guildId!: string
+
     @ManyToOne(() => User, user => user.messages)
     author!: UserType
 
