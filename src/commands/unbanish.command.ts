@@ -1,6 +1,7 @@
-import { ChannelType, GuildMember, InteractionContextType, SlashCommandBuilder } from 'discord.js'
+import { ChannelType, InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import type { GuildSlashCommand } from '../modules/CommandManager'
 import { PING_EMBERGLAZE } from '../util/constants'
+import { guildMember } from '../util/functions'
 
 export default {
     data: new SlashCommandBuilder()
@@ -17,13 +18,13 @@ export default {
             return
         }
 
-        const member = interaction.member as GuildMember | null
+        const member = guildMember(interaction.member)
         if (!member) {
             await reply(`❌ for some reason i cant find you as a server member *sigh* ${PING_EMBERGLAZE}`)
             return
         }
         if (!member.permissions.has('ManageRoles')) {
-            await reply(`❌ ${PING_EMBERGLAZE} get over here fuckface your shitty fucking permissions check in your own shitty fucking slash command parser didnt fucking work so i stopped this fucking guy from running the fucking command (missing ManageRoles)`)
+            await reply('❌ you dont have permission to manage roles')
             return
         }
 
@@ -36,7 +37,7 @@ export default {
 
         const role = await interaction.guild.roles.fetch('1331170880591757434')
         if (!role) {
-            await reply(`❌ ${PING_EMBERGLAZE} banished role doesnt exist, wrong id? \`1331170880591757434\``)
+            await reply(`❌ ${PING_EMBERGLAZE} banished role doesnt exist, wrong id? (\`1331170880591757434\`)`)
             return
         }
 

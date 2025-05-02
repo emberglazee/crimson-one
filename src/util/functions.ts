@@ -1,4 +1,7 @@
-import { AttachmentBuilder, BaseInteraction, ChatInputCommandInteraction, CommandInteraction, Guild, GuildChannel, GuildMember, Message, User } from 'discord.js'
+import {
+    AttachmentBuilder, BaseInteraction, ChatInputCommandInteraction, CommandInteraction,
+    Guild, GuildChannel, GuildMember, Message, User, type APIInteractionGuildMember
+} from 'discord.js'
 import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable, ExplicitAny } from '../types/types'
 import { randomInt } from 'crypto'
 
@@ -126,9 +129,14 @@ export function hasYouTubeLinkWithSI(input: string): boolean {
         try {
             const url = new URL(urlStr)
             const hasYouTubeDomain = url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')
-
             if (hasYouTubeDomain && url.searchParams.has('si')) return true
         } catch { continue }
     }
     return false
+}
+
+export function guildMember(member: GuildMember | APIInteractionGuildMember | null): GuildMember | null {
+    if (!member) return null
+    if (member instanceof GuildMember) return member
+    return null
 }
