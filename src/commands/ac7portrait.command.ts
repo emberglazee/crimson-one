@@ -126,15 +126,6 @@ export default {
                 ctx.fillText(subtext, 20, 18 + 250 + 32 + 8 + 10) // Added 16px
             }
 
-            // Add green border with inner glow
-            ctx.shadowColor = '#00ff00'
-            ctx.shadowBlur = 5
-            ctx.shadowOffsetX = 0
-            ctx.shadowOffsetY = 0
-            ctx.strokeStyle = '#00ff00'
-            ctx.lineWidth = 1
-            ctx.strokeRect(0, 0, canvas.width, canvas.height)
-
             const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'portrait.png' })
             await editReply({
                 files: [attachment]
