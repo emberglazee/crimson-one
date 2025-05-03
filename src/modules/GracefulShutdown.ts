@@ -7,8 +7,14 @@ import { Client } from 'discord.js'
 export class GracefulShutdown {
     private static instance: GracefulShutdown
     private client: Client | null = null
+    private refable = {
+        ref() { },
+        unref() { }
+    }
 
-    private constructor() {}
+    private constructor() {
+        process.ref(this.refable)
+    }
 
     public static getInstance(): GracefulShutdown {
         if (!GracefulShutdown.instance) {
@@ -48,6 +54,8 @@ export class GracefulShutdown {
             logger.warn(`Could not destroy client: ${red(error instanceof Error ? error.message : String(error))}`)
         }
 
+        // Unref the process to allow it to exit cleanly
+        process.unref(this.refable)
         process.exit(0)
     }
 
