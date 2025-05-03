@@ -35,19 +35,6 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    /**
-     * Creates an AC7-style portrait frame with the following specifications:
-     * - Canvas dimensions: 290x362 pixels
-     * - Border: 1px bright green (#00FF00) with 5px inner glow effect
-     * - Background: Semi-transparent dark green (#1d2b21ee)
-     * - Image area: 250x250 pixels starting at (20,18)
-     * - Name text: 20px Aces07 font at (20, 300) with 2px letter spacing
-     * - Optional subtext: 10px Aces07 font below name
-     * - Optional green tint filter using color-burn blend mode
-     *
-     * @param interaction The interaction object containing command details
-     * @returns Promise<void>
-     */
     async execute(interaction, { deferReply, editReply }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
         await deferReply({
@@ -108,6 +95,11 @@ export default {
             // Add name text
             ctx.shadowBlur = 2
             ctx.font = '20px Aces07'
+
+            // Draw name shadow
+            ctx.shadowColor = '#808080'
+            ctx.shadowOffsetX = 2
+            ctx.shadowOffsetY = 2
             ctx.fillStyle = '#ffffff'
 
             // Draw each character with spacing
@@ -121,7 +113,10 @@ export default {
 
             // Add subtext if provided
             if (subtext) {
-                ctx.font = '10px Aces07'
+                ctx.font = '12px Aces07'
+                ctx.shadowColor = '#222c34'
+                ctx.shadowOffsetX = 2
+                ctx.shadowOffsetY = 2
                 ctx.fillStyle = '#65797c'
                 ctx.fillText(subtext, 20, 18 + 250 + 32 + 8 + 10) // Added 16px
             }
