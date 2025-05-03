@@ -12,8 +12,8 @@ export default {
             .setDescription('Server member to unbanish')
             .setRequired(true)
         ).setContexts(InteractionContextType.Guild),
-    async execute(interaction, { reply, followUp }) {
-        if (!interaction.guild) {
+    async execute(interaction, { reply, followUp, guild }) {
+        if (!guild) {
             await reply(`❌ why is \`interaction.guild\` nonexistant i thought i set the interaction context type to guilds only wtf ${PING_EMBERGLAZE}`)
             return
         }
@@ -29,13 +29,13 @@ export default {
         }
 
         const target = interaction.options.getUser('member', true)
-        const targetMember = await interaction.guild.members.fetch(target)
+        const targetMember = await guild.members.fetch(target)
         if (!targetMember) {
             await reply(`❌ ${PING_EMBERGLAZE} target member doesnt exist, FIX MEEEEEEEEE`)
             return
         }
 
-        const role = await interaction.guild.roles.fetch('1331170880591757434')
+        const role = await guild.roles.fetch('1331170880591757434')
         if (!role) {
             await reply(`❌ ${PING_EMBERGLAZE} banished role doesnt exist, wrong id? (\`1331170880591757434\`)`)
             return
@@ -49,7 +49,7 @@ export default {
         await targetMember.roles.remove(role)
         await reply(`Unbanished ${targetMember} for good behavior`)
 
-        const generalChannel = await interaction.guild.channels.fetch('1267488539503886386')
+        const generalChannel = await guild.channels.fetch('1267488539503886386')
         if (!generalChannel) {
             await followUp(`⚠️ cant find the general channel \`1267488539503886386\`, whatever, you cook bro`)
             return

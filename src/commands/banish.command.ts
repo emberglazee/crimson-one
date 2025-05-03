@@ -1,5 +1,4 @@
 import { ChannelType, InteractionContextType, SlashCommandBuilder } from 'discord.js'
-import { PING_EMBERGLAZE } from '../util/constants'
 import { guildMember } from '../util/functions'
 import { GuildSlashCommand } from '../types/types'
 
@@ -12,15 +11,15 @@ export default {
             .setDescription('Server member to banish')
             .setRequired(true)
         ).setContexts(InteractionContextType.Guild),
-    async execute(interaction, { reply, followUp }) {
-        if (!interaction.guild) {
-            await reply(`❌ why is \`interaction.guild\` nonexistant i thought i set the interaction context type to guilds only wtf ${PING_EMBERGLAZE}`)
+    async execute(interaction, { reply, followUp, guild, pingMe }) {
+        if (!guild) {
+            await reply(`❌ why is \`interaction.guild\` nonexistant i thought i set the interaction context type to guilds only wtf ${pingMe}`)
             return
         }
 
         const member = guildMember(interaction.member)
         if (!member) {
-            await reply(`❌ for some reason i cant find you as a server member *sigh* ${PING_EMBERGLAZE}`)
+            await reply(`❌ for some reason i cant find you as a server member *sigh* ${pingMe}`)
             return
         }
         if (!member.permissions.has('ManageRoles')) {
@@ -29,15 +28,15 @@ export default {
         }
 
         const target = interaction.options.getUser('member', true)
-        const targetMember = await interaction.guild.members.fetch(target)
+        const targetMember = await guild.members.fetch(target)
         if (!targetMember) {
-            await reply(`❌ ${PING_EMBERGLAZE} target member doesnt exist, FIX MEEEEEEEEE`)
+            await reply(`❌ ${pingMe} target member doesnt exist, FIX MEEEEEEEEE`)
             return
         }
 
-        const role = await interaction.guild.roles.fetch('1331170880591757434')
+        const role = await guild.roles.fetch('1331170880591757434')
         if (!role) {
-            await reply(`❌ ${PING_EMBERGLAZE} banished role doesnt exist, wrong id? (\`1331170880591757434\`)`)
+            await reply(`❌ ${pingMe} banished role doesnt exist, wrong id? (\`1331170880591757434\`)`)
             return
         }
 
@@ -49,7 +48,7 @@ export default {
         await targetMember.roles.add(role)
         await reply(`Banished ${targetMember} for anti-regime behavior`)
 
-        const banishedChannel = await interaction.guild.channels.fetch('1331173298528321587')
+        const banishedChannel = await guild.channels.fetch('1331173298528321587')
         if (!banishedChannel) {
             await followUp(`⚠️ cant find the banished channel \`1331173298528321587\`, whatever, you cook bro`)
             return

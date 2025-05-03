@@ -52,7 +52,7 @@ export default {
             .setRequired(false)
         ),
 
-    async execute(interaction, { reply }) {
+    async execute(interaction, { reply, guild }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const user = interaction.options.getUser('user', false) ?? interaction.user
         const raw = interaction.options.getBoolean('raw', false) ?? false
@@ -62,11 +62,11 @@ export default {
 
         let avatar = ''
         if (guildOrGlobal === 'guild') {
-            if (!interaction.guild) {
+            if (!guild) {
                 // not in a guild, using global avatar instead
                 avatar = user.displayAvatarURL({ extension: ext, size: size })
             } else {
-                const member = await interaction.guild.members.fetch(user.id)
+                const member = await guild.members.fetch(user.id)
                 if (!member) await reply('❌ User not found in this server')
                 avatar = member.displayAvatarURL({ extension: ext, size: size })
             }
@@ -74,7 +74,7 @@ export default {
             avatar = user.displayAvatarURL({ extension: ext, size: size })
         }
         let response = avatar
-        if (guildOrGlobal === 'guild' && !interaction.guild) {
+        if (guildOrGlobal === 'guild' && !guild) {
             response += '\n-# This is the global avatar, as the command was ran outside a server'
         }
         if (raw) {
@@ -85,7 +85,7 @@ export default {
             .setTitle(`Avatar of ${user.username}`)
             .setImage(avatar)
             .setColor('#F96302')
-        if (guildOrGlobal === 'guild' && !interaction.guild) {
+        if (guildOrGlobal === 'guild' && !guild) {
             embed.setFooter({
                 text: 'This is the global avatar, as the command was ran outside a server'
             })
