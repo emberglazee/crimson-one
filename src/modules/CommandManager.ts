@@ -9,7 +9,9 @@ import {
     type SlashCommandSubcommandsOnlyBuilder, CommandInteraction,
     type SlashCommandOptionsOnlyBuilder, UserContextMenuCommandInteraction,
     MessageContextMenuCommandInteraction,
-    type PermissionsString, REST, Routes
+    type PermissionsString, REST, Routes,
+    type RESTPostAPIChatInputApplicationCommandsJSONBody,
+    type RESTPostAPIContextMenuApplicationCommandsJSONBody
 } from 'discord.js'
 
 import { readdir } from 'fs/promises'
@@ -304,7 +306,6 @@ export default class CommandManager {
     private computeCommandHash(command: SlashCommand | ContextMenuCommand): string {
         const commandData = command.data.toJSON()
 
-        // Create a normalized version of the command data
         const normalizedData = {
             name: commandData.name,
             options: commandData.options ? [...commandData.options].sort((a, b) => a.name.localeCompare(b.name)) : [],
@@ -320,8 +321,8 @@ export default class CommandManager {
 
     private async checkCommandChanges(commands: (SlashCommand | ContextMenuCommand)[], guildId?: string): Promise<boolean> {
         const remoteCommands = guildId
-            ? await this.fetchGuildCommandIds(guildId)
-            : await this.fetchGlobalCommandIds()
+            ? await this.fetchGuildCommands(guildId)
+            : await this.fetchGlobalCommands()
 
         // Check if any commands were deleted
         if (remoteCommands.length !== commands.length) {
@@ -445,6 +446,23 @@ export default class CommandManager {
         }
     }
 
+    public async fetchGlobalCommands(): Promise<(RESTPostAPIChatInputApplicationCommandsJSONBody | RESTPostAPIContextMenuApplicationCommandsJSONBody)[]> {
+        if (!this.initialized) throw new ClassNotInitializedError()
+        if (!this.client) throw new Error('Client not set. Call setClient() first.')
+        if (!this.rest) throw new Error('REST client not initialized')
+
+        try {
+            const commands = await this.rest.get(
+                Routes.applicationCommands(this.client.application!.id)
+            ) as (RESTPostAPIChatInputApplicationCommandsJSONBody | RESTPostAPIContextMenuApplicationCommandsJSONBody)[]
+            return commands
+        } catch (error) {
+            logger.error(`{fetchGlobalCommands} Failed: ${red(error)}`)
+            throw error
+        }
+    }
+
+
     public async fetchGuildCommandIds(guildId: string): Promise<{ id: string; name: string }[]> {
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
@@ -457,6 +475,22 @@ export default class CommandManager {
             return commands
         } catch (error) {
             logger.error(`{fetchGuildCommandIds} Failed for guild ${yellow(guildId)}: ${red(error)}`)
+            throw error
+        }
+    }
+
+    public async fetchGuildCommands(guildId: string): Promise<(RESTPostAPIChatInputApplicationCommandsJSONBody | RESTPostAPIContextMenuApplicationCommandsJSONBody)[]> {
+        if (!this.initialized) throw new ClassNotInitializedError()
+        if (!this.client) throw new Error('Client not set. Call setClient() first.')
+        if (!this.rest) throw new Error('REST client not initialized')
+
+        try {
+            const commands = await this.rest.get(
+                Routes.applicationGuildCommands(this.client.application!.id, guildId)
+            ) as (RESTPostAPIChatInputApplicationCommandsJSONBody | RESTPostAPIContextMenuApplicationCommandsJSONBody)[]
+            return commands
+        } catch (error) {
+            logger.error(`{fetchGuildCommands} Failed for guild ${yellow(guildId)}: ${red(error)}`)
             throw error
         }
     }
