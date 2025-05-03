@@ -363,6 +363,100 @@ export default class CommandManager {
         logger.ok('{refreshAllGuildCommands}')
     }
 
+    public async fetchGlobalCommandIds(): Promise<{ id: string; name: string }[]> {
+        if (!this.initialized) throw new ClassNotInitializedError()
+        if (!this.client) throw new Error('Client not set. Call setClient() first.')
+        if (!this.rest) throw new Error('REST client not initialized')
+
+        try {
+            const commands = await this.rest.get(
+                Routes.applicationCommands(this.client.application!.id)
+            ) as { id: string; name: string }[]
+            return commands
+        } catch (error) {
+            logger.error(`{fetchGlobalCommandIds} Failed: ${red(error)}`)
+            throw error
+        }
+    }
+
+    public async fetchGuildCommandIds(guildId: string): Promise<{ id: string; name: string }[]> {
+        if (!this.initialized) throw new ClassNotInitializedError()
+        if (!this.client) throw new Error('Client not set. Call setClient() first.')
+        if (!this.rest) throw new Error('REST client not initialized')
+
+        try {
+            const commands = await this.rest.get(
+                Routes.applicationGuildCommands(this.client.application!.id, guildId)
+            ) as { id: string; name: string }[]
+            return commands
+        } catch (error) {
+            logger.error(`{fetchGuildCommandIds} Failed for guild ${yellow(guildId)}: ${red(error)}`)
+            throw error
+        }
+    }
+
+    public async deleteAllGlobalCommands(): Promise<void> {
+        if (!this.initialized) throw new ClassNotInitializedError()
+        if (!this.client) throw new Error('Client not set. Call setClient() first.')
+        if (!this.rest) throw new Error('REST client not initialized')
+
+        logger.info('{deleteAllGlobalCommands} Starting deletion of all global commands...')
+        try {
+            const commands = await this.fetchGlobalCommandIds()
+
+            // Delete each command individually
+            for (const command of commands) {
+                logger.info(`{deleteAllGlobalCommands} Deleting command ${yellow(command.name)} (${yellow(command.id)})`)
+                await this.rest.delete(
+                    Routes.applicationCommand(this.client.application!.id, command.id)
+                )
+            }
+
+            // Final cleanup with empty body
+            logger.info('{deleteAllGlobalCommands} Performing final cleanup...')
+            await this.rest.put(
+                Routes.applicationCommands(this.client.application!.id),
+                { body: [] }
+            )
+
+            logger.ok('{deleteAllGlobalCommands} Successfully deleted all global commands')
+        } catch (error) {
+            logger.error(`{deleteAllGlobalCommands} Failed: ${red(error)}`)
+            throw error
+        }
+    }
+
+    public async deleteAllGuildCommands(guildId: string): Promise<void> {
+        if (!this.initialized) throw new ClassNotInitializedError()
+        if (!this.client) throw new Error('Client not set. Call setClient() first.')
+        if (!this.rest) throw new Error('REST client not initialized')
+
+        logger.info(`{deleteAllGuildCommands} Starting deletion of all commands for guild ${yellow(guildId)}...`)
+        try {
+            const commands = await this.fetchGuildCommandIds(guildId)
+
+            // Delete each command individually
+            for (const command of commands) {
+                logger.info(`{deleteAllGuildCommands} Deleting command ${yellow(command.name)} (${yellow(command.id)}) from guild ${yellow(guildId)}`)
+                await this.rest.delete(
+                    Routes.applicationGuildCommand(this.client.application!.id, guildId, command.id)
+                )
+            }
+
+            // Final cleanup with empty body
+            logger.info(`{deleteAllGuildCommands} Performing final cleanup for guild ${yellow(guildId)}...`)
+            await this.rest.put(
+                Routes.applicationGuildCommands(this.client.application!.id, guildId),
+                { body: [] }
+            )
+
+            logger.ok(`{deleteAllGuildCommands} Successfully deleted all commands for guild ${yellow(guildId)}`)
+        } catch (error) {
+            logger.error(`{deleteAllGuildCommands} Failed for guild ${yellow(guildId)}: ${red(error)}`)
+            throw error
+        }
+    }
+
     public static isSlashCommand = (obj: unknown): obj is SlashCommand => {
         return hasProp(obj, 'data') && (obj as ExplicitAny).data instanceof SlashCommandBuilder
     }
