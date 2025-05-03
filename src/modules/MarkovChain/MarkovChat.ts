@@ -95,7 +95,7 @@ export class MarkovChat extends EventEmitter<{
         let totalMessageCount: number | null = null
         if (isEntireChannel && !user && channel.type === ChannelType.GuildText) {
             logger.info(`Attempting to fetch total message count for channel ${yellow(channel.id)}`)
-            totalMessageCount = await getChannelMessageCount(channel.guild.id, channel.id)
+            totalMessageCount = await getChannelMessageCount(this.client, channel.guild.id, channel.id)
             if (totalMessageCount) {
                 logger.ok(`Total messages in channel according to Discord API: ${yellow(totalMessageCount)}`)
             } else {
