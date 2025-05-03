@@ -1,6 +1,7 @@
 import {
     Guild, BaseInteraction, GuildChannel, Message, GuildMember, CommandInteraction,
-    ChatInputCommandInteraction, type APIInteractionDataResolvedChannel, Client, User
+    ChatInputCommandInteraction, type APIInteractionDataResolvedChannel,
+    Client, User, type ImageSize, type ImageExtension
 } from 'discord.js'
 import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
 
@@ -104,6 +105,7 @@ export type SlashCommandHelpers = {
     guild: ChatInputCommandInteraction['guild']
     myId: typeof EMBERGLAZE_ID
     pingMe: typeof PING_EMBERGLAZE
+    getUserAvatar: (user: User, guild: Guild | null, options?: { extension?: ImageExtension, size?: ImageSize, useGlobalAvatar?: boolean }) => string
 }
 
 /**

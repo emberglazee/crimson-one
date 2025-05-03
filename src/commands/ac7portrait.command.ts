@@ -35,7 +35,7 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    async execute(interaction, { deferReply, editReply }) {
+    async execute(interaction, { deferReply, editReply, getUserAvatar }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
         await deferReply({
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
@@ -64,7 +64,7 @@ export default {
         if (attachment) {
             imageUrl = attachment.url
         } else if (user) {
-            imageUrl = user.displayAvatarURL({ size: 256, extension: 'png' })
+            imageUrl = getUserAvatar(user, interaction.guild, { size: 256, extension: 'png' })
         }
 
         if (!imageUrl) {
@@ -74,7 +74,7 @@ export default {
 
         try {
             const image = await loadImage(imageUrl)
-            const canvas = createCanvas(290, 362) // Adjusted width for perfect centering
+            const canvas = createCanvas(290, 362)
             const ctx = canvas.getContext('2d')
 
             // Fill background with semi-transparent dark green
