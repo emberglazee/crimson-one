@@ -116,7 +116,7 @@ export default {
                 ctx.shadowColor = '#222c34'
                 ctx.shadowOffsetX = -4
                 ctx.shadowOffsetY = 4
-                ctx.fillStyle = '#65797c'
+                ctx.fillStyle = '#627f80'
                 ctx.fillText(subtext, 20, 18 + 250 + 32 + 8 + 10) // Added 16px
             }
 
