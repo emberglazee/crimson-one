@@ -59,7 +59,6 @@ bot.once('ready', async () => {
     commandManager.setClient(bot)
     await commandManager.init()
     await commandManager.refreshGlobalCommands()
-    await commandManager.refreshAllGuildCommands()
 
     const webhook = GithubWebhook.getInstance({
         port: Number(process.env.GITHUB_WEBHOOK_PORT) || 3000,
