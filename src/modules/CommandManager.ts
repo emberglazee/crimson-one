@@ -325,6 +325,7 @@ export default class CommandManager {
             const previousHash = this.commandHashes.get(key)
 
             if (!previousHash || previousHash !== currentHash) {
+                logger.info(`{checkCommandChanges} Command ${yellow(command.data.name)} has changed`)
                 return true
             }
         }
