@@ -10,7 +10,7 @@ export const slashCommand = {
             .setDescription('The user to get info about (defaults to yourself)')
             .setRequired(false)
         ),
-    async execute(interaction, { reply }) {
+    async execute(interaction, { reply, guild }) {
         const targetUser = interaction.options.getUser('user') ?? interaction.user
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
@@ -21,14 +21,14 @@ export const slashCommand = {
                 { name: 'User ID', value: targetUser.id, inline: true },
                 { name: 'Account Created', value: `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>`, inline: true }
             )
-        if (interaction.guild) {
-            const member = interaction.guild.members.cache.get(targetUser.id)
+        if (guild) {
+            const member = guild.members.cache.get(targetUser.id)
             if (member) {
                 embed.addFields(
                     { name: 'Joined Server', value: `<t:${Math.floor(member.joinedTimestamp! / 1000)}:R>`, inline: true },
                     { name: 'Nickname', value: member.nickname ?? 'None', inline: true },
                     { name: 'Roles', value: member.roles.cache.size > 1
-                        ? member.roles.cache.filter(role => role.id !== interaction.guild!.id).map(role => `<@&${role.id}>`).join(', ')
+                        ? member.roles.cache.filter(role => role.id !== guild.id).map(role => `<@&${role.id}>`).join(', ')
                         : 'None'
                     }
                 )
@@ -43,7 +43,7 @@ export const userContextMenuCommand = {
         .setName('User information')
         .setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     type: ApplicationCommandType.User,
-    async execute(interaction, { reply }) {
+    async execute(interaction, { reply, guild }) {
         const targetUser = interaction.targetUser
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
@@ -54,14 +54,14 @@ export const userContextMenuCommand = {
                 { name: 'User ID', value: targetUser.id, inline: true },
                 { name: 'Account Created', value: `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>`, inline: true }
             )
-        if (interaction.guild) {
-            const member = interaction.guild.members.cache.get(targetUser.id)
+        if (guild) {
+            const member = guild.members.cache.get(targetUser.id)
             if (member) {
                 embed.addFields(
                     { name: 'Joined Server', value: `<t:${Math.floor(member.joinedTimestamp! / 1000)}:R>`, inline: true },
                     { name: 'Nickname', value: member.nickname ?? 'None', inline: true },
                     { name: 'Roles', value: member.roles.cache.size > 1
-                        ? member.roles.cache.filter(role => role.id !== interaction.guild!.id).map(role => `<@&${role.id}>`).join(', ')
+                        ? member.roles.cache.filter(role => role.id !== guild.id).map(role => `<@&${role.id}>`).join(', ')
                         : 'None'
                     }
                 )

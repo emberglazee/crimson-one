@@ -203,10 +203,10 @@ export default {
                 .setRequired(false)
             )
         ),
-    async execute(interaction, { reply, editReply, deferReply, followUp }) {
+    async execute(interaction, { reply, editReply, deferReply, followUp, guild }) {
         const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
 
-        if (!interaction.guild) {
+        if (!guild) {
             logger.info('Command used outside of a server')
             await reply({
                 content: '❌ This command can only be used in a server',
@@ -234,7 +234,7 @@ export default {
                 logger.info(`Generating message with source: ${yellow(source)}, user: ${yellow(user?.tag)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
                 const timeStart = Date.now()
                 const result = await markov.generateMessage({
-                    guild: source === 'guild' ? interaction.guild : undefined,
+                    guild: source === 'guild' ? guild : undefined,
                     channel: channel,
                     user,
                     words,
@@ -273,7 +273,7 @@ export default {
                 logger.info(`Getting Markov info with source: ${yellow(source)}, user: ${yellow(user?.tag)}, channel: ${yellow(channel?.name)}`)
                 const timeStart = Date.now()
                 const stats = await markov.getMessageStats({
-                    guild: source === 'guild' ? interaction.guild : undefined,
+                    guild: source === 'guild' ? guild : undefined,
                     channel: !source ? channel : undefined,
                     user,
                     global: source === 'global'
@@ -334,7 +334,7 @@ export default {
                     flags: ephemeral ? MessageFlags.Ephemeral : undefined
                 })
                 logger.info(`{collect} "allChannels" is true, collecting from every channel`)
-                const textChannels = (await interaction.guild.channels.fetch())
+                const textChannels = (await guild.channels.fetch())
                     .filter(c => c &&
                         (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) &&
                         c.viewable
@@ -388,7 +388,7 @@ export default {
             }
 
             // Check if channel was previously fully collected
-            const wasFullyCollected = await dataSource.isChannelFullyCollected(interaction.guild.id, channel.id)
+            const wasFullyCollected = await dataSource.isChannelFullyCollected(guild.id, channel.id)
 
             // Reply with appropriate message
             let replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'ALL' : limit} messages from ${channel}${user ? ` by ${user}` : ''}...`

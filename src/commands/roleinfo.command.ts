@@ -14,10 +14,10 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    async execute(interaction, { reply }) {
+    async execute(interaction, { reply, guild }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
 
-        if (!interaction.guild) {
+        if (!guild) {
             await reply({
                 content: '❌ This command can only be used in a server!',
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined

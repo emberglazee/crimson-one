@@ -3,7 +3,7 @@ import {
     ChatInputCommandInteraction, type APIInteractionDataResolvedChannel, Client, User,
     TextChannel
 } from 'discord.js'
-
+import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
 // Command Manager Types
 import {
     SlashCommandBuilder,
@@ -161,6 +161,9 @@ export type SlashCommandHelpers = {
     editReply: ChatInputCommandInteraction['editReply']
     followUp: ChatInputCommandInteraction['followUp']
     client: ChatInputCommandInteraction['client']
+    guild: ChatInputCommandInteraction['guild']
+    myId: typeof EMBERGLAZE_ID
+    pingMe: typeof PING_EMBERGLAZE
 }
 
 export type SlashCommandProps = {

@@ -1,6 +1,5 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import { SlashCommand } from '../types/types'
-import { EMBERGLAZE_ID } from '../util/constants'
 
 export default {
     data: new SlashCommandBuilder()
@@ -15,11 +14,11 @@ export default {
             .setDescription('Should the response show up only for you?')
             .setRequired(false)
         ),
-    async execute(interaction, { reply, deferReply, editReply, client }) {
+    async execute(interaction, { reply, deferReply, editReply, client, myId }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
 
         const user = interaction.user
-        if (user.id !== EMBERGLAZE_ID) {
+        if (user.id !== myId) {
             await reply({
                 content: '❌ You, solely, are responsible for this.',
                 flags: ephemeral ? MessageFlags.Ephemeral : undefined

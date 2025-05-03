@@ -31,6 +31,7 @@ import {
     type ExplicitAny,
     type SlashCommandHelpers
 } from '../types/types'
+import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
 
 export default class CommandManager {
     private static instance: CommandManager
@@ -211,7 +212,10 @@ export default class CommandManager {
                         deferReply: interaction.deferReply.bind(interaction),
                         editReply: interaction.editReply.bind(interaction),
                         followUp: interaction.followUp.bind(interaction),
-                        client: interaction.client
+                        client: interaction.client,
+                        guild: interaction.guild,
+                        myId: EMBERGLAZE_ID,
+                        pingMe: PING_EMBERGLAZE
                     }
 
                     const memberPermissions = interaction.memberPermissions ?? new PermissionsBitField()

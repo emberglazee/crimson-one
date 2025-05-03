@@ -68,7 +68,7 @@ export const slashCommand = {
             .setDescription('Make the response visible only to you')
             .setRequired(false)
         ),
-    async execute(interaction, { reply, deferReply, editReply }) {
+    async execute(interaction, { reply, deferReply, editReply, guild }) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const style = interaction.options.getString('style', true) as 'ac7' | 'pw' | 'hd2'
         const speaker = interaction.options.getString('speaker', true)
@@ -99,7 +99,7 @@ export const slashCommand = {
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
         const factory = QuoteImageFactory.getInstance()
-        factory.setGuild(interaction.guild!)
+        factory.setGuild(guild!)
         try {
             const result = await factory.createQuoteImage(speaker, text, color, gradient, stretchGradient, style, interpretNewlines)
             await editReply({
@@ -119,14 +119,14 @@ export const contextMenuCommandAC7 = {
         .setName('Quick Ace Combat 7 subtitle')
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
-    async execute(interaction, { deferReply, editReply }) {
+    async execute(interaction, { deferReply, editReply, guild }) {
         const speaker = interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const text = interaction.targetMessage.content
 
         await deferReply()
         const factory = QuoteImageFactory.getInstance()
-        factory.setGuild(interaction.guild!)
+        factory.setGuild(guild!)
         try {
             const result = await factory.createQuoteImage(speaker, text, color, 'none', false, 'ac7', true)
             await editReply({
@@ -146,14 +146,14 @@ export const contextMenuCommandPW = {
         .setName('Quick Project Wingman subtitle')
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
-    async execute(interaction, { deferReply, editReply }) {
+    async execute(interaction, { deferReply, editReply, guild }) {
         const speaker = interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const text = interaction.targetMessage.content
 
         await deferReply()
         const factory = QuoteImageFactory.getInstance()
-        factory.setGuild(interaction.guild!)
+        factory.setGuild(guild!)
         try {
             const result = await factory.createQuoteImage(speaker, text, color, 'none', false, 'pw', true)
             await editReply({
@@ -173,14 +173,14 @@ export const contextMenuCommandHD2 = {
         .setName('Quick Helldivers 2 subtitle')
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
-    async execute(interaction, { deferReply, editReply }) {
+    async execute(interaction, { deferReply, editReply, guild }) {
         const speaker = interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const text = interaction.targetMessage.content
 
         await deferReply()
         const factory = QuoteImageFactory.getInstance()
-        factory.setGuild(interaction.guild!)
+        factory.setGuild(guild!)
         try {
             // TODO: Implement proper HD2 subtitle format
             const result = await factory.createQuoteImage(speaker, text, color, 'none', false, 'hd2', true)
