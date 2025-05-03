@@ -6,50 +6,50 @@ type BasicColorDefinition = {
 }
 
 const basicColors: BasicColorDefinition[] = [
-    { name: 'Gray', hex: '#B0B0B0' },
     { name: 'Red', hex: '#FF5555' },
-    { name: 'Green', hex: '#55FF55' },
-    { name: 'Yellow', hex: '#FFFF55' },
-    { name: 'Blue', hex: '#5555FF' },
-    { name: 'Pink', hex: '#FF55FF' },
-    { name: 'Cyan', hex: '#55FFFF' },
-    { name: 'White', hex: '#FFFFFF' },
     { name: 'Orange', hex: '#FFA500' },
-    { name: 'Purple', hex: '#8A2BE2' },
-    { name: 'Brown', hex: '#A52A2A' },
+    { name: 'Yellow', hex: '#FFFF55' },
     { name: 'Lime', hex: '#32CD32' },
+    { name: 'Green', hex: '#55FF55' },
+    { name: 'Cyan', hex: '#55FFFF' },
+    { name: 'Blue', hex: '#5555FF' },
+    { name: 'Navy', hex: '#000080' },
+    { name: 'Purple', hex: '#8A2BE2' },
+    { name: 'Pink', hex: '#FF55FF' },
+    { name: 'Brown', hex: '#A52A2A' },
     { name: 'Teal', hex: '#008080' },
-    { name: 'Navy', hex: '#000080' }
+    { name: 'Gray', hex: '#B0B0B0' },
+    { name: 'White', hex: '#FFFFFF' }
 ]
 
 const basicRoleColors: BasicColorDefinition[] = [
-    { name: 'Peacekeeper Red', hex: '#992D22' },
     { name: 'Priority Red', hex: '#FF0000' },
     { name: 'Hostile Red', hex:'#e74c3c' },
+    { name: 'Peacekeeper Red', hex: '#992D22' },
     { name: 'The Home Depot Orange', hex: '#F96302' },
     { name: 'FakeDev Orange', hex: '#E67E22' },
-    { name: 'Wikiyellow', hex: '#FFB40B' },
-    { name: 'Mad Yellow', hex: '#f1c40f' },
     { name: '⭐ Yellow', hex: '#fdb401' },
+    { name: 'Mad Yellow', hex: '#f1c40f' },
+    { name: 'Wikiyellow', hex: '#FFB40B' },
     { name: 'Mercenary Yellow', hex: '#BBAD2C' },
-    { name: 'Federation Dark Blue', hex: '#0C0D3B' },
-    { name: 'Friendly Blue', hex: '#3498db' },
-    { name: 'Voice Actor Blue', hex: '#86A4C7' },
-    { name: 'Cascadian Teal', hex: '#2BBCC2' },
-    { name: 'PWcord Moderator Turquoise', hex: '#1ABC9C' },
     { name: 'Faust/Goblin Green', hex: '#1F8b4C' },
-    { name: 'Mugged Pink', hex: '#FFABF3' },
-    { name: 'Gremlin Pink', hex: '#ff00dc' },
+    { name: 'PWcord Moderator Turquoise', hex: '#1ABC9C' },
+    { name: 'Cascadian Teal', hex: '#2BBCC2' },
+    { name: 'Voice Actor Blue', hex: '#86A4C7' },
+    { name: 'Friendly Blue', hex: '#3498db' },
+    { name: 'Federation Dark Blue', hex: '#0C0D3B' },
     { name: 'Ridel Purple', hex: '#71368A' },
-    { name: 'Potato Brown', hex: '#c8a186' },
+    { name: 'Gremlin Pink', hex: '#ff00dc' },
+    { name: 'Mugged Pink', hex: '#FFABF3' },
+    { name: 'Potato Brown', hex: '#c8a186' }
 ]
 
 const basicCharacterColors: BasicColorDefinition[] = [
-    { name: 'Bocchi Pink', hex: '#f5b2c4' },
-    { name: 'Nijika Yellow', hex: '#f8dc88' },
     { name: 'Ikuyo Red', hex: '#d8615d' },
-    { name: 'Ryo Blue', hex: '#5378af' },
-    { name: 'Kikuri Purple', hex: '#8e577a' }
+    { name: 'Nijika Yellow', hex: '#f8dc88' },
+    { name: 'Bocchi Pink', hex: '#f5b2c4' },
+    { name: 'Kikuri Pink', hex: '#8e577a' },
+    { name: 'Ryo Blue', hex: '#5378af' }
 ]
 
 export type ColorName = typeof basicColors[number]['name'] | typeof basicRoleColors[number]['name'] | typeof basicCharacterColors[number]['name']
