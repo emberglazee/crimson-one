@@ -98,25 +98,24 @@ export default {
 
             // Draw name shadow
             ctx.shadowColor = '#808080'
-            ctx.shadowOffsetX = 2
-            ctx.shadowOffsetY = 2
+            ctx.shadowOffsetX = -4
+            ctx.shadowOffsetY = 4
             ctx.fillStyle = '#ffffff'
 
             // Draw each character with spacing
             let currentX = 20 // Fixed left position
             const chars = name.split('')
-            const letterSpacing = 2
             chars.forEach(char => {
                 ctx.fillText(char, currentX, 18 + 250 + 32) // Added 16px
-                currentX += ctx.measureText(char).width + letterSpacing
+                currentX += ctx.measureText(char).width
             })
 
             // Add subtext if provided
             if (subtext) {
                 ctx.font = '12px Aces07'
                 ctx.shadowColor = '#222c34'
-                ctx.shadowOffsetX = 2
-                ctx.shadowOffsetY = 2
+                ctx.shadowOffsetX = -4
+                ctx.shadowOffsetY = 4
                 ctx.fillStyle = '#65797c'
                 ctx.fillText(subtext, 20, 18 + 250 + 32 + 8 + 10) // Added 16px
             }
