@@ -4,6 +4,18 @@ import {
     TextChannel
 } from 'discord.js'
 
+// Command Manager Types
+import {
+    SlashCommandBuilder,
+    PermissionsBitField,
+    ContextMenuCommandBuilder,
+    type SlashCommandSubcommandsOnlyBuilder,
+    type SlashCommandOptionsOnlyBuilder,
+    type UserContextMenuCommandInteraction,
+    type MessageContextMenuCommandInteraction,
+    type PermissionsString
+} from 'discord.js'
+
 export type GuildIdResolvable = string | Guild | BaseInteraction | GuildChannel | Message
 export type UserIdResolvable = GuildMember | User | string | Message
 export type ChannelIdResolvable = GuildChannel | Message | CommandInteraction |
@@ -142,3 +154,73 @@ export type JSONResolvable = string | number | boolean | {[key: string]: JSONRes
  * */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ExplicitAny = any
+
+export type SlashCommandHelpers = {
+    reply: ChatInputCommandInteraction['reply']
+    deferReply: ChatInputCommandInteraction['deferReply']
+    editReply: ChatInputCommandInteraction['editReply']
+    followUp: ChatInputCommandInteraction['followUp']
+    client: ChatInputCommandInteraction['client']
+}
+
+export type SlashCommandProps = {
+    data: SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommandGroup' | 'addSubcommand'> | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder
+    permissions?: PermissionsBitField[]
+    execute: (
+        interaction: ChatInputCommandInteraction,
+        helpers: SlashCommandHelpers
+    ) => Promise<void>
+}
+
+export interface ISlashCommand extends SlashCommandProps {}
+
+export abstract class SlashCommand implements ISlashCommand {
+    data!: SlashCommandProps['data']
+    permissions?: SlashCommandProps['permissions']
+    execute!: SlashCommandProps['execute']
+}
+
+export interface IGuildSlashCommand extends ISlashCommand {
+    guildId: string
+}
+
+export abstract class GuildSlashCommand extends SlashCommand implements IGuildSlashCommand {
+    guildId!: string
+}
+
+export type ContextMenuCommandProps<T extends 2 | 3 = 2 | 3> = {
+    data: ContextMenuCommandBuilder
+    type: T
+    execute: (
+        interaction: ContextMenuInteractionType<T>,
+        helpers: SlashCommandHelpers
+    ) => Promise<void>
+    permissions?: SlashCommandProps['permissions']
+}
+
+export type ContextMenuInteractionType<T extends 2 | 3> = T extends 2
+    ? UserContextMenuCommandInteraction
+    : MessageContextMenuCommandInteraction
+
+export interface IContextMenuCommand<T extends 2 | 3 = 2 | 3> extends ContextMenuCommandProps<T> {}
+
+export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements IContextMenuCommand<T> {
+    data!: ContextMenuCommandProps<T>['data']
+    type!: ContextMenuCommandProps<T>['type']
+    execute!: ContextMenuCommandProps<T>['execute']
+    permissions?: ContextMenuCommandProps['permissions']
+}
+
+export class ClassNotInitializedError extends Error {
+    constructor() {
+        super('Command handler has not been initialized! Call init() first')
+    }
+}
+
+export class MissingPermissionsError extends Error {
+    permissions: PermissionsBitField[] | PermissionsString[]
+    constructor(message: string, permissions: PermissionsBitField[] | PermissionsString[]) {
+        super(message)
+        this.permissions = permissions
+    }
+}
