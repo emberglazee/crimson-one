@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js'
-import type { SlashCommand } from '../modules/CommandManager'
+import { SlashCommand } from '../types/types'
 
 export default {
     data: new SlashCommandBuilder()

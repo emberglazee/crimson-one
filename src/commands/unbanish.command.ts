@@ -1,5 +1,5 @@
 import { ChannelType, InteractionContextType, SlashCommandBuilder } from 'discord.js'
-import type { GuildSlashCommand } from '../modules/CommandManager'
+import { GuildSlashCommand } from '../types/types'
 import { PING_EMBERGLAZE } from '../util/constants'
 import { guildMember } from '../util/functions'
 

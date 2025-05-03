@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js'
-import type { SlashCommand } from '../modules/CommandManager'
+import { SlashCommand } from '../types/types'
 import fs from 'fs/promises'
 import { getRandomElement } from '../util/functions'
 import { join } from 'path'

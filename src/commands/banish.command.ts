@@ -1,7 +1,7 @@
 import { ChannelType, InteractionContextType, SlashCommandBuilder } from 'discord.js'
-import type { GuildSlashCommand } from '../modules/CommandManager'
 import { PING_EMBERGLAZE } from '../util/constants'
 import { guildMember } from '../util/functions'
+import { GuildSlashCommand } from '../types/types'
 
 export default {
     data: new SlashCommandBuilder()

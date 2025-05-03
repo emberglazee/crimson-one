@@ -1,4 +1,4 @@
-import { SlashCommand } from '../modules/CommandManager'
+import { SlashCommand } from '../types/types'
 import { MessageFlags, SlashCommandBuilder, EmbedBuilder, Role } from 'discord.js'
 
 export default {
