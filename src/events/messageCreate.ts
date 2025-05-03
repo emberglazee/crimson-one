@@ -1,9 +1,10 @@
-import { Client } from 'discord.js'
-import util from 'util'
 import { Logger } from '../util/logger'
+const logger = new Logger('event.messageCreate')
+
+import type { Client } from 'discord.js'
+import util from 'util'
 import { screamOnSight } from '..'
 
-const logger = new Logger('event.messageCreate')
 
 export default async function onMessageCreate(client: Client) {
     client.on('messageCreate', async message => {

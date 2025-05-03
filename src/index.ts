@@ -86,16 +86,6 @@ process.on('unhandledRejection', async (reason, promise) => {
     await gracefulShutdown.shutdown('unhandledRejection')
 })
 
-bot.rest.on('rateLimited', rateLimitInfo => {
-    logger.warn(
-        'REST rate limit!\n'+
-        `  Timeout:     ${yellow(rateLimitInfo.sublimitTimeout)}\n`+
-        `  Limit:       ${yellow(rateLimitInfo.limit)}\n`+
-        `  Method:      ${yellow(rateLimitInfo.method)}\n`+
-        `  Retry after: ${yellow(rateLimitInfo.retryAfter)}`
-    )
-})
-
 logger.info('Logging in...')
 await bot.login(process.env.DISCORD_TOKEN)
 logger.ok('Logged in')
