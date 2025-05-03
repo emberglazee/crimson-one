@@ -28,7 +28,7 @@ export default {
             .setRequired(false)
         ).addBooleanOption(bo => bo
             .setName('filter')
-            .setDescription('Apply green tint filter to the image')
+            .setDescription('Apply VHS glitch effect to the image')
             .setRequired(false)
         ).addBooleanOption(so => so
             .setName('ephemeral')
@@ -84,12 +84,45 @@ export default {
             // Draw the image centered at (20,18) with 250x250 dimensions
             ctx.drawImage(image, 20, 18, 250, 250)
 
-            // Apply green tint if enabled
+            // Apply VHS glitch effect if enabled
             if (useFilter) {
-                ctx.globalCompositeOperation = 'color-burn'
-                ctx.fillStyle = 'rgba(29, 43, 33, 0.3)' // Slight green tint
-                ctx.fillRect(20, 18, 250, 250)
-                ctx.globalCompositeOperation = 'source-over'
+                // Save the current image data
+                const imageData = ctx.getImageData(20, 18, 250, 250)
+                const data = imageData.data
+
+                // Apply color channel splitting
+                for (let i = 0; i < data.length; i += 4) {
+                    // Randomly shift red channel
+                    if (Math.random() < 0.1) {
+                        data[i] = data[i + 4] || data[i]
+                    }
+                    // Randomly shift blue channel
+                    if (Math.random() < 0.1) {
+                        data[i + 2] = data[i + 6] || data[i + 2]
+                    }
+                }
+
+                // Add horizontal line shifts
+                for (let y = 0; y < 250; y += 2) {
+                    if (Math.random() < 0.1) {
+                        const shift = Math.floor(Math.random() * 10) - 5
+                        const lineData = ctx.getImageData(20, 18 + y, 250, 1)
+                        ctx.putImageData(lineData, 20 + shift, 18 + y)
+                    }
+                }
+
+                // Add some noise/static
+                for (let i = 0; i < data.length; i += 4) {
+                    if (Math.random() < 0.05) {
+                        const noise = Math.floor(Math.random() * 50) - 25
+                        data[i] = Math.max(0, Math.min(255, data[i] + noise))
+                        data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise))
+                        data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise))
+                    }
+                }
+
+                // Put the modified image data back
+                ctx.putImageData(imageData, 20, 18)
             }
 
             // Add name text
