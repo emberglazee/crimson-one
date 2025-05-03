@@ -303,8 +303,18 @@ export default class CommandManager {
 
     private computeCommandHash(command: SlashCommand | ContextMenuCommand): string {
         const commandData = command.data.toJSON()
+
+        // Create a normalized version of the command data
+        const normalizedData = {
+            name: commandData.name,
+            options: commandData.options ? [...commandData.options].sort((a, b) => a.name.localeCompare(b.name)) : [],
+            type: commandData.type,
+            default_member_permissions: commandData.default_member_permissions,
+            contexts: commandData.contexts
+        }
+
         const hash = createHash('sha256')
-        hash.update(JSON.stringify(commandData))
+        hash.update(JSON.stringify(normalizedData))
         return hash.digest('hex')
     }
 
