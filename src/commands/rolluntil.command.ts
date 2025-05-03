@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from 'discord.js'
-import type { SlashCommand } from '../modules/CommandManager'
+import { SlashCommand } from '../types/types'
 import { randRange } from '../util/functions'
 
 const MAX_SIDES = 100 // Prevent abuse with extremely large numbers

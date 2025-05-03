@@ -1,4 +1,4 @@
-import { SlashCommand } from '../modules/CommandManager'
+import { SlashCommand } from '../types/types'
 import { MessageFlags, SlashCommandBuilder } from 'discord.js'
 import { sleep } from 'bun'
 import { randRange } from '../util/functions'

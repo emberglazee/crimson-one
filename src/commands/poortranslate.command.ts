@@ -1,4 +1,4 @@
-import { SlashCommand } from '../modules/CommandManager'
+import { SlashCommand } from '../types/types'
 import {
     SlashCommandBuilder,
     MessageFlags

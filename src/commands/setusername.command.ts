@@ -1,5 +1,5 @@
 import { MessageFlags, SlashCommandBuilder } from 'discord.js'
-import type { SlashCommand } from '../modules/CommandManager'
+import { SlashCommand } from '../types/types'
 import { EMBERGLAZE_ID } from '../util/constants'
 
 const usageTracker = new Map<string, number[]>()

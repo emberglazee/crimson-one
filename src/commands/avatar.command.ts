@@ -2,7 +2,7 @@ import {
     EmbedBuilder, MessageFlags, SlashCommandBuilder,
     type ImageExtension, type ImageSize
 } from 'discord.js'
-import { SlashCommand } from '../modules/CommandManager'
+import { SlashCommand } from '../types/types'
 
 export default {
     data: new SlashCommandBuilder()
