@@ -19,6 +19,7 @@ import { fileURLToPath } from 'url'
 import { hasProp } from '../util/functions'
 import { operationTracker } from './OperationTracker'
 import type { ExplicitAny } from '../types/types'
+import { createHash } from 'crypto'
 
 
 type SlashCommandHelpers = {
@@ -81,6 +82,7 @@ export default class CommandManager {
     private globalCommands: Map<string, SlashCommand> = new Map()
     private guildCommands: Map<string, Map<string, GuildSlashCommand>> = new Map()
     private contextMenuCommands: Map<string, ContextMenuCommand> = new Map()
+    private commandHashes: Map<string, string> = new Map()
     private initialized = false
     private client: Client | null = null
     private rest: REST | null = null
@@ -299,23 +301,70 @@ export default class CommandManager {
         }
     }
 
+    private computeCommandHash(command: SlashCommand | ContextMenuCommand): string {
+        const commandData = command.data.toJSON()
+        const hash = createHash('sha256')
+        hash.update(JSON.stringify(commandData))
+        return hash.digest('hex')
+    }
+
+    private async checkCommandChanges(commands: (SlashCommand | ContextMenuCommand)[], guildId?: string): Promise<boolean> {
+        const remoteCommands = guildId
+            ? await this.fetchGuildCommandIds(guildId)
+            : await this.fetchGlobalCommandIds()
+
+        // Check if any commands were deleted
+        if (remoteCommands.length !== commands.length) {
+            return true
+        }
+
+        // Check if any commands changed
+        for (const command of commands) {
+            const key = guildId ? `${guildId}:${command.data.name}` : command.data.name
+            const currentHash = this.computeCommandHash(command)
+            const previousHash = this.commandHashes.get(key)
+
+            if (!previousHash || previousHash !== currentHash) {
+                return true
+            }
+        }
+
+        return false
+    }
+
     public async refreshGlobalCommands() {
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
         if (!this.rest) throw new Error('REST client not initialized')
 
-        logger.info('{refreshGlobalCommands}...')
+        logger.info('{refreshGlobalCommands} Checking for changes...')
         try {
             const commands = [
                 ...this.globalCommands.values(),
                 ...this.contextMenuCommands.values()
-            ].map(command => command.data.toJSON())
+            ]
+
+            const hasChanges = await this.checkCommandChanges(commands)
+            if (!hasChanges) {
+                logger.info('{refreshGlobalCommands} No changes detected, skipping refresh')
+                return
+            }
+
+            logger.info('{refreshGlobalCommands} Changes detected, refreshing commands...')
+            const commandData = commands.map(command => command.data.toJSON())
 
             await this.rest.put(
                 Routes.applicationCommands(this.client.application!.id),
-                { body: commands }
+                { body: commandData }
             )
-            logger.ok('{refreshGlobalCommands}')
+
+            // Update hashes after successful refresh
+            for (const command of commands) {
+                const key = command.data.name
+                this.commandHashes.set(key, this.computeCommandHash(command))
+            }
+
+            logger.ok('{refreshGlobalCommands} Successfully refreshed commands')
         } catch (error) {
             logger.error(`{refreshGlobalCommands} Failed: ${red(error)}`)
             throw error
@@ -327,40 +376,46 @@ export default class CommandManager {
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
         if (!this.rest) throw new Error('REST client not initialized')
 
-        logger.info(`{refreshGuildCommands}...`)
+        logger.info(`{refreshGuildCommands} Checking for changes in guild ${yellow(guildId)}...`)
         try {
             const guild = await this.client.guilds.fetch(guildId)
             if (!guild) {
                 logger.error(`{refreshGuildCommands} Guild ${yellow(guildId)} not found!`)
                 return
             }
-            logger.info(`{refreshGuildCommands} ${yellow(guildId)} - ${yellow(guild.name)}`)
 
             const guildCommands = this.guildCommands.get(guildId)
-            if (guildCommands) {
-                const commands = [...guildCommands.values()].map(command => command.data.toJSON())
-                await this.rest.put(
-                    Routes.applicationGuildCommands(this.client.application!.id, guildId),
-                    { body: commands }
-                )
+            if (!guildCommands) {
+                logger.info(`{refreshGuildCommands} No commands found for guild ${yellow(guildId)}`)
+                return
             }
-            logger.ok(`{refreshGuildCommands} ${yellow(guildId)} - ${yellow(guild.name)}`)
+
+            const commands = [...guildCommands.values()]
+            const hasChanges = await this.checkCommandChanges(commands, guildId)
+            if (!hasChanges) {
+                logger.info(`{refreshGuildCommands} No changes detected for guild ${yellow(guildId)}, skipping refresh`)
+                return
+            }
+
+            logger.info(`{refreshGuildCommands} Changes detected, refreshing commands for guild ${yellow(guildId)}...`)
+            const commandData = commands.map(command => command.data.toJSON())
+
+            await this.rest.put(
+                Routes.applicationGuildCommands(this.client.application!.id, guildId),
+                { body: commandData }
+            )
+
+            // Update hashes after successful refresh
+            for (const command of commands) {
+                const key = `${guildId}:${command.data.name}`
+                this.commandHashes.set(key, this.computeCommandHash(command))
+            }
+
+            logger.ok(`{refreshGuildCommands} Successfully refreshed commands for guild ${yellow(guildId)}`)
         } catch (error) {
             logger.error(`{refreshGuildCommands} Failed for guild ${yellow(guildId)}: ${red(error)}`)
             throw error
         }
-    }
-    public async refreshAllGuildCommands() {
-        if (!this.initialized) throw new ClassNotInitializedError()
-        if (!this.client) throw new Error('Client not set. Call setClient() first.')
-
-        logger.info('{refreshAllGuildCommands}...')
-        for (const command of this.guildCommands.values()) {
-            for (const commandInGuild of command.values()) {
-                await this.refreshGuildCommands(commandInGuild.guildId)
-            }
-        }
-        logger.ok('{refreshAllGuildCommands}')
     }
 
     public async fetchGlobalCommandIds(): Promise<{ id: string; name: string }[]> {
