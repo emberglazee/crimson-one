@@ -94,7 +94,7 @@ export default {
 
             // Add name text
             ctx.shadowBlur = 2
-            ctx.font = '20px Aces07'
+            ctx.font = '24px Aces07'
 
             // Draw name shadow
             ctx.shadowColor = '#808080'
