@@ -11,6 +11,7 @@ interface Operation {
     start: Date
     status: OperationStatus
     metadata?: Record<string, unknown>
+    refable?: { ref(): void; unref(): void }
 }
 
 export class OperationTracker {
@@ -45,7 +46,12 @@ export class OperationTracker {
         }
 
         const opId = this.generateOperationId(operationType)
-        this.addOperation(opId, operationName, operationType, metadata)
+        const refable = {
+            ref() { },
+            unref() { }
+        }
+        this.addOperation(opId, operationName, operationType, { ...metadata, refable })
+        process.ref(refable)
 
         try {
             const result = await operation()
@@ -57,6 +63,10 @@ export class OperationTracker {
             })
             throw error
         } finally {
+            const op = this.operations.get(opId)
+            if (op?.refable) {
+                process.unref(op.refable)
+            }
             this.removeOperation(opId)
         }
     }
@@ -71,15 +81,28 @@ export class OperationTracker {
         }
 
         const opId = this.generateOperationId(operationType)
-        this.addOperation(opId, operationName, operationType, metadata)
+        const refable = {
+            ref() { },
+            unref() { }
+        }
+        this.addOperation(opId, operationName, operationType, { ...metadata, refable })
+        process.ref(refable)
 
         return {
             id: opId,
             complete: () => {
+                const op = this.operations.get(opId)
+                if (op?.refable) {
+                    process.unref(op.refable)
+                }
                 this.updateOperationStatus(opId, 'COMPLETED')
                 this.removeOperation(opId)
             },
             fail: (error: unknown) => {
+                const op = this.operations.get(opId)
+                if (op?.refable) {
+                    process.unref(op.refable)
+                }
                 this.updateOperationStatus(opId, 'FAILED', {
                     error: error instanceof Error ? error.message : String(error)
                 })
@@ -139,6 +162,13 @@ export class OperationTracker {
         if (this.operations.size > 0) {
             logger.error(`Force shutdown with ${this.operations.size} operations pending`)
             this.logPendingOperations()
+        }
+
+        // Unref all remaining operations
+        for (const op of this.operations.values()) {
+            if (op.refable) {
+                process.unref(op.refable)
+            }
         }
 
         if (this.resolveShutdown) {
