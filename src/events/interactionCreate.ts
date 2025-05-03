@@ -1,7 +1,7 @@
 import { Logger, red } from '../util/logger'
-const logger = new Logger('events.interactionCreate')
+const logger = new Logger('event.interactionCreate')
 
-import { Client } from 'discord.js'
+import type { Client } from 'discord.js'
 import CommandManager from '../modules/CommandManager'
 
 export default function onInteractionCreate(client: Client) {
