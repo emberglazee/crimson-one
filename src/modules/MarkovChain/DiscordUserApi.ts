@@ -1,15 +1,30 @@
 import { Logger, yellow, red } from '../../util/logger'
 const logger = new Logger('MarkovChain | DiscordUserApi')
 
+import type { Client } from 'discord.js'
+
 /**
  * Fetches the total message count from a Discord channel using the Discord User API
  * Requires a user token to be set in DISCORD_USER_TOKEN environment variable
+ * Note: Thread channels are not supported by Discord's message search API
  */
-export async function getChannelMessageCount(guildId: string, channelId: string): Promise<number | null> {
+export async function getChannelMessageCount(client: Client, guildId: string, channelId: string): Promise<number | null> {
     // Check if user token is available
     const userToken = process.env.DISCORD_USER_TOKEN
     if (!userToken) {
         logger.warn('DISCORD_USER_TOKEN not found in environment variables')
+        return null
+    }
+
+    // Get the channel and check if it's a thread
+    const channel = await client.channels.fetch(channelId)
+    if (!channel) {
+        logger.warn(`Channel ${yellow(channelId)} not found`)
+        return null
+    }
+
+    if (channel.isThread()) {
+        logger.warn(`Channel ${yellow(channelId)} is a thread - message search is not supported for threads`)
         return null
     }
 
