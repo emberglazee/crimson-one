@@ -1,7 +1,7 @@
 import { Logger, yellow, red } from './util/logger'
 const logger = new Logger('DeleteCommands')
 
-import { Client, IntentsBitField } from 'discord.js'
+import { ActivityType, Client, IntentsBitField } from 'discord.js'
 import CommandManager from './modules/CommandManager'
 
 // Create a minimal client with only the necessary intents
@@ -17,6 +17,14 @@ const commandManager = CommandManager.getInstance()
 // Handle client ready event
 client.once('ready', async () => {
     logger.info(`Logged in as ${yellow(client.user!.tag)}`)
+    // Change presence to DND and "Maintenance..."
+    client.user!.setPresence({
+        status: 'dnd',
+        activities: [{
+            name: 'Maintenance...',
+            type: ActivityType.Custom
+        }]
+    })
 
     try {
         // Set the client in command manager
