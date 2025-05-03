@@ -17,7 +17,7 @@ import { readdir } from 'fs/promises'
 import type { Dirent } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { hasProp } from '../util/functions'
+import { getUserAvatar, hasProp } from '../util/functions'
 import { operationTracker } from './OperationTracker'
 
 import { createHash } from 'crypto'
@@ -212,6 +212,7 @@ export default class CommandManager {
                         deferReply: interaction.deferReply.bind(interaction),
                         editReply: interaction.editReply.bind(interaction),
                         followUp: interaction.followUp.bind(interaction),
+                        getUserAvatar: getUserAvatar.bind(interaction),
                         client: interaction.client,
                         guild: interaction.guild,
                         myId: EMBERGLAZE_ID,

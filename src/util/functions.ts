@@ -1,6 +1,7 @@
 import {
-    AttachmentBuilder, BaseInteraction, ChatInputCommandInteraction, CommandInteraction,
-    Guild, GuildChannel, GuildMember, Message, User, type APIInteractionGuildMember
+    AttachmentBuilder, BaseInteraction, ChatInputCommandInteraction,
+    CommandInteraction, Guild, GuildChannel, GuildMember, Message, User,
+    type APIInteractionGuildMember, type ImageExtension, type ImageSize
 } from 'discord.js'
 import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable, ExplicitAny } from '../types/types'
 import { randomInt } from 'crypto'
@@ -135,8 +136,38 @@ export function hasYouTubeLinkWithSI(input: string): boolean {
     return false
 }
 
+/**
+ * Type-safe function to exclude `APIInteractionGuildMember` from `GuildMember | null`
+ */
 export function guildMember(member: GuildMember | APIInteractionGuildMember | null): GuildMember | null {
     if (!member) return null
     if (member instanceof GuildMember) return member
     return null
+}
+
+export function getUserAvatar(
+    user: User,
+    guild: Guild | null,
+    options: {
+        extension?: ImageExtension;
+        size?: ImageSize;
+        useGlobalAvatar?: boolean;
+    } = {}
+): string {
+    const {
+        extension = 'png',
+        size = 1024,
+        useGlobalAvatar = false
+    } = options
+
+    if (useGlobalAvatar || !guild) {
+        return user.displayAvatarURL({ extension, size })
+    }
+
+    const member = guild.members.cache.get(user.id)
+    if (!member) {
+        return user.displayAvatarURL({ extension, size })
+    }
+
+    return member.displayAvatarURL({ extension, size })
 }
