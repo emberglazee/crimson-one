@@ -41,7 +41,7 @@ export default {
      * - Border: 1px bright green (#00FF00) with 5px inner glow effect
      * - Background: Semi-transparent dark green (#1d2b21ee)
      * - Image area: 250x250 pixels starting at (20,18)
-     * - Name text: 20px Aces07 font at (20, 300) with 6px letter spacing
+     * - Name text: 20px Aces07 font at (20, 300) with 2px letter spacing
      * - Optional subtext: 10px Aces07 font below name
      * - Optional green tint filter using color-burn blend mode
      *
@@ -91,7 +91,7 @@ export default {
             const ctx = canvas.getContext('2d')
 
             // Fill background with semi-transparent dark green
-            ctx.fillStyle = '#1d2b21ee'
+            ctx.fillStyle = '#0e0f1a'
             ctx.fillRect(0, 0, canvas.width, canvas.height)
 
             // Draw the image centered at (20,18) with 250x250 dimensions
@@ -108,12 +108,12 @@ export default {
             // Add name text
             ctx.shadowBlur = 2
             ctx.font = '20px Aces07'
-            ctx.fillStyle = '#536256'
+            ctx.fillStyle = '#ffffff'
 
             // Draw each character with spacing
             let currentX = 20 // Fixed left position
             const chars = name.split('')
-            const letterSpacing = 6
+            const letterSpacing = 2
             chars.forEach(char => {
                 ctx.fillText(char, currentX, 18 + 250 + 32) // Added 16px
                 currentX += ctx.measureText(char).width + letterSpacing
@@ -122,6 +122,7 @@ export default {
             // Add subtext if provided
             if (subtext) {
                 ctx.font = '10px Aces07'
+                ctx.fillStyle = '#65797c'
                 ctx.fillText(subtext, 20, 18 + 250 + 32 + 8 + 10) // Added 16px
             }
 
