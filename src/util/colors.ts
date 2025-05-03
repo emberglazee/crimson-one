@@ -48,7 +48,8 @@ const basicCharacterColors: BasicColorDefinition[] = [
     { name: 'Bocchi Pink', hex: '#f5b2c4' },
     { name: 'Nijika Yellow', hex: '#f8dc88' },
     { name: 'Ikuyo Red', hex: '#d8615d' },
-    { name: 'Ryo Blue', hex: '#5378af' }
+    { name: 'Ryo Blue', hex: '#5378af' },
+    { name: 'Kikuri Purple', hex: '#8e577a' }
 ]
 
 export type ColorName = typeof basicColors[number]['name'] | typeof basicRoleColors[number]['name'] | typeof basicCharacterColors[number]['name']
