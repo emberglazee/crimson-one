@@ -67,9 +67,7 @@ bot.once('ready', async () => {
     await webhook.init(bot)
     await quoteFactory.init()
 
-    const eventFiles = (
-        await readdir(path.join(__dirname, 'events'))
-    ).filter(file => file.endsWith('.ts') && file !== 'awacsEvents.ts') // awacsEvents is handled differently
+    const eventFiles = await readdir(path.join(__dirname, 'events'))
     for (const file of eventFiles) {
         const event = await import(path.join(__dirname, `events/${file}`)) as DiscordEventListener
         event.default(bot)
