@@ -4,14 +4,13 @@ import { Logger, yellow, red } from '../util/logger'
 const logger = new Logger('CommandManager')
 
 import {
-    SlashCommandBuilder, ChatInputCommandInteraction, PermissionsBitField,
-    ContextMenuCommandBuilder, ContextMenuCommandInteraction, Client,
-    type SlashCommandSubcommandsOnlyBuilder, CommandInteraction,
-    type SlashCommandOptionsOnlyBuilder, UserContextMenuCommandInteraction,
-    MessageContextMenuCommandInteraction,
-    type PermissionsString, REST, Routes,
+    SlashCommandBuilder, PermissionsBitField,
+    ContextMenuCommandBuilder, Client, CommandInteraction,
     type RESTPostAPIChatInputApplicationCommandsJSONBody,
-    type RESTPostAPIContextMenuApplicationCommandsJSONBody
+    type RESTPostAPIContextMenuApplicationCommandsJSONBody,
+    REST, Routes, ContextMenuCommandInteraction,
+    MessageContextMenuCommandInteraction,
+    UserContextMenuCommandInteraction
 } from 'discord.js'
 
 import { readdir } from 'fs/promises'
@@ -20,64 +19,18 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { hasProp } from '../util/functions'
 import { operationTracker } from './OperationTracker'
-import type { ExplicitAny } from '../types/types'
+
 import { createHash } from 'crypto'
 
-
-type SlashCommandHelpers = {
-    reply: ChatInputCommandInteraction['reply'],
-    deferReply: ChatInputCommandInteraction['deferReply'],
-    editReply: ChatInputCommandInteraction['editReply'],
-    followUp: ChatInputCommandInteraction['followUp'],
-    client: ChatInputCommandInteraction['client']
-}
-type SlashCommandProps = {
-    data: SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommandGroup' | 'addSubcommand'> | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder
-    permissions?: PermissionsBitField[]
-    execute: (
-        interaction: ChatInputCommandInteraction,
-        helpers: SlashCommandHelpers
-    ) => Promise<void>
-}
-
-export interface ISlashCommand extends SlashCommandProps {}
-export abstract class SlashCommand implements ISlashCommand {
-    data!: SlashCommandProps['data']
-    permissions?: SlashCommandProps['permissions']
-    execute!: SlashCommandProps['execute']
-}
-
-export interface IGuildSlashCommand extends ISlashCommand {
-    guildId: string
-}
-export abstract class GuildSlashCommand extends SlashCommand implements IGuildSlashCommand {
-    guildId!: string
-}
-
-
-
-type ContextMenuCommandProps<T extends 2 | 3 = 2 | 3> = {
-    data: ContextMenuCommandBuilder
-    type: T
-    execute: (
-        interaction: ContextMenuInteractionType<T>,
-        helpers: SlashCommandHelpers
-    ) => Promise<void>
-    permissions?: SlashCommandProps['permissions']
-}
-type ContextMenuInteractionType<T extends 2 | 3> = T extends 2
-    ? UserContextMenuCommandInteraction
-    : MessageContextMenuCommandInteraction
-
-export interface IContextMenuCommand<T extends 2 | 3 = 2 | 3> extends ContextMenuCommandProps<T> {}
-export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements IContextMenuCommand<T> {
-    data!: ContextMenuCommandProps<T>['data']
-    type!: ContextMenuCommandProps<T>['type']
-    execute!: ContextMenuCommandProps<T>['execute']
-    permissions?: ContextMenuCommandProps['permissions']
-}
-
-
+import {
+    SlashCommand,
+    GuildSlashCommand,
+    ContextMenuCommand,
+    ClassNotInitializedError,
+    MissingPermissionsError,
+    type ExplicitAny,
+    type SlashCommandHelpers
+} from '../types/types'
 
 export default class CommandManager {
     private static instance: CommandManager
@@ -296,7 +249,7 @@ export default class CommandManager {
     private handleError(e: Error, interaction: CommandInteraction | ContextMenuCommandInteraction) {
         logger.warn(`{handleInteraction} Error in ${yellow(interaction.commandName)}: ${red(e.message)}`)
         try {
-            if (!interaction.deferred) interaction.reply(`❌ Deferred interraction error: \`${e.message}\``)
+            if (!interaction.deferred) interaction.reply(`❌ Deferred interaction error: \`${e.message}\``)
             else interaction.editReply(`❌ Interaction error: \`${e.message}\``)
         } catch (err) {
             logger.warn(`{handleInteraction} Could not reply to the interaction to signal the error; did the interaction time out? [${red(err instanceof Error ? err.message : String(err))}]`)
@@ -462,7 +415,6 @@ export default class CommandManager {
         }
     }
 
-
     public async fetchGuildCommandIds(guildId: string): Promise<{ id: string; name: string }[]> {
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
@@ -582,16 +534,5 @@ export default class CommandManager {
             (obj as ExplicitAny).data instanceof ContextMenuCommandBuilder &&
             ((obj as ExplicitAny).type === 2 || (obj as ExplicitAny).type === 3)
         )
-    }
-}
-
-class ClassNotInitializedError extends Error {
-    message = 'Command handler has not been initialized! Call init() first'
-}
-export class MissingPermissionsError extends Error {
-    permissions: PermissionsBitField[] | PermissionsString[]
-    constructor(message: string, permissions: PermissionsBitField[] | PermissionsString[]) {
-        super(message)
-        this.permissions = permissions
     }
 }
