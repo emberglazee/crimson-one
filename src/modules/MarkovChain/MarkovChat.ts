@@ -29,6 +29,22 @@ interface MarkovCollectProgressEvent {
     estimatedTimeRemaining: number | null
 }
 
+interface MarkovGenerateProgressEvent {
+    step: 'querying' | 'training' | 'generating'
+    progress: number
+    total: number
+    elapsedTime: number
+    estimatedTimeRemaining: number | null
+}
+
+interface MarkovInfoProgressEvent {
+    step: 'querying' | 'processing'
+    progress: number
+    total: number
+    elapsedTime: number
+    estimatedTimeRemaining: number | null
+}
+
 interface MessageStats {
     messageCount: number
     authorCount: number
@@ -44,6 +60,8 @@ interface MessageStats {
 export class MarkovChat extends EventEmitter<{
     collectProgress: (event: MarkovCollectProgressEvent) => void
     collectComplete: (event: { totalCollected: number; channelName: string; userFiltered: boolean; entireChannel: boolean; newMessagesOnly: boolean; totalMessageCount?: number }) => void
+    generateProgress: (event: MarkovGenerateProgressEvent) => void
+    infoProgress: (event: MarkovInfoProgressEvent) => void
 }> {
     private static instance: MarkovChat
     private client: Client | null = null
@@ -213,7 +231,18 @@ export class MarkovChat extends EventEmitter<{
     }
 
     public async generateMessage(options: MarkovGenerateOptions): Promise<string> {
+        const startTime = Date.now()
         const chain = new ChainBuilder()
+
+        // Emit progress for querying step
+        this.emit('generateProgress', {
+            step: 'querying',
+            progress: 0,
+            total: 1,
+            elapsedTime: 0,
+            estimatedTimeRemaining: null
+        })
+
         const messages = await this.dataSource.getMessages({
             guild: options.guild,
             channel: options.channel,
@@ -225,18 +254,63 @@ export class MarkovChat extends EventEmitter<{
             throw new Error('No messages found with the given filters')
         }
 
-        for (const msg of messages) {
-            chain.train(msg.text)
+        // Emit progress for training step
+        this.emit('generateProgress', {
+            step: 'training',
+            progress: 0,
+            total: messages.length,
+            elapsedTime: Date.now() - startTime,
+            estimatedTimeRemaining: null
+        })
+
+        // Process messages in chunks to avoid memory issues and track progress
+        const CHUNK_SIZE = 1000
+        for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
+            const chunk = messages.slice(i, i + CHUNK_SIZE)
+            for (const msg of chunk) {
+                chain.train(msg.text)
+            }
+
+            // Emit progress update
+            this.emit('generateProgress', {
+                step: 'training',
+                progress: Math.min(i + CHUNK_SIZE, messages.length),
+                total: messages.length,
+                elapsedTime: Date.now() - startTime,
+                estimatedTimeRemaining: null
+            })
         }
 
-        return chain.generate({
+        // Emit progress for generation step
+        this.emit('generateProgress', {
+            step: 'generating',
+            progress: 0,
+            total: 1,
+            elapsedTime: Date.now() - startTime,
+            estimatedTimeRemaining: null
+        })
+
+        const result = chain.generate({
             minWords: Math.max(3, Math.floor((options.words || 20) * 0.8)),
             maxWords: options.words || 20,
             seed: options.seed?.split(/\s+/)
         })
+
+        return result
     }
 
     public async getMessageStats(options: MarkovGenerateOptions): Promise<MessageStats> {
+        const startTime = Date.now()
+
+        // Emit progress for querying step
+        this.emit('infoProgress', {
+            step: 'querying',
+            progress: 0,
+            total: 1,
+            elapsedTime: 0,
+            estimatedTimeRemaining: null
+        })
+
         const messages = await this.dataSource.getMessages({
             guild: options.guild,
             channel: options.channel,
@@ -247,6 +321,15 @@ export class MarkovChat extends EventEmitter<{
         if (messages.length === 0) {
             throw new Error('No messages found with the given filters')
         }
+
+        // Emit progress for processing step
+        this.emit('infoProgress', {
+            step: 'processing',
+            progress: 0,
+            total: messages.length,
+            elapsedTime: Date.now() - startTime,
+            estimatedTimeRemaining: null
+        })
 
         // Process in smaller chunks to avoid stack overflow
         const CHUNK_SIZE = 1000
@@ -291,6 +374,15 @@ export class MarkovChat extends EventEmitter<{
                     }
                 }
             }
+
+            // Emit progress update
+            this.emit('infoProgress', {
+                step: 'processing',
+                progress: Math.min(i + CHUNK_SIZE, messages.length),
+                total: messages.length,
+                elapsedTime: Date.now() - startTime,
+                estimatedTimeRemaining: null
+            })
         }
 
         return {

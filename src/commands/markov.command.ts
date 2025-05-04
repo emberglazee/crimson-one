@@ -89,7 +89,7 @@ class InteractionMessageManager implements MessageUpdater {
         return this.useFollowUp
     }
 
-    public async sendFinalMessage(content: string): Promise<void> {
+    public async sendFinalMessage(content: string | { embeds: EmbedBuilder[] }): Promise<void> {
         try {
             if (this.useFollowUp && this.followUpMessage) {
                 await this.followUpMessage.edit(content)
@@ -101,7 +101,7 @@ class InteractionMessageManager implements MessageUpdater {
             logger.warn(`Failed to send final message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
             try {
                 await this.interaction.followUp({
-                    content: `${content}\n⚠️ (Posted as a new message because the original interaction expired)`,
+                    ...(typeof content === 'string' ? { content } : content),
                     flags: this.ephemeral ? MessageFlags.Ephemeral : undefined
                 })
             } catch (finalError) {
@@ -219,8 +219,6 @@ export default {
         const markov = MarkovChat.getInstance()
         const dataSource = DataSource.getInstance()
 
-
-
         if (subcommand === 'generate') {
             const user = interaction.options.getUser('user') ?? undefined
             const source = (interaction.options.getString('source') as Source)
@@ -233,6 +231,43 @@ export default {
             try {
                 logger.info(`Generating message with source: ${yellow(source)}, user: ${yellow(user?.tag)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
                 const timeStart = Date.now()
+
+                // Create message manager for handling progress updates
+                const messageManager = new InteractionMessageManager(interaction, ephemeral)
+
+                // Track the interaction start time to handle token expiration
+                const interactionStartTime = Date.now()
+
+                // Listen for progress updates
+                markov.on('generateProgress', async progress => {
+                    // Check if we're approaching the interaction token timeout
+                    const elapsedSinceInteraction = Date.now() - interactionStartTime
+
+                    // If we're reaching the timeout limit and haven't switched to follow-up message yet
+                    if (elapsedSinceInteraction > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
+                        logger.info(`Approaching interaction timeout (${yellow(elapsedSinceInteraction)}ms elapsed). Switching to follow-up message.`)
+                        messageManager.switchToFollowUp()
+                    }
+
+                    let progressMessage = `⏳ Generating message...\n`
+                    progressMessage += `📊 Step: ${progress.step}\n`
+
+                    if (progress.step === 'training') {
+                        const percent = ((progress.progress / progress.total) * 100).toFixed(1)
+                        progressMessage += `🔄 Training: ${progress.progress}/${progress.total} messages (${percent}%)\n`
+                    }
+
+                    const elapsedTimeString = formatTimeRemaining(progress.elapsedTime / 1000)
+                    progressMessage += `⌛ Elapsed: ${elapsedTimeString}\n`
+
+                    if (progress.estimatedTimeRemaining !== null) {
+                        const etaString = formatTimeRemaining(progress.estimatedTimeRemaining)
+                        progressMessage += `⏱️ ETA: ${etaString}`
+                    }
+
+                    await messageManager.updateMessage(progressMessage)
+                })
+
                 const result = await markov.generateMessage({
                     guild: source === 'guild' ? guild : undefined,
                     channel: channel,
@@ -241,9 +276,13 @@ export default {
                     seed,
                     global: source === 'global'
                 })
+
+                // Clean up event listener
+                markov.removeAllListeners('generateProgress')
+
                 const timeEnd = Date.now()
                 logger.ok(`Generated message: ${yellow(result)}`)
-                await editReply(
+                await messageManager.sendFinalMessage(
                     `${result}\n` +
                     `-# - Generated in ${timeEnd - timeStart}ms\n` +
                     `-# - Filters: ${[
@@ -254,13 +293,14 @@ export default {
                     ].filter(Boolean).join(', ') || 'None'}`
                 )
             } catch (error) {
+                // Clean up event listener in case of error
+                markov.removeAllListeners('generateProgress')
+
                 logger.warn(`Failed to generate message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
                 await editReply({
                     content: `❌ Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`
                 })
             }
-
-
 
         } else if (subcommand === 'info') {
             const user = interaction.options.getUser('user') ?? undefined
@@ -272,12 +312,53 @@ export default {
             try {
                 logger.info(`Getting Markov info with source: ${yellow(source)}, user: ${yellow(user?.tag)}, channel: ${yellow(channel?.name)}`)
                 const timeStart = Date.now()
+
+                // Create message manager for handling progress updates
+                const messageManager = new InteractionMessageManager(interaction, ephemeral)
+
+                // Track the interaction start time to handle token expiration
+                const interactionStartTime = Date.now()
+
+                // Listen for progress updates
+                markov.on('infoProgress', async progress => {
+                    // Check if we're approaching the interaction token timeout
+                    const elapsedSinceInteraction = Date.now() - interactionStartTime
+
+                    // If we're reaching the timeout limit and haven't switched to follow-up message yet
+                    if (elapsedSinceInteraction > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
+                        logger.info(`Approaching interaction timeout (${yellow(elapsedSinceInteraction)}ms elapsed). Switching to follow-up message.`)
+                        messageManager.switchToFollowUp()
+                    }
+
+                    let progressMessage = `⏳ Gathering statistics...\n`
+                    progressMessage += `📊 Step: ${progress.step}\n`
+
+                    if (progress.step === 'processing') {
+                        const percent = ((progress.progress / progress.total) * 100).toFixed(1)
+                        progressMessage += `🔄 Processing: ${progress.progress}/${progress.total} messages (${percent}%)\n`
+                    }
+
+                    const elapsedTimeString = formatTimeRemaining(progress.elapsedTime / 1000)
+                    progressMessage += `⌛ Elapsed: ${elapsedTimeString}\n`
+
+                    if (progress.estimatedTimeRemaining !== null) {
+                        const etaString = formatTimeRemaining(progress.estimatedTimeRemaining)
+                        progressMessage += `⏱️ ETA: ${etaString}`
+                    }
+
+                    await messageManager.updateMessage(progressMessage)
+                })
+
                 const stats = await markov.getMessageStats({
                     guild: source === 'guild' ? guild : undefined,
                     channel: !source ? channel : undefined,
                     user,
                     global: source === 'global'
                 })
+
+                // Clean up event listener
+                markov.removeAllListeners('infoProgress')
+
                 const timeEnd = Date.now()
 
                 // Format timestamps to readable dates
@@ -313,15 +394,16 @@ export default {
                 )
 
                 logger.ok(`Generated Markov info in ${yellow(timeEnd - timeStart)}ms`)
-                await editReply({ embeds: [embed] })
+                await messageManager.sendFinalMessage({ embeds: [embed] })
             } catch (error) {
+                // Clean up event listener in case of error
+                markov.removeAllListeners('infoProgress')
+
                 logger.warn(`Failed to get Markov info: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
                 await editReply({
                     content: `❌ Failed to get Markov info: ${error instanceof Error ? error.message : 'Unknown error'}`
                 })
             }
-
-
 
         } else if (subcommand === 'collect') {
             const user = interaction.options.getUser('user') ?? undefined
