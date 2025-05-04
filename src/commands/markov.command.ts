@@ -89,19 +89,19 @@ class InteractionMessageManager implements MessageUpdater {
         return this.useFollowUp
     }
 
-    public async sendFinalMessage(content: string | { embeds: EmbedBuilder[] }): Promise<void> {
+    public async sendFinalMessage(options: { content?: string; embeds?: EmbedBuilder[] }): Promise<void> {
         try {
             if (this.useFollowUp && this.followUpMessage) {
-                await this.followUpMessage.edit(content)
+                await this.followUpMessage.edit(options)
             } else {
-                await this.interaction.editReply(content)
+                await this.interaction.editReply(options)
             }
         } catch (error) {
             // If both methods fail, try to send a new follow-up message with the results
             logger.warn(`Failed to send final message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
             try {
                 await this.interaction.followUp({
-                    ...(typeof content === 'string' ? { content } : content),
+                    ...options,
                     flags: this.ephemeral ? MessageFlags.Ephemeral : undefined
                 })
             } catch (finalError) {
@@ -292,8 +292,8 @@ export default {
 
                 const timeEnd = Date.now()
                 logger.ok(`Generated message: ${yellow(result)}`)
-                await messageManager.sendFinalMessage(
-                    `${result}\n` +
+                await messageManager.sendFinalMessage({
+                    content: `${result}\n` +
                     `-# - Generated in ${timeEnd - timeStart}ms\n` +
                     `-# - Filters: ${[
                         source === 'global' ? 'Global' : 'This server',
@@ -301,7 +301,7 @@ export default {
                         words !== 20 ? `Words: ${words}` : null,
                         seed ? `Seed: "${seed}"` : null
                     ].filter(Boolean).join(', ') || 'None'}`
-                )
+                })
             } catch (error) {
                 // Clean up event listener in case of error
                 markov.removeAllListeners('generateProgress')
@@ -414,7 +414,10 @@ export default {
                 )
 
                 logger.ok(`Generated Markov info in ${yellow(timeEnd - timeStart)}ms`)
-                await messageManager.sendFinalMessage({ embeds: [embed] })
+                await messageManager.sendFinalMessage({
+                    content: '',
+                    embeds: [embed]
+                })
             } catch (error) {
                 // Clean up event listener in case of error
                 markov.removeAllListeners('infoProgress')
@@ -608,7 +611,9 @@ export default {
                 }
 
                 // Send the final message using our manager
-                await messageManager.sendFinalMessage(completionMessage)
+                await messageManager.sendFinalMessage({
+                    content: completionMessage
+                })
             } catch (error) {
                 // Clean up event listeners in case of error
                 markov.removeAllListeners('collectProgress')
