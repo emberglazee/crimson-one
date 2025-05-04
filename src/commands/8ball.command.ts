@@ -24,7 +24,7 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    async execute(interaction, { reply, editReply }) {
+    async execute({ reply, editReply }, interaction) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const question = interaction.options.getString('question', true)
         const theme = interaction.options.getString('theme', false)

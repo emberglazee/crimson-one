@@ -24,7 +24,7 @@ export default {
             .setRequired(false)
         ),
 
-    async execute(interaction, { deferReply, editReply }) {
+    async execute({ deferReply, editReply }, interaction) {
         const time1 = Date.now()
         const inputText = interaction.options.getString('text', true)
         const randomizeChain = interaction.options.getBoolean('randomizechain') ?? false

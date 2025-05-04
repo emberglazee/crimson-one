@@ -7,7 +7,7 @@ export const contextMenuCommand = {
         .setName('Remove bot reply')
         .setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     type: ApplicationCommandType.Message,
-    async execute(interaction, { reply, client }) {
+    async execute({ reply, client }, interaction) {
         try {
             const channel = interaction.targetMessage.channel
             const message = await channel.messages.fetch(interaction.targetMessage.id)

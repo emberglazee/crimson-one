@@ -14,7 +14,7 @@ export default {
             .setDescription('Should the response show up only for you?')
             .setRequired(false)
         ),
-    async execute(interaction, { reply, deferReply, editReply, client, myId }) {
+    async execute({ reply, deferReply, editReply, client, myId }, interaction) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
 
         const user = interaction.user

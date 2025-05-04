@@ -10,7 +10,7 @@ export const slashCommand = {
             .setDescription('The user to get info about (defaults to yourself)')
             .setRequired(false)
         ),
-    async execute(interaction, { reply, guild }) {
+    async execute({ reply, guild }, interaction) {
         const targetUser = interaction.options.getUser('user') ?? interaction.user
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
@@ -43,7 +43,7 @@ export const userContextMenuCommand = {
         .setName('User information')
         .setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     type: ApplicationCommandType.User,
-    async execute(interaction, { reply, guild }) {
+    async execute({ reply, guild }, interaction) {
         const targetUser = interaction.targetUser
         const embed = new EmbedBuilder()
             .setColor('#0099ff')

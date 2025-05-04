@@ -23,7 +23,7 @@ export default {
                 .setDescription('text to encode into morse code')
             )
         ),
-    async execute(interaction, { reply }) {
+    async execute({ reply }, interaction) {
         try {
             const subcommand = interaction.options.getSubcommand(true)
             const morse = await import('morse')

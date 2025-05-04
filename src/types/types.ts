@@ -117,8 +117,8 @@ export type SlashCommandProps = {
     data: SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommandGroup' | 'addSubcommand'> | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder
     permissions?: PermissionsBitField[]
     execute: (
-        interaction: ChatInputCommandInteraction,
-        helpers: SlashCommandHelpers
+        helpers: SlashCommandHelpers,
+        interaction: ChatInputCommandInteraction
     ) => Promise<void>
 }
 
@@ -169,8 +169,8 @@ export type ContextMenuCommandProps<T extends 2 | 3 = 2 | 3> = {
     data: ContextMenuCommandBuilder
     type: T
     execute: (
-        interaction: ContextMenuInteractionType<T>,
-        helpers: SlashCommandHelpers
+        helpers: SlashCommandHelpers,
+        interaction: ContextMenuInteractionType<T>
     ) => Promise<void>
     permissions?: SlashCommandProps['permissions']
 }

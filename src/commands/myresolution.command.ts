@@ -1,20 +1,12 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js'
+import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 
 export default {
     data: new SlashCommandBuilder()
         .setName('myresolution')
-        .setDescription('Sends the "my resolution - airstrike" meme')
-        .addBooleanOption(bo => bo
-            .setName('ephemeral')
-            .setDescription('Should the response show up only for you?')
-            .setRequired(false)
-        ),
-    async execute(interaction, { deferReply, editReply }) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
-        await deferReply({
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
-        })
+        .setDescription('Sends the "my resolution - airstrike" meme'),
+    async execute({ deferReply, editReply }) {
+        await deferReply()
         await editReply({
             files: [{
                 attachment: './data/my resolution.mp4',

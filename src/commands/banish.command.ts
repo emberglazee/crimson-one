@@ -11,7 +11,7 @@ export default {
             .setDescription('Server member to banish')
             .setRequired(true)
         ).setContexts(InteractionContextType.Guild),
-    async execute(interaction, { reply, followUp, guild, pingMe }) {
+    async execute({ reply, followUp, guild, pingMe }, interaction) {
         if (!guild) {
             await reply(`❌ why is \`interaction.guild\` nonexistant i thought i set the interaction context type to guilds only wtf ${pingMe}`)
             return

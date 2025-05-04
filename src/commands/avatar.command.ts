@@ -52,7 +52,7 @@ export default {
             .setRequired(false)
         ),
 
-    async execute(interaction, { reply, guild }) {
+    async execute({ reply, guild }, interaction) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const user = interaction.options.getUser('user', false) ?? interaction.user
         const raw = interaction.options.getBoolean('raw', false) ?? false
