@@ -237,11 +237,21 @@ export default {
 
                 // Track the interaction start time to handle token expiration
                 const interactionStartTime = Date.now()
+                let lastUpdateTime = 0
+                let lastStep = ''
+                const UPDATE_INTERVAL = 5000 // 5 seconds
 
                 // Listen for progress updates
                 markov.on('generateProgress', async progress => {
+                    const now = Date.now()
+                    const stepChanged = progress.step !== lastStep
+                    if (!stepChanged && now - lastUpdateTime < UPDATE_INTERVAL) return
+
+                    lastUpdateTime = now
+                    lastStep = progress.step
+
                     // Check if we're approaching the interaction token timeout
-                    const elapsedSinceInteraction = Date.now() - interactionStartTime
+                    const elapsedSinceInteraction = now - interactionStartTime
 
                     // If we're reaching the timeout limit and haven't switched to follow-up message yet
                     if (elapsedSinceInteraction > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
@@ -318,11 +328,21 @@ export default {
 
                 // Track the interaction start time to handle token expiration
                 const interactionStartTime = Date.now()
+                let lastUpdateTime = 0
+                let lastStep = ''
+                const UPDATE_INTERVAL = 5000 // 5 seconds
 
                 // Listen for progress updates
                 markov.on('infoProgress', async progress => {
+                    const now = Date.now()
+                    const stepChanged = progress.step !== lastStep
+                    if (!stepChanged && now - lastUpdateTime < UPDATE_INTERVAL) return
+
+                    lastUpdateTime = now
+                    lastStep = progress.step
+
                     // Check if we're approaching the interaction token timeout
-                    const elapsedSinceInteraction = Date.now() - interactionStartTime
+                    const elapsedSinceInteraction = now - interactionStartTime
 
                     // If we're reaching the timeout limit and haven't switched to follow-up message yet
                     if (elapsedSinceInteraction > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
