@@ -30,7 +30,7 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    async execute(interaction, { deferReply, editReply }) {
+    async execute({ deferReply, editReply }, interaction) {
         try {
             const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
             await deferReply({ ephemeral })

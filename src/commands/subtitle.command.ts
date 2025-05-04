@@ -68,7 +68,7 @@ export const slashCommand = {
             .setDescription('Make the response visible only to you')
             .setRequired(false)
         ),
-    async execute(interaction, { reply, deferReply, editReply, guild }) {
+    async execute({ reply, deferReply, editReply, guild }, interaction) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
         const style = interaction.options.getString('style', true) as 'ac7' | 'pw' | 'hd2'
         const speaker = interaction.options.getString('speaker', true)
@@ -119,7 +119,7 @@ export const contextMenuCommandAC7 = {
         .setName('Quick Ace Combat 7 subtitle')
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
-    async execute(interaction, { deferReply, editReply, guild }) {
+    async execute({ deferReply, editReply, guild }, interaction) {
         const speaker = interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const text = interaction.targetMessage.content
@@ -146,7 +146,7 @@ export const contextMenuCommandPW = {
         .setName('Quick Project Wingman subtitle')
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
-    async execute(interaction, { deferReply, editReply, guild }) {
+    async execute({ deferReply, editReply, guild }, interaction) {
         const speaker = interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const text = interaction.targetMessage.content
@@ -173,7 +173,7 @@ export const contextMenuCommandHD2 = {
         .setName('Quick Helldivers 2 subtitle')
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
-    async execute(interaction, { deferReply, editReply, guild }) {
+    async execute({ deferReply, editReply, guild }, interaction) {
         const speaker = interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const text = interaction.targetMessage.content

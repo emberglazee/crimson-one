@@ -42,7 +42,7 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    async execute(interaction, { reply }) {
+    async execute({ reply }, interaction) {
         try {
             const ephemeral = interaction.options.getBoolean('ephemeral', false)
             const user = interaction.options.getUser('user') ?? interaction.user

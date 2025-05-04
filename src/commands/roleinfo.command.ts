@@ -14,7 +14,7 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    async execute(interaction, { reply, guild }) {
+    async execute({ reply, guild }, interaction) {
         const ephemeral = interaction.options.getBoolean('ephemeral', false)
 
         if (!guild) {

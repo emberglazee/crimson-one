@@ -10,7 +10,7 @@ export default {
             .setDescription('Should the response show up only for you?')
             .setRequired(false)
         ),
-    async execute(interaction, { editReply, deferReply }) {
+    async execute({ editReply, deferReply }, interaction) {
         const epheremal = interaction.options.getBoolean('ephemeral', false)
         await deferReply({
             flags: epheremal ? MessageFlags.Ephemeral : undefined

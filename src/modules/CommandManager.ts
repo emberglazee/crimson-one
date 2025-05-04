@@ -225,12 +225,12 @@ export default class CommandManager {
                     }
 
                     if (interaction.isChatInputCommand() && CommandManager.isSlashCommand(command)) {
-                        await command.execute(interaction, helpers)
+                        await command.execute(helpers, interaction)
                     } else if (interaction.isContextMenuCommand() && CommandManager.isContextMenuCommand(command)) {
                         if (interaction.isUserContextMenuCommand() && command.type === 2) {
-                            await (command.execute as (i: UserContextMenuCommandInteraction, helpers: SlashCommandHelpers) => Promise<void>)(interaction, helpers)
+                            await (command.execute as (helpers: SlashCommandHelpers, i?: UserContextMenuCommandInteraction) => Promise<void>)(helpers, interaction)
                         } else if (interaction.isMessageContextMenuCommand() && command.type === 3) {
-                            await (command.execute as (i: MessageContextMenuCommandInteraction, helpers: SlashCommandHelpers) => Promise<void>)(interaction, helpers)
+                            await (command.execute as (helpers: SlashCommandHelpers, i?: MessageContextMenuCommandInteraction) => Promise<void>)(helpers, interaction)
                         } else {
                             throw new Error('Context menu command type mismatch with interaction type')
                         }

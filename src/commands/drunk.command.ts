@@ -14,7 +14,7 @@ export default {
             .setDescription('Should the message be ephemeral?')
             .setRequired(false)
         ),
-    async execute(interaction, { reply }) {
+    async execute({ reply }, interaction) {
         const inputText = interaction.options.getString('text', true)
         const outputText = drunkWrite(inputText)
         const ephemeral = interaction.options.getBoolean('ephemeral') || false

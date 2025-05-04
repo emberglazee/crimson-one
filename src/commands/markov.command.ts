@@ -203,7 +203,7 @@ export default {
                 .setRequired(false)
             )
         ),
-    async execute(interaction, { reply, editReply, deferReply, followUp, guild }) {
+    async execute({ reply, editReply, deferReply, followUp, guild }, interaction) {
         const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
 
         if (!guild) {

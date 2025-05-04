@@ -15,7 +15,7 @@ export default {
             .setRequired(false)
         ),
 
-    async execute(interaction, { reply }) {
+    async execute({ reply }, interaction) {
         const action = interaction.options.getString('action', true)
         const chamber = Math.floor(Math.random() * 6) + 1
         const epheremal = interaction.options.getBoolean('ephemeral', false)
