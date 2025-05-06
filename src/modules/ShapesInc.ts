@@ -9,6 +9,8 @@ const { SHAPES_INC_EMAIL, SHAPES_INC_PASSWORD } = process.env
 import type { ShapesIncGetChatHistoryResponse, ShapesIncSendMessageResponse, ShapesIncClearChatResponse } from '../types/types'
 
 export default class ShapesInc {
+    private static instance: ShapesInc
+    private constructor() {}
     private browser!: Browser
     private page!: Page
     private cookies!: string
@@ -16,6 +18,13 @@ export default class ShapesInc {
     private shapeId = 'c4fa29df-aa29-40f7-baaa-21f2e3aab46b' as const
     private shapeVanity = 'crimson-1' as const
     private loggedIn = false
+
+    static getInstance(): ShapesInc {
+        if (!ShapesInc.instance) {
+            ShapesInc.instance = new ShapesInc()
+        }
+        return ShapesInc.instance
+    }
 
     async init() {
         logger.info('{init} Launching chromium...')
