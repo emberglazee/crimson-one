@@ -106,16 +106,14 @@ export default class ShapesInc {
         await this.page.waitForLoadState('domcontentloaded')
 
         logger.info('{webLogin} Filling in credentials...')
-        const emailInput = this.page.getByRole('textbox', { name: /username/i })
-        const passwordInput = this.page.getByRole('textbox', { name: /password/i })
-        await emailInput.fill(SHAPES_INC_EMAIL!)
-        await passwordInput.fill(SHAPES_INC_PASSWORD!)
+        await this.page.fill('#username', SHAPES_INC_EMAIL!)
+        await this.page.fill('#password', SHAPES_INC_PASSWORD!)
 
         logger.info('{webLogin} Clicking login button...')
-        await this.page.getByRole('button', { name: /continue/i }).click()
+        await this.page.click('form > div > button')
         // first redirect to https://shapes.inc/, then to https://shapes.inc/explore
         logger.info('{webLogin} Waiting for domcontentloaded...')
-        await this.page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(err => {
+        await this.page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(err => {
             logger.error(`{webLogin} domcontentloaded timed out? => ${err}`)
         })
 
