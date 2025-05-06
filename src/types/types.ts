@@ -37,9 +37,7 @@ export type ChannelIdResolvable = GuildChannel | Message | CommandInteraction |
     ChatInputCommandInteraction | string | APIInteractionDataResolvedChannel
 
 /**
- * At least One
- * @param {T} T - The type for the at least one
- * @param {U} U - The type for the at least one
+ * At least one, duh
  */
 export type AtleastOne<T, U = { [K in keyof T]: Pick<T, K> }> = Partial<T> & U[keyof U]
 
@@ -93,9 +91,6 @@ export type JSONResolvable = string | number | boolean | {[key: string]: JSONRes
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ExplicitAny = any
 
-/**
- * Slash Command Helpers, for convenience
- */
 export type SlashCommandHelpers = {
     reply: ChatInputCommandInteraction['reply']
     deferReply: ChatInputCommandInteraction['deferReply']
@@ -108,11 +103,6 @@ export type SlashCommandHelpers = {
     getUserAvatar: (user: User, guild: Guild | null, options?: { extension?: ImageExtension, size?: ImageSize, useGlobalAvatar?: boolean }) => string
 }
 
-/**
- * Slash Command Props
- * @param {SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommandGroup' | 'addSubcommand'> | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder} data - The data for the slash command
- * @param {PermissionsBitField[]} permissions - The permissions for the slash command
- */
 export type SlashCommandProps = {
     data: SlashCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommandGroup' | 'addSubcommand'> | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder
     permissions?: PermissionsBitField[]
@@ -122,49 +112,22 @@ export type SlashCommandProps = {
     ) => Promise<void>
 }
 
-/**
- * Slash Command Interface
- * @param {SlashCommandProps} data - The data for the slash command
- * @param {PermissionsBitField[]} permissions - The permissions for the slash command
- */
 export interface ISlashCommand extends SlashCommandProps {}
 
-/**
- * Slash Command Class
- * @abstract
- * @param {SlashCommandProps} data - The data for the slash command
- * @param {PermissionsBitField[]} permissions - The permissions for the slash command
- */
 export abstract class SlashCommand implements ISlashCommand {
     data!: SlashCommandProps['data']
     permissions?: SlashCommandProps['permissions']
     execute!: SlashCommandProps['execute']
 }
 
-/**
- * Guild Slash Command Interface
- * @param {ISlashCommand} data - The data for the slash command
- * @param {PermissionsBitField[]} permissions - The permissions for the slash command
- */
 export interface IGuildSlashCommand extends ISlashCommand {
     guildId: string
 }
 
-/**
- * Guild Slash Command Class
- * @abstract
- * @param {ISlashCommand} data - The data for the slash command
- * @param {PermissionsBitField[]} permissions - The permissions for the slash command
- */
 export abstract class GuildSlashCommand extends SlashCommand implements IGuildSlashCommand {
     guildId!: string
 }
 
-/**
- * Context Menu Command Props
- * @param {ContextMenuCommandBuilder} data - The data for the context menu command
- * @param {2 | 3} type - The type of the context menu command
- */
 export type ContextMenuCommandProps<T extends 2 | 3 = 2 | 3> = {
     data: ContextMenuCommandBuilder
     type: T
@@ -175,26 +138,12 @@ export type ContextMenuCommandProps<T extends 2 | 3 = 2 | 3> = {
     permissions?: SlashCommandProps['permissions']
 }
 
-/**
- * Context Menu Interaction Type
- * @param {2 | 3} T - The type of the context menu command
- */
 export type ContextMenuInteractionType<T extends 2 | 3> = T extends 2
     ? UserContextMenuCommandInteraction
     : MessageContextMenuCommandInteraction
 
-/**
- * Context Menu Command Interface
- * @param {ContextMenuCommandProps} data - The data for the context menu command
- * @param {2 | 3} type - The type of the context menu command
- */
 export interface IContextMenuCommand<T extends 2 | 3 = 2 | 3> extends ContextMenuCommandProps<T> {}
 
-/**
- * Context Menu Command Class
- * @param {ContextMenuCommandProps} data - The data for the context menu command
- * @param {2 | 3} type - The type of the context menu command
- */
 export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements IContextMenuCommand<T> {
     data!: ContextMenuCommandProps<T>['data']
     type!: ContextMenuCommandProps<T>['type']
@@ -223,3 +172,49 @@ export class MissingPermissionsError extends Error {
         this.permissions = permissions
     }
 }
+
+/**
+ * Response from ShapesInc sendMessage()
+ */
+export interface ShapesIncSendMessageResponse {
+    id: string
+    text: string
+    voice_reply_url: string | null
+    timestamp: number
+}
+
+/**
+ * Response from ShapesInc clearChat()
+ */
+export interface ShapesIncClearChatResponse {
+    user_id: string
+    shape_id: string
+    ts: number
+}
+
+/**
+ * Single message entry in getChatHistory() response
+ */
+export interface ShapesIncChatHistoryEntry {
+    id: string
+    reply: string | null
+    message: string | null
+    ts: number
+    voice_reply_url: string | null
+    attachment_url: string | null
+    attachment_type: string | null
+}
+
+/**
+ * Response from ShapesInc getChatHistory()
+ * @param {number} Length - Expected length of the array
+ */
+export type ShapesIncGetChatHistoryResponse<Length extends number = 20> = FixedLengthArray<ShapesIncChatHistoryEntry, Length>
+
+/**
+ * Fixed Length Array
+ * @param {T} T - The type of the array
+ * @param {N} N - The length of the array
+ */
+export type FixedLengthArray<T, N extends number, R extends T[] = []> =
+  R['length'] extends N ? R : FixedLengthArray<T, N, [T, ...R]>

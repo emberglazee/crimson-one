@@ -9,6 +9,7 @@ import type { DiscordEventListener } from './types/types'
 
 import CommandManager from './modules/CommandManager'
 import QuoteFactory from './modules/QuoteFactory'
+import ShapesInc from './modules/ShapesInc'
 import { GithubWebhook } from './modules/GithubWebhook'
 import { MarkovChat } from './modules/MarkovChain/MarkovChat'
 import { AWACSFeed } from './modules/AWACSFeed'
@@ -45,7 +46,7 @@ const commandManager = CommandManager.getInstance()
 export const quoteFactory = new QuoteFactory(bot)
 export const awacsFeed = new AWACSFeed(bot)
 export const screamOnSight = new ScreamOnSight()
-
+export const shapesInc = new ShapesInc()
 bot.once('ready', async () => {
     logger.info(`Logged in as ${yellow(bot.user!.tag)}`)
     gracefulShutdown.setClient(bot)
@@ -59,6 +60,8 @@ bot.once('ready', async () => {
     commandManager.setClient(bot)
     await commandManager.init()
     await commandManager.refreshGlobalCommands()
+
+    await shapesInc.init()
 
     const webhook = GithubWebhook.getInstance({
         port: Number(process.env.GITHUB_WEBHOOK_PORT) || 3000,
