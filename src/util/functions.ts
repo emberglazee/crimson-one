@@ -171,3 +171,33 @@ export function getUserAvatar(
 
     return member.displayAvatarURL({ extension, size })
 }
+
+/**
+ * Parse a Netscape cookie file and return an array of Playwright-compatible cookie objects.
+ * @param fileContent The content of the cookie file as a string
+ * @returns Array of cookies { name, value, domain, path, expires, httpOnly, secure }
+ */
+export function parseNetscapeCookieFile(fileContent: string) {
+    const lines = fileContent.split(/\r?\n/)
+    const cookies = []
+    for (const line of lines) {
+        if (!line || line.startsWith('#')) continue // skip comments and empty lines
+        const parts = line.split('\t')
+        if (parts.length < 7) continue
+
+        const [domain, _flag, path, secure, expiresStr, name, value] = parts
+
+        const expires = Number(expiresStr)
+        cookies.push({
+            name: name.trim(),
+            value: value.trim(),
+            domain,
+            path,
+            expires: isNaN(expires) ? -1 : expires,
+            httpOnly: false, // Not available in cookies.txt format
+            secure: secure.toUpperCase() === 'TRUE',
+        })
+    }
+    return cookies
+}
+
