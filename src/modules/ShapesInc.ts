@@ -107,7 +107,8 @@ export default class ShapesInc {
         await this.page.fill('#username', SHAPES_INC_EMAIL!)
         await this.page.fill('#password', SHAPES_INC_PASSWORD!)
         logger.info('{webLogin} Clicking login button...')
-        await this.page.click('body > div > main > section > div > div > div > form > div.cd7628f16 > button')
+        // await this.page.click('body > div > main > section > div > div > div > form > div.cd7628f16 > button')
+        await this.page.getByRole('button', { name: /continue/i }).click()
         // first redirect to https://shapes.inc/, then to https://shapes.inc/explore
         logger.info('{webLogin} Waiting for networkidle...')
         await this.page.waitForLoadState('networkidle')
