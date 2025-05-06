@@ -98,30 +98,32 @@ export default class ShapesInc {
             logger.ok('{webLogin} already logged in bro tf you doin')
             return
         }
+
         logger.info('{webLogin} Going to shapes.inc/api/auth/login-password...')
         await this.page.goto('https://shapes.inc/api/auth/login-password')
         // redirect to https://auth.shapes.inc/u/login?state=<auth_state_string>
-        logger.info('{webLogin} Waiting for networkidle...')
-        await this.page.waitForLoadState('networkidle')
-        logger.info('{webLogin} Filling in username...')
-        await this.page.fill('#username', SHAPES_INC_EMAIL!)
-        await this.page.fill('#password', SHAPES_INC_PASSWORD!)
+        logger.info('{webLogin} Waiting for domcontentloaded...')
+        await this.page.waitForLoadState('domcontentloaded')
+
+        logger.info('{webLogin} Filling in credentials...')
+        const emailInput = this.page.getByRole('textbox', { name: /username/i })
+        const passwordInput = this.page.getByRole('textbox', { name: /password/i })
+        await emailInput.fill(SHAPES_INC_EMAIL!)
+        await passwordInput.fill(SHAPES_INC_PASSWORD!)
+
         logger.info('{webLogin} Clicking login button...')
-        // await this.page.click('body > div > main > section > div > div > div > form > div.cd7628f16 > button')
         await this.page.getByRole('button', { name: /continue/i }).click()
         // first redirect to https://shapes.inc/, then to https://shapes.inc/explore
-        logger.info('{webLogin} Waiting for networkidle...')
-        await this.page.waitForLoadState('networkidle')
+        logger.info('{webLogin} Waiting for domcontentloaded...')
+        await this.page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(err => {
+            logger.error(`{webLogin} domcontentloaded timed out? => ${err}`)
+        })
+
         logger.info('{webLogin} Double checking if logged in...')
         this.loggedIn = await this.webCheckIfLoggedIn() || await this.apiCheckIfLoggedIn()
         if (!this.loggedIn) {
-            logger.warn(`{webLogin} Didn't log in correctly! Trying to check again in 5 seconds. Currently on ${this.page.url()}`)
-            await Bun.sleep(5000)
-            this.loggedIn = await this.webCheckIfLoggedIn() || await this.apiCheckIfLoggedIn()
-            if (!this.loggedIn) {
-                logger.error('{webLogin} yeah no this is bad, still not logged in')
-                return
-            }
+            logger.warn(`{webLogin} Didn't log in correctly! Currently on ${this.page.url()}`)
+            return
         }
         logger.ok('{webLogin} Done')
     }
