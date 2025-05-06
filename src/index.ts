@@ -60,6 +60,7 @@ bot.once('ready', async () => {
     commandManager.setClient(bot)
     await commandManager.init()
     await commandManager.refreshGlobalCommands()
+    await commandManager.refreshAllGuildCommands()
 
     await shapesInc.init()
 
