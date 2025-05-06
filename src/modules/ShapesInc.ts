@@ -36,9 +36,12 @@ export default class ShapesInc {
         logger.info('{webCheckIfLoggedIn} Waiting for networkidle...')
         await this.page.waitForLoadState('networkidle')
         logger.info('{webCheckIfLoggedIn} Evaluating if logged in...')
-        const isLoggedIn = await this.page.evaluate(() => {
-            return document.querySelector('body > div:nth-child(1) > div.topNav_wrapper__LWmvo > div > nav > div.topNav_navRight__rgh1s > div > div > span')?.textContent === SHAPES_INC_EMAIL
-        })
+        const isLoggedIn = await this.page.evaluate(
+            (email: string) => {
+                return document.querySelector('body > div:nth-child(1) > div.topNav_wrapper__LWmvo > div > nav > div.topNav_navRight__rgh1s > div > div > span')?.textContent === email
+            },
+            SHAPES_INC_EMAIL!
+        )
         logger.info(`{webCheckIfLoggedIn} ${isLoggedIn ? green('Logged in') : red('Not logged in')}`)
         return isLoggedIn
     }
