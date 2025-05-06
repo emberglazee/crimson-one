@@ -23,20 +23,17 @@ import { operationTracker } from './OperationTracker'
 import { createHash } from 'crypto'
 
 import {
-    SlashCommand,
-    GuildSlashCommand,
-    ContextMenuCommand,
-    ClassNotInitializedError,
-    MissingPermissionsError,
-    type ExplicitAny,
-    type SlashCommandHelpers
+    SlashCommand, GuildSlashCommand, ContextMenuCommand,
+    ClassNotInitializedError, MissingPermissionsError,
+    type ExplicitAny, type SlashCommandHelpers, type GuildId
 } from '../types/types'
 import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
 
 export default class CommandManager {
+
     private static instance: CommandManager
     private globalCommands: Map<string, SlashCommand> = new Map()
-    private guildCommands: Map<string, Map<string, GuildSlashCommand>> = new Map()
+    private guildCommands: Map<GuildId, Map<string, GuildSlashCommand>> = new Map()
     private contextMenuCommands: Map<string, ContextMenuCommand> = new Map()
     private commandHashes: Map<string, string> = new Map()
     private initialized = false
@@ -58,51 +55,62 @@ export default class CommandManager {
     }
 
     public async init() {
+
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
+
         logger.info('{init} Initializing...')
         const initStartTime = Date.now()
+
         await this.loadCommands(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, '../commands'))
         this.initialized = true
+
         const initEndTime = Date.now()
         const totalTime = (initEndTime - initStartTime) / 1000
         logger.ok(`{init} Total time: ${yellow(totalTime)}s`)
+
     }
 
+
+
     private async importCommand(file: Dirent) {
+
         const startTime = Date.now()
         try {
+
             const importedModule = await import(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, `../commands/${file.name}`))
             const commands: (SlashCommand | ContextMenuCommand)[] = []
-            const commandInfo: { name: string, type: string, guildId?: string }[] = []
+            const commandInfo: { name: string, type: string, guildId?: GuildId }[] = []
 
             // Handle both default and named exports
             for (const [_, exportedItem] of Object.entries(importedModule)) {
+
                 if (typeof exportedItem !== 'object' || !exportedItem) continue
-
-                // Check if the exported item has required command properties
                 if (!('data' in exportedItem) || !('execute' in exportedItem)) continue
-
                 const command = exportedItem as SlashCommand | ContextMenuCommand
 
                 if (CommandManager.isContextMenuCommand(command)) {
+
                     const type = command.type === 2 ? 'user' : 'message'
                     command.data.setType(command.type)
-                    // Generate a unique key for the context menu command
+
                     const key = `${command.data.name}-${type}`
                     this.contextMenuCommands.set(key, command)
                     commands.push(command)
                     commandInfo.push({ name: command.data.name, type: `${type} context menu` })
+
                 } else if (CommandManager.isGuildSlashCommand(command)) {
-                    if (!this.guildCommands.has(command.guildId)) {
-                        this.guildCommands.set(command.guildId, new Map())
-                    }
+
+                    if (!this.guildCommands.has(command.guildId)) this.guildCommands.set(command.guildId, new Map())
                     this.guildCommands.get(command.guildId)!.set(command.data.name, command)
                     commands.push(command)
                     commandInfo.push({ name: command.data.name, type: 'guild slash', guildId: command.guildId })
+
                 } else if (CommandManager.isGlobalSlashCommand(command)) {
+
                     this.globalCommands.set(command.data.name, command)
                     commands.push(command)
                     commandInfo.push({ name: command.data.name, type: 'global slash' })
+
                 }
             }
 
@@ -111,63 +119,74 @@ export default class CommandManager {
             }
 
             return { file: file.name, commands: commandInfo, time: Date.now() - startTime }
+
         } catch (err) {
             console.log(err)
             return { file: file.name, commands: [], time: Date.now() - startTime, error: err }
         }
+
     }
 
+
+
     private async loadCommands(dir: string) {
+
         logger.info(`{loadCommands} Reading commands from ${yellow(dir)}...`)
         const files = await readdir(dir, { withFileTypes: true })
         logger.info(`{loadCommands} Found ${yellow(files.length)} files in ${yellow(dir)}`)
+
         const importPromises: Promise<{ file: string; commands: { name: string; type: string; guildId?: string }[]; time: number; error?: unknown }>[] = []
         for (const file of files) {
-            if (file.isDirectory()) {
+
+            if (file.isDirectory())
                 await this.loadCommands(path.join(dir, file.name))
-            } else if (file.isFile() && file.name.endsWith('.ts')) {
+            else if (file.isFile() && file.name.endsWith('.ts'))
                 importPromises.push(this.importCommand(file))
-            }
+
         }
+
         const results = await Promise.all(importPromises)
-        // Log summary
         const totalCommands = results.reduce((acc, result) => acc + result.commands.length, 0)
         const totalTime = results.reduce((acc, result) => acc + result.time, 0)
         logger.ok(`{loadCommands} Loaded ${yellow(totalCommands)} commands from ${yellow(results.length)} files in ${yellow(totalTime / 1000)}s`)
-        // Log command details
+
         const commandTypes = new Map<string, number>()
         const guildCommands = new Map<string, number>()
         results.forEach(result => {
+
             result.commands.forEach(cmd => {
                 commandTypes.set(cmd.type, (commandTypes.get(cmd.type) || 0) + 1)
-                if (cmd.guildId) {
-                    guildCommands.set(cmd.guildId, (guildCommands.get(cmd.guildId) || 0) + 1)
-                }
+                if (cmd.guildId) guildCommands.set(cmd.guildId, (guildCommands.get(cmd.guildId) || 0) + 1)
             })
+
         })
-        // Log command type breakdown
-        commandTypes.forEach((count, type) => {
-            logger.info(`{loadCommands} ${yellow(count)} ${type} commands`)
-        })
-        // Log guild command breakdown
+        commandTypes.forEach((count, type) => logger.info(`{loadCommands} ${yellow(count)} ${type} commands`))
         if (guildCommands.size > 0) {
+
             logger.info('{loadCommands} Guild command distribution:')
             guildCommands.forEach((count, guildId) => {
                 logger.info(`{loadCommands}   ${yellow(guildId)}: ${yellow(count)} commands`)
             })
+
         }
         logger.ok(`{loadCommands} Finished loading commands in ${yellow(dir)}`)
+
     }
 
+
+
     public async handleInteraction(interaction: CommandInteraction | ContextMenuCommandInteraction): Promise<void> {
+
         if (!this.initialized) throw new ClassNotInitializedError()
         const matchingCommand = this.findMatchingCommand(interaction)
         if (!matchingCommand) {
+
             const errorMessage = `Command ${interaction.commandName} not found`
             logger.warn(`{handleInteraction} Unknown command /${yellow(interaction.commandName)}`)
             const error = new Error(errorMessage)
             this.handleError(error, interaction)
             return
+
         }
         try {
             await this.executeCommand(matchingCommand, interaction)
@@ -175,34 +194,44 @@ export default class CommandManager {
             this.handleError(e as Error, interaction)
             return
         }
+
     }
 
+
+
     private findMatchingCommand(interaction: CommandInteraction | ContextMenuCommandInteraction) {
+
         if (interaction.isChatInputCommand()) {
-            // First check guild commands
+
             const guildCommands = this.guildCommands.get(interaction.guildId!)
             if (guildCommands) {
                 const guildCommand = guildCommands.get(interaction.commandName)
                 if (guildCommand) return guildCommand
             }
 
-            // Then check global commands
             return this.globalCommands.get(interaction.commandName)
+
         } else if (interaction.isContextMenuCommand()) {
-            // Find the matching context menu command by name and type
+
             const type = interaction.isUserContextMenuCommand() ? 'user' : 'message'
             const key = `${interaction.commandName}-${type}`
             return this.contextMenuCommands.get(key)
+
         }
         return undefined
+
     }
 
+
+
     private async executeCommand(command: SlashCommand | ContextMenuCommand<2 | 3>, interaction: CommandInteraction | ContextMenuCommandInteraction) {
+
         return operationTracker.track(
             `command:${interaction.commandName}`,
             'COMMAND',
             async () => {
                 try {
+
                     if (!command.execute) {
                         throw new Error(`Command ${interaction.commandName} does not have an execute method`)
                     }
@@ -227,6 +256,7 @@ export default class CommandManager {
                     if (interaction.isChatInputCommand() && CommandManager.isSlashCommand(command)) {
                         await command.execute(helpers, interaction)
                     } else if (interaction.isContextMenuCommand() && CommandManager.isContextMenuCommand(command)) {
+
                         if (interaction.isUserContextMenuCommand() && command.type === 2) {
                             await (command.execute as (helpers: SlashCommandHelpers, i?: UserContextMenuCommandInteraction) => Promise<void>)(helpers, interaction)
                         } else if (interaction.isMessageContextMenuCommand() && command.type === 3) {
@@ -234,10 +264,13 @@ export default class CommandManager {
                         } else {
                             throw new Error('Context menu command type mismatch with interaction type')
                         }
+
                     } else {
                         throw new Error('Command type mismatch with interaction type')
                     }
+
                 } catch (err) {
+
                     const error = err as Error
                     logger.warn(`{executeCommand} Error in ${yellow(command.data.name)} => ${red(error.message)}`)
                     if (error.message === 'Unknown interaction') {
@@ -246,12 +279,17 @@ export default class CommandManager {
                     }
                     logger.warn('{executeCommand} Error isn\'t "Unknown interaction", throwing it again, let `handleError()` deal with it')
                     throw err
+
                 }
             }
         )
+
     }
 
+
+
     private handleError(e: Error, interaction: CommandInteraction | ContextMenuCommandInteraction) {
+
         logger.warn(`{handleInteraction} Error in ${yellow(interaction.commandName)}: ${red(e.message)}`)
         try {
             if (!interaction.deferred) interaction.reply(`❌ Deferred interaction error: \`${e.message}\``)
@@ -259,9 +297,13 @@ export default class CommandManager {
         } catch (err) {
             logger.warn(`{handleInteraction} Could not reply to the interaction to signal the error; did the interaction time out? [${red(err instanceof Error ? err.message : String(err))}]`)
         }
+
     }
 
+
+
     private computeCommandHash(command: SlashCommand | ContextMenuCommand): string {
+
         const commandData = command.data.toJSON()
 
         const normalizedData = {
@@ -275,40 +317,45 @@ export default class CommandManager {
         const hash = createHash('sha256')
         hash.update(JSON.stringify(normalizedData))
         return hash.digest('hex')
+
     }
 
+
+
     private async checkCommandChanges(commands: (SlashCommand | ContextMenuCommand)[], guildId?: string): Promise<boolean> {
+
         const remoteCommands = guildId
             ? await this.fetchGuildCommands(guildId)
             : await this.fetchGlobalCommands()
 
-        // Check if any commands were deleted
-        if (remoteCommands.length !== commands.length) {
-            return true
-        }
+        if (remoteCommands.length !== commands.length) return true
 
-        // Check if any commands changed
         for (const command of commands) {
+
             const key = guildId ? `${guildId}:${command.data.name}` : command.data.name
             const currentHash = this.computeCommandHash(command)
             const previousHash = this.commandHashes.get(key)
-
             if (!previousHash || previousHash !== currentHash) {
                 logger.info(`{checkCommandChanges} Command ${yellow(command.data.name)} has changed`)
                 return true
             }
-        }
 
+        }
         return false
+
     }
 
+
+
     public async refreshGlobalCommands() {
+
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
         if (!this.rest) throw new Error('REST client not initialized')
 
         logger.info('{refreshGlobalCommands} Checking for changes...')
         try {
+
             const commands = [
                 ...this.globalCommands.values(),
                 ...this.contextMenuCommands.values()
@@ -335,19 +382,25 @@ export default class CommandManager {
             }
 
             logger.ok('{refreshGlobalCommands} Successfully refreshed commands')
+
         } catch (error) {
             logger.error(`{refreshGlobalCommands} Failed: ${red(error)}`)
             throw error
         }
+
     }
 
+
+
     public async refreshGuildCommands(guildId: string) {
+
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
         if (!this.rest) throw new Error('REST client not initialized')
 
         logger.info(`{refreshGuildCommands} Checking for changes in guild ${yellow(guildId)}...`)
         try {
+
             const guild = await this.client.guilds.fetch(guildId)
             if (!guild) {
                 logger.error(`{refreshGuildCommands} Guild ${yellow(guildId)} not found!`)
@@ -382,13 +435,32 @@ export default class CommandManager {
             }
 
             logger.ok(`{refreshGuildCommands} Successfully refreshed commands for guild ${yellow(guildId)}`)
+
         } catch (error) {
             logger.error(`{refreshGuildCommands} Failed for guild ${yellow(guildId)}: ${red(error)}`)
             throw error
         }
+
     }
 
+
+
+    public async refreshAllGuildCommands() {
+
+        if (!this.initialized) throw new ClassNotInitializedError()
+        if (!this.client) throw new Error('Client not set. Call setClient() first.')
+        if (!this.rest) throw new Error('REST client not initialized')
+
+        const guilds = [...this.guildCommands.keys()]
+        for (const guildId of guilds)
+            await this.refreshGuildCommands(guildId)
+
+    }
+
+
+
     public async fetchGlobalCommandIds(): Promise<{ id: string; name: string }[]> {
+
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
         if (!this.rest) throw new Error('REST client not initialized')
@@ -402,9 +474,13 @@ export default class CommandManager {
             logger.error(`{fetchGlobalCommandIds} Failed: ${red(error)}`)
             throw error
         }
+
     }
 
+
+
     public async fetchGlobalCommands(): Promise<(RESTPostAPIChatInputApplicationCommandsJSONBody | RESTPostAPIContextMenuApplicationCommandsJSONBody)[]> {
+
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
         if (!this.rest) throw new Error('REST client not initialized')
@@ -418,9 +494,13 @@ export default class CommandManager {
             logger.error(`{fetchGlobalCommands} Failed: ${red(error)}`)
             throw error
         }
+
     }
 
+
+
     public async fetchGuildCommandIds(guildId: string): Promise<{ id: string; name: string }[]> {
+
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
         if (!this.rest) throw new Error('REST client not initialized')
@@ -434,9 +514,13 @@ export default class CommandManager {
             logger.error(`{fetchGuildCommandIds} Failed for guild ${yellow(guildId)}: ${red(error)}`)
             throw error
         }
+
     }
 
+
+
     public async fetchGuildCommands(guildId: string): Promise<(RESTPostAPIChatInputApplicationCommandsJSONBody | RESTPostAPIContextMenuApplicationCommandsJSONBody)[]> {
+
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
         if (!this.rest) throw new Error('REST client not initialized')
@@ -450,9 +534,13 @@ export default class CommandManager {
             logger.error(`{fetchGuildCommands} Failed for guild ${yellow(guildId)}: ${red(error)}`)
             throw error
         }
+
     }
 
+
+
     public async deleteAllGlobalCommands(): Promise<void> {
+
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
         if (!this.rest) throw new Error('REST client not initialized')
@@ -481,9 +569,13 @@ export default class CommandManager {
             logger.error(`{deleteAllGlobalCommands} Failed: ${red(error)}`)
             throw error
         }
+
     }
 
+
+
     public async deleteAllGuildCommands(guildId: string): Promise<void> {
+
         if (!this.initialized) throw new ClassNotInitializedError()
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
         if (!this.rest) throw new Error('REST client not initialized')
@@ -512,11 +604,15 @@ export default class CommandManager {
             logger.error(`{deleteAllGuildCommands} Failed for guild ${yellow(guildId)}: ${red(error)}`)
             throw error
         }
+
     }
+
+
 
     public static isSlashCommand = (obj: unknown): obj is SlashCommand => {
         return hasProp(obj, 'data') && (obj as ExplicitAny).data instanceof SlashCommandBuilder
     }
+
     public static isGuildSlashCommand = (obj: unknown): obj is GuildSlashCommand => {
         return (
             CommandManager.isSlashCommand(obj) &&
@@ -524,12 +620,14 @@ export default class CommandManager {
             typeof (obj as ExplicitAny).guildId === 'string'
         )
     }
+
     public static isGlobalSlashCommand = (obj: unknown): obj is SlashCommand => {
         return (
             CommandManager.isSlashCommand(obj) &&
             !('guildId' in obj)
         )
     }
+
     public static isContextMenuCommand = (obj: unknown): obj is ContextMenuCommand => {
         return (
             typeof obj === 'object' &&

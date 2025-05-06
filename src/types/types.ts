@@ -218,3 +218,5 @@ export type ShapesIncGetChatHistoryResponse<Length extends number = 20> = FixedL
  */
 export type FixedLengthArray<T, N extends number, R extends T[] = []> =
   R['length'] extends N ? R : FixedLengthArray<T, N, [T, ...R]>
+
+export type GuildId = string & {} // `& {}` because otherwise intellisense will show `string` instead of `GuildId`
