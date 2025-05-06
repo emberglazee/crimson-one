@@ -9,6 +9,7 @@ const { SHAPES_INC_EMAIL, SHAPES_INC_PASSWORD } = process.env
 import type { ShapesIncGetChatHistoryResponse, ShapesIncSendMessageResponse, ShapesIncClearChatResponse } from '../types/types'
 import fs from 'fs/promises'
 import path from 'path'
+import { parseNetscapeCookieFile } from '../util/functions'
 
 export default class ShapesInc {
     private static instance: ShapesInc
@@ -33,34 +34,19 @@ export default class ShapesInc {
         this.browser = await chromium.launch({ headless: true })
         logger.info('{init} Opening new page...')
         this.page = await this.browser.newPage()
-        // Try to load cookies from file
+        // Only load cookies from file (Netscape format)
         const cookiesPath = path.join(__dirname, '../../data/shapesinc-cookies.txt')
-        if (await fs.exists(cookiesPath)) {
-            try {
-                const cookiesTxt = await fs.readFile(cookiesPath, 'utf-8')
-                // Convert cookie string to array of cookie objects for Playwright
-                const cookies = cookiesTxt.split('; ').map(cookieStr => {
-                    const [name, ...rest] = cookieStr.split('=')
-                    return { name, value: rest.join('='), domain: '.shapes.inc', path: '/' }
-                })
-                await this.page.context().addCookies(cookies)
-                logger.ok('{init} Loaded cookies from file')
-            } catch (err) {
-                logger.warn(`{init} Failed to load cookies from file: ${err}`)
-            }
+        try {
+            const cookiesTxt = await fs.readFile(cookiesPath, 'utf-8')
+            const cookies = parseNetscapeCookieFile(cookiesTxt)
+            await this.page.context().addCookies(cookies)
+            logger.ok('{init} Loaded cookies from file (Netscape format)')
+        } catch (err) {
+            logger.warn(`{init} Failed to load cookies from file: ${err}`)
         }
         logger.info('{init} Checking if logged in...')
         this.loggedIn = await this.webCheckIfLoggedIn() || await this.apiCheckIfLoggedIn()
         if (!this.loggedIn) await this.webLogin()
-        // Save cookies after login or check
-        try {
-            const cookies = await this.page.context().cookies()
-            const cookiesTxt = cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
-            await fs.writeFile(cookiesPath, cookiesTxt, 'utf-8')
-            logger.ok('{init} Saved cookies to file')
-        } catch (err) {
-            logger.warn(`{init} Failed to save cookies to file: ${err}`)
-        }
         logger.ok('{init} Done')
     }
 
@@ -134,23 +120,19 @@ export default class ShapesInc {
             return this.cookies
         }
         logger.info('{getCookiesForFetch} Getting cookies...')
-        // Try to load cookies from file if not already loaded
+        // Only load cookies from file (Netscape format)
         const cookiesPath = path.join(__dirname, '../../data/shapesinc-cookies.txt')
-        if (await fs.exists(cookiesPath)) {
-            try {
-                const cookiesTxt = await fs.readFile(cookiesPath, 'utf-8')
-                this.cookies = cookiesTxt.trim()
-                logger.ok('{getCookiesForFetch} Loaded cookies from file')
-                return this.cookies
-            } catch (err) {
-                logger.error(`{getCookiesForFetch} Failed to load cookies from file: ${err}`)
-            }
+        try {
+            const cookiesTxt = await fs.readFile(cookiesPath, 'utf-8')
+            // Parse and join cookies for fetch header
+            const cookiesArr = parseNetscapeCookieFile(cookiesTxt)
+            this.cookies = cookiesArr.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
+            logger.ok('{getCookiesForFetch} Loaded cookies from file (Netscape format)')
+            return this.cookies
+        } catch (err) {
+            logger.error(`{getCookiesForFetch} Failed to load cookies from file: ${err}`)
+            throw err
         }
-        // Fallback: get from browser context
-        const cookies = await this.page.context().cookies()
-        this.cookies = cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
-        logger.ok('{getCookiesForFetch} Done')
-        return this.cookies
     }
 
     // the target shape (context: project wingman character)
