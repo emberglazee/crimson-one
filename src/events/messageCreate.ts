@@ -13,7 +13,10 @@ export default async function onMessageCreate(client: Client) {
 
             if (message.channel.id === '1335992675459141632') {
                 await message.channel.sendTyping()
-                const msg = `<u>${message.author.username}</u>: ${message.content}`
+                let msg = ''
+                const ref = await message.fetchReference()
+                if (ref) msg += `> <u>${ref.author.username}</u>: ${ref.content}\n\n`
+                msg += `<u>${message.author.username}</u>: ${message.content}\n\n`
                 const res = await shapesInc.sendMessage(msg)
                 await message.reply(res.text)
             }
