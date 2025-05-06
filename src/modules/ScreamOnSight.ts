@@ -134,6 +134,12 @@ export class ScreamOnSight {
                     'https://tenor.com/view/order-of-iris-how-hungry-horse-honse-gif-14835892721220569918'
                 ]))
             }
+        },
+        {
+            pattern: [/femboy/],
+            async action(message) {
+                if (chance(50)) await message.reply('https://tenor.com/view/%D1%84%D1%81%D0%B1-gif-21407990')
+            },
         }
     ]
     async processMessage(message: Message) {
