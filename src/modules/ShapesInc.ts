@@ -23,6 +23,7 @@ export default class ShapesInc {
         this.page = await this.browser.newPage()
         logger.info('{init} Checking if logged in...')
         this.loggedIn = await this.webCheckIfLoggedIn() || await this.apiCheckIfLoggedIn()
+        if (!this.loggedIn) await this.webLogin()
         logger.ok('{init} Done')
     }
 
