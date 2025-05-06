@@ -2,6 +2,7 @@
 import { green, Logger, red } from '../util/logger'
 const logger = new Logger('ShapesInc')
 
+import { inspect } from 'util'
 import { chromium, type Browser, type Page } from 'playwright'
 const { SHAPES_INC_EMAIL, SHAPES_INC_PASSWORD } = process.env
 
@@ -115,9 +116,17 @@ export default class ShapesInc {
                 'cookie': cookies
             },
             body
+        }).catch(err => {
+            logger.error(`{sendMessage} Error sending message:\n${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
+            throw err
         })
         logger.ok('{sendMessage} Done')
-        return res.json() as Promise<ShapesIncSendMessageResponse>
+        const json = await res.json()
+        if (json.error) {
+            logger.error(`{sendMessage} Error sending message:\n${json.error}`)
+            throw new Error(json.error)
+        }
+        return json as Promise<ShapesIncSendMessageResponse>
     }
     async clearChat(ts: number): Promise<ShapesIncClearChatResponse> {
         logger.info('{clearChat} Clearing chat...')
