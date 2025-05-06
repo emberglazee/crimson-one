@@ -18,7 +18,7 @@ export default class ShapesInc {
 
     async init() {
         logger.info('{init} Launching chromium...')
-        this.browser = await chromium.launch({ headless: false })
+        this.browser = await chromium.launch({ headless: true })
         logger.info('{init} Opening new page...')
         this.page = await this.browser.newPage()
         logger.info('{init} Checking if logged in...')
