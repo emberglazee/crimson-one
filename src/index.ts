@@ -46,7 +46,7 @@ const commandManager = CommandManager.getInstance()
 export const quoteFactory = new QuoteFactory(bot)
 export const awacsFeed = new AWACSFeed(bot)
 export const screamOnSight = new ScreamOnSight()
-export const shapesInc = new ShapesInc()
+export const shapesInc = ShapesInc.getInstance()
 bot.once('ready', async () => {
     logger.info(`Logged in as ${yellow(bot.user!.tag)}`)
     gracefulShutdown.setClient(bot)

@@ -18,7 +18,7 @@ export default async function onMessageCreate(client: Client) {
                     const ref = await message.fetchReference()
                     msg += `> <u>${ref.author.username}</u>: ${ref.content}\n\n`
                 }
-                msg += `<u>${message.author.username}</u>: ${message.content}\n\n`
+                msg += `<u>${message.author.username}</u>: ${message.content}`
                 const res = await shapesInc.sendMessage(msg)
                 await message.reply(res.text)
             }
