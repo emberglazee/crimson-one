@@ -1,10 +1,8 @@
 // connect the web interface of shapes.inc (fancier version of character.ai) with the discord bot
-import { green, Logger, red } from '../util/logger'
+import { Logger } from '../util/logger'
 const logger = new Logger('ShapesInc')
 
 import { inspect } from 'util'
-import { chromium, type Browser, type Page } from 'playwright'
-const { SHAPES_INC_EMAIL, SHAPES_INC_PASSWORD } = process.env
 
 import type { ShapesIncGetChatHistoryResponse, ShapesIncSendMessageResponse, ShapesIncClearChatResponse } from '../types/types'
 import fs from 'fs/promises'
@@ -14,13 +12,10 @@ import { parseNetscapeCookieFile } from '../util/functions'
 export default class ShapesInc {
     private static instance: ShapesInc
     private constructor() {}
-    private browser!: Browser
-    private page!: Page
     private cookies!: string
     private userId = 'ab8f795b-cc33-4189-9430-a6917bb85398' as const
     private shapeId = 'c4fa29df-aa29-40f7-baaa-21f2e3aab46b' as const
     private shapeVanity = 'crimson-1' as const
-    private loggedIn = false
 
     static getInstance(): ShapesInc {
         if (!ShapesInc.instance) {
@@ -30,96 +25,6 @@ export default class ShapesInc {
     }
 
     async init() {
-        logger.info('{init} Launching chromium...')
-        this.browser = await chromium.launch({ headless: true })
-        logger.info('{init} Opening new page...')
-        this.page = await this.browser.newPage()
-        // Only load cookies from file (Netscape format)
-        const cookiesPath = path.join(__dirname, '../../data/shapesinc-cookies.txt')
-        try {
-            const cookiesTxt = await fs.readFile(cookiesPath, 'utf-8')
-            const cookies = parseNetscapeCookieFile(cookiesTxt)
-            await this.page.context().addCookies(cookies)
-            logger.ok('{init} Loaded cookies from file (Netscape format)')
-        } catch (err) {
-            logger.warn(`{init} Failed to load cookies from file: ${err}`)
-        }
-        logger.info('{init} Checking if logged in...')
-        this.loggedIn = await this.webCheckIfLoggedIn() || await this.apiCheckIfLoggedIn()
-        if (!this.loggedIn) await this.webLogin()
-        logger.ok('{init} Done')
-    }
-
-    async close() {
-        await this.browser.close()
-    }
-
-    async webCheckIfLoggedIn() {
-        const page = await this.browser.newPage()
-        logger.info('{webCheckIfLoggedIn} Going to shapes.inc...')
-        await page.goto('https://shapes.inc/')
-        logger.info('{webCheckIfLoggedIn} Waiting for networkidle...')
-        await page.waitForLoadState('networkidle')
-        logger.info('{webCheckIfLoggedIn} Evaluating if logged in...')
-        const isLoggedIn = await page.evaluate(
-            (email: string) => {
-                return document.querySelector('body > div:nth-child(1) > div.topNav_wrapper__LWmvo > div > nav > div.topNav_navRight__rgh1s > div > div > span')?.textContent === email
-            },
-            SHAPES_INC_EMAIL!
-        )
-        logger.info(`{webCheckIfLoggedIn} ${isLoggedIn ? green('Logged in') : red('Not logged in')}`)
-        await page.close()
-        return isLoggedIn
-    }
-    // simpler
-    async apiCheckIfLoggedIn() {
-        logger.info('{apiCheckIfLoggedIn} API request...')
-        const req = await fetch('https://shapes.inc/api/auth/me')
-        logger.info(`{apiCheckIfLoggedIn} Status: ${req.status}; ${req.status === 200 ? 'logged in' : 'not logged in'}`)
-        return req.status === 200 // `200 ok` if logged in, `204 no content` if not
-    }
-
-    async webLogin() {
-        if (this.loggedIn) {
-            logger.ok('{webLogin} already logged in bro tf you doin')
-            return
-        }
-
-        logger.info('{webLogin} Going to shapes.inc/api/auth/login-password...')
-        await this.page.goto('https://shapes.inc/api/auth/login-password')
-        // redirect to https://auth.shapes.inc/u/login?state=<auth_state_string>
-        logger.info('{webLogin} Waiting for domcontentloaded...')
-        await this.page.waitForLoadState('domcontentloaded')
-
-        logger.info('{webLogin} Filling in credentials...')
-        await this.page.fill('#username', SHAPES_INC_EMAIL!)
-        await this.page.fill('#password', SHAPES_INC_PASSWORD!)
-
-        logger.info('{webLogin} Clicking login button...')
-        await this.page.click('form > div > button')
-        // first redirect to https://shapes.inc/, then to https://shapes.inc/explore
-        logger.info('{webLogin} Waiting for domcontentloaded...')
-        await this.page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(err => {
-            logger.error(`{webLogin} domcontentloaded timed out? => ${err}`)
-        })
-
-        logger.info('{webLogin} Double checking if logged in...')
-        this.loggedIn = await this.webCheckIfLoggedIn() || await this.apiCheckIfLoggedIn()
-        if (!this.loggedIn) {
-            logger.warn(`{webLogin} Didn't log in correctly! Currently on ${this.page.url()}`)
-            return
-        }
-        logger.ok('{webLogin} Done')
-    }
-
-    // Extract cookies from the current page in a format suitable for fetch()'s 'cookie' header
-    async getCookiesForFetch(): Promise<string> {
-        if (!this.page) throw new Error('Page not initialized')
-        if (this.cookies) {
-            logger.ok('{getCookiesForFetch} Cookies already present')
-            return this.cookies
-        }
-        logger.info('{getCookiesForFetch} Getting cookies...')
         // Only load cookies from file (Netscape format)
         const cookiesPath = path.join(__dirname, '../../data/shapesinc-cookies.txt')
         try {
@@ -127,21 +32,11 @@ export default class ShapesInc {
             // Parse and join cookies for fetch header
             const cookiesArr = parseNetscapeCookieFile(cookiesTxt)
             this.cookies = cookiesArr.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
-            logger.ok('{getCookiesForFetch} Loaded cookies from file (Netscape format)')
-            return this.cookies
+            logger.ok('{init} Loaded cookies from file (Netscape format)')
         } catch (err) {
-            logger.error(`{getCookiesForFetch} Failed to load cookies from file: ${err}`)
+            logger.error(`{init} Failed to load cookies from file: ${err}`)
             throw err
         }
-    }
-
-    // the target shape (context: project wingman character)
-    async gotoCrimson1() {
-        logger.info('{gotoCrimson1} Going to Crimson 1\'s page...')
-        await this.page.goto(`https://shapes.inc/${this.shapeVanity}/chat`)
-        logger.info('{gotoCrimson1} Waiting for networkidle...')
-        await this.page.waitForLoadState('networkidle')
-        logger.ok('{gotoCrimson1} Done')
     }
 
     async sendMessage(message: string, attachment_url: string | null = null): Promise<ShapesIncSendMessageResponse> {
@@ -152,7 +47,7 @@ export default class ShapesInc {
             shapeId: this.shapeId,
             attachment_url
         })
-        const cookies = await this.getCookiesForFetch()
+        const cookies = this.cookies
         const res = await fetch(url, {
             method: 'POST',
             headers: {
@@ -180,7 +75,7 @@ export default class ShapesInc {
             ts,
             user_id: this.userId
         })
-        const cookies = await this.getCookiesForFetch()
+        const cookies = this.cookies
         const res = await fetch(url, {
             method: 'POST',
             headers: {
@@ -195,7 +90,7 @@ export default class ShapesInc {
     async getChatHistory(): Promise<ShapesIncGetChatHistoryResponse<20>> {
         logger.info('{getChatHistory} Getting chat history...')
         const url = `https://shapes.inc/api/shapes/${this.shapeId}/chat/history?limit=20&shape_id=${this.shapeId}`
-        const cookies = await this.getCookiesForFetch()
+        const cookies = this.cookies
         const res = await fetch(url, {
             method: 'GET',
             headers: {
