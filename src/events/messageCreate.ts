@@ -20,7 +20,7 @@ export default async function onMessageCreate(client: Client) {
                 }
                 msg += `<u>${message.author.username}</u>: ${message.content}`
                 const res = await shapesInc.sendMessage(msg)
-                await message.reply(res.text)
+                await message.reply(res.text || 'I HATE YOU MONARCH!') // safeguard for empty messages
             }
 
         } catch (error) {
