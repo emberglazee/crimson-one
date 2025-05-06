@@ -49,15 +49,18 @@ export default {
             let result: number
             const rollHistory: number[] = []
 
+            const startTime = process.hrtime()
             do {
                 result = rollDice(sides)
                 rollHistory.push(result)
                 rolls++
             } while (result !== targetNumber && rolls < MAX_ITERATIONS)
+            const endTime = process.hrtime(startTime)
+            const duration = endTime[0] * 1000 + endTime[1] / 1000000
 
             const message = rolls === MAX_ITERATIONS
-                ? `🎲 Rolled ${rolls} times and never got ${targetNumber} on a d${sides}! Here are the last 10 rolls: ${rollHistory.slice(-10).join(', ')}`
-                : `🎲 Got ${targetNumber} on a d${sides} after ${rolls} rolls! Here are the last 10 rolls: ${rollHistory.slice(-10).join(', ')}`
+                ? `🎲 Rolled ${rolls} times and never got ${targetNumber} on a d${sides} in ${duration}ms! Here are the last 10 rolls: ${rollHistory.slice(-10).join(', ')}`
+                : `🎲 Got ${targetNumber} on a d${sides} after ${rolls} rolls in ${duration}ms! Here are the last 10 rolls: ${rollHistory.slice(-10).join(', ')}`
 
             await editReply({ content: message })
         } catch (error: unknown) {
