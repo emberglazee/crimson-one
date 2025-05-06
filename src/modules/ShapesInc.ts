@@ -69,18 +69,20 @@ export default class ShapesInc {
     }
 
     async webCheckIfLoggedIn() {
+        const page = await this.browser.newPage()
         logger.info('{webCheckIfLoggedIn} Going to shapes.inc...')
-        await this.page.goto('https://shapes.inc/')
+        await page.goto('https://shapes.inc/')
         logger.info('{webCheckIfLoggedIn} Waiting for networkidle...')
-        await this.page.waitForLoadState('networkidle')
+        await page.waitForLoadState('networkidle')
         logger.info('{webCheckIfLoggedIn} Evaluating if logged in...')
-        const isLoggedIn = await this.page.evaluate(
+        const isLoggedIn = await page.evaluate(
             (email: string) => {
                 return document.querySelector('body > div:nth-child(1) > div.topNav_wrapper__LWmvo > div > nav > div.topNav_navRight__rgh1s > div > div > span')?.textContent === email
             },
             SHAPES_INC_EMAIL!
         )
         logger.info(`{webCheckIfLoggedIn} ${isLoggedIn ? green('Logged in') : red('Not logged in')}`)
+        await page.close()
         return isLoggedIn
     }
     // simpler
@@ -109,6 +111,17 @@ export default class ShapesInc {
         // first redirect to https://shapes.inc/, then to https://shapes.inc/explore
         logger.info('{webLogin} Waiting for networkidle...')
         await this.page.waitForLoadState('networkidle')
+        logger.info('{webLogin} Double checking if logged in...')
+        this.loggedIn = await this.webCheckIfLoggedIn() || await this.apiCheckIfLoggedIn()
+        if (!this.loggedIn) {
+            logger.warn(`{webLogin} Didn't log in correctly! Trying to check again in 5 seconds. Currently on ${this.page.url()}`)
+            await Bun.sleep(5000)
+            this.loggedIn = await this.webCheckIfLoggedIn() || await this.apiCheckIfLoggedIn()
+            if (!this.loggedIn) {
+                logger.error('{webLogin} yeah no this is bad, still not logged in')
+                return
+            }
+        }
         logger.ok('{webLogin} Done')
     }
 
