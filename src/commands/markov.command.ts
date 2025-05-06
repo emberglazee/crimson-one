@@ -230,28 +230,29 @@ export default {
 
             try {
                 logger.info(`Generating message with source: ${yellow(source)}, user: ${yellow(user?.tag)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
-                const timeStart = Date.now()
+                const timeStart = process.hrtime()
 
                 // Create message manager for handling progress updates
                 const messageManager = new InteractionMessageManager(interaction, ephemeral)
 
                 // Track the interaction start time to handle token expiration
-                const interactionStartTime = Date.now()
+                const interactionStartTime = process.hrtime()
                 let lastUpdateTime = 0
                 let lastStep = ''
                 const UPDATE_INTERVAL = 5000 // 5 seconds
 
                 // Listen for progress updates
                 markov.on('generateProgress', async progress => {
-                    const now = Date.now()
+                    const now = process.hrtime(interactionStartTime)
+                    const nowMs = now[0] * 1000 + now[1] / 1e6
                     const stepChanged = progress.step !== lastStep
-                    if (!stepChanged && now - lastUpdateTime < UPDATE_INTERVAL) return
+                    if (!stepChanged && nowMs - lastUpdateTime < UPDATE_INTERVAL) return
 
-                    lastUpdateTime = now
+                    lastUpdateTime = nowMs
                     lastStep = progress.step
 
                     // Check if we're approaching the interaction token timeout
-                    const elapsedSinceInteraction = now - interactionStartTime
+                    const elapsedSinceInteraction = nowMs
 
                     // If we're reaching the timeout limit and haven't switched to follow-up message yet
                     if (elapsedSinceInteraction > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
@@ -290,11 +291,12 @@ export default {
                 // Clean up event listener
                 markov.removeAllListeners('generateProgress')
 
-                const timeEnd = Date.now()
+                const timeEnd = process.hrtime(timeStart)
+                const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6
                 logger.ok(`Generated message: ${yellow(result)}`)
                 await messageManager.sendFinalMessage({
                     content: `${result}\n` +
-                    `-# - Generated in ${timeEnd - timeStart}ms\n` +
+                    `-# - Generated in ${timeEndMs.toFixed(0)}ms\n` +
                     `-# - Filters: ${[
                         source === 'global' ? 'Global' : 'This server',
                         user ? `User: @${user.tag}` : null,
@@ -321,28 +323,29 @@ export default {
 
             try {
                 logger.info(`Getting Markov info with source: ${yellow(source)}, user: ${yellow(user?.tag)}, channel: ${yellow(channel?.name)}`)
-                const timeStart = Date.now()
+                const timeStart = process.hrtime()
 
                 // Create message manager for handling progress updates
                 const messageManager = new InteractionMessageManager(interaction, ephemeral)
 
                 // Track the interaction start time to handle token expiration
-                const interactionStartTime = Date.now()
+                const interactionStartTime = process.hrtime()
                 let lastUpdateTime = 0
                 let lastStep = ''
                 const UPDATE_INTERVAL = 5000 // 5 seconds
 
                 // Listen for progress updates
                 markov.on('infoProgress', async progress => {
-                    const now = Date.now()
+                    const now = process.hrtime(interactionStartTime)
+                    const nowMs = now[0] * 1000 + now[1] / 1e6
                     const stepChanged = progress.step !== lastStep
-                    if (!stepChanged && now - lastUpdateTime < UPDATE_INTERVAL) return
+                    if (!stepChanged && nowMs - lastUpdateTime < UPDATE_INTERVAL) return
 
-                    lastUpdateTime = now
+                    lastUpdateTime = nowMs
                     lastStep = progress.step
 
                     // Check if we're approaching the interaction token timeout
-                    const elapsedSinceInteraction = now - interactionStartTime
+                    const elapsedSinceInteraction = nowMs
 
                     // If we're reaching the timeout limit and haven't switched to follow-up message yet
                     if (elapsedSinceInteraction > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
@@ -379,7 +382,8 @@ export default {
                 // Clean up event listener
                 markov.removeAllListeners('infoProgress')
 
-                const timeEnd = Date.now()
+                const timeEnd = process.hrtime(timeStart)
+                const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6
 
                 // Format timestamps to readable dates
                 const oldestDate = stats.oldestMessageTimestamp
@@ -402,7 +406,7 @@ export default {
                         { name: 'Oldest Message', value: oldestDate, inline: false },
                         { name: 'Newest Message', value: newestDate, inline: false },
                     )
-                    .setFooter({ text: `Generated in ${timeEnd - timeStart}ms` })
+                    .setFooter({ text: `Generated in ${timeEndMs.toFixed(0)}ms` })
                     .setTimestamp()
 
                 // Add description with filter info
@@ -413,7 +417,7 @@ export default {
                     ].filter(Boolean).join('\n')}`
                 )
 
-                logger.ok(`Generated Markov info in ${yellow(timeEnd - timeStart)}ms`)
+                logger.ok(`Generated Markov info in ${yellow(timeEndMs.toFixed(0))}ms`)
                 await messageManager.sendFinalMessage({
                     content: '',
                     embeds: [embed]
@@ -517,7 +521,7 @@ export default {
                 let percentCompleteEmoji = '⏳'
 
                 // Track the interaction start time to handle token expiration
-                const interactionStartTime = Date.now()
+                const interactionStartTime = process.hrtime()
 
                 // Create the message manager for handling follow-up messages
                 const messageManager = new InteractionMessageManager(interaction, ephemeral)
@@ -525,10 +529,11 @@ export default {
                 markov.on('collectProgress', async progress => {
                     // Update every 10 batches
                     if (progress.batchNumber % 10 === 0 || progress.batchNumber === 1) {
-                        logger.ok(`Progress update: ${yellow(progress.batchNumber)} batches, ${yellow(progress.totalCollected)}/${yellow(progress.limit === 'entire' ? 'ALL' : progress.limit)} messages (${yellow(progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%')})`)
+                        logger.ok(`Progress update: ${yellow(progress.batchNumber)} batches, ${yellow(progress.totalCollected)}/${yellow(progress.limit === 'entire' ? 'ALL' : progress.limit)} messages (${yellow(progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%' )})`)
 
                         // Check if we're approaching the interaction token timeout
-                        const elapsedSinceInteraction = Date.now() - interactionStartTime
+                        const elapsedSinceInteractionArr = process.hrtime(interactionStartTime)
+                        const elapsedSinceInteraction = elapsedSinceInteractionArr[0] * 1000 + elapsedSinceInteractionArr[1] / 1e6
 
                         // If we're reaching the timeout limit and haven't switched to follow-up message yet
                         if (elapsedSinceInteraction > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
