@@ -11,9 +11,9 @@ export default {
             .setRequired(false)
         ),
     async execute({ editReply, deferReply }, interaction) {
-        const epheremal = interaction.options.getBoolean('ephemeral', false)
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
         await deferReply({
-            flags: epheremal ? MessageFlags.Ephemeral : undefined
+            flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
 
         interface SteamAPIResponse {

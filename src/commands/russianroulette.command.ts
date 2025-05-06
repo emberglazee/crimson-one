@@ -18,19 +18,19 @@ export default {
     async execute({ reply }, interaction) {
         const action = interaction.options.getString('action', true)
         const chamber = Math.floor(Math.random() * 6) + 1
-        const epheremal = interaction.options.getBoolean('ephemeral', false)
+        const ephemeral = interaction.options.getBoolean('ephemeral', false)
 
         if (chamber === 1) {
             await reply({
                 content: `🔫 **BANG!** ${interaction.user} Predictable.\nConsequence|| (of power)||: ${action}`,
                 allowedMentions: { users: [interaction.user.id] },
-                flags: epheremal ? MessageFlags.Ephemeral : undefined
+                flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
         } else {
             await reply({
                 content: `🔫 *click* - ${interaction.user} got lucky... Next time.\n-# Specified action was: ${action}`,
                 allowedMentions: { users: [interaction.user.id] },
-                flags: epheremal ? MessageFlags.Ephemeral : undefined
+                flags: ephemeral ? MessageFlags.Ephemeral : undefined
             })
         }
     }
