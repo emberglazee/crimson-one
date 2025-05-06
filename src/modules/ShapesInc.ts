@@ -34,15 +34,19 @@ export default class ShapesInc {
         logger.info('{init} Opening new page...')
         this.page = await this.browser.newPage()
         // Try to load cookies from file
-        const cookiesPath = path.join(__dirname, '../../data/shapesinc-cookies.json')
+        const cookiesPath = path.join(__dirname, '../../data/shapesinc-cookies.txt')
         if (await fs.exists(cookiesPath)) {
             try {
-                const cookiesJson = await fs.readFile(cookiesPath, 'utf-8')
-                const cookies = JSON.parse(cookiesJson)
+                const cookiesTxt = await fs.readFile(cookiesPath, 'utf-8')
+                // Convert cookie string to array of cookie objects for Playwright
+                const cookies = cookiesTxt.split('; ').map(cookieStr => {
+                    const [name, ...rest] = cookieStr.split('=')
+                    return { name, value: rest.join('='), domain: '.shapes.inc', path: '/' }
+                })
                 await this.page.context().addCookies(cookies)
                 logger.ok('{init} Loaded cookies from file')
             } catch (err) {
-                logger.error(`{init} Failed to load cookies from file: ${err}`)
+                logger.warn(`{init} Failed to load cookies from file: ${err}`)
             }
         }
         logger.info('{init} Checking if logged in...')
@@ -51,10 +55,11 @@ export default class ShapesInc {
         // Save cookies after login or check
         try {
             const cookies = await this.page.context().cookies()
-            await fs.writeFile(cookiesPath, JSON.stringify(cookies, null, 2), 'utf-8')
+            const cookiesTxt = cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
+            await fs.writeFile(cookiesPath, cookiesTxt, 'utf-8')
             logger.ok('{init} Saved cookies to file')
         } catch (err) {
-            logger.error(`{init} Failed to save cookies to file: ${err}`)
+            logger.warn(`{init} Failed to save cookies to file: ${err}`)
         }
         logger.ok('{init} Done')
     }
@@ -116,12 +121,11 @@ export default class ShapesInc {
         }
         logger.info('{getCookiesForFetch} Getting cookies...')
         // Try to load cookies from file if not already loaded
-        const cookiesPath = path.join(__dirname, '../../data/shapesinc-cookies.json')
+        const cookiesPath = path.join(__dirname, '../../data/shapesinc-cookies.txt')
         if (await fs.exists(cookiesPath)) {
             try {
-                const cookiesJson = await fs.readFile(cookiesPath, 'utf-8')
-                const cookiesArr = JSON.parse(cookiesJson)
-                this.cookies = cookiesArr.map((cookie: { name: string; value: string }) => `${cookie.name}=${cookie.value}`).join('; ')
+                const cookiesTxt = await fs.readFile(cookiesPath, 'utf-8')
+                this.cookies = cookiesTxt.trim()
                 logger.ok('{getCookiesForFetch} Loaded cookies from file')
                 return this.cookies
             } catch (err) {
