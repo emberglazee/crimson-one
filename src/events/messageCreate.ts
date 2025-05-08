@@ -19,7 +19,19 @@ export default async function onMessageCreate(client: Client) {
                     msg += `> <u>${ref.author.username}</u>: ${ref.content}\n\n`
                 }
                 msg += `<u>${message.author.username}</u>: ${message.content}`
-                const res = await shapesInc.sendMessage(msg)
+
+                // Check for image attachments
+                let imageUrl: string | null = null
+                if (message.attachments && message.attachments.size > 0) {
+                    for (const attachment of message.attachments.values()) {
+                        if (attachment.contentType && attachment.contentType.startsWith('image/')) {
+                            imageUrl = attachment.url
+                            break
+                        }
+                    }
+                }
+
+                const res = await shapesInc.sendMessage(msg, imageUrl)
                 await message.reply(res.text || 'I HATE YOU MONARCH!') // safeguard for empty messages
             }
 

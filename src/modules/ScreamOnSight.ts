@@ -138,7 +138,7 @@ export class ScreamOnSight {
         {
             pattern: [/femboy/],
             async action(message) {
-                if (chance(50)) await message.reply('https://tenor.com/view/%D1%84%D1%81%D0%B1-gif-21407990')
+                if (chance(1)) await message.reply('https://tenor.com/view/%D1%84%D1%81%D0%B1-gif-21407990')
             },
         }
     ]

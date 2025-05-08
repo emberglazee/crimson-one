@@ -212,6 +212,61 @@ export interface ShapesIncChatHistoryEntry {
 export type ShapesIncGetChatHistoryResponse<Length extends number = 20> = FixedLengthArray<ShapesIncChatHistoryEntry, Length>
 
 /**
+ * API definition for a shapes.inc shape
+ */
+export interface ShapesIncShape {
+    id: string
+    name: string
+    username: string
+    search_description: string
+    search_tags_v2: string[]
+    created_ts: number
+    app_info: {
+        bot_avatar: string
+        bot_banner: string | null
+        bot_id: string
+    }
+    server_count: unknown // null
+    user_count: unknown // null
+    message_count: unknown // null
+    custom_html: unknown // null
+    custom_css: string | null
+    custom_html_enabled: boolean
+    public_tag: unknown // null
+    discord_bot_token_exist: boolean
+    x_id_exist: boolean
+    x_id: string | null
+    x_profile_pic: string | null
+    error_message: string | null
+    wack_message: string | null
+    enabled: boolean
+    communities: unknown[]
+    tagline: string | null
+    typical_phrases: (string | null)[]
+    screenshots: ({ id: number, url: string, caption: string } | null)[]
+    category: string | null
+    custom_category: string | null
+    source_material: unknown[]
+    character_universe: string
+    character_background: string
+    discord_invite: string
+    example_prompts: (string | null)[]
+    shape_settings: {
+        shape_initial_message: string
+        status_type: string
+        status_label: string | null
+        status: string
+        status_emoji: string | null
+        appearance: string
+    }
+    avatar_url: string
+    allow_user_engine_override: boolean
+    premium_allow_user_engine_override: boolean | null
+    avatar: unknown // null
+    banner: unknown // null
+}
+
+/**
  * Fixed Length Array
  * @param {T} T - The type of the array
  * @param {N} N - The length of the array

@@ -1,6 +1,8 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js'
 import { SlashCommand } from '../types/types'
 
+const { STEAM_API_KEY, STEAM_ID } = process.env
+
 export default {
     data: new SlashCommandBuilder()
         .setName('hoi4hours')
@@ -24,7 +26,7 @@ export default {
                 }>
             }
         }
-        const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${process.env.STEAM_API_KEY}&steamid=${process.env.STEAM_ID}&format=json`
+        const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAM_API_KEY}&steamid=${STEAM_ID}&format=json`
         const response = await fetch(url)
         const data: SteamAPIResponse = await response.json()
         const games = data.response.games
@@ -49,7 +51,7 @@ export default {
 
             await editReply(`emberglaze has spent \`${hours}\` hours playing HOI4\nThat's approximately ${timeString.trim()}`)
         } else {
-            await editReply('❌ HOI4 not found in the list of games (did ember finally touch grass? check his steam profile directly or something)')
+            await editReply('❌ HOI4 not found in the list of games (did embi finally touch grass? check his steam profile directly or something)')
         }
     }
 } satisfies SlashCommand

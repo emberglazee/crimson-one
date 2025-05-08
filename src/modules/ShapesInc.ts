@@ -4,7 +4,7 @@ const logger = new Logger('ShapesInc')
 
 import { inspect } from 'util'
 
-import type { ShapesIncGetChatHistoryResponse, ShapesIncSendMessageResponse, ShapesIncClearChatResponse } from '../types/types'
+import type { ShapesIncGetChatHistoryResponse, ShapesIncSendMessageResponse, ShapesIncClearChatResponse, ShapesIncShape } from '../types/types'
 import fs from 'fs/promises'
 import path from 'path'
 import { parseNetscapeCookieFile } from '../util/functions'
@@ -13,9 +13,9 @@ export default class ShapesInc {
     private static instance: ShapesInc
     private constructor() {}
     private cookies!: string
-    private userId = 'ab8f795b-cc33-4189-9430-a6917bb85398' as const
-    private shapeId = 'c4fa29df-aa29-40f7-baaa-21f2e3aab46b' as const
-    private shapeVanity = 'crimson-1' as const
+    public userId = 'ab8f795b-cc33-4189-9430-a6917bb85398'
+    public shapeId = 'c4fa29df-aa29-40f7-baaa-21f2e3aab46b'
+    public shapeVanity = 'crimson-1'
 
     static getInstance(): ShapesInc {
         if (!ShapesInc.instance) {
@@ -67,7 +67,8 @@ export default class ShapesInc {
         }
         return json as Promise<ShapesIncSendMessageResponse>
     }
-    async clearChat(ts: number): Promise<ShapesIncClearChatResponse> {
+    async clearChat(): Promise<ShapesIncClearChatResponse> {
+        const ts = Math.floor(Date.now() / 1000)
         logger.info('{clearChat} Clearing chat...')
         const url = `https://shapes.inc/api/shapes/${this.shapeId}/wack`
         const body = JSON.stringify({
@@ -99,5 +100,39 @@ export default class ShapesInc {
         })
         logger.ok('{getChatHistory} Done')
         return res.json() as Promise<ShapesIncGetChatHistoryResponse<20>>
+    }
+    
+    async fetchShapeByVanity(vanity: string) {
+        const url = `https://shapes.inc/api/shapes/username/${vanity}`
+        const cookies = this.cookies
+        const res = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'cookie': cookies
+            }
+        })
+        return res.json() as Promise<ShapesIncShape>
+    }
+    async fetchShapeByUUID(uuid: string) {
+        const url = `https://shapes.inc/api/shapes/${uuid}`
+        const cookies = this.cookies
+        const res = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'cookie': cookies
+            }
+        })
+        return res.json() as Promise<ShapesIncShape>
+    }
+
+    public async changeShapeByUUID(uuid: string) {
+        const data = await this.fetchShapeByUUID(uuid)
+        this.shapeId = data.id
+        this.shapeVanity = data.username
+    }
+    public async changeShapeByVanity(vanity: string) {
+        const data = await this.fetchShapeByVanity(vanity)
+        this.shapeId = data.id
+        this.shapeVanity = data.username
     }
 }
