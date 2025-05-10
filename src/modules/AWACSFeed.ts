@@ -60,6 +60,10 @@ export class AWACSFeed {
         this.client = client
         for (const handler of AWACSFeed.EventHandlers) {
             this.client.on(handler.event, async (...args) => {
+                // Ignore event if not from the specified guild
+                const guild = (args[0] as { guild: { id: string } }).guild
+                if (!guild || guild.id !== '958518067690868796') return
+
                 const params = handler.extract(args[0])
                 const message = getRandomElement(handler.messages)(params[0])
                 const channel = await this.client.channels.fetch(AWACS_FEED_CHANNEL)
