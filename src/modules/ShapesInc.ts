@@ -45,7 +45,7 @@ export default class ShapesInc {
             // Not throwing here, as new API may still work
         }
         // New API key init
-        this.apiKey = process.env.SHAPESINC_API_KEY
+        this.apiKey = process.env.SHAPES_INC_API_KEY
         if (this.apiKey) {
             this.openaiClient = new OpenAI({
                 apiKey: this.apiKey,
@@ -53,7 +53,7 @@ export default class ShapesInc {
             })
             logger.ok('{init} Initialized OpenAI client for Shapes API')
         } else {
-            logger.error('{init} SHAPESINC_API_KEY missing in environment')
+            logger.error('{init} SHAPES_INC_API_KEY missing in environment')
         }
     }
 
