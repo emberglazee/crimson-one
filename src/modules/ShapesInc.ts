@@ -46,15 +46,14 @@ export default class ShapesInc {
         }
         // New API key init
         this.apiKey = process.env.SHAPESINC_API_KEY
-        this.shapeUsername = process.env.SHAPESINC_SHAPE_USERNAME || this.shapeUsername
-        if (this.apiKey && this.shapeUsername) {
+        if (this.apiKey) {
             this.openaiClient = new OpenAI({
                 apiKey: this.apiKey,
                 baseURL: 'https://api.shapes.inc/v1',
             })
             logger.ok('{init} Initialized OpenAI client for Shapes API')
         } else {
-            logger.error('{init} SHAPESINC_API_KEY or SHAPESINC_SHAPE_USERNAME missing in environment')
+            logger.error('{init} SHAPESINC_API_KEY missing in environment')
         }
     }
 
