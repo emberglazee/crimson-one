@@ -32,12 +32,12 @@ export default {
                 const vanity = interaction.options.getString('vanity')
                 const uuid = interaction.options.getString('uuid')
                 if (vanity) {
-                    await shapesInc.changeShapeByVanity(vanity)
+                    await shapesInc.changeShapeByUsername(vanity)
                 }
                 if (uuid) {
                     await shapesInc.changeShapeByUUID(uuid)
                 }
-                await reply(`Shape changed to ${shapesInc.shapeVanity}`)
+                await reply(`Shape changed to ${shapesInc.shapeUsername}`)
                 break
         }
     },
