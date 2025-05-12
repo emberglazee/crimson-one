@@ -23,9 +23,16 @@ export const appendDateAndTime = (message: string) => {
     return `<${date.toUTCString()}>\n${message}` as const
 }
 
-export function extractUserId(userIdResolvable: UserIdResolvable) {
+export function extractUserId(userIdResolvable: UserIdResolvable | null) {
+    if (!userIdResolvable) return null
     let id = ''
-    if (typeof userIdResolvable === 'string') id = userIdResolvable
+    if (typeof userIdResolvable === 'string') {
+        if (userIdResolvable.startsWith('<@') && userIdResolvable.endsWith('>')) {
+            id = userIdResolvable.slice(2, -1)
+        } else {
+            id = userIdResolvable
+        }
+    }
     if (userIdResolvable instanceof Message) id = userIdResolvable.author.id
     if (userIdResolvable instanceof GuildMember
         || userIdResolvable instanceof User
