@@ -31,8 +31,8 @@ export default async function onMessageCreate(client: Client) {
                     }
                 }
 
-                const res = await shapesInc.sendMessage(msg, imageUrl)
-                await message.reply(res.text || 'I HATE YOU MONARCH!') // safeguard for empty messages
+                const res = await shapesInc.sendMessageAPI(msg, imageUrl ?? undefined)
+                await message.reply(res || 'I HATE YOU MONARCH!') // safeguard for empty messages
             }
 
         } catch (error) {
