@@ -101,7 +101,7 @@ export default class ShapesInc {
         logger.ok('{getChatHistory} Done')
         return res.json() as Promise<ShapesIncGetChatHistoryResponse<20>>
     }
-    
+
     async fetchShapeByVanity(vanity: string) {
         const url = `https://shapes.inc/api/shapes/username/${vanity}`
         const cookies = this.cookies
