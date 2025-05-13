@@ -315,10 +315,11 @@ export default class ShapesInc {
                 content: res || 'I HATE YOU MONARCH!',
                 username: this.shapeUsername,
                 avatarURL: avatar,
-                allowedMentions: { repliedUser: false }
+                allowedMentions: { repliedUser: true, parse: ['users'] }
             })
-        } catch {
-            // Fallback to normal reply if webhook fails
+        } catch (err) {
+            const error = err instanceof Error ? err.message : inspect(err)
+            logger.warn(`{handleMessage} Webhook failed: ${error}`)
             await message.reply(res + '\n\n-# epic webhook fail' || 'I HATE YOU MONARCH!') // prevent empty string
         }
     }
