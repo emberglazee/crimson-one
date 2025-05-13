@@ -310,6 +310,9 @@ export default class ShapesInc {
      * Handle a Discord message: only respond if in the configured channel, and use webhook if possible
      */
     public async handleMessage(message: Message): Promise<void> {
+        // Ignore messages sent by webhooks or by the bot itself
+        if (message.webhookId) return
+        if (message.author.id === this.client.user?.id) return
         if (message.channel.id !== this.channelId) return
         if (message.channel.type !== ChannelType.GuildText) return
         await message.channel.sendTyping()
