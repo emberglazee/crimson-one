@@ -235,6 +235,13 @@ export default class ShapesInc {
     }
 
     /**
+     * Get the direct CDN URL for a shape's avatar image
+     */
+    public getShapeAvatarUrl(uuid: string): string {
+        return `https://files.shapes.inc/api/files/avatar_${uuid}.png`
+    }
+
+    /**
      * Process a Discord message: format, extract image, and send to Shapes API
      * @param message Discord.js Message object
      */
@@ -287,7 +294,7 @@ export default class ShapesInc {
             // Use the shape's avatar as the webhook avatar
             let avatar: string | undefined
             try {
-                avatar = await this.fetchShapeAvatarBase64(this.shapeId)
+                avatar = this.getShapeAvatarUrl(this.shapeId)
             } catch {
                 avatar = undefined // fallback to default
             }
@@ -310,7 +317,7 @@ export default class ShapesInc {
         // Try to use webhook for immersive reply
         try {
             const webhook = await this.getOrCreateWebhook()
-            const avatar = await this.fetchShapeAvatarBase64(this.shapeId)
+            const avatar = this.getShapeAvatarUrl(this.shapeId)
             await webhook.send({
                 content: res || 'I HATE YOU MONARCH!',
                 username: this.shapeUsername,
