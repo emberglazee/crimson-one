@@ -9,22 +9,30 @@ import fs from 'fs/promises'
 import path from 'path'
 import { parseNetscapeCookieFile } from '../util/functions'
 import OpenAI from 'openai'
+import { ChannelType, Client, Message, TextChannel, Webhook } from 'discord.js'
 
 export default class ShapesInc {
     private static instance: ShapesInc
-    private constructor() {}
+    private webhook?: Webhook
+    private channelId: string
+    private constructor(public client: Client, channelId: string) {
+        this.channelId = channelId
+    }
     private cookies!: string
     public userId = 'ab8f795b-cc33-4189-9430-a6917bb85398'
     public shapeId = 'c4fa29df-aa29-40f7-baaa-21f2e3aab46b'
-    public shapeUsername = 'crimson-1'
+    public shapeUsername = 'crimson-1' // also its vanity link (https://shapes.inc/crimson-1)
 
     // --- New API fields ---
     private openaiClient?: OpenAI
     private apiKey?: string
 
-    static getInstance(): ShapesInc {
+    private avatarCache?: { id: string, avatar: string }
+
+    static getInstance(client?: Client, channelId?: string): ShapesInc {
         if (!ShapesInc.instance) {
-            ShapesInc.instance = new ShapesInc()
+            if (!client || !channelId) throw new Error('Client and channelId must be provided for first ShapesInc instantiation')
+            ShapesInc.instance = new ShapesInc(client, channelId)
         }
         return ShapesInc.instance
     }
@@ -192,10 +200,127 @@ export default class ShapesInc {
         const data = await this.fetchShapeByUUID(uuid)
         this.shapeId = data.id
         this.shapeUsername = data.username
+        // Update avatar cache
+        this.avatarCache = undefined
+        await this.fetchShapeAvatarBase64(this.shapeId)
     }
     public async changeShapeByUsername(shapeUsername: string) {
         const data = await this.fetchShapeByUsername(shapeUsername)
         this.shapeId = data.id
         this.shapeUsername = data.username
+        // Update avatar cache
+        this.avatarCache = undefined
+        await this.fetchShapeAvatarBase64(this.shapeId)
     }
+
+    public async fetchShapeAvatarBase64(uuid: string): Promise<string> {
+        if (this.avatarCache && this.avatarCache.id === uuid) {
+            return this.avatarCache.avatar
+        }
+        const url = `https://files.shapes.inc/api/files/avatar_${uuid}.png`
+        try {
+            const res = await fetch(url)
+            if (!res.ok) {
+                throw new Error(`Failed to fetch avatar: ${res.status} ${res.statusText}`)
+            }
+            const buffer = await res.arrayBuffer()
+            const base64 = Buffer.from(buffer).toString('base64')
+            const avatar = `data:image/png;base64,${base64}`
+            this.avatarCache = { id: uuid, avatar }
+            return avatar
+        } catch (err) {
+            logger.error(`{fetchShapeAvatarBase64} Error: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
+            throw err
+        }
+    }
+
+    /**
+     * Process a Discord message: format, extract image, and send to Shapes API
+     * @param message Discord.js Message object
+     */
+    async processDiscordMessage(message: Message): Promise<string> {
+        let msg = ''
+        if (message.reference) {
+            try {
+                const ref = await message.fetchReference()
+                msg += `> <u>${ref.author.username}</u>: ${ref.content}\n\n`
+            } catch {
+                // ignore if reference can't be fetched
+            }
+        }
+        msg += `<u>${message.author.username}</u>: ${message.content}`
+
+        // Check for image attachments or image URLs in content
+        let imageUrl: string | null = null
+        if (message.attachments && message.attachments.size > 0) {
+            for (const attachment of message.attachments.values()) {
+                if (attachment.contentType && attachment.contentType.startsWith('image/')) {
+                    imageUrl = attachment.url
+                    break
+                }
+            }
+        }
+        // If no image attachment, check for image URLs in message.content
+        if (!imageUrl && message.content) {
+            const imageUrlMatch = message.content.match(/https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)/i)
+            if (imageUrlMatch) {
+                imageUrl = imageUrlMatch[0]
+            }
+        }
+
+        return this.sendMessageAPI(msg, imageUrl ?? undefined)
+    }
+
+    /**
+     * Get or create a webhook for the configured channel
+     */
+    public async getOrCreateWebhook(): Promise<Webhook> {
+        if (this.webhook) return this.webhook
+        const channel = await this.client.channels.fetch(this.channelId)
+        if (!channel || !(channel instanceof TextChannel)) {
+            throw new Error('ShapesInc channel not found or not a text channel')
+        }
+        // Try to find an existing webhook with a known name
+        const webhooks = await channel.fetchWebhooks()
+        let webhook = webhooks.find(wh => wh.name === 'ShapesInc')
+        if (!webhook) {
+            // Use the shape's avatar as the webhook avatar
+            let avatar: string | undefined
+            try {
+                avatar = await this.fetchShapeAvatarBase64(this.shapeId)
+            } catch {
+                avatar = undefined // fallback to default
+            }
+            webhook = await channel.createWebhook({
+                name: 'ShapesInc',
+                avatar
+            })
+        }
+        this.webhook = webhook
+        return webhook
+    }
+    /**
+     * Handle a Discord message: only respond if in the configured channel, and use webhook if possible
+     */
+    public async handleMessage(message: Message): Promise<void> {
+        if (message.channel.id !== this.channelId) return
+        if (message.channel.type !== ChannelType.GuildText) return
+        await message.channel.sendTyping()
+        const res = await this.processDiscordMessage(message)
+        // Try to use webhook for immersive reply
+        try {
+            const webhook = await this.getOrCreateWebhook()
+            const avatar = await this.fetchShapeAvatarBase64(this.shapeId)
+            await webhook.send({
+                content: res || 'I HATE YOU MONARCH!',
+                username: this.shapeUsername,
+                avatarURL: avatar,
+                allowedMentions: { repliedUser: false }
+            })
+        } catch {
+            // Fallback to normal reply if webhook fails
+            await message.reply(res + '\n\n-# epic webhook fail' || 'I HATE YOU MONARCH!') // prevent empty string
+        }
+    }
+
 }
