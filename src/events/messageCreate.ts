@@ -11,29 +11,7 @@ export default async function onMessageCreate(client: Client) {
             if (message.author === client.user) return
             await screamOnSight.processMessage(message)
 
-            if (message.channel.id === '1335992675459141632') {
-                await message.channel.sendTyping()
-                let msg = ''
-                if (message.reference) {
-                    const ref = await message.fetchReference()
-                    msg += `> <u>${ref.author.username}</u>: ${ref.content}\n\n`
-                }
-                msg += `<u>${message.author.username}</u>: ${message.content}`
-
-                // Check for image attachments
-                let imageUrl: string | null = null
-                if (message.attachments && message.attachments.size > 0) {
-                    for (const attachment of message.attachments.values()) {
-                        if (attachment.contentType && attachment.contentType.startsWith('image/')) {
-                            imageUrl = attachment.url
-                            break
-                        }
-                    }
-                }
-
-                const res = await shapesInc.sendMessageAPI(msg, imageUrl ?? undefined)
-                await message.reply(res || 'I HATE YOU MONARCH!') // safeguard for empty messages
-            }
+            await shapesInc.handleMessage(message)
 
         } catch (error) {
             logger.error(`Error in messageCreate event handler!\n${error instanceof Error ? error.stack ?? error.message : util.inspect(error)}`)
