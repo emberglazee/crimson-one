@@ -10,6 +10,7 @@ import path from 'path'
 import { parseNetscapeCookieFile } from '../util/functions'
 import OpenAI from 'openai'
 import { ChannelType, Client, Message, TextChannel, Webhook } from 'discord.js'
+import { TYPING_EMOJI } from '../util/constants'
 
 export default class ShapesInc {
     private static instance: ShapesInc
@@ -318,12 +319,14 @@ export default class ShapesInc {
         if (message.author.id === this.client.user?.id) return
         if (message.channel.id !== this.channelId) return
         if (message.channel.type !== ChannelType.GuildText) return
-        await message.channel.sendTyping()
+        // Instead of sendTyping, send a typing message and delete it before webhook reply
+        const typingMsg = await message.channel.send(`${TYPING_EMOJI} Shape is typing...`)
         const res = await this.processDiscordMessage(message)
         // Try to use webhook for immersive reply
         try {
             const webhook = await this.getOrCreateWebhook()
             const avatar = this.getShapeAvatarUrl(this.shapeId)
+            await typingMsg.delete().catch(() => {})
             await webhook.send({
                 content: res || 'I HATE YOU MONARCH!',
                 username: this.shapeDisplayName || this.shapeUsername,
@@ -333,6 +336,7 @@ export default class ShapesInc {
         } catch (err) {
             const error = err instanceof Error ? err.message : inspect(err)
             logger.warn(`{handleMessage} Webhook failed: ${error}`)
+            await typingMsg.delete().catch(() => {})
             await message.reply(res + '\n\n-# epic webhook fail' || 'I HATE YOU MONARCH!') // prevent empty string
         }
     }
