@@ -321,9 +321,10 @@ export default class ShapesInc {
         if (message.channel.type !== ChannelType.GuildText) return
         // Instead of sendTyping, send a typing message and delete it before webhook reply
         const typingMsg = await message.channel.send(`${TYPING_EMOJI} Shape is typing...`)
-        const res = await this.processDiscordMessage(message)
+        let res = ''
         // Try to use webhook for immersive reply
         try {
+            res = await this.processDiscordMessage(message)
             const webhook = await this.getOrCreateWebhook()
             const avatar = this.getShapeAvatarUrl(this.shapeId)
             await typingMsg.delete().catch(() => {})
