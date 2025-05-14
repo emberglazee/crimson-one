@@ -22,6 +22,7 @@ export default class ShapesInc {
     public userId = 'ab8f795b-cc33-4189-9430-a6917bb85398'
     public shapeId = 'c4fa29df-aa29-40f7-baaa-21f2e3aab46b'
     public shapeUsername = 'crimson-1' // also its vanity link (https://shapes.inc/crimson-1)
+    public shapeDisplayName = 'Crimson 1'
 
     // --- New API fields ---
     private openaiClient?: OpenAI
@@ -200,6 +201,7 @@ export default class ShapesInc {
         const data = await this.fetchShapeByUUID(uuid)
         this.shapeId = data.id
         this.shapeUsername = data.username
+        this.shapeDisplayName = data.name
         // Update avatar cache
         this.avatarCache = undefined
         await this.fetchShapeAvatarBase64(this.shapeId)
@@ -208,6 +210,7 @@ export default class ShapesInc {
         const data = await this.fetchShapeByUsername(shapeUsername)
         this.shapeId = data.id
         this.shapeUsername = data.username
+        this.shapeDisplayName = data.name
         // Update avatar cache
         this.avatarCache = undefined
         await this.fetchShapeAvatarBase64(this.shapeId)
@@ -299,7 +302,7 @@ export default class ShapesInc {
                 avatar = undefined // fallback to default
             }
             webhook = await channel.createWebhook({
-                name: 'ShapesInc',
+                name: this.shapeDisplayName || 'ShapesInc',
                 avatar
             })
         }
@@ -323,7 +326,7 @@ export default class ShapesInc {
             const avatar = this.getShapeAvatarUrl(this.shapeId)
             await webhook.send({
                 content: res || 'I HATE YOU MONARCH!',
-                username: this.shapeUsername,
+                username: this.shapeDisplayName || this.shapeUsername,
                 avatarURL: avatar,
                 allowedMentions: { repliedUser: true, parse: ['users'] }
             })
