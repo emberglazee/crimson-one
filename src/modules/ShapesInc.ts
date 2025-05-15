@@ -107,6 +107,7 @@ export default class ShapesInc {
     // --- New API: OpenAI-compatible Shapes API ---
     /**
      * Send a message using the new OpenAI-compatible Shapes API
+     * Downside: big rate limit (5 requests per minute)
      * @param message The message to send
      * @param imageUrl Optional image URL to send as multimodal input
      */
@@ -152,7 +153,7 @@ export default class ShapesInc {
     }
 
     // --- Legacy API: Cookie-based methods (unchanged) ---
-    async sendMessage(message: string, attachment_url: string | null = null, shapeUsername?: string): Promise<ShapesIncSendMessageResponse> {
+    async sendMessage(message: string, attachment_url: string | null = null, shapeUsername?: string): Promise<string> {
         logger.info('{sendMessage} Sending message...')
         const username = shapeUsername || this.currentShapeUsername
         const shape = this.shapes.get(username)
@@ -181,7 +182,8 @@ export default class ShapesInc {
             logger.error(`{sendMessage} Error sending message:\n${json.error}`)
             throw new Error(json.error)
         }
-        return json as Promise<ShapesIncSendMessageResponse>
+        // Extract the message string from the response object
+        return (json as ShapesIncSendMessageResponse).text || ''
     }
     async clearChat(shapeUsername?: string): Promise<ShapesIncClearChatResponse> {
         const ts = Math.floor(Date.now() / 1000)
@@ -337,7 +339,7 @@ export default class ShapesInc {
             }
         }
 
-        return this.sendMessageAPI(msg, imageUrl ?? undefined, shapeUsername)
+        return this.sendMessage(msg, imageUrl ?? null, shapeUsername)
     }
 
     /**
@@ -542,7 +544,7 @@ export default class ShapesInc {
         // Get shape reply
         let reply = ''
         try {
-            reply = await this.sendMessageAPI(prompt, undefined, nextShape)
+            reply = await this.sendMessage(prompt, null, nextShape)
         } catch (err) {
             logger.error(`{duel} Error getting shape reply: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
             reply = '...'
