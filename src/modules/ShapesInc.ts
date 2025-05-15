@@ -44,7 +44,7 @@ export default class ShapesInc {
     private duelLastSpeaker: string | null = null
     private duelConversation: { author: string, content: string, isShape: boolean, timestamp: number }[] = []
     private duelLastSent: number = 0
-    private readonly DUEL_MIN_INTERVAL_MS = 5_000
+    private readonly DUEL_MIN_INTERVAL_MS = 2500
 
     static getInstance(client?: Client, channelId?: string): ShapesInc {
         if (!ShapesInc.instance) {
@@ -534,7 +534,7 @@ export default class ShapesInc {
         // Get the last message in the conversation (from user)
         const lastMsg = this.duelConversation[this.duelConversation.length - 1]
         // Compose the prompt for the shape
-        const prompt = lastMsg.content
+        const prompt = `**${lastMsg.author}**: ${lastMsg.content}`
         // Get shape reply
         let reply = ''
         try {
