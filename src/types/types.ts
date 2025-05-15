@@ -75,6 +75,13 @@ export interface GitHubRepository {
 export interface GitHubPushEvent {
     repository: GitHubRepository
     head_commit: GitHubCommit
+    commits: GitHubCommit[]
+}
+
+export type WebhookEvents = {
+    push: (payload: GitHubPushEvent) => void
+} & {
+    [key: string]: (...args: unknown[]) => void
 }
 
 

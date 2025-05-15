@@ -6,14 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import { createServer } from 'http'
 import crypto from 'crypto'
 import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
-import type { GitHubPushEvent } from '../types/types'
-
-
-type WebhookEvents = {
-    push: (payload: GitHubPushEvent) => void
-} & {
-    [key: string]: (...args: unknown[]) => void
-}
+import type { WebhookEvents } from '../types/types'
 
 export class GithubWebhook extends EventEmitter<WebhookEvents> {
     private static instance: GithubWebhook
@@ -52,14 +45,25 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
 
         // Set up event handlers for different types of webhook events
         this.on('push', async payload => {
+            let description = ''
+            if (payload.commits && payload.commits.length > 0) {
+                description = payload.commits.map(commit =>
+                    `[${commit.id.substring(0, 7)}](${commit.url}) - ${commit.message}`
+                ).join('\n')
+            } else if (payload.head_commit) {
+                description = `[${payload.head_commit.id.substring(0, 7)}](${payload.head_commit.url}) - ${payload.head_commit.message}`
+            } else {
+                description = 'No commit information.'
+            }
+
             const embed = new EmbedBuilder()
                 .setAuthor({
                     name: payload.repository.name,
                     iconURL: this.client!.user!.displayAvatarURL()
                 })
                 .setTitle('Push Event')
-                .setDescription(`[${payload.head_commit.id.substring(0, 7)}](${payload.head_commit.url}) - ${payload.head_commit.message}`)
-                .setTimestamp(new Date(payload.head_commit.timestamp))
+                .setDescription(description)
+                .setTimestamp(new Date(payload.head_commit?.timestamp || Date.now()))
 
             await this.channel?.send({ embeds: [embed] })
         })
