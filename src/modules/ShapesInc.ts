@@ -42,8 +42,7 @@ export default class ShapesInc {
     private duelChannelId: string | null = null
     private duelShapes: [string, string] | null = null // [shapeA, shapeB]
     private duelLastSpeaker: string | null = null
-    private duelQueue: { message: Message }[] = []
-    private duelProcessing: boolean = false
+    private duelConversation: { author: string, content: string, isShape: boolean, timestamp: number }[] = []
     private duelLastSent: number = 0
     private readonly DUEL_MIN_INTERVAL_MS = 12_000
 
@@ -120,6 +119,7 @@ export default class ShapesInc {
         const model = `shapesinc/${username}`
         let messages: OpenAI.Chat.ChatCompletionMessageParam[]
         if (imageUrl) {
+            // only one message supported per request; conversation memory is handled in the Shape itself (legacy cookie-based)
             messages = [
                 {
                     role: 'user',
@@ -362,9 +362,20 @@ export default class ShapesInc {
         // --- Duel mode logic ---
         if (this.duelMode && this.duelChannelId && this.duelShapes && message.channel.id === this.duelChannelId) {
             if (message.webhookId) return
-            // Queue the message for duel processing
-            this.duelQueue.push({ message })
-            this.processDuelQueue()
+            // Only allow duel participants
+            const duelParticipants = this.duelShapes
+            if (!duelParticipants.includes(message.author.username)) return
+            // Add user message to duelConversation
+            this._addToDuelConversation({
+                author: message.author.username,
+                content: message.content,
+                isShape: false,
+                timestamp: Date.now()
+            })
+            // Send user message to Discord (as themselves, not webhook)
+            // (Optional: could skip this if you want only shape replies visible)
+            // Now, process the duel turn
+            await this._processDuelTurn(message)
             return
         }
         // --- Normal mode logic ---
@@ -432,9 +443,41 @@ export default class ShapesInc {
         this.duelChannelId = channelId
         this.duelShapes = [shapeA, shapeB]
         this.duelLastSpeaker = null
-        this.duelQueue = []
-        this.duelProcessing = false
+        this.duelConversation = []
         this.duelLastSent = 0
+
+        let shapeAData: ShapesIncShape
+        try {
+            shapeAData = await this.fetchShapeByUsername(shapeA)
+        } catch (err) {
+            logger.error(`{enableDuelMode} Failed to fetch full shapeA data: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
+            return
+        }
+        const initialMessage = shapeAData.shape_settings?.shape_initial_message
+        if (initialMessage && this.duelChannelId) {
+            // Add to duelConversation
+            this._addToDuelConversation({
+                author: shapeA,
+                content: initialMessage,
+                isShape: true,
+                timestamp: Date.now()
+            })
+            // Send to Discord
+            try {
+                const webhook = await this.getOrCreateWebhookForShape(shapeA, this.duelChannelId)
+                const avatar = this.getShapeAvatarUrl(shapeAData.id)
+                await webhook.send({
+                    content: initialMessage,
+                    username: shapeAData.name,
+                    avatarURL: avatar,
+                    allowedMentions: { repliedUser: false, parse: [] }
+                })
+                this.duelLastSpeaker = shapeA // Mark shapeA as the last speaker
+                this.duelLastSent = Date.now()
+            } catch (err) {
+                logger.error(`{enableDuelMode} Failed to send initial duel message: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
+            }
+        }
     }
     /**
      * Disable duel mode
@@ -444,8 +487,7 @@ export default class ShapesInc {
         this.duelChannelId = null
         this.duelShapes = null
         this.duelLastSpeaker = null
-        this.duelQueue = []
-        this.duelProcessing = false
+        this.duelConversation = []
         this.duelLastSent = 0
     }
     /**
@@ -455,41 +497,63 @@ export default class ShapesInc {
         return this.duelMode
     }
 
-    // Duel queue processor: ensures only one duel reply every 12 seconds
-    private async processDuelQueue() {
-        if (this.duelProcessing) return
-        this.duelProcessing = true
-        while (this.duelQueue.length > 0 && this.duelMode && this.duelChannelId && this.duelShapes) {
-            const now = Date.now()
-            const sinceLast = now - this.duelLastSent
-            if (sinceLast < this.DUEL_MIN_INTERVAL_MS) {
-                await new Promise(res => setTimeout(res, this.DUEL_MIN_INTERVAL_MS - sinceLast))
-            }
-            const { message } = this.duelQueue.shift()!
-            // Determine which shape should reply
-            let nextShape: string
-            if (!this.duelLastSpeaker) {
-                nextShape = message.author.username === this.shapes.get(this.duelShapes[0])?.displayName ? this.duelShapes[1] : this.duelShapes[0]
-            } else {
-                nextShape = this.duelLastSpeaker === this.duelShapes[0] ? this.duelShapes[1] : this.duelShapes[0]
-            }
-            try {
-                const reply = await this.processDiscordMessage(message, nextShape)
-                const webhook = await this.getOrCreateWebhookForShape(nextShape, this.duelChannelId)
-                const avatar = this.getShapeAvatarUrl(this.shapes.get(nextShape)!.id)
-                await webhook.send({
-                    content: reply || '...',
-                    username: this.shapes.get(nextShape)!.displayName,
-                    avatarURL: avatar,
-                    allowedMentions: { repliedUser: true, parse: ['users'] }
-                })
-                this.duelLastSpeaker = nextShape
-                this.duelLastSent = Date.now()
-            } catch (err) {
-                logger.error(`{duelQueue} Error sending duel reply: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
-            }
+    private _addToDuelConversation(entry: { author: string, content: string, isShape: boolean, timestamp: number }) {
+        this.duelConversation.push(entry)
+        if (this.duelConversation.length > 100) {
+            this.duelConversation.shift()
         }
-        this.duelProcessing = false
+    }
+
+    private async _processDuelTurn(_triggerMessage: Message) {
+        if (!this.duelMode || !this.duelChannelId || !this.duelShapes) return
+        // Enforce min interval
+        const now = Date.now()
+        const sinceLast = now - this.duelLastSent
+        if (sinceLast < this.DUEL_MIN_INTERVAL_MS) {
+            await new Promise(res => setTimeout(res, this.DUEL_MIN_INTERVAL_MS - sinceLast))
+        }
+        // Determine which shape should reply
+        let nextShape: string
+        if (!this.duelLastSpeaker) {
+            // First user message after duel start: shapeA replies
+            nextShape = this.duelShapes[0]
+        } else {
+            nextShape = this.duelLastSpeaker === this.duelShapes[0] ? this.duelShapes[1] : this.duelShapes[0]
+        }
+        // Get the last message in the conversation (from user)
+        const lastMsg = this.duelConversation[this.duelConversation.length - 1]
+        // Compose the prompt for the shape
+        const prompt = lastMsg.content
+        // Get shape reply
+        let reply = ''
+        try {
+            reply = await this.sendMessageAPI(prompt, undefined, nextShape)
+        } catch (err) {
+            logger.error(`{duel} Error getting shape reply: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
+            reply = '...'
+        }
+        // Add shape reply to conversation
+        this._addToDuelConversation({
+            author: nextShape,
+            content: reply,
+            isShape: true,
+            timestamp: Date.now()
+        })
+        // Send shape reply to Discord
+        try {
+            const webhook = await this.getOrCreateWebhookForShape(nextShape, this.duelChannelId)
+            const avatar = this.getShapeAvatarUrl(this.shapes.get(nextShape)!.id)
+            await webhook.send({
+                content: reply || '...',
+                username: this.shapes.get(nextShape)!.displayName,
+                avatarURL: avatar,
+                allowedMentions: { repliedUser: true, parse: ['users'] }
+            })
+            this.duelLastSpeaker = nextShape
+            this.duelLastSent = Date.now()
+        } catch (err) {
+            logger.error(`{duel} Error sending duel reply: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
+        }
     }
 
 }
