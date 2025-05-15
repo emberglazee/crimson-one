@@ -45,6 +45,7 @@ export default {
             )
         ),
     async execute({ reply }, interaction) {
+        await interaction.deferReply()
         const subcommand = interaction.options.getSubcommand()
         switch (subcommand) {
             case 'wack':
