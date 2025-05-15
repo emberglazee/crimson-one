@@ -44,7 +44,7 @@ export default class ShapesInc {
     private duelLastSpeaker: string | null = null
     private duelConversation: { author: string, content: string, isShape: boolean, timestamp: number }[] = []
     private duelLastSent: number = 0
-    private readonly DUEL_MIN_INTERVAL_MS = 12_000
+    private readonly DUEL_MIN_INTERVAL_MS = 15_000
 
     static getInstance(client?: Client, channelId?: string): ShapesInc {
         if (!ShapesInc.instance) {
