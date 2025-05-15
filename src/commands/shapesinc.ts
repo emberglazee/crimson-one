@@ -65,15 +65,22 @@ export default {
             case 'duel_mode': {
                 const enabled = interaction.options.getBoolean('enabled')
                 if (enabled) {
-                    const shapeA = interaction.options.getString('shape_a')
-                    const shapeB = interaction.options.getString('shape_b')
+                    const shapeAInput = interaction.options.getString('shape_a')
+                    const shapeBInput = interaction.options.getString('shape_b')
                     const channelId = interaction.options.getString('channel_id')
-                    if (!shapeA || !shapeB || !channelId) {
+                    if (!shapeAInput || !shapeBInput || !channelId) {
                         await reply('You must provide shape_a, shape_b, and channel_id to enable duel mode.')
                         return
                     }
-                    await shapesInc.addShapeByUsername(shapeA)
-                    await shapesInc.addShapeByUsername(shapeB)
+                    await shapesInc.addShapeByUsername(shapeAInput)
+                    await shapesInc.addShapeByUsername(shapeBInput)
+                    // Get canonical usernames from the map
+                    const shapeA = Array.from(shapesInc.getShapeUsernames()).find(u => u.toLowerCase() === shapeAInput.toLowerCase() || u === shapeAInput)
+                    const shapeB = Array.from(shapesInc.getShapeUsernames()).find(u => u.toLowerCase() === shapeBInput.toLowerCase() || u === shapeBInput)
+                    if (!shapeA || !shapeB) {
+                        await reply('Failed to load one or both shapes. Please check the usernames.')
+                        return
+                    }
                     await shapesInc.enableDuelMode(shapeA, shapeB, channelId)
                     await reply(`Duel mode enabled between ${shapeA} and ${shapeB} in <#${channelId}>.`)
                 } else {
