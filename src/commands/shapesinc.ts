@@ -44,13 +44,13 @@ export default {
                 .setRequired(false)
             )
         ),
-    async execute({ reply }, interaction) {
-        await interaction.deferReply()
+    async execute({ editReply, deferReply }, interaction) {
+        await deferReply()
         const subcommand = interaction.options.getSubcommand()
         switch (subcommand) {
             case 'wack':
                 await shapesInc.clearChat()
-                await reply('Chat history cleared')
+                await editReply('Chat history cleared')
                 break
             case 'change_shape':
                 const vanity = interaction.options.getString('vanity')
@@ -61,7 +61,7 @@ export default {
                 if (uuid) {
                     await shapesInc.changeShapeByUUID(uuid)
                 }
-                await reply(`Shape changed to ${shapesInc.shapeUsername}`)
+                await editReply(`Shape changed to ${shapesInc.shapeUsername}`)
                 break
             case 'duel_mode': {
                 const enabled = interaction.options.getBoolean('enabled')
@@ -70,7 +70,7 @@ export default {
                     const shapeBInput = interaction.options.getString('shape_b')
                     const channelId = interaction.options.getString('channel_id')
                     if (!shapeAInput || !shapeBInput || !channelId) {
-                        await reply('You must provide shape_a, shape_b, and channel_id to enable duel mode.')
+                        await editReply('You must provide shape_a, shape_b, and channel_id to enable duel mode.')
                         return
                     }
                     await shapesInc.addShapeByUsername(shapeAInput)
@@ -81,14 +81,14 @@ export default {
                     const shapeB = usernames.find(u => (typeof u === 'string' && typeof shapeBInput === 'string' && u.toLowerCase() === shapeBInput.toLowerCase()) || u === shapeBInput)
                     if (!shapeA || !shapeB) {
                         console.warn('Available usernames:', usernames)
-                        await reply('Failed to load one or both shapes. Please check the usernames.')
+                        await editReply('Failed to load one or both shapes. Please check the usernames.')
                         return
                     }
                     await shapesInc.enableDuelMode(shapeA, shapeB, channelId)
-                    await reply(`Duel mode enabled between ${shapeA} and ${shapeB} in <#${channelId}>.`)
+                    await editReply(`Duel mode enabled between ${shapeA} and ${shapeB} in <#${channelId}>.`)
                 } else {
                     shapesInc.disableDuelMode()
-                    await reply('Duel mode disabled.')
+                    await editReply('Duel mode disabled.')
                 }
                 break
             }
