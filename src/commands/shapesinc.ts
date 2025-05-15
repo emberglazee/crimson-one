@@ -20,6 +20,29 @@ export default {
                 .setDescription('The UUID of the shape to use')
                 .setRequired(false)
             )
+        ).addSubcommand(sc => sc
+            .setName('duel_mode')
+            .setDescription('Toggle duel mode (one-on-one shape conversation)')
+            .addBooleanOption(bo => bo
+                .setName('enabled')
+                .setDescription('Enable or disable duel mode')
+                .setRequired(true)
+            )
+            .addStringOption(so => so
+                .setName('shape_a')
+                .setDescription('Username of the first shape (required if enabling)')
+                .setRequired(false)
+            )
+            .addStringOption(so => so
+                .setName('shape_b')
+                .setDescription('Username of the second shape (required if enabling)')
+                .setRequired(false)
+            )
+            .addStringOption(so => so
+                .setName('channel_id')
+                .setDescription('Channel ID for the duel (required if enabling)')
+                .setRequired(false)
+            )
         ),
     async execute({ reply }, interaction) {
         const subcommand = interaction.options.getSubcommand()
@@ -39,6 +62,26 @@ export default {
                 }
                 await reply(`Shape changed to ${shapesInc.shapeUsername}`)
                 break
+            case 'duel_mode': {
+                const enabled = interaction.options.getBoolean('enabled')
+                if (enabled) {
+                    const shapeA = interaction.options.getString('shape_a')
+                    const shapeB = interaction.options.getString('shape_b')
+                    const channelId = interaction.options.getString('channel_id')
+                    if (!shapeA || !shapeB || !channelId) {
+                        await reply('You must provide shape_a, shape_b, and channel_id to enable duel mode.')
+                        return
+                    }
+                    await shapesInc.addShapeByUsername(shapeA)
+                    await shapesInc.addShapeByUsername(shapeB)
+                    await shapesInc.enableDuelMode(shapeA, shapeB, channelId)
+                    await reply(`Duel mode enabled between ${shapeA} and ${shapeB} in <#${channelId}>.`)
+                } else {
+                    shapesInc.disableDuelMode()
+                    await reply('Duel mode disabled.')
+                }
+                break
+            }
         }
     },
     guildId: '958518067690868796'
