@@ -3,7 +3,7 @@ const logger = new Logger('MarkovChain | Chat')
 
 import { Client, Guild, Message as DiscordMessage, TextChannel, User, ChannelType, Collection } from 'discord.js'
 import { EventEmitter } from 'tseep'
-import { ChainBuilder } from './entities'
+import { ChainBuilder, CharacterChainBuilder } from './entities'
 import { DataSource } from './DataSource'
 import { getChannelMessageCount } from './DiscordUserApi'
 
@@ -14,6 +14,7 @@ interface MarkovGenerateOptions {
     words?: number
     seed?: string
     global?: boolean
+    characterMode?: boolean
 }
 
 interface MarkovCollectProgressEvent {
@@ -232,7 +233,8 @@ export class MarkovChat extends EventEmitter<{
 
     public async generateMessage(options: MarkovGenerateOptions): Promise<string> {
         const startTime = Date.now()
-        const chain = new ChainBuilder()
+        // Use character-based or word-based Markov chain
+        const chain = options.characterMode ? new CharacterChainBuilder() : new ChainBuilder()
 
         // Emit progress for querying step
         this.emit('generateProgress', {
@@ -290,11 +292,20 @@ export class MarkovChat extends EventEmitter<{
             estimatedTimeRemaining: null
         })
 
-        const result = chain.generate({
-            minWords: Math.max(3, Math.floor((options.words || 20) * 0.8)),
-            maxWords: options.words || 20,
-            seed: options.seed?.split(/\s+/)
-        })
+        let result: string
+        if (options.characterMode) {
+            result = (chain as CharacterChainBuilder).generate({
+                minChars: Math.max(5, Math.floor((options.words || 20) * 0.8)),
+                maxChars: options.words || 20,
+                seed: options.seed ?? ''
+            })
+        } else {
+            result = (chain as ChainBuilder).generate({
+                minWords: Math.max(3, Math.floor((options.words || 20) * 0.8)),
+                maxWords: options.words || 20,
+                seed: options.seed ? options.seed.split(/\s+/) : []
+            })
+        }
 
         return result
     }
