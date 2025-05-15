@@ -74,10 +74,12 @@ export default {
                     }
                     await shapesInc.addShapeByUsername(shapeAInput)
                     await shapesInc.addShapeByUsername(shapeBInput)
-                    // Get canonical usernames from the map
-                    const shapeA = Array.from(shapesInc.getShapeUsernames()).find(u => u.toLowerCase() === shapeAInput.toLowerCase() || u === shapeAInput)
-                    const shapeB = Array.from(shapesInc.getShapeUsernames()).find(u => u.toLowerCase() === shapeBInput.toLowerCase() || u === shapeBInput)
+                    // Get canonical usernames from the map, safely
+                    const usernames = Array.from(shapesInc.getShapeUsernames()).filter(u => typeof u === 'string')
+                    const shapeA = usernames.find(u => (typeof u === 'string' && typeof shapeAInput === 'string' && u.toLowerCase() === shapeAInput.toLowerCase()) || u === shapeAInput)
+                    const shapeB = usernames.find(u => (typeof u === 'string' && typeof shapeBInput === 'string' && u.toLowerCase() === shapeBInput.toLowerCase()) || u === shapeBInput)
                     if (!shapeA || !shapeB) {
+                        console.warn('Available usernames:', usernames)
                         await reply('Failed to load one or both shapes. Please check the usernames.')
                         return
                     }
