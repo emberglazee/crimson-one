@@ -15,12 +15,16 @@ export default {
             .setDescription('The text to translate.')
             .setRequired(true)
         ).addBooleanOption(bo => bo
-            .setName('randomizechain')
+            .setName('randomize_chain')
             .setDescription('Randomize the language translation chain')
             .setRequired(false)
         ).addBooleanOption(bo => bo
             .setName('ephemeral')
             .setDescription('Should the response only be visible to you?')
+            .setRequired(false)
+        ).addStringOption(so => so
+            .setName('exit_lang')
+            .setDescription('The language to end the translation chain with (default: en)')
             .setRequired(false)
         ),
 
@@ -29,6 +33,7 @@ export default {
         const inputText = interaction.options.getString('text', true)
         const randomizeChain = interaction.options.getBoolean('randomizechain') ?? false
         const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
+        const exitLang = interaction.options.getString('exitlang') || 'en'
 
         let languages = [
             'la', 'ja', 'lo', 'ko',
@@ -37,11 +42,12 @@ export default {
             'uk', 'sw', 'no', 'fi',
             'hu', 'my', 'so', 'km',
             'ceb', 'haw', 'gl', 'fy',
-            'mr', 'eu', 'en'
+            'mr', 'eu',
+            exitLang
         ]
         if (randomizeChain) {
             languages = shuffleArray(languages)
-            if (languages[languages.length - 1] !== 'en') languages.push('en')
+            if (languages[languages.length - 1] !== exitLang) languages.push(exitLang)
         }
 
         await deferReply({
