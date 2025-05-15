@@ -49,7 +49,6 @@ export class DataSource {
                 database: this.databasePath,
                 entities: [Channel, Message, Guild, User, Tag],
                 synchronize: true,
-                logging: true, // Enable logging temporarily to debug table creation
                 extra: {
                     connectionLimit: 10,
                     queueLimit: 0
