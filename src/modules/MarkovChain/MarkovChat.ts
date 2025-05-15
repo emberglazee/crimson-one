@@ -11,6 +11,7 @@ interface MarkovGenerateOptions {
     guild?: Guild
     channel?: TextChannel
     user?: User
+    userId?: string
     words?: number
     seed?: string
     global?: boolean
@@ -85,12 +86,13 @@ export class MarkovChat extends EventEmitter<{
 
     public async collectMessages(channel: TextChannel, options: {
         user?: User
+        userId?: string
         limit?: number | 'entire'
         delayMs?: number
     } = {}) {
         if (!this.client) throw new Error('Client not set')
 
-        const { user, limit = 1000, delayMs = 1000 } = options
+        const { user, userId, limit = 1000, delayMs = 1000 } = options
         const messages: DiscordMessage[] = []
         const startTime = Date.now()
         const MAX_RETRIES = 3
@@ -154,7 +156,9 @@ export class MarkovChat extends EventEmitter<{
 
             let validMessages = user
                 ? batch.filter((msg: DiscordMessage) => msg.author.id === user.id && msg.content.length > 0)
-                : batch.filter((msg: DiscordMessage) => msg.content.length > 0)
+                : userId
+                    ? batch.filter((msg: DiscordMessage) => msg.author.id === userId && msg.content.length > 0)
+                    : batch.filter((msg: DiscordMessage) => msg.content.length > 0)
 
             // For previously fully collected channels, check for message ID matches
             if (wasFullyCollected) {
@@ -222,7 +226,7 @@ export class MarkovChat extends EventEmitter<{
         this.emit('collectComplete', {
             totalCollected: messages.length,
             channelName: channel.name,
-            userFiltered: !!user,
+            userFiltered: !!user || !!userId,
             entireChannel: isEntireChannel,
             newMessagesOnly: wasFullyCollected,
             totalMessageCount: totalMessageCount || undefined
@@ -249,6 +253,7 @@ export class MarkovChat extends EventEmitter<{
             guild: options.guild,
             channel: options.channel,
             user: options.user,
+            userId: options.userId,
             global: options.global
         })
 
@@ -326,6 +331,7 @@ export class MarkovChat extends EventEmitter<{
             guild: options.guild,
             channel: options.channel,
             user: options.user,
+            userId: options.userId,
             global: options.global
         })
 

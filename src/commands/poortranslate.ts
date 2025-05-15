@@ -31,9 +31,9 @@ export default {
     async execute({ deferReply, editReply }, interaction) {
         const time1 = Date.now()
         const inputText = interaction.options.getString('text', true)
-        const randomizeChain = interaction.options.getBoolean('randomizechain') ?? false
+        const randomizeChain = interaction.options.getBoolean('randomize_chain') ?? false
         const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
-        const exitLang = interaction.options.getString('exitlang') || 'en'
+        const exitLang = interaction.options.getString('exit_lang') || 'en'
 
         let languages = [
             'la', 'ja', 'lo', 'ko',

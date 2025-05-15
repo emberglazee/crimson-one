@@ -251,6 +251,7 @@ export class DataSource {
         guild?: DiscordGuild
         channel?: TextChannel
         user?: DiscordUser
+        userId?: string
         global?: boolean
     }): Promise<Message[]> {
         await this.init()
@@ -278,6 +279,8 @@ export class DataSource {
 
         if (options.user) {
             query.andWhere('message.authorId = :authorId', { authorId: options.user.id })
+        } else if (options.userId) {
+            query.andWhere('message.authorId = :authorId', { authorId: options.userId })
         }
 
         logger.info(`[getMessages]\nquery: ${query.getSql()}\nparameters: ${inspect(query.getParameters(), true, Infinity, true)}`)
