@@ -548,6 +548,14 @@ export default class ShapesInc {
         const lastMsg = this.duelConversation[this.duelConversation.length - 1]
         // Compose the prompt for the shape
         const prompt = `**${lastMsg.author}**: ${lastMsg.content}`
+        // --- Typing message logic ---
+        let typingMsg: Message | null = null
+        try {
+            const channel = await this.client.channels.fetch(this.duelChannelId)
+            if (channel && channel.type === ChannelType.GuildText) {
+                typingMsg = await (channel as TextChannel).send(`${TYPING_EMOJI} Shape is typing...`)
+            }
+        } catch { /* ignore */ }
         // Get shape reply
         let reply: ShapesIncSendMessageResponse | undefined
         const files: AttachmentBuilder[] = []
@@ -580,6 +588,7 @@ export default class ShapesInc {
         try {
             const webhook = await this.getOrCreateWebhookForShape(nextShape, this.duelChannelId)
             const avatar = this.getShapeAvatarUrl(this.shapes.get(nextShape)!.id)
+            if (typingMsg) await typingMsg.delete().catch(() => {})
             await webhook.send({
                 content: reply.text || '...',
                 username: this.shapes.get(nextShape)!.displayName,
@@ -596,6 +605,7 @@ export default class ShapesInc {
             }
         } catch (err) {
             logger.error(`{duel} Error sending duel reply: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
+            if (typingMsg) await typingMsg.delete().catch(() => {})
         }
     }
 
