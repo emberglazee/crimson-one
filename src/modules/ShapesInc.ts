@@ -21,15 +21,31 @@ export default class ShapesInc {
     }
     private cookies!: string
     public userId = 'ab8f795b-cc33-4189-9430-a6917bb85398'
-    public shapeId = 'c4fa29df-aa29-40f7-baaa-21f2e3aab46b'
-    public shapeUsername = 'crimson-1' // also its vanity link (https://shapes.inc/crimson-1)
-    public shapeDisplayName = 'Crimson 1'
+
+    // --- Multi-shape support ---
+    private shapes: Map<string, { id: string, username: string, displayName: string }> = new Map()
+    private currentShapeUsername: string = 'crimson-1'
 
     // --- New API fields ---
     private openaiClient?: OpenAI
     private apiKey?: string
-
     private avatarCache?: { id: string, avatar: string }
+
+    // --- Legacy single-shape fields for backward compatibility ---
+    public get shapeId() { return this.shapes.get(this.currentShapeUsername)?.id ?? '' }
+    public get shapeUsername() { return this.currentShapeUsername }
+    public get shapeDisplayName() { return this.shapes.get(this.currentShapeUsername)?.displayName ?? '' }
+    public set shapeUsername(username: string) { this.currentShapeUsername = username }
+
+    // --- Duel mode (one-on-one conversation) ---
+    private duelMode: boolean = false
+    private duelChannelId: string | null = null
+    private duelShapes: [string, string] | null = null // [shapeA, shapeB]
+    private duelLastSpeaker: string | null = null
+    private duelQueue: { message: Message }[] = []
+    private duelProcessing: boolean = false
+    private duelLastSent: number = 0
+    private readonly DUEL_MIN_INTERVAL_MS = 12_000
 
     static getInstance(client?: Client, channelId?: string): ShapesInc {
         if (!ShapesInc.instance) {
@@ -67,17 +83,41 @@ export default class ShapesInc {
         }
     }
 
+    // --- Multi-shape management ---
+    public async addShapeByUsername(shapeUsername: string) {
+        const data = await this.fetchShapeByUsername(shapeUsername)
+        this.shapes.set(data.username, { id: data.id, username: data.username, displayName: data.name })
+        if (!this.currentShapeUsername) this.currentShapeUsername = data.username
+    }
+    public async addShapeByUUID(uuid: string) {
+        const data = await this.fetchShapeByUUID(uuid)
+        this.shapes.set(data.username, { id: data.id, username: data.username, displayName: data.name })
+        if (!this.currentShapeUsername) this.currentShapeUsername = data.username
+    }
+    public setCurrentShape(username: string) {
+        if (!this.shapes.has(username)) throw new Error(`Shape ${username} not found`)
+        this.currentShapeUsername = username
+    }
+    public getCurrentShape() {
+        return this.shapes.get(this.currentShapeUsername)
+    }
+    public getShapeUsernames() {
+        return Array.from(this.shapes.keys())
+    }
+
     // --- New API: OpenAI-compatible Shapes API ---
     /**
      * Send a message using the new OpenAI-compatible Shapes API
      * @param message The message to send
      * @param imageUrl Optional image URL to send as multimodal input
      */
-    async sendMessageAPI(message: string, imageUrl?: string): Promise<string> {
-        if (!this.openaiClient || !this.shapeUsername) {
-            throw new Error('OpenAI client not initialized or shape username missing')
+    async sendMessageAPI(message: string, imageUrl?: string, shapeUsername?: string): Promise<string> {
+        if (!this.openaiClient) {
+            throw new Error('OpenAI client not initialized')
         }
-        const model = `shapesinc/${this.shapeUsername}`
+        const username = shapeUsername || this.currentShapeUsername
+        if (!this.shapes.has(username)) throw new Error(`Shape ${username} not loaded`)
+        const model = `shapesinc/${username}`
         let messages: OpenAI.Chat.ChatCompletionMessageParam[]
         if (imageUrl) {
             messages = [
@@ -112,12 +152,15 @@ export default class ShapesInc {
     }
 
     // --- Legacy API: Cookie-based methods (unchanged) ---
-    async sendMessage(message: string, attachment_url: string | null = null): Promise<ShapesIncSendMessageResponse> {
+    async sendMessage(message: string, attachment_url: string | null = null, shapeUsername?: string): Promise<ShapesIncSendMessageResponse> {
         logger.info('{sendMessage} Sending message...')
-        const url = `https://shapes.inc/api/shapes/${this.shapeId}/chat`
+        const username = shapeUsername || this.currentShapeUsername
+        const shape = this.shapes.get(username)
+        if (!shape) throw new Error(`Shape ${username} not loaded`)
+        const url = `https://shapes.inc/api/shapes/${shape.id}/chat`
         const body = JSON.stringify({
             message,
-            shapeId: this.shapeId,
+            shapeId: shape.id,
             attachment_url
         })
         const cookies = this.cookies
@@ -140,12 +183,15 @@ export default class ShapesInc {
         }
         return json as Promise<ShapesIncSendMessageResponse>
     }
-    async clearChat(): Promise<ShapesIncClearChatResponse> {
+    async clearChat(shapeUsername?: string): Promise<ShapesIncClearChatResponse> {
         const ts = Math.floor(Date.now() / 1000)
         logger.info('{clearChat} Clearing chat...')
-        const url = `https://shapes.inc/api/shapes/${this.shapeId}/wack`
+        const username = shapeUsername || this.currentShapeUsername
+        const shape = this.shapes.get(username)
+        if (!shape) throw new Error(`Shape ${username} not loaded`)
+        const url = `https://shapes.inc/api/shapes/${shape.id}/wack`
         const body = JSON.stringify({
-            shapeId: this.shapeId,
+            shapeId: shape.id,
             ts,
             user_id: this.userId
         })
@@ -161,9 +207,12 @@ export default class ShapesInc {
         logger.ok('{clearChat} Done')
         return res.json() as Promise<ShapesIncClearChatResponse>
     }
-    async getChatHistory(): Promise<ShapesIncGetChatHistoryResponse<20>> {
+    async getChatHistory(shapeUsername?: string): Promise<ShapesIncGetChatHistoryResponse<20>> {
         logger.info('{getChatHistory} Getting chat history...')
-        const url = `https://shapes.inc/api/shapes/${this.shapeId}/chat/history?limit=20&shape_id=${this.shapeId}`
+        const username = shapeUsername || this.currentShapeUsername
+        const shape = this.shapes.get(username)
+        if (!shape) throw new Error(`Shape ${username} not loaded`)
+        const url = `https://shapes.inc/api/shapes/${shape.id}/chat/history?limit=20&shape_id=${shape.id}`
         const cookies = this.cookies
         const res = await fetch(url, {
             method: 'GET',
@@ -200,21 +249,17 @@ export default class ShapesInc {
 
     public async changeShapeByUUID(uuid: string) {
         const data = await this.fetchShapeByUUID(uuid)
-        this.shapeId = data.id
-        this.shapeUsername = data.username
-        this.shapeDisplayName = data.name
-        // Update avatar cache
+        this.shapes.set(data.username, { id: data.id, username: data.username, displayName: data.name })
+        this.currentShapeUsername = data.username
         this.avatarCache = undefined
-        await this.fetchShapeAvatarBase64(this.shapeId)
+        await this.fetchShapeAvatarBase64(data.id)
     }
     public async changeShapeByUsername(shapeUsername: string) {
         const data = await this.fetchShapeByUsername(shapeUsername)
-        this.shapeId = data.id
-        this.shapeUsername = data.username
-        this.shapeDisplayName = data.name
-        // Update avatar cache
+        this.shapes.set(data.username, { id: data.id, username: data.username, displayName: data.name })
+        this.currentShapeUsername = data.username
         this.avatarCache = undefined
-        await this.fetchShapeAvatarBase64(this.shapeId)
+        await this.fetchShapeAvatarBase64(data.id)
     }
 
     public async fetchShapeAvatarBase64(uuid: string): Promise<string> {
@@ -249,7 +294,7 @@ export default class ShapesInc {
      * Process a Discord message: format, extract image, and send to Shapes API
      * @param message Discord.js Message object
      */
-    async processDiscordMessage(message: Message): Promise<string> {
+    async processDiscordMessage(message: Message, shapeUsername?: string): Promise<string> {
         let msg = ''
         if (message.reference) {
             try {
@@ -279,7 +324,7 @@ export default class ShapesInc {
             }
         }
 
-        return this.sendMessageAPI(msg, imageUrl ?? undefined)
+        return this.sendMessageAPI(msg, imageUrl ?? undefined, shapeUsername)
     }
 
     /**
@@ -313,18 +358,24 @@ export default class ShapesInc {
     /**
      * Handle a Discord message: only respond if in the configured channel, and use webhook if possible
      */
-    public async handleMessage(message: Message): Promise<void> {
-        // Ignore messages sent by webhooks or by the bot itself
+    public async handleMessage(message: Message, shapeUsername?: string): Promise<void> {
+        // --- Duel mode logic ---
+        if (this.duelMode && this.duelChannelId && this.duelShapes && message.channel.id === this.duelChannelId) {
+            if (message.webhookId) return
+            // Queue the message for duel processing
+            this.duelQueue.push({ message })
+            this.processDuelQueue()
+            return
+        }
+        // --- Normal mode logic ---
         if (message.webhookId) return
         if (message.author.id === this.client.user?.id) return
         if (message.channel.id !== this.channelId) return
         if (message.channel.type !== ChannelType.GuildText) return
-        // Instead of sendTyping, send a typing message and delete it before webhook reply
         const typingMsg = await message.channel.send(`${TYPING_EMOJI} Shape is typing...`)
         let res = ''
-        // Try to use webhook for immersive reply
         try {
-            res = await this.processDiscordMessage(message)
+            res = await this.processDiscordMessage(message, shapeUsername)
             const webhook = await this.getOrCreateWebhook()
             const avatar = this.getShapeAvatarUrl(this.shapeId)
             await typingMsg.delete().catch(() => {})
@@ -338,8 +389,107 @@ export default class ShapesInc {
             const error = err instanceof Error ? err.message : inspect(err)
             logger.warn(`{handleMessage} Webhook failed: ${error}`)
             await typingMsg.delete().catch(() => {})
-            await message.reply(res + '\n\n-# epic webhook fail' || 'I HATE YOU MONARCH!') // prevent empty string
+            await message.reply(res + '\n\n-# epic webhook fail' || 'I HATE YOU MONARCH!')
         }
+    }
+
+    /**
+     * Get or create a webhook for a specific shape in a specific channel
+     */
+    private async getOrCreateWebhookForShape(shapeUsername: string, channelId: string): Promise<Webhook> {
+        const shape = this.shapes.get(shapeUsername)
+        if (!shape) throw new Error(`Shape ${shapeUsername} not loaded`)
+        const channel = await this.client.channels.fetch(channelId)
+        if (!channel || !(channel instanceof TextChannel)) {
+            throw new Error('ShapesInc duel channel not found or not a text channel')
+        }
+        // Try to find an existing webhook for this shape
+        const webhooks = await channel.fetchWebhooks()
+        let webhook = webhooks.find(wh => wh.name === shape.displayName)
+        if (!webhook) {
+            let avatar: string | undefined
+            try {
+                avatar = this.getShapeAvatarUrl(shape.id)
+            } catch {
+                avatar = undefined
+            }
+            webhook = await channel.createWebhook({
+                name: shape.displayName,
+                avatar
+            })
+        }
+        return webhook
+    }
+
+    /**
+     * Enable duel mode between two shapes in a specific channel
+     */
+    public async enableDuelMode(shapeA: string, shapeB: string, channelId: string) {
+        if (!this.shapes.has(shapeA) || !this.shapes.has(shapeB)) {
+            throw new Error('Both shapes must be loaded before enabling duel mode')
+        }
+        this.duelMode = true
+        this.duelChannelId = channelId
+        this.duelShapes = [shapeA, shapeB]
+        this.duelLastSpeaker = null
+        this.duelQueue = []
+        this.duelProcessing = false
+        this.duelLastSent = 0
+    }
+    /**
+     * Disable duel mode
+     */
+    public disableDuelMode() {
+        this.duelMode = false
+        this.duelChannelId = null
+        this.duelShapes = null
+        this.duelLastSpeaker = null
+        this.duelQueue = []
+        this.duelProcessing = false
+        this.duelLastSent = 0
+    }
+    /**
+     * Returns whether duel mode is enabled
+     */
+    public isDuelModeEnabled() {
+        return this.duelMode
+    }
+
+    // Duel queue processor: ensures only one duel reply every 12 seconds
+    private async processDuelQueue() {
+        if (this.duelProcessing) return
+        this.duelProcessing = true
+        while (this.duelQueue.length > 0 && this.duelMode && this.duelChannelId && this.duelShapes) {
+            const now = Date.now()
+            const sinceLast = now - this.duelLastSent
+            if (sinceLast < this.DUEL_MIN_INTERVAL_MS) {
+                await new Promise(res => setTimeout(res, this.DUEL_MIN_INTERVAL_MS - sinceLast))
+            }
+            const { message } = this.duelQueue.shift()!
+            // Determine which shape should reply
+            let nextShape: string
+            if (!this.duelLastSpeaker) {
+                nextShape = message.author.username === this.shapes.get(this.duelShapes[0])?.displayName ? this.duelShapes[1] : this.duelShapes[0]
+            } else {
+                nextShape = this.duelLastSpeaker === this.duelShapes[0] ? this.duelShapes[1] : this.duelShapes[0]
+            }
+            try {
+                const reply = await this.processDiscordMessage(message, nextShape)
+                const webhook = await this.getOrCreateWebhookForShape(nextShape, this.duelChannelId)
+                const avatar = this.getShapeAvatarUrl(this.shapes.get(nextShape)!.id)
+                await webhook.send({
+                    content: reply || '...',
+                    username: this.shapes.get(nextShape)!.displayName,
+                    avatarURL: avatar,
+                    allowedMentions: { repliedUser: true, parse: ['users'] }
+                })
+                this.duelLastSpeaker = nextShape
+                this.duelLastSent = Date.now()
+            } catch (err) {
+                logger.error(`{duelQueue} Error sending duel reply: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
+            }
+        }
+        this.duelProcessing = false
     }
 
 }
