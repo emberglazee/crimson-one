@@ -286,8 +286,21 @@ export default class ShapesInc {
     /**
      * Get the direct CDN URL for a shape's avatar image
      */
-    public getShapeAvatarUrl(uuid: string): string {
-        return `https://files.shapes.inc/api/files/avatar_${uuid}.png`
+    public getShapeAvatarUrl(uuidOrUsername: string): string {
+        // Hardcoded avatar URLs for specific shapes
+        if (
+            uuidOrUsername === 'crimson-1' ||
+            uuidOrUsername === 'c4fa29df-aa29-40f7-baaa-21f2e3aab46b'
+        ) {
+            return 'https://cdn.discordapp.com/attachments/982138135653793804/1372594831293153390/0cfd7dbca888bd138e5ab94b093a6c6f.png?ex=6827580d&is=6826068d&hm=0e6b95df755681f556b5a554d799c0b6913a5cafb0743e9b1b990dc95cf1de21&'
+        }
+        if (
+            uuidOrUsername === 'neurospade-m5iv' ||
+            uuidOrUsername === '06860e38-6574-42bc-886a-a166c29ad1c9'
+        ) {
+            return 'https://cdn.discordapp.com/attachments/982138135653793804/1372594545874964622/images_5.jpg?ex=682757c9&is=68260649&hm=3ef06594cab4b1eb0cf416a38a42f0e4b165783d0d7ab2b3e5bcedd2b7bd2adb&'
+        }
+        return `https://files.shapes.inc/api/files/avatar_${uuidOrUsername}.png`
     }
 
     /**
