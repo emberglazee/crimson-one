@@ -29,7 +29,7 @@ export default {
         ),
 
     async execute({ deferReply, editReply }, interaction) {
-        const time1 = Date.now()
+        const time1 = process.hrtime()
         const inputText = interaction.options.getString('text', true)
         const randomizeChain = interaction.options.getBoolean('randomize_chain') ?? false
         const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
@@ -94,7 +94,8 @@ export default {
 
         // Clear the interval and update with the final translation.
         clearInterval(progressInterval)
-        const time2 = Date.now()
-        await editReply(`**Poorly translated:**\n${inputText}\n**into:**\n${translatedText}\n-# Time: ${(time2 - time1) / 1000}s`)
+        const time2 = process.hrtime(time1)
+        const elapsedSeconds = (time2[0] + time2[1] / 1e9).toFixed(3)
+        await editReply(`**Poorly translated:**\n${inputText}\n**into:**\n${translatedText}\n-# Time: ${elapsedSeconds}s`)
     }
 } satisfies SlashCommand
