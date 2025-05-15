@@ -74,12 +74,8 @@ export default {
         let finalResponses
         if (theme === 'cascadia') {
             finalResponses = [...cascadiaResponses, ...genericResponses]
-        } else if (theme === 'federation') {
-            finalResponses = [...federationResponses, ...genericResponses]
         } else {
-            // If theme is not specified or 'random', pick a group at random
-            const randomTheme = Math.random() < 0.5 ? cascadiaResponses : federationResponses
-            finalResponses = [...randomTheme, ...genericResponses]
+            finalResponses = [...federationResponses, ...genericResponses]
         }
 
         // Pick a random response

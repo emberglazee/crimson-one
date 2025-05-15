@@ -299,6 +299,7 @@ export default {
                     `-# - Generated in ${timeEndMs.toFixed(0)}ms\n` +
                     `-# - Filters: ${[
                         source === 'global' ? 'Global' : 'This server',
+                        channel ? `Channel: #${channel.name ?? channel.id}` : null,
                         user ? `User: @${user.tag}` : null,
                         words !== 20 ? `Words: ${words}` : null,
                         seed ? `Seed: "${seed}"` : null
