@@ -375,7 +375,7 @@ export default class ShapesInc {
             // Send user message to Discord (as themselves, not webhook)
             // (Optional: could skip this if you want only shape replies visible)
             // Now, process the duel turn
-            await this._processDuelTurn(message)
+            await this._processDuelTurn()
             return
         }
         // --- Normal mode logic ---
@@ -474,6 +474,8 @@ export default class ShapesInc {
                 })
                 this.duelLastSpeaker = shapeA // Mark shapeA as the last speaker
                 this.duelLastSent = Date.now()
+                // Trigger the next shape's turn automatically
+                await this._processDuelTurn()
             } catch (err) {
                 logger.error(`{enableDuelMode} Failed to send initial duel message: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
             }
@@ -504,7 +506,7 @@ export default class ShapesInc {
         }
     }
 
-    private async _processDuelTurn(_triggerMessage: Message) {
+    private async _processDuelTurn() {
         if (!this.duelMode || !this.duelChannelId || !this.duelShapes) return
         // Enforce min interval
         const now = Date.now()
