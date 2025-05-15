@@ -553,6 +553,10 @@ export default class ShapesInc {
             })
             this.duelLastSpeaker = nextShape
             this.duelLastSent = Date.now()
+            // Continue the duel if still enabled
+            if (this.duelMode) {
+                setTimeout(() => this._processDuelTurn(), this.DUEL_MIN_INTERVAL_MS)
+            }
         } catch (err) {
             logger.error(`{duel} Error sending duel reply: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
         }
