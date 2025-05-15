@@ -9,7 +9,7 @@ export default {
             .setName('wack')
             .setDescription('Clear chat history')
         ).addSubcommand(sc => sc
-            .setName('changeshape')
+            .setName('change_shape')
             .setDescription('Change the shape used by the bot')
             .addStringOption(so => so
                 .setName('vanity')
@@ -28,7 +28,7 @@ export default {
                 await shapesInc.clearChat()
                 await reply('Chat history cleared')
                 break
-            case 'changeshape':
+            case 'change_shape':
                 const vanity = interaction.options.getString('vanity')
                 const uuid = interaction.options.getString('uuid')
                 if (vanity) {

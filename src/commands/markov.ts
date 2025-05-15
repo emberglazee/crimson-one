@@ -135,6 +135,10 @@ export default {
                 .setName('user')
                 .setDescription('Generate text in the style of a specific user')
                 .setRequired(false)
+            ).addStringOption(so => so
+                .setName('user_id')
+                .setDescription('User ID to use if the user is not in the server')
+                .setRequired(false)
             ).addIntegerOption(io => io
                 .setName('words')
                 .setDescription('How many words to generate (default: 20)')
@@ -172,6 +176,10 @@ export default {
                 .setName('user')
                 .setDescription('View statistics for a specific user\'s messages')
                 .setRequired(false)
+            ).addStringOption(so => so
+                .setName('user_id')
+                .setDescription('User ID to use if the user is not in the server')
+                .setRequired(false)
             ).addBooleanOption(bo => bo
                 .setName('ephemeral')
                 .setDescription('Show statistics only to you')
@@ -189,16 +197,20 @@ export default {
                 .setName('user')
                 .setDescription('Only collect messages from this user')
                 .setRequired(false)
+            ).addStringOption(so => so
+                .setName('user_id')
+                .setDescription('User ID to use if the user is not in the server')
+                .setRequired(false)
             ).addIntegerOption(io => io
                 .setName('limit')
                 .setDescription('Maximum number of messages to collect (default: 1000)')
                 .setRequired(false)
             ).addBooleanOption(bo => bo
-                .setName('entirechannel')
+                .setName('entire_channel')
                 .setDescription('Collect every message from the channel (ignores limit)')
                 .setRequired(false)
             ).addBooleanOption(bo => bo
-                .setName('allchannels')
+                .setName('all_channels')
                 .setDescription('Collect messages from every text channel and thread in the server')
                 .setRequired(false)
             ).addBooleanOption(bo => bo
@@ -207,7 +219,7 @@ export default {
                 .setRequired(false)
             )
         ),
-    async execute({ reply, editReply, deferReply, followUp, guild }, interaction) {
+    async execute({ reply, editReply, deferReply, followUp, guild, client }, interaction) {
         const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
 
         if (!guild) {
@@ -223,8 +235,27 @@ export default {
         const markov = MarkovChat.getInstance()
         const dataSource = DataSource.getInstance()
 
-        if (subcommand === 'generate') {
+        // Helper to resolve user from picker or user_id
+        async function resolveUserOrId() {
             const user = interaction.options.getUser('user') ?? undefined
+            const userId = interaction.options.getString('user_id') ?? undefined
+            if (user) return user
+            if (userId) {
+                try {
+                    // Try to fetch user from Discord (may fail if user is not cached)
+                    return await client.users.fetch(userId)
+                } catch {
+                    // If not found, just return the ID for DB filtering
+                    return { id: userId }
+                }
+            }
+            return undefined
+        }
+
+        if (subcommand === 'generate') {
+            const userOrId = await resolveUserOrId()
+            const user = userOrId && 'tag' in userOrId ? userOrId : undefined
+            const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
             const source = (interaction.options.getString('source') as Source)
             const channel = source === null ? (interaction.options.getChannel('channel') as TextChannel | null) ?? undefined : undefined
             const words = interaction.options.getInteger('words') ?? 20
@@ -234,7 +265,7 @@ export default {
             await deferReply({ flags: ephemeral ? MessageFlags.Ephemeral : undefined })
 
             try {
-                logger.info(`Generating message with source: ${yellow(source)}, user: ${yellow(user?.tag)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
+                logger.info(`Generating message with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
                 const timeStart = process.hrtime()
 
                 // Create message manager for handling progress updates
@@ -287,7 +318,8 @@ export default {
                 const result = await markov.generateMessage({
                     guild: source === 'guild' ? guild : undefined,
                     channel: channel,
-                    user,
+                    user: user,
+                    userId: userId,
                     words,
                     seed,
                     global: source === 'global',
@@ -306,7 +338,7 @@ export default {
                     `-# - Filters: ${[
                         source === 'global' ? 'Global' : 'This server',
                         channel ? `Channel: #${channel.name ?? channel.id}` : null,
-                        user ? `User: @${user.tag}` : null,
+                        user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
                         words !== 20 ? (characterMode ? `Characters: ${words}` : `Words: ${words}`) : null,
                         seed ? `Seed: "${seed}"` : null,
                         characterMode ? 'Mode: Character-by-character (cursed)' : null
@@ -323,14 +355,16 @@ export default {
             }
 
         } else if (subcommand === 'info') {
-            const user = interaction.options.getUser('user') ?? undefined
+            const userOrId = await resolveUserOrId()
+            const user = userOrId && 'tag' in userOrId ? userOrId : undefined
+            const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
             const source = (interaction.options.getString('source') as Source)
             const channel = source === null ? (interaction.options.getChannel('channel') as TextChannel | null) ?? undefined : undefined
 
             await deferReply({ flags: ephemeral ? MessageFlags.Ephemeral : undefined })
 
             try {
-                logger.info(`Getting Markov info with source: ${yellow(source)}, user: ${yellow(user?.tag)}, channel: ${yellow(channel?.name)}`)
+                logger.info(`Getting Markov info with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}`)
                 const timeStart = process.hrtime()
 
                 // Create message manager for handling progress updates
@@ -383,7 +417,8 @@ export default {
                 const stats = await markov.getMessageStats({
                     guild: source === 'guild' ? guild : undefined,
                     channel: !source ? channel : undefined,
-                    user,
+                    user: user,
+                    userId: userId,
                     global: source === 'global'
                 })
 
@@ -421,7 +456,7 @@ export default {
                 embed.setDescription(
                     `**Filters Applied:**\n${[
                         source === 'global' ? '🌐 Global' : !source && channel ? `📝 Channel: #${channel.name}` : '🏠 This server',
-                        user ? `👤 User: @${user.tag}` : null
+                        user ? `👤 User: @${user.tag}` : userId ? `👤 User ID: ${userId}` : null
                     ].filter(Boolean).join('\n')}`
                 )
 
@@ -441,11 +476,13 @@ export default {
             }
 
         } else if (subcommand === 'collect') {
-            const user = interaction.options.getUser('user') ?? undefined
-            const collectEntireChannel = interaction.options.getBoolean('entirechannel') ?? false
+            const userOrId = await resolveUserOrId()
+            const user = userOrId && 'tag' in userOrId ? userOrId : undefined
+            const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
+            const collectEntireChannel = interaction.options.getBoolean('entire_channel') ?? false
             const limit = collectEntireChannel ? 'entire' : (interaction.options.getInteger('limit') ?? 100_000_000)
 
-            const allChannels = interaction.options.getBoolean('allchannels') ?? false
+            const allChannels = interaction.options.getBoolean('all_channels') ?? false
             if (allChannels) {
                 await deferReply({
                     flags: ephemeral ? MessageFlags.Ephemeral : undefined
@@ -480,6 +517,7 @@ export default {
                         logger.info(`Collecting from #${yellow(targetChannel.name)} (${yellow(targetChannel.id)})`)
                         const count = await markov.collectMessages(targetChannel as TextChannel, {
                             user,
+                            userId,
                             limit,
                         })
                         logger.ok(`Collected ${yellow(count)} messages from #${yellow(targetChannel.name)}`)
@@ -508,7 +546,7 @@ export default {
             const wasFullyCollected = await dataSource.isChannelFullyCollected(guild.id, channel.id)
 
             // Reply with appropriate message
-            let replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'ALL' : limit} messages from ${channel}${user ? ` by ${user}` : ''}...`
+            let replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'ALL' : limit} messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}...`
             if (wasFullyCollected) {
                 replyContent += `\n⚠️ This channel was already fully collected before. Only collecting new messages since the last collection.`
             }
@@ -522,7 +560,7 @@ export default {
             })
 
             try {
-                logger.info(`Collecting messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : ''}, limit: ${yellow(limit)}, wasFullyCollected: ${yellow(wasFullyCollected)}`)
+                logger.info(`Collecting messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : userId ? ` by user ID ${userId}` : ''}, limit: ${yellow(limit)}, wasFullyCollected: ${yellow(wasFullyCollected)}`)
 
                 // Setup progress updates
                 let totalMessageCount = null
@@ -557,7 +595,7 @@ export default {
                             else percentCompleteEmoji = '🔴'
                         }
 
-                        let progressMessage = `⏳ Collecting messages from ${channel}${user ? ` by ${user}` : ''}...\n`
+                        let progressMessage = `⏳ Collecting messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}...\n`
 
                         // Show different progress info depending on whether we have total count
                         if (progress.limit === 'entire' && progress.percentComplete > 0) {
@@ -600,6 +638,7 @@ export default {
                 // Process in one go
                 const count = await markov.collectMessages(channel, {
                     user,
+                    userId,
                     limit,
                 })
 
@@ -607,10 +646,10 @@ export default {
                 markov.removeAllListeners('collectProgress')
                 markov.removeAllListeners('collectComplete')
 
-                logger.ok(`Collected ${yellow(count)} messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : ''}`)
+                logger.ok(`Collected ${yellow(count)} messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : userId ? ` by user ID ${userId}` : ''}`)
 
                 // Customize completion message based on whether it was a previously collected channel
-                let completionMessage = `✅ Successfully collected ${count} messages from ${channel}${user ? ` by ${user}` : ''}\n`
+                let completionMessage = `✅ Successfully collected ${count} messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}\n`
 
                 if (totalMessageCount && collectEntireChannel) {
                     const percentageCollected = ((count / totalMessageCount) * 100).toFixed(1)

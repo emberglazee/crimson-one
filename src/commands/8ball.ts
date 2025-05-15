@@ -29,7 +29,6 @@ export default {
         const question = interaction.options.getString('question', true)
         const theme = interaction.options.getString('theme', false)
 
-        // Cascadia/Sicario-themed responses
         const cascadiaResponses = [
             'As certain as Cascadia\'s victory.',
             'Kaiser would approve.',
@@ -45,7 +44,6 @@ export default {
             'Cascadian command is busy right now, try again.'
         ]
 
-        // Pacific Federation-themed responses
         const federationResponses = [
             'As certain as the Federation\'s supremacy.',
             'The Federation confirms it.',
@@ -61,7 +59,6 @@ export default {
             'Even Bookie wouldn\'t take that bet.'
         ]
 
-        // Generic responses always included
         const genericResponses = [
             'Too much G-force, try again.',
             'Radio interference, try again.',
@@ -70,7 +67,6 @@ export default {
             'Not even with a Cordium warhead.'
         ]
 
-        // Determine the final response pool
         let finalResponses
         if (theme === 'cascadia') {
             finalResponses = [...cascadiaResponses, ...genericResponses]
@@ -78,7 +74,6 @@ export default {
             finalResponses = [...federationResponses, ...genericResponses]
         }
 
-        // Pick a random response
         const response = finalResponses[Math.floor(Math.random() * finalResponses.length)]
 
         const msgPrefix = `💬 ${interaction.user}: *${question}*\n`

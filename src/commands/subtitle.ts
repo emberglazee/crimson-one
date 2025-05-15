@@ -60,7 +60,7 @@ export const slashCommand = {
             .setDescription('Stretch the gradient across the entire name instead of repeating it')
             .setRequired(false)
         ).addBooleanOption(bo => bo
-            .setName('interpretnewlines')
+            .setName('interpret_newlines')
             .setDescription('Convert <newline> tags into line breaks')
             .setRequired(false)
         ).addBooleanOption(bo => bo
@@ -85,7 +85,7 @@ export const slashCommand = {
                     ? CHARACTER_COLORS.find(c => c.name === characterColor)?.hex ?? null
                     : null
         const stretchGradient = interaction.options.getBoolean('stretch') ?? false
-        const interpretNewlines = interaction.options.getBoolean('interpretNewlines') ?? true
+        const interpretNewlines = interaction.options.getBoolean('interpret_newlines') ?? true
 
         if (!color && gradient === 'none') {
             await reply({
