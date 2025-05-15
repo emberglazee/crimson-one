@@ -147,6 +147,10 @@ export default {
                 .setName('ephemeral')
                 .setDescription('Show the generated text only to you')
                 .setRequired(false)
+            ).addBooleanOption(bo => bo
+                .setName('character_mode')
+                .setDescription('Generate text character by character (cursed, for maximum chaos)')
+                .setRequired(false)
             )
         ).addSubcommand(sc => sc
             .setName('info')
@@ -225,6 +229,7 @@ export default {
             const channel = source === null ? (interaction.options.getChannel('channel') as TextChannel | null) ?? undefined : undefined
             const words = interaction.options.getInteger('words') ?? 20
             const seed = interaction.options.getString('seed') ?? undefined
+            const characterMode = interaction.options.getBoolean('character_mode') ?? false
 
             await deferReply({ flags: ephemeral ? MessageFlags.Ephemeral : undefined })
 
@@ -285,7 +290,8 @@ export default {
                     user,
                     words,
                     seed,
-                    global: source === 'global'
+                    global: source === 'global',
+                    characterMode
                 })
 
                 // Clean up event listener
@@ -301,8 +307,9 @@ export default {
                         source === 'global' ? 'Global' : 'This server',
                         channel ? `Channel: #${channel.name ?? channel.id}` : null,
                         user ? `User: @${user.tag}` : null,
-                        words !== 20 ? `Words: ${words}` : null,
-                        seed ? `Seed: "${seed}"` : null
+                        words !== 20 ? (characterMode ? `Characters: ${words}` : `Words: ${words}`) : null,
+                        seed ? `Seed: "${seed}"` : null,
+                        characterMode ? 'Mode: Character-by-character (cursed)' : null
                     ].filter(Boolean).join(', ') || 'None'}`
                 })
             } catch (error) {
