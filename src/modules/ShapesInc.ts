@@ -44,7 +44,7 @@ export default class ShapesInc {
     private duelLastSpeaker: string | null = null
     private duelConversation: { author: string, content: string, isShape: boolean, timestamp: number }[] = []
     private duelLastSent: number = 0
-    private readonly DUEL_MIN_INTERVAL_MS = 15_000
+    private readonly DUEL_MIN_INTERVAL_MS = 5_000
 
     static getInstance(client?: Client, channelId?: string): ShapesInc {
         if (!ShapesInc.instance) {
@@ -523,12 +523,6 @@ export default class ShapesInc {
 
     private async _processDuelTurn() {
         if (!this.duelMode || !this.duelChannelId || !this.duelShapes) return
-        // Enforce min interval
-        const now = Date.now()
-        const sinceLast = now - this.duelLastSent
-        if (sinceLast < this.DUEL_MIN_INTERVAL_MS) {
-            await new Promise(res => setTimeout(res, this.DUEL_MIN_INTERVAL_MS - sinceLast))
-        }
         // Determine which shape should reply
         let nextShape: string
         if (!this.duelLastSpeaker) {
@@ -567,8 +561,9 @@ export default class ShapesInc {
                 allowedMentions: { repliedUser: true, parse: ['users'] }
             })
             this.duelLastSpeaker = nextShape
+            // Move the interval logic here: set duelLastSent after all async work is done
             this.duelLastSent = Date.now()
-            // Continue the duel if still enabled
+            // Continue the duel if still enabled, but wait the interval AFTER all async work
             if (this.duelMode) {
                 setTimeout(() => this._processDuelTurn(), this.DUEL_MIN_INTERVAL_MS)
             }
