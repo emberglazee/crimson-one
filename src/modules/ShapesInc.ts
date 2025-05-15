@@ -9,7 +9,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import { parseNetscapeCookieFile } from '../util/functions'
 import OpenAI from 'openai'
-import { ChannelType, Client, Message, TextChannel, Webhook } from 'discord.js'
+import { ChannelType, Client, Message, TextChannel, Webhook, AttachmentBuilder } from 'discord.js'
 import { TYPING_EMOJI } from '../util/constants'
 
 export default class ShapesInc {
@@ -153,7 +153,7 @@ export default class ShapesInc {
     }
 
     // --- Legacy API: Cookie-based methods (unchanged) ---
-    async sendMessage(message: string, attachment_url: string | null = null, shapeUsername?: string): Promise<string> {
+    async sendMessage(message: string, attachment_url: string | null = null, shapeUsername?: string): Promise<ShapesIncSendMessageResponse> {
         logger.info('{sendMessage} Sending message...')
         const username = shapeUsername || this.currentShapeUsername
         const shape = this.shapes.get(username)
@@ -182,8 +182,7 @@ export default class ShapesInc {
             logger.error(`{sendMessage} Error sending message:\n${json.error}`)
             throw new Error(json.error)
         }
-        // Extract the message string from the response object
-        return (json as ShapesIncSendMessageResponse).text || ''
+        return json as ShapesIncSendMessageResponse
     }
     async clearChat(shapeUsername?: string): Promise<ShapesIncClearChatResponse> {
         const ts = Math.floor(Date.now() / 1000)
@@ -309,7 +308,7 @@ export default class ShapesInc {
      * Process a Discord message: format, extract image, and send to Shapes API
      * @param message Discord.js Message object
      */
-    async processDiscordMessage(message: Message, shapeUsername?: string): Promise<string> {
+    async processDiscordMessage(message: Message, shapeUsername?: string): Promise<ShapesIncSendMessageResponse> {
         let msg = ''
         if (message.reference) {
             try {
@@ -399,23 +398,37 @@ export default class ShapesInc {
         if (message.channel.id !== this.channelId) return
         if (message.channel.type !== ChannelType.GuildText) return
         const typingMsg = await message.channel.send(`${TYPING_EMOJI} Shape is typing...`)
-        let res = ''
+        let res: ShapesIncSendMessageResponse | undefined
+        const files: AttachmentBuilder[] = []
         try {
             res = await this.processDiscordMessage(message, shapeUsername)
             const webhook = await this.getOrCreateWebhook()
             const avatar = this.getShapeAvatarUrl(this.shapeId)
+            // If there's a voice_reply_url, try to download and attach it
+            if (res.voice_reply_url) {
+                try {
+                    const voiceRes = await fetch(res.voice_reply_url)
+                    if (voiceRes.ok) {
+                        const buffer = Buffer.from(await voiceRes.arrayBuffer())
+                        files.push(new AttachmentBuilder(buffer, { name: 'voice.mp3' }))
+                    }
+                } catch (err) {
+                    logger.warn(`{handleMessage} Failed to fetch voice_reply_url: ${err instanceof Error ? err.message : err}`)
+                }
+            }
             await typingMsg.delete().catch(() => {})
             await webhook.send({
-                content: res || 'I HATE YOU MONARCH!',
+                content: res.text || 'I HATE YOU MONARCH!',
                 username: this.shapeDisplayName || this.shapeUsername,
                 avatarURL: avatar,
-                allowedMentions: { repliedUser: true, parse: ['users'] }
+                allowedMentions: { repliedUser: true, parse: ['users'] },
+                files: files.length > 0 ? files : undefined
             })
         } catch (err) {
             const error = err instanceof Error ? err.message : inspect(err)
             logger.warn(`{handleMessage} Webhook failed: ${error}`)
             await typingMsg.delete().catch(() => {})
-            await message.reply(res + '\n\n-# epic webhook fail' || 'I HATE YOU MONARCH!')
+            await message.reply((res?.text ?? '') + '\n\n-# epic webhook fail' || 'I HATE YOU MONARCH!')
         }
     }
 
@@ -536,17 +549,30 @@ export default class ShapesInc {
         // Compose the prompt for the shape
         const prompt = `**${lastMsg.author}**: ${lastMsg.content}`
         // Get shape reply
-        let reply = ''
+        let reply: ShapesIncSendMessageResponse | undefined
+        const files: AttachmentBuilder[] = []
         try {
             reply = await this.sendMessage(prompt, null, nextShape)
+            // If there's a voice_reply_url, try to download and attach it
+            if (reply.voice_reply_url) {
+                try {
+                    const voiceRes = await fetch(reply.voice_reply_url)
+                    if (voiceRes.ok) {
+                        const buffer = Buffer.from(await voiceRes.arrayBuffer())
+                        files.push(new AttachmentBuilder(buffer, { name: 'voice.mp3' }))
+                    }
+                } catch (err) {
+                    logger.warn(`{duel} Failed to fetch voice_reply_url: ${err instanceof Error ? err.message : err}`)
+                }
+            }
         } catch (err) {
             logger.error(`{duel} Error getting shape reply: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
-            reply = '...'
+            reply = { id: '', text: '...', voice_reply_url: null, timestamp: Date.now() }
         }
         // Add shape reply to conversation
         this._addToDuelConversation({
             author: nextShape,
-            content: reply,
+            content: reply.text,
             isShape: true,
             timestamp: Date.now()
         })
@@ -555,10 +581,11 @@ export default class ShapesInc {
             const webhook = await this.getOrCreateWebhookForShape(nextShape, this.duelChannelId)
             const avatar = this.getShapeAvatarUrl(this.shapes.get(nextShape)!.id)
             await webhook.send({
-                content: reply || '...',
+                content: reply.text || '...',
                 username: this.shapes.get(nextShape)!.displayName,
                 avatarURL: avatar,
-                allowedMentions: { repliedUser: true, parse: ['users'] }
+                allowedMentions: { repliedUser: true, parse: ['users'] },
+                files: files.length > 0 ? files : undefined
             })
             this.duelLastSpeaker = nextShape
             // Move the interval logic here: set duelLastSent after all async work is done
