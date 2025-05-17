@@ -183,8 +183,8 @@ export default class ShapesInc {
         const json = await res.json()
         if (json.error) {
             logger.error(`{sendMessage} Error sending message:\n${json.error}`)
-            if (json.error === 'not_authorized') {
-                await this.handleNotAuthorized()
+            if (json.error === 'not_authenticated') {
+                await this.handleNotAuthenticated()
             }
             throw new Error(json.error)
         }
@@ -215,8 +215,8 @@ export default class ShapesInc {
         const json = await res.json()
         if (json.error) {
             logger.error(`{clearChat} Error: ${json.error}`)
-            if (json.error === 'not_authorized') {
-                await this.handleNotAuthorized()
+            if (json.error === 'not_authenticated') {
+                await this.handleNotAuthenticated()
             }
             throw new Error(json.error)
         }
@@ -239,8 +239,8 @@ export default class ShapesInc {
         const json = await res.json()
         if (json.error) {
             logger.error(`{getChatHistory} Error: ${json.error}`)
-            if (json.error === 'not_authorized') {
-                await this.handleNotAuthorized()
+            if (json.error === 'not_authenticated') {
+                await this.handleNotAuthenticated()
             }
             throw new Error(json.error)
         }
@@ -259,8 +259,8 @@ export default class ShapesInc {
         const json = await res.json()
         if (json.error) {
             logger.error(`{fetchShapeByUsername} Error: ${json.error}`)
-            if (json.error === 'not_authorized') {
-                await this.handleNotAuthorized()
+            if (json.error === 'not_authenticated') {
+                await this.handleNotAuthenticated()
             }
             throw new Error(json.error)
         }
@@ -278,8 +278,8 @@ export default class ShapesInc {
         const json = await res.json()
         if (json.error) {
             logger.error(`{fetchShapeByUUID} Error: ${json.error}`)
-            if (json.error === 'not_authorized') {
-                await this.handleNotAuthorized()
+            if (json.error === 'not_authenticated') {
+                await this.handleNotAuthenticated()
             }
             throw new Error(json.error)
         }
@@ -647,7 +647,7 @@ export default class ShapesInc {
         }
     }
 
-    private async handleNotAuthorized() {
+    private async handleNotAuthenticated() {
         if (this.waitingForCookies) return
         this.waitingForCookies = true
         try {
