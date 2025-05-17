@@ -43,8 +43,16 @@ export default {
                 .setDescription('Channel ID for the duel (required if enabling)')
                 .setRequired(false)
             )
+        ).addSubcommand(sc => sc
+            .setName('set_cookies')
+            .setDescription('Update ShapesInc cookies (EMBERGLAZE only)')
+            .addAttachmentOption(ao => ao
+                .setName('cookies')
+                .setDescription('Netscape cookies.txt file')
+                .setRequired(true)
+            )
         ),
-    async execute({ editReply, deferReply }, interaction) {
+    async execute({ editReply, deferReply, reply, myId }, interaction) {
         await deferReply()
         const subcommand = interaction.options.getSubcommand()
         switch (subcommand) {
@@ -89,6 +97,35 @@ export default {
                 } else {
                     shapesInc.disableDuelMode()
                     await editReply('Duel mode disabled.')
+                }
+                break
+            }
+            case 'set_cookies': {
+                const user = interaction.user
+                if (user.id !== myId) {
+                    await reply('❌ You, solely, are responsible for this')
+                    return
+                }
+                const attachment = interaction.options.getAttachment('cookies', true)
+                if (!attachment.name.toLowerCase().includes('cookie')) {
+                    await editReply('❌ The file name must contain "cookie".')
+                    return
+                }
+                try {
+                    const res = await fetch(attachment.url)
+                    const content = await res.text()
+                    const { parseNetscapeCookieFile } = await import('../util/functions')
+                    const cookiesArr = parseNetscapeCookieFile(content)
+                    if (!cookiesArr.length) throw new Error('No cookies parsed from file')
+                    const cookiesStr = cookiesArr.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
+                    const fs = (await import('fs/promises')).default
+                    const path = (await import('path')).default
+                    await fs.writeFile(path.join(__dirname, '../../data/shapesinc-cookies.txt'), content, 'utf-8')
+                    const { shapesInc } = await import('..')
+                    shapesInc.cookies = cookiesStr
+                    await editReply('✅ Cookies updated from file!')
+                } catch (err) {
+                    await editReply('❌ Failed to update cookies: ' + (err instanceof Error ? err.message : String(err)))
                 }
                 break
             }

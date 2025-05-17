@@ -19,7 +19,7 @@ export default class ShapesInc {
     private constructor(public client: Client, channelId: string) {
         this.channelId = channelId
     }
-    private cookies!: string
+    public cookies!: string
     public userId = 'ab8f795b-cc33-4189-9430-a6917bb85398'
 
     // --- Multi-shape support ---
