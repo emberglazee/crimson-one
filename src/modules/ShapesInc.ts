@@ -421,7 +421,7 @@ export default class ShapesInc {
                 content: res.text || 'I HATE YOU MONARCH!',
                 username: this.shapeDisplayName || this.shapeUsername,
                 avatarURL: avatar,
-                allowedMentions: { repliedUser: true, parse: ['users'] },
+                allowedMentions: { parse: [] },
                 files: files.length > 0 ? files : undefined
             })
         } catch (err) {
