@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, MessageFlags, AttachmentBuilder } from 'discord.js'
+import { SlashCommandBuilder, AttachmentBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 
 export default {
@@ -9,29 +9,21 @@ export default {
             .setName('text')
             .setDescription('OwO what\'s this?')
             .setRequired(true)
-        ).addBooleanOption(bo => bo
-            .setName('ephemeral')
-            .setDescription('Should the message be ephemeral?')
-            .setRequired(false)
         ),
-    async execute({ reply }, interaction) {
-        const inputText = interaction.options.getString('text', true)
+    async execute(context) {
+        const { reply } = context
+        const inputText = await context.getStringOption('text', true)
         const outputText = owoTranslate(inputText)
-        const ephemeral = interaction.options.getBoolean('ephemeral') || false
 
         if (outputText.length > 2000) {
             const buffer = Buffer.from(outputText, 'utf-8')
             const attachment = new AttachmentBuilder(buffer, { name: 'OwO.txt' })
 
             await reply({
-                files: [attachment],
-                flags: ephemeral ? MessageFlags.Ephemeral : undefined
+                files: [attachment]
             })
         } else {
-            await reply({
-                content: outputText,
-                flags: ephemeral ? MessageFlags.Ephemeral : undefined
-            })
+            await reply(outputText)
         }
     }
 } satisfies SlashCommand

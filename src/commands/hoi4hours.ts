@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js'
+import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 
 const { STEAM_API_KEY, STEAM_ID } = process.env
@@ -6,17 +6,10 @@ const { STEAM_API_KEY, STEAM_ID } = process.env
 export default {
     data: new SlashCommandBuilder()
         .setName('hoi4hours')
-        .setDescription('Check the Steam API for emberglaze\'s hours in HOI4')
-        .addBooleanOption(bo => bo
-            .setName('ephemeral')
-            .setDescription('Should the response show up only for you?')
-            .setRequired(false)
-        ),
-    async execute({ editReply, deferReply }, interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
-        await deferReply({
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
-        })
+        .setDescription('Check the Steam API for emberglaze\'s hours in HOI4'),
+    async execute(context) {
+        const { editReply, deferReply } = context
+        await deferReply()
 
         interface SteamAPIResponse {
             response: {

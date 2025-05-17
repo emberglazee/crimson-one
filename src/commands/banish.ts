@@ -1,5 +1,4 @@
 import { ChannelType, InteractionContextType, SlashCommandBuilder } from 'discord.js'
-import { guildMember } from '../util/functions'
 import { GuildSlashCommand } from '../types/types'
 
 export default {
@@ -11,13 +10,14 @@ export default {
             .setDescription('Server member to banish')
             .setRequired(true)
         ).setContexts(InteractionContextType.Guild),
-    async execute({ reply, followUp, guild, pingMe }, interaction) {
+    async execute(context) {
+        const { reply, followUp, guild, pingMe } = context
         if (!guild) {
             await reply(`❌ why is \`interaction.guild\` nonexistant i thought i set the interaction context type to guilds only wtf ${pingMe}`)
             return
         }
 
-        const member = guildMember(interaction.member)
+        const member = context.member
         if (!member) {
             await reply(`❌ for some reason i cant find you as a server member *sigh* ${pingMe}`)
             return
@@ -27,7 +27,7 @@ export default {
             return
         }
 
-        const target = interaction.options.getUser('member', true)
+        const target = await context.getUserOption('member', true)
         const targetMember = await guild.members.fetch(target)
         if (!targetMember) {
             await reply(`❌ ${pingMe} target member doesnt exist, FIX MEEEEEEEEE`)

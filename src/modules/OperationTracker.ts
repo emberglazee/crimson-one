@@ -1,7 +1,7 @@
 import { Logger } from '../util/logger'
 const logger = new Logger('OperationTracker')
 
-type OperationType = 'COMMAND' | 'TASK' | 'JOB' | 'EVENT' | 'OTHER'
+type OperationType = 'SLASH_COMMAND' | 'TEXT_COMMAND' | 'TASK' | 'JOB' | 'EVENT' | 'OTHER'
 type OperationStatus = 'RUNNING' | 'COMPLETED' | 'FAILED'
 
 interface Operation {

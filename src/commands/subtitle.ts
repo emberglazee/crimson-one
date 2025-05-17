@@ -1,4 +1,4 @@
-import { AttachmentBuilder, MessageFlags, SlashCommandBuilder, ContextMenuCommandBuilder, InteractionContextType, ApplicationCommandType } from 'discord.js'
+import { AttachmentBuilder, SlashCommandBuilder, ContextMenuCommandBuilder, InteractionContextType, ApplicationCommandType } from 'discord.js'
 import { SlashCommand, ContextMenuCommand } from '../types/types'
 import { QuoteImageFactory } from '../modules/QuoteImageFactory'
 import { type GradientType, COLORS, ROLE_COLORS, CHARACTER_COLORS } from '../util/colors'
@@ -63,20 +63,16 @@ export const slashCommand = {
             .setName('interpret_newlines')
             .setDescription('Convert <newline> tags into line breaks')
             .setRequired(false)
-        ).addBooleanOption(bo => bo
-            .setName('ephemeral')
-            .setDescription('Make the response visible only to you')
-            .setRequired(false)
         ),
-    async execute({ reply, deferReply, editReply, guild }, interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
-        const style = interaction.options.getString('style', true) as 'ac7' | 'pw' | 'hd2'
-        const speaker = interaction.options.getString('speaker', true)
-        const text = interaction.options.getString('text', true)
-        const gradient = (interaction.options.getString('gradient') ?? 'none') as GradientType
-        const roleColor = interaction.options.getString('rolecolor')
-        const plainColor = interaction.options.getString('color')
-        const characterColor = interaction.options.getString('charactercolor')
+    async execute(context) {
+        const { reply, deferReply, editReply, guild } = context
+        const style = (await context.getStringOption('style', true)) as 'ac7' | 'pw' | 'hd2'
+        const speaker = await context.getStringOption('speaker', true)
+        const text = await context.getStringOption('text', true)
+        const gradient = (await context.getStringOption('gradient') ?? 'none') as GradientType
+        const roleColor = await context.getStringOption('rolecolor')
+        const plainColor = await context.getStringOption('color')
+        const characterColor = await context.getStringOption('charactercolor')
         const color = roleColor
             ? ROLE_COLORS.find(c => c.name === roleColor)?.hex ?? null
             : plainColor
@@ -84,24 +80,19 @@ export const slashCommand = {
                 : characterColor
                     ? CHARACTER_COLORS.find(c => c.name === characterColor)?.hex ?? null
                     : null
-        const stretchGradient = interaction.options.getBoolean('stretch') ?? false
-        const interpretNewlines = interaction.options.getBoolean('interpret_newlines') ?? true
+        const stretchGradient = await context.getBooleanOption('stretch', false)
+        const interpretNewlines = await context.getBooleanOption('interpret_newlines', true)
 
         if (!color && gradient === 'none') {
-            await reply({
-                content: '❌ You must provide either a color, role color, character color, or a gradient color',
-                flags: ephemeral ? MessageFlags.Ephemeral : undefined
-            })
+            await reply('❌ You must provide either a color, role color, character color, or a gradient color')
             return
         }
 
-        await deferReply({
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
-        })
+        await deferReply()
         const factory = QuoteImageFactory.getInstance()
         factory.setGuild(guild!)
         try {
-            const result = await factory.createQuoteImage(speaker, text, color, gradient, stretchGradient, style, interpretNewlines)
+            const result = await factory.createQuoteImage(speaker, text, color, gradient, stretchGradient ?? false, style, interpretNewlines)
             await editReply({
                 files: [
                     new AttachmentBuilder(result.buffer)

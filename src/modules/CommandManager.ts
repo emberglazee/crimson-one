@@ -4,13 +4,18 @@ import { Logger, yellow, red } from '../util/logger'
 const logger = new Logger('CommandManager')
 
 import {
-    SlashCommandBuilder, PermissionsBitField,
+    SlashCommandBuilder,
     ContextMenuCommandBuilder, Client, CommandInteraction,
     type RESTPostAPIChatInputApplicationCommandsJSONBody,
     type RESTPostAPIContextMenuApplicationCommandsJSONBody,
     REST, Routes, ContextMenuCommandInteraction,
     MessageContextMenuCommandInteraction,
-    UserContextMenuCommandInteraction
+    UserContextMenuCommandInteraction,
+    Message,
+    User,
+    Guild,
+    ApplicationCommandOptionType,
+    ChatInputCommandInteraction
 } from 'discord.js'
 
 import { readdir } from 'fs/promises'
@@ -25,9 +30,14 @@ import { createHash } from 'crypto'
 import {
     SlashCommand, GuildSlashCommand, ContextMenuCommand,
     ClassNotInitializedError, MissingPermissionsError,
-    type ExplicitAny, type SlashCommandHelpers, type GuildId
+    type ExplicitAny, type GuildId,
+    CommandContext,
+    type JSONResolvable,
+    type OldSlashCommandHelpers
 } from '../types/types'
 import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
+import type { ArgumentsCamelCase, Argv, Options as YargsOptions } from 'yargs'
+import yargs from 'yargs'
 
 export default class CommandManager {
 
@@ -39,12 +49,15 @@ export default class CommandManager {
     private initialized = false
     private client: Client | null = null
     private rest: REST | null = null
+    public readonly prefix: string
 
-    private constructor() {}
+    private constructor(prefix = 'c1') {
+        this.prefix = prefix
+    }
 
-    public static getInstance(): CommandManager {
+    public static getInstance(prefix = 'c1'): CommandManager {
         if (!CommandManager.instance) {
-            CommandManager.instance = new CommandManager()
+            CommandManager.instance = new CommandManager(prefix)
         }
         return CommandManager.instance
     }
@@ -52,6 +65,13 @@ export default class CommandManager {
     public setClient(client: Client) {
         this.client = client
         this.rest = new REST().setToken(client.token!)
+        this.client.on('messageCreate', async message => {
+            if (message.author.bot || !message.guild) return
+            // Basic check for prefix to avoid parsing every message with yargs
+            if (message.content.startsWith(this.prefix)) {
+                await this.handleMessageCommand(message)
+            }
+        })
     }
 
     public async init() {
@@ -79,7 +99,7 @@ export default class CommandManager {
 
             const importedModule = await import(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, `../commands/${file.name}`))
             const commands: (SlashCommand | ContextMenuCommand)[] = []
-            const commandInfo: { name: string, type: string, guildId?: GuildId }[] = []
+            const commandInfo: { name: string, type: string, guildId?: GuildId, aliases?: string[] }[] = [] // Added aliases
 
             // Handle both default and named exports
             for (const [_, exportedItem] of Object.entries(importedModule)) {
@@ -108,8 +128,9 @@ export default class CommandManager {
                 } else if (CommandManager.isGlobalSlashCommand(command)) {
 
                     this.globalCommands.set(command.data.name, command)
+                    if (command.aliases) command.aliases.forEach(alias => this.globalCommands.set(alias, command)) // Add aliases
                     commands.push(command)
-                    commandInfo.push({ name: command.data.name, type: 'global slash' })
+                    commandInfo.push({ name: command.data.name, type: 'global slash/text', aliases: command.aliases })
 
                 }
             }
@@ -121,7 +142,7 @@ export default class CommandManager {
             return { file: file.name, commands: commandInfo, time: Date.now() - startTime }
 
         } catch (err) {
-            console.log(err)
+            logger.warn(`{loadCommands} Error loading commands from ${yellow(file.name)}: ${err}`)
             return { file: file.name, commands: [], time: Date.now() - startTime, error: err }
         }
 
@@ -135,7 +156,7 @@ export default class CommandManager {
         const files = await readdir(dir, { withFileTypes: true })
         logger.info(`{loadCommands} Found ${yellow(files.length)} files in ${yellow(dir)}`)
 
-        const importPromises: Promise<{ file: string; commands: { name: string; type: string; guildId?: string }[]; time: number; error?: unknown }>[] = []
+        const importPromises: Promise<{ file: string; commands: { name: string; type: string; guildId?: string, aliases?: string[] }[]; time: number; error?: unknown }>[] = []
         for (const file of files) {
 
             if (file.isDirectory())
@@ -178,107 +199,172 @@ export default class CommandManager {
     public async handleInteraction(interaction: CommandInteraction | ContextMenuCommandInteraction): Promise<void> {
 
         if (!this.initialized) throw new ClassNotInitializedError()
-        const matchingCommand = this.findMatchingCommand(interaction)
-        if (!matchingCommand) {
-
-            const errorMessage = `Command ${interaction.commandName} not found`
-            logger.warn(`{handleInteraction} Unknown command /${yellow(interaction.commandName)}`)
-            const error = new Error(errorMessage)
-            this.handleError(error, interaction)
-            return
-
-        }
-        try {
-            await this.executeCommand(matchingCommand, interaction)
-        } catch (e) {
-            this.handleError(e as Error, interaction)
-            return
-        }
-
-    }
-
-
-
-    private findMatchingCommand(interaction: CommandInteraction | ContextMenuCommandInteraction) {
-
+        if (!interaction.isChatInputCommand() && !interaction.isContextMenuCommand()) return
+        const commandName = interaction.commandName
+        let command: SlashCommand | ContextMenuCommand | undefined
         if (interaction.isChatInputCommand()) {
-
-            const guildCommands = this.guildCommands.get(interaction.guildId!)
-            if (guildCommands) {
-                const guildCommand = guildCommands.get(interaction.commandName)
-                if (guildCommand) return guildCommand
-            }
-
-            return this.globalCommands.get(interaction.commandName)
-
+            command = this.findMatchingSlashCommand(interaction.commandName, interaction.guildId)
         } else if (interaction.isContextMenuCommand()) {
-
             const type = interaction.isUserContextMenuCommand() ? 'user' : 'message'
             const key = `${interaction.commandName}-${type}`
-            return this.contextMenuCommands.get(key)
-
+            command = this.contextMenuCommands.get(key)
         }
-        return undefined
+        if (!command) {
+            const errorMessage = `Command ${commandName} not found for interaction.`
+            logger.warn(`{handleInteraction} Unknown command /${yellow(commandName)}`)
+            this.handleError(new Error(errorMessage), interaction)
+            return
+        }
+        try {
+
+            if (interaction.isChatInputCommand() && (CommandManager.isGlobalSlashCommand(command) || CommandManager.isGuildSlashCommand(command))) {
+                const context = new CommandContext(interaction as ChatInputCommandInteraction) // Ensure it's ChatInputCommandInteraction
+                await this.executeUnifiedCommand(command, context)
+            } else if (interaction.isContextMenuCommand() && CommandManager.isContextMenuCommand(command)) {
+                const helpersForContextMenu: OldSlashCommandHelpers = {
+                    reply: interaction.reply.bind(interaction),
+                    deferReply: interaction.deferReply.bind(interaction),
+                    editReply: interaction.editReply.bind(interaction),
+                    followUp: interaction.followUp.bind(interaction),
+                    getUserAvatar: (user: User, guild: Guild | null, options) => getUserAvatar(user, guild || interaction.guild, options),
+                    client: interaction.client,
+                    guild: interaction.guild,
+                    myId: EMBERGLAZE_ID,
+                    pingMe: PING_EMBERGLAZE
+                }
+                if (interaction.isUserContextMenuCommand() && command.type === 2) {
+                    await (command.execute as (helpers: OldSlashCommandHelpers, i?: UserContextMenuCommandInteraction) => Promise<void>)(helpersForContextMenu, interaction)
+                } else if (interaction.isMessageContextMenuCommand() && command.type === 3) {
+                    await (command.execute as (helpers: OldSlashCommandHelpers, i?: MessageContextMenuCommandInteraction) => Promise<void>)(helpersForContextMenu, interaction)
+                } else {
+                    throw new Error('Context menu command type mismatch with interaction type')
+                }
+            } else {
+                throw new Error('Command type mismatch with interaction type for execution.')
+            }
+
+        } catch (e) {
+            this.handleError(e as Error, interaction)
+        }
 
     }
 
 
 
-    private async executeCommand(command: SlashCommand | ContextMenuCommand<2 | 3>, interaction: CommandInteraction | ContextMenuCommandInteraction) {
+    public async handleMessageCommand(message: Message): Promise<void> {
 
+        if (!this.initialized || !message.content.startsWith(this.prefix) || message.author.bot) return
+
+        const contentWithoutPrefix = message.content.slice(this.prefix.length).trim()
+        const commandParts = contentWithoutPrefix.split(/ +/) // Used for raw args in Context, and yargs input
+        const commandName = commandParts[0]?.toLowerCase()
+
+        if (!commandName) return
+
+        const command = this.findMatchingSlashCommand(commandName, message.guildId)
+
+        if (!command || (!CommandManager.isGlobalSlashCommand(command) && !CommandManager.isGuildSlashCommand(command))) {
+            logger.warn(`{handleMessageCommand} Text command "${commandName}" not found.`)
+            return
+        }
+
+        const context = new CommandContext(message, commandParts)
+        try {
+
+            const yargsParser = this.buildYargsParserForCommand(command as SlashCommand, message)
+            // Yargs parseAsync will throw on validation error (like missing required option) if not caught by .fail
+            const parsedYargsArgs = await yargsParser.parseAsync() // This will throw if .fail doesn't or if other errors occur
+
+            const yargsCommandPath = parsedYargsArgs._.map(String)
+            const commandDataJson = command.data.toJSON()
+
+            if (commandDataJson.options?.some(o => o.type === ApplicationCommandOptionType.SubcommandGroup)) {
+                if (yargsCommandPath.length > 0) context.subcommandGroupName = yargsCommandPath[0]
+                if (yargsCommandPath.length > 1) context.subcommandName = yargsCommandPath[1]
+            } else if (commandDataJson.options?.some(o => o.type === ApplicationCommandOptionType.Subcommand)) {
+                if (yargsCommandPath.length > 0) context.subcommandName = yargsCommandPath[0]
+            }
+            context.parsedArgs = parsedYargsArgs as ArgumentsCamelCase<{ [key: string]: JSONResolvable }>
+
+            await this.executeUnifiedCommand(command as SlashCommand, context)
+
+        } catch (e) {
+
+            // If error is from yargs parsing (e.g. missing required option),
+            // the .fail handler should have already replied.
+            // We check if the error message indicates yargs handled it, or if it's an execution error.
+            // The `handleError` will attempt to reply again if not careful.
+            // For now, let `handleError` manage it, but be mindful of double replies.
+            // The yargs .fail handler replies, and then parseAsync throws.
+            // So, we might not need to call `this.handleError` if `e` is a yargs validation error.
+            // Let's assume if `e.name === 'YError'` it was a yargs parsing error already handled by `fail`.
+            if (e instanceof Error && (e as ExplicitAny).name === 'YError') {
+                logger.warn(`{handleMessageCommand} Yargs parsing/validation error for "${commandName}", .fail handler should have replied.`)
+                // Optionally, do nothing more here as .fail() in yargs already sent a message.
+                return
+            }
+            this.handleError(e as Error, message, commandName)
+
+        }
+
+    }
+
+
+    private findMatchingSlashCommand(commandName: string, guildId?: string | null): SlashCommand | undefined {
+
+        if (guildId) {
+            const guildCommands = this.guildCommands.get(guildId)
+            if (guildCommands) {
+                const guildCommand = guildCommands.get(commandName)
+                if (guildCommand) return guildCommand
+            }
+        }
+        return this.globalCommands.get(commandName)
+
+    }
+
+
+
+
+    private async executeUnifiedCommand(command: SlashCommand, context: CommandContext): Promise<void> {
+
+        const commandIdentifier = (CommandManager.isGlobalSlashCommand(command) || CommandManager.isGuildSlashCommand(command))
+            ? command.data.name
+            : 'unknown_command'
         return operationTracker.track(
-            `command:${interaction.commandName}`,
-            'COMMAND',
+            `command:${commandIdentifier}`,
+            context.isInteraction ? 'SLASH_COMMAND' : 'TEXT_COMMAND',
             async () => {
                 try {
 
                     if (!command.execute) {
-                        throw new Error(`Command ${interaction.commandName} does not have an execute method`)
+                        throw new Error(`Command ${commandIdentifier} does not have an execute method`)
                     }
-
-                    const helpers: SlashCommandHelpers = {
-                        reply: interaction.reply.bind(interaction),
-                        deferReply: interaction.deferReply.bind(interaction),
-                        editReply: interaction.editReply.bind(interaction),
-                        followUp: interaction.followUp.bind(interaction),
-                        getUserAvatar: getUserAvatar.bind(interaction),
-                        client: interaction.client,
-                        guild: interaction.guild,
-                        myId: EMBERGLAZE_ID,
-                        pingMe: PING_EMBERGLAZE
-                    }
-
-                    const memberPermissions = interaction.memberPermissions ?? new PermissionsBitField()
-                    if (command.permissions && memberPermissions.missing(command.permissions)) {
-                        throw new MissingPermissionsError('Missing permissions to run the command', memberPermissions.missing(command.permissions))
-                    }
-
-                    if (interaction.isChatInputCommand() && CommandManager.isSlashCommand(command)) {
-                        await command.execute(helpers, interaction)
-                    } else if (interaction.isContextMenuCommand() && CommandManager.isContextMenuCommand(command)) {
-
-                        if (interaction.isUserContextMenuCommand() && command.type === 2) {
-                            await (command.execute as (helpers: SlashCommandHelpers, i?: UserContextMenuCommandInteraction) => Promise<void>)(helpers, interaction)
-                        } else if (interaction.isMessageContextMenuCommand() && command.type === 3) {
-                            await (command.execute as (helpers: SlashCommandHelpers, i?: MessageContextMenuCommandInteraction) => Promise<void>)(helpers, interaction)
-                        } else {
-                            throw new Error('Context menu command type mismatch with interaction type')
-                        }
-
-                    } else {
-                        throw new Error('Command type mismatch with interaction type')
-                    }
+                    const memberPerms = context.memberPermissions
+                    if (command.permissions && memberPerms) {
+                        const missing = memberPerms.missing(command.permissions.map(p => p.valueOf()))
+                        if (missing.length > 0) {
+                           throw new MissingPermissionsError(
+                               `You are missing the following permissions: ${missing.join(', ')}`,
+                               missing
+                           )
+                       }
+                   } else if (command.permissions && !memberPerms) {
+                       throw new Error('Could not determine member permissions.')
+                   }
+                   await command.execute(context)
 
                 } catch (err) {
 
                     const error = err as Error
-                    logger.warn(`{executeCommand} Error in ${yellow(command.data.name)} => ${red(error.message)}`)
-                    if (error.message === 'Unknown interaction') {
-                        logger.warn(`{executeCommand} Error is "Unknown interaction", did the interaction time out on Discord's end?`)
+                    logger.warn(`{executeUnifiedCommand} Error in ${yellow(commandIdentifier)} (${context.isInteraction ? 'Interaction' : 'Message'}): ${red(error.message)}`)
+                    if (error.message.toLowerCase().includes('unknown interaction') || error.message.toLowerCase().includes('unknown message')) {
+                        logger.warn(`{executeUnifiedCommand} Discord API error, interaction/message may have timed out or been deleted.`)
                         return
                     }
-                    logger.warn('{executeCommand} Error isn\'t "Unknown interaction", throwing it again, let `handleError()` deal with it')
-                    throw err
+                    // Re-throw to be caught by handleInteraction/handleMessageCommand's try-catch,
+                    // which will then call this.handleError
+                    throw error
 
                 }
             }
@@ -288,14 +374,191 @@ export default class CommandManager {
 
 
 
-    private handleError(e: Error, interaction: CommandInteraction | ContextMenuCommandInteraction) {
+    private buildYargsOptions(yargsInstance: Argv, options: Readonly<ExplicitAny[]>) {
+        for (const option of options) {
+            const opt = option as ExplicitAny
+            const yargsOptConfig: YargsOptions = {
+                describe: opt.description,
+                // THIS IS KEY: yargs will use this to enforce required options
+                required: opt.required || false,
+                // Provide a requiredArg description for yargs' help output
+                // Not a direct yargs property, but good to keep in mind if customizing help
+            }
 
-        logger.warn(`{handleInteraction} Error in ${yellow(interaction.commandName)}: ${red(e.message)}`)
-        try {
-            if (!interaction.deferred) interaction.reply(`❌ Deferred interaction error: \`${e.message}\``)
-            else interaction.editReply(`❌ Interaction error: \`${e.message}\``)
-        } catch (err) {
-            logger.warn(`{handleInteraction} Could not reply to the interaction to signal the error; did the interaction time out? [${red(err instanceof Error ? err.message : String(err))}]`)
+            // Add `requiredArg: opt.required` to help text for clarity if yargs shows it
+            if (opt.required) {
+                yargsOptConfig.describe = `(Required) ${opt.description}`
+            }
+
+
+            switch (opt.type) {
+                case ApplicationCommandOptionType.String:
+                    yargsOptConfig.type = 'string'
+                    if (opt.choices) yargsOptConfig.choices = opt.choices.map((c: { name: string, value: string }) => c.value)
+                    break
+                case ApplicationCommandOptionType.Integer: // For integer, yargs handles parsing string to number.
+                case ApplicationCommandOptionType.Number:
+                    yargsOptConfig.type = 'number'
+                    if (opt.type === ApplicationCommandOptionType.Integer) yargsOptConfig.coerce = (arg: ExplicitAny) => parseInt(arg,10)
+                    if (opt.choices) yargsOptConfig.choices = opt.choices.map((c: { name: string, value: number }) => c.value)
+                    break
+                case ApplicationCommandOptionType.Boolean:
+                    yargsOptConfig.type = 'boolean'
+                    break
+                case ApplicationCommandOptionType.User:
+                case ApplicationCommandOptionType.Channel:
+                case ApplicationCommandOptionType.Role:
+                case ApplicationCommandOptionType.Mentionable:
+                    yargsOptConfig.type = 'string' // Resolved later by CommandContext
+                    break
+                case ApplicationCommandOptionType.Attachment:
+                    yargsOptConfig.type = 'boolean'
+                    yargsOptConfig.default = false
+                    yargsOptConfig.describe = `${opt.description} (Upload file with message when using this flag for text commands.)`
+                    if (opt.required) yargsOptConfig.describe = `(Required) ${yargsOptConfig.describe}`
+                    break
+                default:
+                    logger.warn(`{buildYargsOptions} Unsupported option type: ${opt.type} for ${opt.name}`)
+                    yargsOptConfig.type = 'string'
+            }
+            yargsInstance.option(opt.name, yargsOptConfig)
+        }
+    }
+
+
+
+    private buildYargsParserForCommand(commandDef: SlashCommand, message: Message): Argv<{}> {
+        const baseCommandData = commandDef.data.toJSON()
+        const messageArgs = message.content.slice(this.prefix.length).trim().split(/ +/).slice(1)
+        const parser = yargs(messageArgs)
+
+        parser
+            .scriptName(`${this.prefix}${baseCommandData.name}`)
+            .help("h").alias("h", "help")
+            .version(false)
+            .exitProcess(false) // Crucial: prevents yargs from killing the bot
+            .recommendCommands()
+            .strict() // Report unrecognized options/commands
+            .fail(async (msg, err, yargsInstance) => { // This is yargs' error handler
+                let reply = ''
+                if (msg) reply += msg // Usually help text or yargs' own error message.
+                if (err) { // If an actual error object was passed by yargs
+                    if (reply) reply += '\n'
+                    reply += `Error: ${err.message}`
+                    logger.warn(`{buildYargsParserForCommand} Yargs parsing error for ${baseCommandData.name}: ${err.message}`)
+                }
+                if (!reply) reply = "Invalid command usage." // Fallback
+
+                // Append usage help if available
+                const usageHelp = await yargsInstance.getHelp()
+                if (usageHelp) {
+                    reply += `\n\nUsage:\n${usageHelp}`
+                }
+                await message.reply(reply.trim())
+                // To stop further execution in handleMessageCommand, parseAsync will throw this error.
+                // The error thrown by parseAsync after .fail is called will have a .name of 'YError'
+                // (This behavior depends on yargs version, ensure it throws to stop command execution)
+            })
+
+        const topLevelOptions = baseCommandData.options?.filter(
+            (opt: ExplicitAny) => opt.type !== ApplicationCommandOptionType.Subcommand &&
+                                  opt.type !== ApplicationCommandOptionType.SubcommandGroup
+        ) || []
+        if (topLevelOptions.length > 0) {
+            this.buildYargsOptions(parser, topLevelOptions)
+        }
+
+        const subRelatedOptions = baseCommandData.options?.filter(
+            (opt: ExplicitAny) => opt.type === ApplicationCommandOptionType.Subcommand ||
+                                  opt.type === ApplicationCommandOptionType.SubcommandGroup
+        ) || []
+
+        let hasSubcommandsOrGroups = false
+        if (subRelatedOptions.length > 0) {
+            hasSubcommandsOrGroups = true
+            for (const option of subRelatedOptions) {
+                const optData = option as ExplicitAny
+                if (optData.type === ApplicationCommandOptionType.Subcommand) {
+                    parser.command(
+                        optData.name,
+                        optData.description,
+                        (yargsSubcommand: Argv) => {
+                            if (optData.options) this.buildYargsOptions(yargsSubcommand, optData.options)
+                            return yargsSubcommand
+                        },
+                        async _argv => {} // Handler not strictly needed here for routing
+                    )
+                } else if (optData.type === ApplicationCommandOptionType.SubcommandGroup) {
+                    parser.command(
+                        optData.name,
+                        optData.description,
+                        (yargsGroup: Argv) => {
+                            if (optData.options && Array.isArray(optData.options)) {
+                                for (const subCmdOpt of optData.options) {
+                                     if (subCmdOpt.type === ApplicationCommandOptionType.Subcommand) {
+                                        yargsGroup.command(
+                                            subCmdOpt.name, subCmdOpt.description,
+                                            (yargsSubcommand: Argv) => {
+                                                if (subCmdOpt.options) this.buildYargsOptions(yargsSubcommand, subCmdOpt.options)
+                                                return yargsSubcommand
+                                            },
+                                            async _argv => {}
+                                        )
+                                    }
+                                }
+                            }
+                            yargsGroup.demandCommand(1, `You need to specify a subcommand for '${optData.name}'.`)
+                            return yargsGroup
+                        },
+                        async _argv => {}
+                    )
+                }
+            }
+        }
+
+        // If the command is essentially a container for subcommands (no top-level options defined in SlashCommandBuilder)
+        // then demand a subcommand.
+        if (hasSubcommandsOrGroups && topLevelOptions.length === 0) {
+            parser.demandCommand(1, `This command requires a subcommand. Available: ${subRelatedOptions.map(o=>o.name).join(', ')}`)
+        }
+        return parser
+    }
+
+
+
+    private handleError(e: Error, source: CommandInteraction | ContextMenuCommandInteraction | Message, cmdName?: string): void {
+
+        const commandName = cmdName || ((source instanceof Message) ? source.content.split(' ')[0].slice(this.prefix.length) : (source as CommandInteraction).commandName)
+        let replyMessage = `❌ Error executing \`${commandName}\`: \`${e.message}\``
+
+        if (e instanceof MissingPermissionsError) {
+            replyMessage = `🚫 You don't have the required permissions for \`${commandName}\`. Missing: \`${e.permissions.join(', ')}\``
+        }
+
+        logger.warn(`{handleError} Error in ${yellow(commandName)}: ${red(e.message)}`)
+        if (e.stack) logger.warn(e.stack)
+
+
+        if (source instanceof Message) {
+            source.reply(replyMessage).catch(err =>
+                logger.warn(`{handleError} Could not reply to message to signal error: [${red(err.message)}]`)
+            )
+        } else { // It's an Interaction
+            // Try to reply or editReply based on interaction state
+            if (!source.isRepliable()) {
+                 logger.warn(`{handleError} Interaction for ${commandName} is not repliable.`)
+                 return
+            }
+
+            if (source.deferred || source.replied) {
+                source.editReply(replyMessage).catch(err =>
+                    logger.warn(`{handleError} Could not editReply to interaction for ${commandName}: [${red(err.message)}]`)
+                )
+            } else {
+                source.reply({ content: replyMessage, ephemeral: true }).catch(err =>
+                    logger.warn(`{handleError} Could not reply to interaction for ${commandName}: [${red(err.message)}]`)
+                )
+            }
         }
 
     }

@@ -23,19 +23,20 @@ export default {
                 .setDescription('text to encode into morse code')
             )
         ),
-    async execute({ reply }, interaction) {
+    async execute(context) {
+        const { reply } = context
         try {
-            const subcommand = interaction.options.getSubcommand(true)
+            const subcommand = context.getSubcommand(true)
             const morse = await import('morse')
             let code, text = ''
             switch (subcommand) {
                 case 'decode':
-                    code = interaction.options.getString('code', true)
+                    code = await context.getStringOption('code', true)
                     text = morse.decode(code)
                     await reply(text)
                     return
                 case 'encode':
-                    text = interaction.options.getString('text', true)
+                    text = await context.getStringOption('text', true)
                     code = morse.encode(text)
                     await reply(code)
                     return

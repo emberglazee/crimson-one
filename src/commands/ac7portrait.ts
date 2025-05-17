@@ -35,19 +35,20 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    async execute({ deferReply, editReply, getUserAvatar }, interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
+    async execute(context) {
+        const { editReply, getUserAvatar, deferReply } = context
+        const ephemeral = await context.getBooleanOption('ephemeral', false)
         await deferReply({
             flags: ephemeral ? MessageFlags.Ephemeral : undefined
         })
 
         // Get image URL from options
-        const attachment = interaction.options.getAttachment('image')
-        const urlOption = interaction.options.getString('url')
-        const user = interaction.options.getUser('user')
-        const name = interaction.options.getString('name', true)
-        const subtext = interaction.options.getString('subtext')
-        const useFilter = interaction.options.getBoolean('filter') ?? false
+        const attachment = await context.getAttachmentOption('image')
+        const urlOption = await context.getStringOption('url')
+        const user = await context.getUserOption('user')
+        const name = await context.getStringOption('name', true)
+        const subtext = await context.getStringOption('subtext')
+        const useFilter = await context.getBooleanOption('filter', false)
 
         // Validate image source options
         const selectedOptions = [attachment, urlOption, user].filter(Boolean).length
@@ -64,7 +65,7 @@ export default {
         if (attachment) {
             imageUrl = attachment.url
         } else if (user) {
-            imageUrl = getUserAvatar(user, interaction.guild, { size: 256, extension: 'png' })
+            imageUrl = getUserAvatar(user, context.guild, { size: 256, extension: 'png' })
         }
 
         if (!imageUrl) {

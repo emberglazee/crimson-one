@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, MessageFlags, SlashCommandSubcommandBuilder } from 'discord.js'
+import { SlashCommandBuilder, SlashCommandSubcommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 import { randRange } from '../util/functions'
 
@@ -31,10 +31,6 @@ function addCommonRollOptions(sc: SlashCommandSubcommandBuilder) {
             .setName('user')
             .setDescription('Who is the roll for?')
             .setRequired(false)
-        ).addBooleanOption(bo => bo
-            .setName('ephemeral')
-            .setDescription('Should the response only show up for you?')
-            .setRequired(false)
         )
 }
 
@@ -42,56 +38,46 @@ export default {
     data: new SlashCommandBuilder()
         .setName('roll')
         .setDescription('Do a dice roll 🎲')
-        .addSubcommand(sc => {
-            sc.setName('custom')
-                .setDescription('Roll a custom dice')
-                .addNumberOption(no => no
-                    .setName('sides')
-                    .setDescription('Number of sides on the dice')
-                    .setRequired(true)
-                    .setMinValue(1)
-                    .setMaxValue(MAX_SIDES)
-                )
+        .addSubcommand(sc => { sc
+            .setName('custom')
+            .setDescription('Roll a custom dice')
+            .addNumberOption(no => no
+                .setName('sides')
+                .setDescription('Number of sides on the dice')
+                .setRequired(true)
+                .setMinValue(1)
+                .setMaxValue(MAX_SIDES)
+            )
             return addCommonRollOptions(sc)
         })
         .addSubcommand(sc => addCommonRollOptions(sc.setName('d6').setDescription('Roll a d6 dice')))
         .addSubcommand(sc => addCommonRollOptions(sc.setName('d20').setDescription('Roll a d20 dice')))
         .addSubcommand(sc => addCommonRollOptions(sc.setName('d100').setDescription('Roll a d100 dice')))
-        .addSubcommand(sc =>
-            sc.setName('until')
-                .setDescription('Roll dice until you get a specific number 🎲')
-                .addNumberOption(no => no
-                    .setName('number')
-                    .setDescription('The number to roll until (required)')
-                    .setRequired(true)
-                    .setMinValue(1)
-                    .setMaxValue(MAX_UNTIL_SIDES)
-                )
-                .addNumberOption(no => no
-                    .setName('sides')
-                    .setDescription('Number of sides on the dice (required)')
-                    .setRequired(true)
-                    .setMinValue(1)
-                    .setMaxValue(MAX_UNTIL_SIDES)
-                )
-                .addBooleanOption(bo => bo
-                    .setName('ephemeral')
-                    .setDescription('Should the response only show up for you?')
-                    .setRequired(false)
-                )
+        .addSubcommand(sc => sc
+            .setName('until')
+            .setDescription('Roll dice until you get a specific number 🎲')
+            .addNumberOption(no => no
+                .setName('number')
+                .setDescription('The number to roll until (required)')
+                .setRequired(true)
+                .setMinValue(1)
+                .setMaxValue(MAX_UNTIL_SIDES)
+            ).addNumberOption(no => no
+                .setName('sides')
+                .setDescription('Number of sides on the dice (required)')
+                .setRequired(true)
+                .setMinValue(1)
+                .setMaxValue(MAX_UNTIL_SIDES)
+            )
         ),
-    async execute({ reply }, interaction) {
-        const subcommand = interaction.options.getSubcommand(true)
+    async execute(context) {
+        const subcommand = await context.getSubcommand(true)
         if (subcommand === 'until') {
             // /roll until logic
-            const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
-            const targetNumber = interaction.options.getNumber('number', true)
-            const sides = interaction.options.getNumber('sides', true)
+            const targetNumber = await context.getNumberOption('number', true)
+            const sides = await context.getNumberOption('sides', true)
             if (targetNumber > sides) {
-                await reply({
-                    content: `❌ The target number (${targetNumber}) cannot be greater than the number of sides (${sides})!`,
-                    flags: ephemeral ? MessageFlags.Ephemeral : undefined
-                })
+                await context.reply(`❌ The target number (${targetNumber}) cannot be greater than the number of sides (${sides})!`)
                 return
             }
             let rolls = 0
@@ -108,21 +94,17 @@ export default {
             const message = rolls === MAX_ITERATIONS
                 ? `🎲 Rolled ${rolls} times and never got ${targetNumber} on a d${sides} in ${duration}ms! Here are the last 10 rolls: ${rollHistory.slice(-10).join(', ')}`
                 : `🎲 Got ${targetNumber} on a d${sides} after ${rolls} rolls in ${duration}ms! Here are the last 10 rolls: ${rollHistory.slice(-10).join(', ')}`
-            await reply({
-                content: message,
-                flags: ephemeral ? MessageFlags.Ephemeral : undefined
-            })
+            await context.reply(message)
             return
         }
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
-        const user = interaction.options.getUser('user') ?? interaction.user
-        const rolls = interaction.options.getNumber('rolls') ?? 1
-        const action = interaction.options.getString('action')
+        const user = await context.getUserOption('user') ?? context.user
+        const rolls = await context.getNumberOption('rolls') ?? 1
+        const action = await context.getStringOption('action')
 
         let sides: number
         switch (subcommand) {
             case 'custom':
-                sides = interaction.options.getNumber('sides', true)
+                sides = await context.getNumberOption('sides', true)
                 break
             case 'd6':
                 sides = 6
@@ -145,9 +127,6 @@ export default {
             ? `${user} rolls ${rollText} (🎲 ${rolls}d${sides}) for ${action}`
             : `${user} rolls ${rollText} (🎲 ${rolls}d${sides})`
 
-        await reply({
-            content: message,
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
-        })
+        await context.reply(message)
     }
 } satisfies SlashCommand

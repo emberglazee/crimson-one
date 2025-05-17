@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js'
+import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 import { inspect } from 'util'
 
@@ -10,28 +10,19 @@ export default {
             .setName('code')
             .setDescription('The code to evaluate')
             .setRequired(true)
-        ).addBooleanOption(bo => bo
-            .setName('ephemeral')
-            .setDescription('Should the response show up only for you?')
-            .setRequired(false)
         ),
-    async execute({ reply, deferReply, editReply, myId }, interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
+    async execute(context) {
+        const { reply, deferReply, editReply, myId } = context
 
-        const user = interaction.user
+        const user = context.user
         if (user.id !== myId) {
-            await reply({
-                content: '❌ You, solely, are responsible for this',
-                flags: ephemeral ? MessageFlags.Ephemeral : undefined
-            })
+            await reply('❌ You, solely, are responsible for this')
             return
         }
 
-        await deferReply({
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
-        })
+        await deferReply()
 
-        const code = interaction.options.getString('code', true)
+        const code = await context.getStringOption('code', true)
         try {
             const result = eval(code)
             const output = typeof result === 'string' ? result : inspect(result)

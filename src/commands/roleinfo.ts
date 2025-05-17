@@ -1,5 +1,5 @@
 import { SlashCommand } from '../types/types'
-import { MessageFlags, SlashCommandBuilder, EmbedBuilder, Role } from 'discord.js'
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js'
 
 export default {
     data: new SlashCommandBuilder()
@@ -9,22 +9,14 @@ export default {
             .setName('role')
             .setDescription('The role to get information about')
             .setRequired(true)
-        ).addBooleanOption(bo => bo
-            .setName('ephemeral')
-            .setDescription('Should the response only show up for you?')
-            .setRequired(false)
         ),
-    async execute({ reply, guild }, interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
-
-        if (!guild) {
-            await reply({
-                content: '❌ This command can only be used in a server!',
-                flags: ephemeral ? MessageFlags.Ephemeral : undefined
-            })
+    async execute(context) {
+        const { reply } = context
+        if (!context.guild) {
+            await reply('❌ This command can only be used in a server!')
         }
 
-        const role = interaction.options.getRole('role', true) as Role
+        const role = await context.getRoleOption('role', true)
 
         const embed = new EmbedBuilder()
             .setColor(role.color)
@@ -42,8 +34,7 @@ export default {
             .setTimestamp()
 
         await reply({
-            embeds: [embed],
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
+            embeds: [embed]
         })
     }
 } satisfies SlashCommand

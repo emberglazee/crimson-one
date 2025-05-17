@@ -12,13 +12,14 @@ export default {
             .setDescription('Server member to unbanish')
             .setRequired(true)
         ).setContexts(InteractionContextType.Guild),
-    async execute({ reply, followUp, guild }, interaction) {
+    async execute(context) {
+        const { reply, followUp, guild } = context
         if (!guild) {
             await reply(`❌ why is \`interaction.guild\` nonexistant i thought i set the interaction context type to guilds only wtf ${PING_EMBERGLAZE}`)
             return
         }
 
-        const member = guildMember(interaction.member)
+        const member = guildMember(context.member)
         if (!member) {
             await reply(`❌ for some reason i cant find you as a server member *sigh* ${PING_EMBERGLAZE}`)
             return
@@ -28,7 +29,7 @@ export default {
             return
         }
 
-        const target = interaction.options.getUser('member', true)
+        const target = await context.getUserOption('member', true)
         const targetMember = await guild.members.fetch(target)
         if (!targetMember) {
             await reply(`❌ ${PING_EMBERGLAZE} target member doesnt exist, FIX MEEEEEEEEE`)

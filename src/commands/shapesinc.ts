@@ -27,18 +27,15 @@ export default {
                 .setName('enabled')
                 .setDescription('Enable or disable duel mode')
                 .setRequired(true)
-            )
-            .addStringOption(so => so
+            ).addStringOption(so => so
                 .setName('shape_a')
                 .setDescription('Username of the first shape (required if enabling)')
                 .setRequired(false)
-            )
-            .addStringOption(so => so
+            ).addStringOption(so => so
                 .setName('shape_b')
                 .setDescription('Username of the second shape (required if enabling)')
                 .setRequired(false)
-            )
-            .addStringOption(so => so
+            ).addStringOption(so => so
                 .setName('channel_id')
                 .setDescription('Channel ID for the duel (required if enabling)')
                 .setRequired(false)
@@ -52,17 +49,18 @@ export default {
                 .setRequired(true)
             )
         ),
-    async execute({ editReply, deferReply, reply, myId }, interaction) {
+    async execute(context) {
+        const { editReply, deferReply, myId } = context
         await deferReply()
-        const subcommand = interaction.options.getSubcommand()
+        const subcommand = context.getSubcommand()
         switch (subcommand) {
             case 'wack':
                 await shapesInc.clearChat()
                 await editReply('Chat history cleared')
                 break
             case 'change_shape':
-                const vanity = interaction.options.getString('vanity')
-                const uuid = interaction.options.getString('uuid')
+                const vanity = await context.getStringOption('vanity')
+                const uuid = await context.getStringOption('uuid')
                 if (vanity) {
                     await shapesInc.changeShapeByUsername(vanity)
                 }
@@ -72,11 +70,11 @@ export default {
                 await editReply(`Shape changed to ${shapesInc.shapeUsername}`)
                 break
             case 'duel_mode': {
-                const enabled = interaction.options.getBoolean('enabled')
+                const enabled = await context.getBooleanOption('enabled')
                 if (enabled) {
-                    const shapeAInput = interaction.options.getString('shape_a')
-                    const shapeBInput = interaction.options.getString('shape_b')
-                    const channelId = interaction.options.getString('channel_id')
+                    const shapeAInput = await context.getStringOption('shape_a')
+                    const shapeBInput = await context.getStringOption('shape_b')
+                    const channelId = await context.getStringOption('channel_id')
                     if (!shapeAInput || !shapeBInput || !channelId) {
                         await editReply('You must provide shape_a, shape_b, and channel_id to enable duel mode.')
                         return
@@ -101,12 +99,12 @@ export default {
                 break
             }
             case 'set_cookies': {
-                const user = interaction.user
+                const user = context.user
                 if (user.id !== myId) {
-                    await reply('❌ You, solely, are responsible for this')
+                    await context.reply('❌ You, solely, are responsible for this')
                     return
                 }
-                const attachment = interaction.options.getAttachment('cookies', true)
+                const attachment = await context.getAttachmentOption('cookies', true)
                 if (!attachment.name.toLowerCase().includes('cookie')) {
                     await editReply('❌ The file name must contain "cookie".')
                     return
