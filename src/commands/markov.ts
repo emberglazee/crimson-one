@@ -519,6 +519,7 @@ export default {
                             user,
                             userId,
                             limit,
+                            disableUserApiLookup: true
                         })
                         logger.ok(`Collected ${yellow(count)} messages from #${yellow(targetChannel.name)}`)
                     } catch (err) {

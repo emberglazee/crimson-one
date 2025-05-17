@@ -89,10 +89,11 @@ export class MarkovChat extends EventEmitter<{
         userId?: string
         limit?: number | 'entire'
         delayMs?: number
+        disableUserApiLookup?: boolean
     } = {}) {
         if (!this.client) throw new Error('Client not set')
 
-        const { user, userId, limit = 1000, delayMs = 1000 } = options
+        const { user, userId, limit = 1000, delayMs = 1000, disableUserApiLookup = false } = options
         const messages: DiscordMessage[] = []
         const startTime = Date.now()
         const MAX_RETRIES = 3
@@ -114,7 +115,7 @@ export class MarkovChat extends EventEmitter<{
 
         // Get total message count from Discord API if collecting entire channel
         let totalMessageCount: number | null = null
-        if (isEntireChannel && !user && channel.type === ChannelType.GuildText) {
+        if (isEntireChannel && !user && channel.type === ChannelType.GuildText && !disableUserApiLookup) {
             logger.info(`Attempting to fetch total message count for channel ${yellow(channel.id)}`)
             totalMessageCount = await getChannelMessageCount(this.client, channel.guild.id, channel.id)
             if (totalMessageCount) {
