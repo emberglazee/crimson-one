@@ -11,9 +11,9 @@ export default {
             .setRequired(true)
         ),
     async execute(context) {
-        const { reply } = context
+        // const { reply } = context
         if (!context.guild) {
-            await reply('❌ This command can only be used in a server!')
+            await context.reply('❌ This command can only be used in a server!')
         }
 
         const role = await context.getRoleOption('role', true)
@@ -33,7 +33,7 @@ export default {
             )
             .setTimestamp()
 
-        await reply({
+        await context.reply({
             embeds: [embed]
         })
     }

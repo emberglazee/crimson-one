@@ -46,7 +46,6 @@ export default {
         ),
 
     async execute(context) {
-        const { reply, guild } = context
         const user = await context.getUserOption('user', false) ?? context.user
         const raw = await context.getBooleanOption('raw', false) ?? false
         const ext = await context.getStringOption('extension', false) as ImageExtension ?? 'png'
@@ -55,35 +54,35 @@ export default {
 
         let avatar = ''
         if (guildOrGlobal === 'guild') {
-            if (!guild) {
+            if (!context.guild) {
                 // not in a guild, using global avatar instead
                 avatar = user.displayAvatarURL({ extension: ext, size: size })
             } else {
-                const member = await guild.members.fetch(user.id)
-                if (!member) await reply('❌ User not found in this server')
+                const member = await context.guild.members.fetch(user.id)
+                if (!member) await context.reply('❌ User not found in this server')
                 avatar = member.displayAvatarURL({ extension: ext, size: size })
             }
         } else if (guildOrGlobal === 'global') {
             avatar = user.displayAvatarURL({ extension: ext, size: size })
         }
         let response = avatar
-        if (guildOrGlobal === 'guild' && !guild) {
+        if (guildOrGlobal === 'guild' && !context.guild) {
             response += '\n-# This is the global avatar, as the command was ran outside a server'
         }
         if (raw) {
-            await reply(response)
+            await context.reply(response)
             return
         }
         const embed = new EmbedBuilder()
             .setTitle(`Avatar of ${user.username}`)
             .setImage(avatar)
             .setColor('#F96302')
-        if (guildOrGlobal === 'guild' && !guild) {
+        if (guildOrGlobal === 'guild' && !context.guild) {
             embed.setFooter({
                 text: 'This is the global avatar, as the command was ran outside a server'
             })
         }
-        await reply({
+        await context.reply({
             embeds: [embed]
         })
     }

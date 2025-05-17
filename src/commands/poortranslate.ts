@@ -22,7 +22,6 @@ export default {
         ),
 
     async execute(context) {
-        const { deferReply, editReply } = context
         const time1 = process.hrtime()
         const inputText = await context.getStringOption('text', true)
         const randomizeChain = await context.getBooleanOption('randomize_chain', false)
@@ -43,7 +42,7 @@ export default {
             if (languages[languages.length - 1] !== exitLang) languages.push(exitLang)
         }
 
-        await deferReply()
+        await context.deferReply()
 
         let translatedText = inputText
         const totalSteps = languages.length
@@ -63,7 +62,7 @@ export default {
             if (currentStep > lastReportedStep) {
                 lastReportedStep = currentStep
                 const progressBar = createProgressBar(currentStep, totalSteps)
-                editReply(`Translating... ${progressBar} (${currentStep}/${totalSteps})`)
+                context.editReply(`Translating... ${progressBar} (${currentStep}/${totalSteps})`)
                     .catch(console.error)
             }
         }, 5000)
@@ -79,7 +78,7 @@ export default {
         } catch (error) {
             console.error('Translation error:', error)
             clearInterval(progressInterval)
-            await editReply(`An error occurred during translation: ${error}`)
+            context.editReply(`An error occurred during translation: ${error}`)
             return
         }
 
@@ -87,6 +86,6 @@ export default {
         clearInterval(progressInterval)
         const time2 = process.hrtime(time1)
         const elapsedSeconds = (time2[0] + time2[1] / 1e9).toFixed(3)
-        await editReply(`**Poorly translated:**\n${inputText}\n**into:**\n${translatedText}\n-# Time: ${elapsedSeconds}s`)
+        context.editReply(`**Poorly translated:**\n${inputText}\n**into:**\n${translatedText}\n-# Time: ${elapsedSeconds}s`)
     }
 } satisfies SlashCommand

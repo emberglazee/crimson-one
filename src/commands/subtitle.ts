@@ -65,7 +65,6 @@ export const slashCommand = {
             .setRequired(false)
         ),
     async execute(context) {
-        const { reply, deferReply, editReply, guild } = context
         const style = (await context.getStringOption('style', true)) as 'ac7' | 'pw' | 'hd2'
         const speaker = await context.getStringOption('speaker', true)
         const text = await context.getStringOption('text', true)
@@ -84,23 +83,23 @@ export const slashCommand = {
         const interpretNewlines = await context.getBooleanOption('interpret_newlines', true)
 
         if (!color && gradient === 'none') {
-            await reply('❌ You must provide either a color, role color, character color, or a gradient color')
+            await context.reply('❌ You must provide either a color, role color, character color, or a gradient color')
             return
         }
 
-        await deferReply()
+        await context.deferReply()
         const factory = QuoteImageFactory.getInstance()
-        factory.setGuild(guild!)
+        factory.setGuild(context.guild!)
         try {
             const result = await factory.createQuoteImage(speaker, text, color, gradient, stretchGradient ?? false, style, interpretNewlines)
-            await editReply({
+            await context.editReply({
                 files: [
                     new AttachmentBuilder(result.buffer)
                         .setName(`subtitle.${result.type === 'image/gif' ? 'gif' : 'png'}`)
                 ]
             })
         } catch (error) {
-            await editReply('❌ Failed to generate subtitle image: ' + (error instanceof Error ? error.message : 'Unknown error'))
+            await context.editReply('❌ Failed to generate subtitle image: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
 } satisfies SlashCommand

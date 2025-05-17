@@ -6,8 +6,7 @@ export default {
         .setName('myresolution')
         .setDescription('Sends the "my resolution - airstrike" meme'),
     async execute(context) {
-        const { reply } = context
-        await reply({
+        await context.reply({
             files: [{
                 attachment: './data/my resolution.mp4',
                 name: 'my resolution.mp4'
