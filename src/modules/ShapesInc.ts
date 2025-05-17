@@ -49,6 +49,7 @@ export default class ShapesInc {
     private waitingForCookies: boolean = false
     private cookiesUpdateResolver?: (cookies: string) => void
 
+    // --- Singleton & Initialization ---
     static getInstance(client?: Client, channelId?: string): ShapesInc {
         if (!ShapesInc.instance) {
             if (!client || !channelId) throw new Error('Client and channelId must be provided for first ShapesInc instantiation')
@@ -57,9 +58,6 @@ export default class ShapesInc {
         return ShapesInc.instance
     }
 
-    /**
-     * Initialize both legacy (cookie) and new (API key) credentials
-     */
     async init() {
         // Legacy cookie init
         const cookiesPath = path.join(__dirname, '../../data/shapesinc-cookies.txt')
@@ -85,166 +83,46 @@ export default class ShapesInc {
         }
     }
 
-    // --- Multi-shape management ---
+    // --- Shape Management ---
     public async addShapeByUsername(shapeUsername: string) {
         const data = await this.fetchShapeByUsername(shapeUsername)
         this.shapes.set(data.username, { id: data.id, username: data.username, displayName: data.name })
         if (!this.currentShapeUsername) this.currentShapeUsername = data.username
     }
+
     public async addShapeByUUID(uuid: string) {
         const data = await this.fetchShapeByUUID(uuid)
         this.shapes.set(data.username, { id: data.id, username: data.username, displayName: data.name })
         if (!this.currentShapeUsername) this.currentShapeUsername = data.username
     }
+
     public setCurrentShape(username: string) {
         if (!this.shapes.has(username)) throw new Error(`Shape ${username} not found`)
         this.currentShapeUsername = username
     }
+
     public getCurrentShape() {
         return this.shapes.get(this.currentShapeUsername)
     }
+
     public getShapeUsernames() {
         return Array.from(this.shapes.keys())
     }
 
-    // --- New API: OpenAI-compatible Shapes API ---
-    /**
-     * Send a message using the new OpenAI-compatible Shapes API
-     * Downside: big rate limit (5 requests per minute)
-     * @param message The message to send
-     * @param imageUrl Optional image URL to send as multimodal input
-     */
-    async sendMessageAPI(message: string, imageUrl?: string, shapeUsername?: string): Promise<string> {
-        if (!this.openaiClient) {
-            throw new Error('OpenAI client not initialized')
-        }
-        const username = shapeUsername || this.currentShapeUsername
-        if (!this.shapes.has(username)) throw new Error(`Shape ${username} not loaded`)
-        const model = `shapesinc/${username}`
-        let messages: OpenAI.Chat.ChatCompletionMessageParam[]
-        if (imageUrl) {
-            // only one message supported per request; conversation memory is handled in the Shape itself (legacy cookie-based)
-            messages = [
-                {
-                    role: 'user',
-                    content: [
-                        { type: 'text', text: message },
-                        { type: 'image_url', image_url: { url: imageUrl } }
-                    ]
-                }
-            ]
-        } else {
-            messages = [
-                { role: 'user', content: message }
-            ]
-        }
-        try {
-            const resp = await this.openaiClient.chat.completions.create({
-                model,
-                messages
-            })
-            if (resp.choices && resp.choices.length > 0) {
-                return resp.choices[0].message.content || ''
-            } else {
-                logger.error('{sendMessageAPI} No choices in response')
-                return ''
-            }
-        } catch (err) {
-            logger.error(`{sendMessageAPI} Error: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
-            throw err
-        }
+    public async changeShapeByUUID(uuid: string) {
+        const data = await this.fetchShapeByUUID(uuid)
+        this.shapes.set(data.username, { id: data.id, username: data.username, displayName: data.name })
+        this.currentShapeUsername = data.username
+        this.avatarCache = undefined
+        await this.fetchShapeAvatarBase64(data.id)
     }
 
-    // --- Legacy API: Cookie-based methods (unchanged) ---
-    async sendMessage(message: string, attachment_url: string | null = null, shapeUsername?: string): Promise<ShapesIncSendMessageResponse> {
-        logger.info('{sendMessage} Sending message...')
-        const username = shapeUsername || this.currentShapeUsername
-        const shape = this.shapes.get(username)
-        if (!shape) throw new Error(`Shape ${username} not loaded`)
-        const url = `https://shapes.inc/api/shapes/${shape.id}/chat`
-        const body = JSON.stringify({
-            message,
-            shapeId: shape.id,
-            attachment_url
-        })
-        const cookies = this.cookies
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'cookie': cookies
-            },
-            body
-        }).catch(err => {
-            logger.error(`{sendMessage} Error sending message:\n${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
-            throw err
-        })
-        logger.ok('{sendMessage} Done')
-        const json = await res.json()
-        if (json.error) {
-            logger.error(`{sendMessage} Error sending message:\n${json.error}`)
-            if (json.error === 'not_authenticated') {
-                await this.handleNotAuthenticated()
-            }
-            throw new Error(json.error)
-        }
-        return json as ShapesIncSendMessageResponse
-    }
-    async clearChat(shapeUsername?: string): Promise<ShapesIncClearChatResponse> {
-        const ts = Math.floor(Date.now() / 1000)
-        logger.info('{clearChat} Clearing chat...')
-        const username = shapeUsername || this.currentShapeUsername
-        const shape = this.shapes.get(username)
-        if (!shape) throw new Error(`Shape ${username} not loaded`)
-        const url = `https://shapes.inc/api/shapes/${shape.id}/wack`
-        const body = JSON.stringify({
-            shapeId: shape.id,
-            ts,
-            user_id: this.userId
-        })
-        const cookies = this.cookies
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'cookie': cookies
-            },
-            body
-        })
-        logger.ok('{clearChat} Done')
-        const json = await res.json()
-        if (json.error) {
-            logger.error(`{clearChat} Error: ${json.error}`)
-            if (json.error === 'not_authenticated') {
-                await this.handleNotAuthenticated()
-            }
-            throw new Error(json.error)
-        }
-        return json as ShapesIncClearChatResponse
-    }
-    async getChatHistory(shapeUsername?: string): Promise<ShapesIncGetChatHistoryResponse<20>> {
-        logger.info('{getChatHistory} Getting chat history...')
-        const username = shapeUsername || this.currentShapeUsername
-        const shape = this.shapes.get(username)
-        if (!shape) throw new Error(`Shape ${username} not loaded`)
-        const url = `https://shapes.inc/api/shapes/${shape.id}/chat/history?limit=20&shape_id=${shape.id}`
-        const cookies = this.cookies
-        const res = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'cookie': cookies
-            }
-        })
-        logger.ok('{getChatHistory} Done')
-        const json = await res.json()
-        if (json.error) {
-            logger.error(`{getChatHistory} Error: ${json.error}`)
-            if (json.error === 'not_authenticated') {
-                await this.handleNotAuthenticated()
-            }
-            throw new Error(json.error)
-        }
-        return json as ShapesIncGetChatHistoryResponse<20>
+    public async changeShapeByUsername(shapeUsername: string) {
+        const data = await this.fetchShapeByUsername(shapeUsername)
+        this.shapes.set(data.username, { id: data.id, username: data.username, displayName: data.name })
+        this.currentShapeUsername = data.username
+        this.avatarCache = undefined
+        await this.fetchShapeAvatarBase64(data.id)
     }
 
     async fetchShapeByUsername(shapeUsername: string) {
@@ -266,6 +144,7 @@ export default class ShapesInc {
         }
         return json as ShapesIncShape
     }
+
     async fetchShapeByUUID(uuid: string) {
         const url = `https://shapes.inc/api/shapes/${uuid}`
         const cookies = this.cookies
@@ -284,21 +163,6 @@ export default class ShapesInc {
             throw new Error(json.error)
         }
         return json as ShapesIncShape
-    }
-
-    public async changeShapeByUUID(uuid: string) {
-        const data = await this.fetchShapeByUUID(uuid)
-        this.shapes.set(data.username, { id: data.id, username: data.username, displayName: data.name })
-        this.currentShapeUsername = data.username
-        this.avatarCache = undefined
-        await this.fetchShapeAvatarBase64(data.id)
-    }
-    public async changeShapeByUsername(shapeUsername: string) {
-        const data = await this.fetchShapeByUsername(shapeUsername)
-        this.shapes.set(data.username, { id: data.id, username: data.username, displayName: data.name })
-        this.currentShapeUsername = data.username
-        this.avatarCache = undefined
-        await this.fetchShapeAvatarBase64(data.id)
     }
 
     public async fetchShapeAvatarBase64(uuid: string): Promise<string> {
@@ -342,6 +206,142 @@ export default class ShapesInc {
         return `https://files.shapes.inc/api/files/avatar_${uuidOrUsername}.png`
     }
 
+    // --- API Communication ---
+    async sendMessageAPI(message: string, imageUrl?: string, shapeUsername?: string): Promise<string> {
+        if (!this.openaiClient) {
+            throw new Error('OpenAI client not initialized')
+        }
+        const username = shapeUsername || this.currentShapeUsername
+        if (!this.shapes.has(username)) throw new Error(`Shape ${username} not loaded`)
+        const model = `shapesinc/${username}`
+        let messages: OpenAI.Chat.ChatCompletionMessageParam[]
+        if (imageUrl) {
+            // only one message supported per request; conversation memory is handled in the Shape itself (legacy cookie-based)
+            messages = [
+                {
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: message },
+                        { type: 'image_url', image_url: { url: imageUrl } }
+                    ]
+                }
+            ]
+        } else {
+            messages = [
+                { role: 'user', content: message }
+            ]
+        }
+        try {
+            const resp = await this.openaiClient.chat.completions.create({
+                model,
+                messages
+            })
+            if (resp.choices && resp.choices.length > 0) {
+                return resp.choices[0].message.content || ''
+            } else {
+                logger.error('{sendMessageAPI} No choices in response')
+                return ''
+            }
+        } catch (err) {
+            logger.error(`{sendMessageAPI} Error: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
+            throw err
+        }
+    }
+
+    async sendMessage(message: string, attachment_url: string | null = null, shapeUsername?: string): Promise<ShapesIncSendMessageResponse> {
+        logger.info('{sendMessage} Sending message...')
+        const username = shapeUsername || this.currentShapeUsername
+        const shape = this.shapes.get(username)
+        if (!shape) throw new Error(`Shape ${username} not loaded`)
+        const url = `https://shapes.inc/api/shapes/${shape.id}/chat`
+        const body = JSON.stringify({
+            message,
+            shapeId: shape.id,
+            attachment_url
+        })
+        const cookies = this.cookies
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'cookie': cookies
+            },
+            body
+        }).catch(err => {
+            logger.error(`{sendMessage} Error sending message:\n${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
+            throw err
+        })
+        logger.ok('{sendMessage} Done')
+        const json = await res.json()
+        if (json.error) {
+            logger.error(`{sendMessage} Error sending message:\n${json.error}`)
+            if (json.error === 'not_authenticated') {
+                await this.handleNotAuthenticated()
+            }
+            throw new Error(json.error)
+        }
+        return json as ShapesIncSendMessageResponse
+    }
+
+    async clearChat(shapeUsername?: string): Promise<ShapesIncClearChatResponse> {
+        const ts = Math.floor(Date.now() / 1000)
+        logger.info('{clearChat} Clearing chat...')
+        const username = shapeUsername || this.currentShapeUsername
+        const shape = this.shapes.get(username)
+        if (!shape) throw new Error(`Shape ${username} not loaded`)
+        const url = `https://shapes.inc/api/shapes/${shape.id}/wack`
+        const body = JSON.stringify({
+            shapeId: shape.id,
+            ts,
+            user_id: this.userId
+        })
+        const cookies = this.cookies
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'cookie': cookies
+            },
+            body
+        })
+        logger.ok('{clearChat} Done')
+        const json = await res.json()
+        if (json.error) {
+            logger.error(`{clearChat} Error: ${json.error}`)
+            if (json.error === 'not_authenticated') {
+                await this.handleNotAuthenticated()
+            }
+            throw new Error(json.error)
+        }
+        return json as ShapesIncClearChatResponse
+    }
+
+    async getChatHistory(shapeUsername?: string): Promise<ShapesIncGetChatHistoryResponse<20>> {
+        logger.info('{getChatHistory} Getting chat history...')
+        const username = shapeUsername || this.currentShapeUsername
+        const shape = this.shapes.get(username)
+        if (!shape) throw new Error(`Shape ${username} not loaded`)
+        const url = `https://shapes.inc/api/shapes/${shape.id}/chat/history?limit=20&shape_id=${shape.id}`
+        const cookies = this.cookies
+        const res = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'cookie': cookies
+            }
+        })
+        logger.ok('{getChatHistory} Done')
+        const json = await res.json()
+        if (json.error) {
+            logger.error(`{getChatHistory} Error: ${json.error}`)
+            if (json.error === 'not_authenticated') {
+                await this.handleNotAuthenticated()
+            }
+            throw new Error(json.error)
+        }
+        return json as ShapesIncGetChatHistoryResponse<20>
+    }
+
+    // --- Discord Integration ---
     /**
      * Process a Discord message: format, extract image, and send to Shapes API
      * @param message Discord.js Message object
@@ -407,6 +407,35 @@ export default class ShapesInc {
         this.webhook = webhook
         return webhook
     }
+
+    /**
+     * Get or create a webhook for a specific shape in a specific channel
+     */
+    private async getOrCreateWebhookForShape(shapeUsername: string, channelId: string): Promise<Webhook> {
+        const shape = this.shapes.get(shapeUsername)
+        if (!shape) throw new Error(`Shape ${shapeUsername} not loaded`)
+        const channel = await this.client.channels.fetch(channelId)
+        if (!channel || !(channel instanceof TextChannel)) {
+            throw new Error('ShapesInc duel channel not found or not a text channel')
+        }
+        // Try to find an existing webhook for this shape
+        const webhooks = await channel.fetchWebhooks()
+        let webhook = webhooks.find(wh => wh.name === shape.displayName)
+        if (!webhook) {
+            let avatar: string | undefined
+            try {
+                avatar = this.getShapeAvatarUrl(shape.id)
+            } catch {
+                avatar = undefined
+            }
+            webhook = await channel.createWebhook({
+                name: shape.displayName,
+                avatar
+            })
+        }
+        return webhook
+    }
+
     /**
      * Handle a Discord message: only respond if in the configured channel, and use webhook if possible
      */
@@ -470,34 +499,7 @@ export default class ShapesInc {
         }
     }
 
-    /**
-     * Get or create a webhook for a specific shape in a specific channel
-     */
-    private async getOrCreateWebhookForShape(shapeUsername: string, channelId: string): Promise<Webhook> {
-        const shape = this.shapes.get(shapeUsername)
-        if (!shape) throw new Error(`Shape ${shapeUsername} not loaded`)
-        const channel = await this.client.channels.fetch(channelId)
-        if (!channel || !(channel instanceof TextChannel)) {
-            throw new Error('ShapesInc duel channel not found or not a text channel')
-        }
-        // Try to find an existing webhook for this shape
-        const webhooks = await channel.fetchWebhooks()
-        let webhook = webhooks.find(wh => wh.name === shape.displayName)
-        if (!webhook) {
-            let avatar: string | undefined
-            try {
-                avatar = this.getShapeAvatarUrl(shape.id)
-            } catch {
-                avatar = undefined
-            }
-            webhook = await channel.createWebhook({
-                name: shape.displayName,
-                avatar
-            })
-        }
-        return webhook
-    }
-
+    // --- Duel Mode ---
     /**
      * Enable duel mode between two shapes in a specific channel
      */
@@ -547,6 +549,7 @@ export default class ShapesInc {
             }
         }
     }
+
     /**
      * Disable duel mode
      */
@@ -558,6 +561,7 @@ export default class ShapesInc {
         this.duelConversation = []
         this.duelLastSent = 0
     }
+
     /**
      * Returns whether duel mode is enabled
      */
@@ -647,6 +651,7 @@ export default class ShapesInc {
         }
     }
 
+    // --- Authentication & Cookie Handling ---
     private async handleNotAuthenticated() {
         if (this.waitingForCookies) return
         this.waitingForCookies = true
@@ -657,6 +662,7 @@ export default class ShapesInc {
             logger.error(`{handleNotAuthorized} Failed to DM EMBERGLAZE: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
         }
     }
+
     public async handlePotentialCookieDM(message: Message) {
         if (!this.waitingForCookies) return false
         if (message.author.id !== EMBERGLAZE_ID) return false
@@ -703,5 +709,4 @@ export default class ShapesInc {
         }
         return false
     }
-
 }
