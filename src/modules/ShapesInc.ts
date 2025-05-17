@@ -660,6 +660,31 @@ export default class ShapesInc {
     public async handlePotentialCookieDM(message: Message) {
         if (!this.waitingForCookies) return false
         if (message.author.id !== EMBERGLAZE_ID) return false
+        // Check for file attachment with 'cookie' in the name
+        if (!message.guild && message.attachments && message.attachments.size > 0) {
+            for (const attachment of message.attachments.values()) {
+                const name = attachment.name?.toLowerCase() || ''
+                if ((name.includes('cookie') || name.includes('cookies')) && name.endsWith('.txt')) {
+                    try {
+                        const res = await fetch(attachment.url)
+                        const content = await res.text()
+                        const cookiesArr = parseNetscapeCookieFile(content)
+                        if (!cookiesArr.length) throw new Error('No cookies parsed from attachment')
+                        const cookiesStr = cookiesArr.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
+                        await fs.writeFile(path.join(__dirname, '../../data/shapesinc-cookies.txt'), content, 'utf-8')
+                        this.cookies = cookiesStr
+                        this.waitingForCookies = false
+                        await message.reply('✅ Cookies updated from file!')
+                        return true
+                    } catch (err) {
+                        logger.error(`{handlePotentialCookieDM} Failed to update cookies from file: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
+                        await message.reply('❌ Failed to update cookies from file: ' + (err instanceof Error ? err.message : inspect(err)))
+                        return false
+                    }
+                }
+            }
+        }
+        // Fallback: check for plain text cookies in message content
         if (!message.guild && message.content && message.content.includes('TRUE')) { // crude check for Netscape cookie format
             try {
                 const cookiesArr = parseNetscapeCookieFile(message.content)
