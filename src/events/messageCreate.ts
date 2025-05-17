@@ -9,6 +9,7 @@ export default async function onMessageCreate(client: Client) {
     client.on('messageCreate', async message => {
         try {
             if (message.author === client.user) return
+            if (await shapesInc.handlePotentialCookieDM(message)) return
             await screamOnSight.processMessage(message)
 
             await shapesInc.handleMessage(message)
