@@ -1,30 +1,20 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js'
+import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 
 export default {
     data: new SlashCommandBuilder()
         .setName('update')
-        .setDescription('Execute git pull, bun install, and restart the bot')
-        .addBooleanOption(bo => bo
-            .setName('ephemeral')
-            .setDescription('Should the response show up only for you?')
-            .setRequired(false)
-        ),
-    async execute({ reply, deferReply, editReply, myId }, interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
+        .setDescription('Execute git pull, bun install, and restart the bot'),
+    async execute(context) {
+        const { reply, deferReply, editReply, myId } = context
 
-        const user = interaction.user
+        const user = context.user
         if (user.id !== myId) {
-            await reply({
-                content: '❌ You, solely, are responsible for this',
-                flags: ephemeral ? MessageFlags.Ephemeral : undefined
-            })
+            await reply('❌ You, solely, are responsible for this')
             return
         }
 
-        await deferReply({
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
-        })
+        await deferReply()
 
         try {
             // Execute git pull

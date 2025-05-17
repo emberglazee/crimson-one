@@ -22,11 +22,12 @@ export default {
             .setDescription('Whether this is a DM message (uses @me instead of guild ID)')
             .setRequired(false)
         ),
-    async execute({ reply }, interaction) {
-        const messageId = interaction.options.getString('message_id', true)
-        const isDm = interaction.options.getBoolean('is_dm') ?? interaction.channel?.isDMBased() ?? false
-        const channelId = interaction.options.getString('channel_id') ?? interaction.channelId
-        const guildId = interaction.options.getString('guild_id') ?? interaction.guildId
+    async execute(context) {
+        const { reply } = context
+        const messageId = await context.getStringOption('message_id', true)
+        const isDm = await context.getBooleanOption('is_dm') ?? context.channel?.isDMBased() ?? false
+        const channelId = await context.getStringOption('channel_id') ?? context.channel?.id
+        const guildId = await context.getStringOption('guild_id') ?? context.guild?.id
 
         const messageLink = isDm
             ? `https://discord.com/channels/@me/${channelId}/${messageId}`

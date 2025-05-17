@@ -10,8 +10,9 @@ export const slashCommand = {
             .setDescription('The user to get info about (defaults to yourself)')
             .setRequired(false)
         ),
-    async execute({ reply, guild }, interaction) {
-        const targetUser = interaction.options.getUser('user') ?? interaction.user
+    async execute(context) {
+        const { reply, guild } = context
+        const targetUser = await context.getUserOption('user') ?? context.user
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
             .setTitle('User Information')

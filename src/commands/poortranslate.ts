@@ -1,8 +1,5 @@
 import { SlashCommand } from '../types/types'
-import {
-    SlashCommandBuilder,
-    MessageFlags
-} from 'discord.js'
+import { SlashCommandBuilder } from 'discord.js'
 import { translate } from 'google-translate-api-x'
 import { shuffleArray } from '../util/functions'
 
@@ -18,22 +15,18 @@ export default {
             .setName('randomize_chain')
             .setDescription('Randomize the language translation chain')
             .setRequired(false)
-        ).addBooleanOption(bo => bo
-            .setName('ephemeral')
-            .setDescription('Should the response only be visible to you?')
-            .setRequired(false)
         ).addStringOption(so => so
             .setName('exit_lang')
             .setDescription('The language to end the translation chain with (default: en)')
             .setRequired(false)
         ),
 
-    async execute({ deferReply, editReply }, interaction) {
+    async execute(context) {
+        const { deferReply, editReply } = context
         const time1 = process.hrtime()
-        const inputText = interaction.options.getString('text', true)
-        const randomizeChain = interaction.options.getBoolean('randomize_chain') ?? false
-        const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
-        const exitLang = interaction.options.getString('exit_lang') || 'en'
+        const inputText = await context.getStringOption('text', true)
+        const randomizeChain = await context.getBooleanOption('randomize_chain', false)
+        const exitLang = await context.getStringOption('exit_lang', false) ?? 'en'
 
         let languages = [
             'la', 'ja', 'lo', 'ko',
@@ -50,9 +43,7 @@ export default {
             if (languages[languages.length - 1] !== exitLang) languages.push(exitLang)
         }
 
-        await deferReply({
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
-        })
+        await deferReply()
 
         let translatedText = inputText
         const totalSteps = languages.length
@@ -88,7 +79,7 @@ export default {
         } catch (error) {
             console.error('Translation error:', error)
             clearInterval(progressInterval)
-            await editReply({ content: `An error occurred during translation: ${error}` })
+            await editReply(`An error occurred during translation: ${error}`)
             return
         }
 

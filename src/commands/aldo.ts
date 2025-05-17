@@ -1,22 +1,15 @@
 import { SlashCommand } from '../types/types'
-import { SlashCommandBuilder, MessageFlags } from 'discord.js'
+import { SlashCommandBuilder } from 'discord.js'
 import { load } from 'cheerio'
 import { getRandomElement } from '../util/functions'
 
 export default {
     data: new SlashCommandBuilder()
         .setName('aldo')
-        .setDescription('The wikipedia nerd')
-        .addBooleanOption(bo => bo
-            .setName('ephemeral')
-            .setDescription('Should the response show up only for you?')
-            .setRequired(false)
-        ),
-    async execute({ deferReply, editReply }, interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
-        await deferReply({
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
-        })
+        .setDescription('The wikipedia nerd'),
+    async execute(context) {
+        const { editReply, deferReply } = context
+        await deferReply()
         const url = await randomProjectWingmanArticle().catch(() => '❌ Failed to get article')
         await editReply(url)
     },

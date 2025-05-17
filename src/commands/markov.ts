@@ -1,7 +1,7 @@
 import { Logger, red, yellow } from '../util/logger'
 const logger = new Logger('/markov')
 
-import { ChannelType, SlashCommandBuilder, MessageFlags, TextChannel, EmbedBuilder, Message, ChatInputCommandInteraction } from 'discord.js'
+import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message } from 'discord.js'
 
 import { formatTimeRemaining } from '../util/functions'
 import { SlashCommand } from '../types/types'
@@ -19,29 +19,26 @@ interface MessageUpdater {
 
 // Class to handle message updating with fallback support
 class InteractionMessageManager implements MessageUpdater {
-    private interaction: ChatInputCommandInteraction
-    private followUpMessagePromise: Promise<Message<boolean> | null> | null = null
+    private context: import('../types/types').CommandContext
+    private followUpMessagePromise: Promise<Message | null> | null = null
     private followUpMessage: Message | null = null
     private useFollowUp = false
-    private ephemeral: boolean
 
-    constructor(interaction: ChatInputCommandInteraction, ephemeral: boolean) {
-        this.interaction = interaction
-        this.ephemeral = ephemeral
+    constructor(context: import('../types/types').CommandContext) {
+        this.context = context
     }
 
     // Switch to using follow-up message
     public switchToFollowUp(): void {
         if (this.useFollowUp) return
         this.useFollowUp = true
-
         this.followUpMessagePromise = this.createFollowUpMessage()
     }
 
-    private async createFollowUpMessage(): Promise<Message<boolean> | null> {
+    private async createFollowUpMessage(): Promise<Message | null> {
         try {
             // First update the original message to inform users
-            await this.interaction.editReply(
+            await this.context.editReply(
                 `⏳ Operation in progress...\n` +
                 `⚠️ *This is taking longer than 14 minutes. Real-time updates will continue in a follow-up message.*`
             ).catch((err: Error) => {
@@ -49,14 +46,17 @@ class InteractionMessageManager implements MessageUpdater {
             })
 
             // Create a follow-up message that we'll update from now on
-            const followUp = await this.interaction.followUp({
-                content: `🔄 Continuing operation...\nUpdates will now appear in this message.`,
-                flags: this.ephemeral ? MessageFlags.Ephemeral : undefined
-            })
+            const followUp = await this.context.followUp('🔄 Continuing operation...\nUpdates will now appear in this message.')
 
-            this.followUpMessage = followUp
-            logger.ok(`Created follow-up message with ID ${yellow(followUp.id)}`)
-            return followUp
+            // If followUp returns void (text command), just return null
+            if (!followUp || typeof followUp !== 'object' || !('edit' in followUp)) {
+                logger.warn('Follow-up message could not be created (likely a text command).')
+                return null
+            }
+
+            this.followUpMessage = followUp as Message
+            logger.ok(`Created follow-up message with ID ${yellow((followUp as Message).id)}`)
+            return followUp as Message
         } catch (error) {
             logger.warn(`Failed to create follow-up message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
             return null
@@ -74,11 +74,11 @@ class InteractionMessageManager implements MessageUpdater {
                 if (this.followUpMessage) {
                     await this.followUpMessage.edit(content)
                 } else {
-                    // Fallback if follow-up message creation failed
-                    await this.interaction.editReply(content).catch(() => {})
+                    // Fallback if follow-up message creation failed (e.g., text command)
+                    await this.context.editReply(content).catch(() => {})
                 }
             } else {
-                await this.interaction.editReply(content)
+                await this.context.editReply(content)
             }
         } catch (error) {
             logger.warn(`Failed to update message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
@@ -94,15 +94,14 @@ class InteractionMessageManager implements MessageUpdater {
             if (this.useFollowUp && this.followUpMessage) {
                 await this.followUpMessage.edit(options)
             } else {
-                await this.interaction.editReply(options)
+                await this.context.editReply(options)
             }
         } catch (error) {
             // If both methods fail, try to send a new follow-up message with the results
             logger.warn(`Failed to send final message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
             try {
-                await this.interaction.followUp({
-                    ...options,
-                    flags: this.ephemeral ? MessageFlags.Ephemeral : undefined
+                await this.context.followUp({
+                    ...options
                 })
             } catch (finalError) {
                 logger.error(`Failed to send any completion message: ${red(finalError instanceof Error ? finalError.message : 'Unknown error')}`)
@@ -148,10 +147,6 @@ export default {
                 .setDescription('Start the generated text with specific words')
                 .setRequired(false)
             ).addBooleanOption(bo => bo
-                .setName('ephemeral')
-                .setDescription('Show the generated text only to you')
-                .setRequired(false)
-            ).addBooleanOption(bo => bo
                 .setName('character_mode')
                 .setDescription('Generate text character by character (cursed, for maximum chaos)')
                 .setRequired(false)
@@ -179,10 +174,6 @@ export default {
             ).addStringOption(so => so
                 .setName('user_id')
                 .setDescription('User ID to use if the user is not in the server')
-                .setRequired(false)
-            ).addBooleanOption(bo => bo
-                .setName('ephemeral')
-                .setDescription('Show statistics only to you')
                 .setRequired(false)
             )
         ).addSubcommand(sc => sc
@@ -213,32 +204,25 @@ export default {
                 .setName('all_channels')
                 .setDescription('Collect messages from every text channel and thread in the server')
                 .setRequired(false)
-            ).addBooleanOption(bo => bo
-                .setName('ephemeral')
-                .setDescription('Show collection progress only to you')
-                .setRequired(false)
             )
         ),
-    async execute({ reply, editReply, deferReply, followUp, guild, client }, interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral') ?? false
+    async execute(context) {
+        const { reply, editReply, deferReply, followUp, guild, client } = context
 
         if (!guild) {
             logger.info('Command used outside of a server')
-            await reply({
-                content: '❌ This command can only be used in a server',
-                flags: MessageFlags.Ephemeral
-            })
+            await reply('❌ This command can only be used in a server')
             return
         }
 
-        const subcommand = interaction.options.getSubcommand() as 'generate' | 'info' | 'collect'
+        const subcommand = await context.getStringOption('subcommand') as 'generate' | 'info' | 'collect'
         const markov = MarkovChat.getInstance()
         const dataSource = DataSource.getInstance()
 
         // Helper to resolve user from picker or user_id
         async function resolveUserOrId() {
-            const user = interaction.options.getUser('user') ?? undefined
-            const userId = interaction.options.getString('user_id') ?? undefined
+            const user = await context.getUserOption('user') ?? undefined
+            const userId = await context.getStringOption('user_id') ?? undefined
             if (user) return user
             if (userId) {
                 try {
@@ -256,20 +240,20 @@ export default {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const source = (interaction.options.getString('source') as Source)
-            const channel = source === null ? (interaction.options.getChannel('channel') as TextChannel | null) ?? undefined : undefined
-            const words = interaction.options.getInteger('words') ?? 20
-            const seed = interaction.options.getString('seed') ?? undefined
-            const characterMode = interaction.options.getBoolean('character_mode') ?? false
+            const source = (await context.getStringOption('source')) as Source
+            const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined
+            const words = await context.getIntegerOption('words') ?? 20
+            const seed = await context.getStringOption('seed') ?? undefined
+            const characterMode = await context.getBooleanOption('character_mode', false)
 
-            await deferReply({ flags: ephemeral ? MessageFlags.Ephemeral : undefined })
+            await deferReply()
 
             try {
                 logger.info(`Generating message with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
                 const timeStart = process.hrtime()
 
                 // Create message manager for handling progress updates
-                const messageManager = new InteractionMessageManager(interaction, ephemeral)
+                const messageManager = new InteractionMessageManager(context)
 
                 // Track the interaction start time to handle token expiration
                 const interactionStartTime = process.hrtime()
@@ -323,7 +307,7 @@ export default {
                     words,
                     seed,
                     global: source === 'global',
-                    characterMode
+                    characterMode: characterMode ?? undefined
                 })
 
                 // Clean up event listener
@@ -358,17 +342,17 @@ export default {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const source = (interaction.options.getString('source') as Source)
-            const channel = source === null ? (interaction.options.getChannel('channel') as TextChannel | null) ?? undefined : undefined
+            const source = (await context.getStringOption('source')) as Source
+            const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined
 
-            await deferReply({ flags: ephemeral ? MessageFlags.Ephemeral : undefined })
+            await deferReply()
 
             try {
                 logger.info(`Getting Markov info with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}`)
                 const timeStart = process.hrtime()
 
                 // Create message manager for handling progress updates
-                const messageManager = new InteractionMessageManager(interaction, ephemeral)
+                const messageManager = new InteractionMessageManager(context)
 
                 // Track the interaction start time to handle token expiration
                 const interactionStartTime = process.hrtime()
@@ -479,14 +463,12 @@ export default {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const collectEntireChannel = interaction.options.getBoolean('entire_channel') ?? false
-            const limit = collectEntireChannel ? 'entire' : (interaction.options.getInteger('limit') ?? 100_000_000)
+            const collectEntireChannel = await context.getBooleanOption('entire_channel', false)
+            const limit = collectEntireChannel ? 'entire' : (await context.getIntegerOption('limit'))
 
-            const allChannels = interaction.options.getBoolean('all_channels') ?? false
+            const allChannels = await context.getBooleanOption('all_channels', false)
             if (allChannels) {
-                await deferReply({
-                    flags: ephemeral ? MessageFlags.Ephemeral : undefined
-                })
+                await deferReply()
                 logger.info(`{collect} "allChannels" is true, collecting from every channel`)
                 const textChannels = (await guild.channels.fetch())
                     .filter(c => c &&
@@ -518,7 +500,7 @@ export default {
                         const count = await markov.collectMessages(targetChannel as TextChannel, {
                             user,
                             userId,
-                            limit,
+                            limit: limit === null ? undefined : limit,
                             disableUserApiLookup: true
                         })
                         logger.ok(`Collected ${yellow(count)} messages from #${yellow(targetChannel.name)}`)
@@ -527,19 +509,13 @@ export default {
                     }
                 }
 
-                await followUp({
-                    content: `✅ Finished collecting from all channels and threads.`,
-                    flags: ephemeral ? MessageFlags.Ephemeral : undefined
-                })
+                await followUp('✅ Finished collecting from all channels and threads.')
                 return
             }
-            const channel = interaction.options.getChannel('channel') as TextChannel
+            const channel = (await context.getChannelOption('channel')) as TextChannel
 
             if (!allChannels && !channel) {
-                await reply({
-                    content: '❌ You must specify a channel unless `allchannels` is enabled.',
-                    flags: ephemeral ? MessageFlags.Ephemeral : undefined
-                })
+                await reply('❌ You must specify a channel unless `allchannels` is enabled.')
                 return
             }
 
@@ -555,10 +531,7 @@ export default {
                 replyContent += `\n💡 Using Discord User API to fetch the total message count.`
             }
 
-            await reply({
-                content: replyContent,
-                flags: ephemeral ? MessageFlags.Ephemeral : undefined
-            })
+            await reply(replyContent)
 
             try {
                 logger.info(`Collecting messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : userId ? ` by user ID ${userId}` : ''}, limit: ${yellow(limit)}, wasFullyCollected: ${yellow(wasFullyCollected)}`)
@@ -571,7 +544,7 @@ export default {
                 const interactionStartTime = process.hrtime()
 
                 // Create the message manager for handling follow-up messages
-                const messageManager = new InteractionMessageManager(interaction, ephemeral)
+                const messageManager = new InteractionMessageManager(context)
 
                 markov.on('collectProgress', async progress => {
                     // Update every 10 batches
@@ -640,7 +613,7 @@ export default {
                 const count = await markov.collectMessages(channel, {
                     user,
                     userId,
-                    limit,
+                    limit: limit === null ? undefined : limit,
                 })
 
                 // Clean up event listeners to prevent memory leaks
@@ -675,17 +648,12 @@ export default {
                 logger.warn(`Failed to collect messages: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
 
                 try {
-                    await editReply({
-                        content: `❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`
-                    })
+                    await editReply(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
                 } catch (replyError) {
                     // If editReply fails, the token might have expired, so try to send a follow-up
                     logger.warn(`Failed to edit reply with error message: ${red(replyError instanceof Error ? replyError.message : 'Unknown error')}`)
                     try {
-                        await followUp({
-                            content: `❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                            flags: ephemeral ? MessageFlags.Ephemeral : undefined
-                        })
+                        await followUp(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
                     } catch (finalError) {
                         logger.error(`Failed to send any error message: ${red(finalError instanceof Error ? finalError.message : 'Unknown error')}`)
                     }

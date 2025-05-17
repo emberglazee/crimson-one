@@ -24,10 +24,11 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    async execute({ reply, editReply }, interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
-        const question = interaction.options.getString('question', true)
-        const theme = interaction.options.getString('theme', false)
+    async execute(context) {
+        const { reply, editReply } = context
+        const ephemeral = await context.getBooleanOption('ephemeral', false)
+        const question = await context.getStringOption('question', true)
+        const theme = await context.getStringOption('theme', false)
 
         const cascadiaResponses = [
             'As certain as Cascadia\'s victory.',
@@ -76,7 +77,7 @@ export default {
 
         const response = finalResponses[Math.floor(Math.random() * finalResponses.length)]
 
-        const msgPrefix = `💬 ${interaction.user}: *${question}*\n`
+        const msgPrefix = `💬 ${context.user}: *${question}*\n`
         const msgAnswer = `🎱 **8ball says:** ${response}`
         const msgLoading = '🔮 *Shaking the magic 8ball...*'
 

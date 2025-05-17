@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js'
+import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 import fs from 'fs/promises'
 import { getRandomElement } from '../util/functions'
@@ -10,20 +10,13 @@ let emojis: Emoji[] = []
 export default {
     data: new SlashCommandBuilder()
         .setName('randombilly')
-        .setDescription('Send a random billy emoji')
-        .addBooleanOption(bo => bo
-            .setName('ephemeral')
-            .setDescription('Should the response show up only for you?')
-            .setRequired(false)
-        ),
-    async execute({ deferReply, editReply, reply }, interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
+        .setDescription('Send a random billy emoji'),
+    async execute(context) {
+        const { reply, deferReply, editReply } = context
 
         let deferred = false
         if (!emojis.length) {
-            await deferReply({
-                flags: ephemeral ? MessageFlags.Ephemeral : undefined
-            })
+            await deferReply()
             deferred = true
             const json = JSON.parse(
                 await fs.readFile(join(__dirname, '../../data/emojis.json'), 'utf-8')
@@ -35,9 +28,6 @@ export default {
         const emojiID = Object.values(emoji)[0]
         const str = `<:${emojiName}:${emojiID}>`
 
-        deferred ? await editReply(str) : await reply({
-            content: str,
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
-        })
+        deferred ? await editReply(str) : await reply(str)
     }
 } satisfies SlashCommand

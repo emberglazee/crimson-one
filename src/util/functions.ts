@@ -1,6 +1,7 @@
 import {
     AttachmentBuilder, BaseInteraction, ChatInputCommandInteraction,
     CommandInteraction, Guild, GuildChannel, GuildMember, Message, User,
+    type APIInteractionDataResolvedGuildMember,
     type APIInteractionGuildMember, type ImageExtension, type ImageSize
 } from 'discord.js'
 import type { UserIdResolvable, ChannelIdResolvable, GuildIdResolvable, ExplicitAny } from '../types/types'
@@ -146,7 +147,7 @@ export function hasYouTubeLinkWithSI(input: string): boolean {
 /**
  * Type-safe function to exclude `APIInteractionGuildMember` from `GuildMember | null`
  */
-export function guildMember(member: GuildMember | APIInteractionGuildMember | null): GuildMember | null {
+export function guildMember(member: GuildMember | APIInteractionGuildMember | APIInteractionDataResolvedGuildMember | null): GuildMember | null {
     if (!member) return null
     if (member instanceof GuildMember) return member
     return null

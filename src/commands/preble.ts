@@ -1,20 +1,13 @@
-import { MessageFlags, SlashCommandBuilder } from 'discord.js'
+import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 
 export default {
     data: new SlashCommandBuilder()
         .setName('preble')
-        .setDescription('Preble.')
-        .addBooleanOption(bo => bo
-            .setName('ephemeral')
-            .setDescription('Should the response only show up for you?')
-            .setRequired(false)
-        ),
-    async execute({ deferReply, editReply }, interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
-        await deferReply({
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
-        })
+        .setDescription('Preble.'),
+    async execute(context) {
+        const { deferReply, editReply } = context
+        await deferReply()
         await editReply({
             files: [{
                 attachment: './data/preble.wav',

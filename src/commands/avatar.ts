@@ -1,7 +1,4 @@
-import {
-    EmbedBuilder, MessageFlags, SlashCommandBuilder,
-    type ImageExtension, type ImageSize
-} from 'discord.js'
+import { EmbedBuilder, SlashCommandBuilder, type ImageExtension, type ImageSize } from 'discord.js'
 import { SlashCommand } from '../types/types'
 
 export default {
@@ -46,19 +43,15 @@ export default {
                 { name: 'Server', value: 'guild' },
                 { name: 'Global', value: 'global' }
             ).setRequired(false)
-        ).addBooleanOption(bo => bo
-            .setName('ephemeral')
-            .setDescription('Should the response show up only for you?')
-            .setRequired(false)
         ),
 
-    async execute({ reply, guild }, interaction) {
-        const ephemeral = interaction.options.getBoolean('ephemeral', false)
-        const user = interaction.options.getUser('user', false) ?? interaction.user
-        const raw = interaction.options.getBoolean('raw', false) ?? false
-        const ext = interaction.options.getString('extension', false) as ImageExtension ?? 'png'
-        const size = interaction.options.getNumber('size', false) as ImageSize ?? 1024
-        const guildOrGlobal = interaction.options.getString('guildorglobal', false) ?? 'guild'
+    async execute(context) {
+        const { reply, guild } = context
+        const user = await context.getUserOption('user', false) ?? context.user
+        const raw = await context.getBooleanOption('raw', false) ?? false
+        const ext = await context.getStringOption('extension', false) as ImageExtension ?? 'png'
+        const size = await context.getNumberOption('size', false) as ImageSize ?? 1024
+        const guildOrGlobal = await context.getStringOption('serverorglobal', false) ?? 'guild'
 
         let avatar = ''
         if (guildOrGlobal === 'guild') {
@@ -91,8 +84,7 @@ export default {
             })
         }
         await reply({
-            embeds: [embed],
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
+            embeds: [embed]
         })
     }
 } satisfies SlashCommand
