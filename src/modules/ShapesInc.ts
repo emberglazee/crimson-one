@@ -10,7 +10,7 @@ import path from 'path'
 import { parseNetscapeCookieFile } from '../util/functions'
 import OpenAI from 'openai'
 import { ChannelType, Client, Message, TextChannel, Webhook, AttachmentBuilder } from 'discord.js'
-import { TYPING_EMOJI } from '../util/constants'
+import { TYPING_EMOJI, EMBERGLAZE_ID } from '../util/constants'
 
 export default class ShapesInc {
     private static instance: ShapesInc
@@ -45,6 +45,9 @@ export default class ShapesInc {
     private duelConversation: { author: string, content: string, isShape: boolean, timestamp: number }[] = []
     private duelLastSent: number = 0
     private readonly DUEL_MIN_INTERVAL_MS = 2500
+
+    private waitingForCookies: boolean = false
+    private cookiesUpdateResolver?: (cookies: string) => void
 
     static getInstance(client?: Client, channelId?: string): ShapesInc {
         if (!ShapesInc.instance) {
@@ -180,6 +183,9 @@ export default class ShapesInc {
         const json = await res.json()
         if (json.error) {
             logger.error(`{sendMessage} Error sending message:\n${json.error}`)
+            if (json.error === 'not_authorized') {
+                await this.handleNotAuthorized()
+            }
             throw new Error(json.error)
         }
         return json as ShapesIncSendMessageResponse
@@ -206,7 +212,15 @@ export default class ShapesInc {
             body
         })
         logger.ok('{clearChat} Done')
-        return res.json() as Promise<ShapesIncClearChatResponse>
+        const json = await res.json()
+        if (json.error) {
+            logger.error(`{clearChat} Error: ${json.error}`)
+            if (json.error === 'not_authorized') {
+                await this.handleNotAuthorized()
+            }
+            throw new Error(json.error)
+        }
+        return json as ShapesIncClearChatResponse
     }
     async getChatHistory(shapeUsername?: string): Promise<ShapesIncGetChatHistoryResponse<20>> {
         logger.info('{getChatHistory} Getting chat history...')
@@ -222,7 +236,15 @@ export default class ShapesInc {
             }
         })
         logger.ok('{getChatHistory} Done')
-        return res.json() as Promise<ShapesIncGetChatHistoryResponse<20>>
+        const json = await res.json()
+        if (json.error) {
+            logger.error(`{getChatHistory} Error: ${json.error}`)
+            if (json.error === 'not_authorized') {
+                await this.handleNotAuthorized()
+            }
+            throw new Error(json.error)
+        }
+        return json as ShapesIncGetChatHistoryResponse<20>
     }
 
     async fetchShapeByUsername(shapeUsername: string) {
@@ -234,7 +256,15 @@ export default class ShapesInc {
                 'cookie': cookies
             }
         })
-        return res.json() as Promise<ShapesIncShape>
+        const json = await res.json()
+        if (json.error) {
+            logger.error(`{fetchShapeByUsername} Error: ${json.error}`)
+            if (json.error === 'not_authorized') {
+                await this.handleNotAuthorized()
+            }
+            throw new Error(json.error)
+        }
+        return json as ShapesIncShape
     }
     async fetchShapeByUUID(uuid: string) {
         const url = `https://shapes.inc/api/shapes/${uuid}`
@@ -245,7 +275,15 @@ export default class ShapesInc {
                 'cookie': cookies
             }
         })
-        return res.json() as Promise<ShapesIncShape>
+        const json = await res.json()
+        if (json.error) {
+            logger.error(`{fetchShapeByUUID} Error: ${json.error}`)
+            if (json.error === 'not_authorized') {
+                await this.handleNotAuthorized()
+            }
+            throw new Error(json.error)
+        }
+        return json as ShapesIncShape
     }
 
     public async changeShapeByUUID(uuid: string) {
@@ -607,6 +645,38 @@ export default class ShapesInc {
             logger.error(`{duel} Error sending duel reply: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
             if (typingMsg) await typingMsg.delete().catch(() => {})
         }
+    }
+
+    private async handleNotAuthorized() {
+        if (this.waitingForCookies) return
+        this.waitingForCookies = true
+        try {
+            const user = await this.client.users.fetch(EMBERGLAZE_ID)
+            await user.send('ShapesInc cookies expired, please reply to this DM with the new Netscape cookies file contents.')
+        } catch (err) {
+            logger.error(`{handleNotAuthorized} Failed to DM EMBERGLAZE: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
+        }
+    }
+    public async handlePotentialCookieDM(message: Message) {
+        if (!this.waitingForCookies) return false
+        if (message.author.id !== EMBERGLAZE_ID) return false
+        if (!message.guild && message.content && message.content.includes('TRUE')) { // crude check for Netscape cookie format
+            try {
+                const cookiesArr = parseNetscapeCookieFile(message.content)
+                if (!cookiesArr.length) throw new Error('No cookies parsed')
+                const cookiesStr = cookiesArr.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
+                await fs.writeFile(path.join(__dirname, '../../data/shapesinc-cookies.txt'), message.content, 'utf-8')
+                this.cookies = cookiesStr
+                this.waitingForCookies = false
+                await message.reply('✅ Cookies updated!')
+                return true
+            } catch (err) {
+                logger.error(`{handlePotentialCookieDM} Failed to update cookies: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
+                await message.reply('❌ Failed to update cookies: ' + (err instanceof Error ? err.message : inspect(err)))
+                return false
+            }
+        }
+        return false
     }
 
 }
