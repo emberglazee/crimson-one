@@ -11,7 +11,6 @@ export default {
             .setRequired(true)
         ),
     async execute(context) {
-        const { reply } = context
         const inputText = await context.getStringOption('text', true)
         const outputText = owoTranslate(inputText)
 
@@ -19,11 +18,11 @@ export default {
             const buffer = Buffer.from(outputText, 'utf-8')
             const attachment = new AttachmentBuilder(buffer, { name: 'OwO.txt' })
 
-            await reply({
+            await context.reply({
                 files: [attachment]
             })
         } else {
-            await reply(outputText)
+            await context.reply(outputText)
         }
     }
 } satisfies SlashCommand

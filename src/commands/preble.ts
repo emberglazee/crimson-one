@@ -6,9 +6,8 @@ export default {
         .setName('preble')
         .setDescription('Preble.'),
     async execute(context) {
-        const { deferReply, editReply } = context
-        await deferReply()
-        await editReply({
+        await context.deferReply()
+        await context.editReply({
             files: [{
                 attachment: './data/preble.wav',
                 name: 'preble.wav'

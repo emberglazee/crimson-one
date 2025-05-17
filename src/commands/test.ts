@@ -6,7 +6,6 @@ export default {
         .setName('test')
         .setDescription('Test command'),
     async execute(context) {
-        const { reply } = context
-        await reply('Test command executed')
+        await context.reply('Test command executed')
     }
 } satisfies SlashCommand

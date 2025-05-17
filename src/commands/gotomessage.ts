@@ -23,7 +23,6 @@ export default {
             .setRequired(false)
         ),
     async execute(context) {
-        const { reply } = context
         const messageId = await context.getStringOption('message_id', true)
         const isDm = await context.getBooleanOption('is_dm') ?? context.channel?.isDMBased() ?? false
         const channelId = await context.getStringOption('channel_id') ?? context.channel?.id
@@ -33,6 +32,6 @@ export default {
             ? `https://discord.com/channels/@me/${channelId}/${messageId}`
             : `https://discord.com/channels/${guildId}/${channelId}/${messageId}`
 
-        await reply(`Here's your message link: ${messageLink}`)
+        await context.reply(`Here's your message link: ${messageLink}`)
     }
 } satisfies SlashCommand

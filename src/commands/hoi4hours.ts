@@ -8,8 +8,7 @@ export default {
         .setName('hoi4hours')
         .setDescription('Check the Steam API for emberglaze\'s hours in HOI4'),
     async execute(context) {
-        const { editReply, deferReply } = context
-        await deferReply()
+        await context.deferReply()
 
         interface SteamAPIResponse {
             response: {
@@ -42,9 +41,9 @@ export default {
             if (remainingHours > 0) timeString += `${remainingHours}h `
             if (remainingMinutes > 0) timeString += `${remainingMinutes}m`
 
-            await editReply(`emberglaze has spent \`${hours}\` hours playing HOI4\nThat's approximately ${timeString.trim()}`)
+            await context.editReply(`emberglaze has spent \`${hours}\` hours playing HOI4\nThat's approximately ${timeString.trim()}`)
         } else {
-            await editReply('❌ HOI4 not found in the list of games (did embi finally touch grass? check his steam profile directly or something)')
+            await context.editReply('❌ HOI4 not found in the list of games (did embi finally touch grass? check his steam profile directly or something)')
         }
     }
 } satisfies SlashCommand

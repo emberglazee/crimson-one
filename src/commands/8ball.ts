@@ -1,5 +1,5 @@
 import { SlashCommand } from '../types/types'
-import { MessageFlags, SlashCommandBuilder } from 'discord.js'
+import { SlashCommandBuilder } from 'discord.js'
 import { sleep } from 'bun'
 import { randRange } from '../util/functions'
 
@@ -19,14 +19,8 @@ export default {
                 { name: 'Pacific Federation', value: 'federation' },
                 { name: 'Random', value: 'random' }
             )
-        ).addBooleanOption(so => so
-            .setName('ephemeral')
-            .setDescription('Should the response only show up for you?')
-            .setRequired(false)
         ),
     async execute(context) {
-        const { reply, editReply } = context
-        const ephemeral = await context.getBooleanOption('ephemeral', false)
         const question = await context.getStringOption('question', true)
         const theme = await context.getStringOption('theme', false)
 
@@ -81,11 +75,8 @@ export default {
         const msgAnswer = `🎱 **8ball says:** ${response}`
         const msgLoading = '🔮 *Shaking the magic 8ball...*'
 
-        await reply({
-            content: msgPrefix + msgLoading,
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined,
-        })
+        await context.reply(msgPrefix + msgLoading)
         await sleep(randRange(600, 3000))
-        await editReply(msgPrefix + msgAnswer)
+        await context.editReply(msgPrefix + msgAnswer)
     }
 } satisfies SlashCommand

@@ -8,10 +8,9 @@ export default {
         .setName('aldo')
         .setDescription('The wikipedia nerd'),
     async execute(context) {
-        const { editReply, deferReply } = context
-        await deferReply()
+        await context.deferReply()
         const url = await randomProjectWingmanArticle().catch(() => '❌ Failed to get article')
-        await editReply(url)
+        await context.editReply(url)
     },
 } satisfies SlashCommand
 

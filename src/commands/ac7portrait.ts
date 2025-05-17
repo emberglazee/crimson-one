@@ -36,10 +36,8 @@ export default {
             .setRequired(false)
         ),
     async execute(context) {
-        const { editReply, getUserAvatar, deferReply } = context
-        const ephemeral = await context.getBooleanOption('ephemeral', false)
-        await deferReply({
-            flags: ephemeral ? MessageFlags.Ephemeral : undefined
+        await context.deferReply({
+            flags: await context.getBooleanOption('ephemeral', false) ? MessageFlags.Ephemeral : undefined
         })
 
         // Get image URL from options
@@ -53,11 +51,11 @@ export default {
         // Validate image source options
         const selectedOptions = [attachment, urlOption, user].filter(Boolean).length
         if (selectedOptions === 0) {
-            await editReply('❌ Please provide either an image attachment, URL, or user mention.')
+            await context.editReply('❌ Please provide either an image attachment, URL, or user mention.')
             return
         }
         if (selectedOptions > 1) {
-            await editReply('❌ Please provide only one image source (attachment, URL, or user mention).')
+            await context.editReply('❌ Please provide only one image source (attachment, URL, or user mention).')
             return
         }
 
@@ -65,11 +63,11 @@ export default {
         if (attachment) {
             imageUrl = attachment.url
         } else if (user) {
-            imageUrl = getUserAvatar(user, context.guild, { size: 256, extension: 'png' })
+            imageUrl = await context.getUserAvatar(user, context.guild, { size: 256, extension: 'png' })
         }
 
         if (!imageUrl) {
-            await editReply('❌ Invalid image URL provided.')
+            await context.editReply('❌ Invalid image URL provided.')
             return
         }
 
@@ -155,11 +153,11 @@ export default {
             }
 
             const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'portrait.png' })
-            await editReply({
+            await context.editReply({
                 files: [attachment]
             })
         } catch {
-            await editReply('❌ Failed to generate portrait.')
+            await context.editReply('❌ Failed to generate portrait.')
         }
     }
 } satisfies SlashCommand

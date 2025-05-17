@@ -24,7 +24,7 @@ export default {
             )
         ),
     async execute(context) {
-        const { reply } = context
+        // const { reply } = context
         try {
             const subcommand = context.getSubcommand(true)
             const morse = await import('morse')
@@ -33,18 +33,18 @@ export default {
                 case 'decode':
                     code = await context.getStringOption('code', true)
                     text = morse.decode(code)
-                    await reply(text)
+                    await context.reply(text)
                     return
                 case 'encode':
                     text = await context.getStringOption('text', true)
                     code = morse.encode(text)
-                    await reply(code)
+                    await context.reply(code)
                     return
             }
         } catch (e) {
             const error = e as Error
             logger.error(error.stack ?? error.message ?? error)
-            await reply(`${PING_EMBERGLAZE} something went wrong with the morse command -> \`${error.message ?? error}\`\n-# check the full error stack in the console, nerd`)
+            await context.reply(`${PING_EMBERGLAZE} something went wrong with the morse command -> \`${error.message ?? error}\`\n-# check the full error stack in the console, nerd`)
         }
     }
 } satisfies SlashCommand
