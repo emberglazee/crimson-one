@@ -484,8 +484,13 @@ export default class ShapesInc {
                 }
             }
             await typingMsg.delete().catch(() => {})
+            // Trim response if too long for Discord
+            let responseText = res.text || 'I HATE YOU MONARCH!'
+            if (responseText.length >= 2000) {
+                responseText = responseText.slice(0, 1997) + '...'
+            }
             await webhook.send({
-                content: res.text || 'I HATE YOU MONARCH!',
+                content: responseText,
                 username: this.shapeDisplayName || this.shapeUsername,
                 avatarURL: avatar,
                 allowedMentions: { parse: [] },
