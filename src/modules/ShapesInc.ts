@@ -636,8 +636,13 @@ export default class ShapesInc {
             const webhook = await this.getOrCreateWebhookForShape(nextShape, this.duelChannelId)
             const avatar = this.getShapeAvatarUrl(this.shapes.get(nextShape)!.id)
             if (typingMsg) await typingMsg.delete().catch(() => {})
+            // Trim reply if too long for Discord
+            let duelResponseText = reply.text || '...'
+            if (duelResponseText.length >= 2000) {
+                duelResponseText = duelResponseText.slice(0, 1997) + '...'
+            }
             await webhook.send({
-                content: reply.text || '...',
+                content: duelResponseText,
                 username: this.shapes.get(nextShape)!.displayName,
                 avatarURL: avatar,
                 allowedMentions: { repliedUser: true, parse: ['users'] },
