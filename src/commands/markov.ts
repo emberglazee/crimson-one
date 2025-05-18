@@ -7,6 +7,7 @@ import { formatTimeRemaining } from '../util/functions'
 import { SlashCommand } from '../types/types'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
 import { DataSource } from '../modules/MarkovChain/DataSource'
+import type { CommandContext } from '../modules/CommandManager'
 
 // Discord interaction tokens expire after 15 minutes
 const INTERACTION_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes in milliseconds
@@ -19,12 +20,12 @@ interface MessageUpdater {
 
 // Class to handle message updating with fallback support
 class InteractionMessageManager implements MessageUpdater {
-    private context: import('../types/types').CommandContext
+    private context: CommandContext
     private followUpMessagePromise: Promise<Message | null> | null = null
     private followUpMessage: Message | null = null
     private useFollowUp = false
 
-    constructor(context: import('../types/types').CommandContext) {
+    constructor(context: CommandContext) {
         this.context = context
     }
 
@@ -214,7 +215,7 @@ export default {
             return
         }
 
-        const subcommand = await context.getStringOption('subcommand') as 'generate' | 'info' | 'collect'
+        const subcommand = context.getSubcommand()
         const markov = MarkovChat.getInstance()
         const dataSource = DataSource.getInstance()
 
