@@ -1101,7 +1101,7 @@ export class CommandContext {
         } else if (this.message) {
             const channel = this.message.channel
             if (channel && 'send' in channel && typeof channel.send === 'function') {
-                this.originalMessageReply = await channel.send(`${TYPING_EMOJI} ${this.client.user!.displayName} is thinking...`)
+                this.originalMessageReply = await this.message.reply(`${TYPING_EMOJI} ${this.client.user!.displayName} is thinking...`)
                 return this.originalMessageReply
             }
         }
