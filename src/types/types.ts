@@ -67,10 +67,10 @@ export interface DiscordEventListener {
  */
 export type HexColor = `#${string}`
 
+export type Emoji = string
 export interface Emojis {
     billy: Emoji[]
 }
-export type Emoji = { [key: string]: string }
 
 export interface GitHubCommit {
     id: string
