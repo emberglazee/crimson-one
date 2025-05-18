@@ -261,27 +261,32 @@ export default class CommandManager {
         const command = this.findMatchingSlashCommand(commandName, message.guildId)
 
         if (!command || (!CommandManager.isGlobalSlashCommand(command) && !CommandManager.isGuildSlashCommand(command))) {
-            // Optional: reply if command not found, or silent fail
-            // logger.debug(`{handleMessageCommand} Text command "${commandName}" not found or not a global/guild slash command.`);
             return
         }
 
         const context = new CommandContext(message, commandParts)
         try {
-            // Determine the arguments string to pass to yargs
-            // commandParts[0] is the command name (potentially with different casing than canonical commandName)
-            // contentWithoutPrefix is <commandNameAsTyped> <arg1> <arg2>...
             let argsOnlyString = ''
             const firstSpaceIndex = contentWithoutPrefix.indexOf(' ')
             if (firstSpaceIndex !== -1) {
-                // Everything after the first space
                 argsOnlyString = contentWithoutPrefix.substring(firstSpaceIndex + 1).trimStart()
             }
 
             const yargsParser = this.buildYargsParserForCommand(command as SlashCommand, message, argsOnlyString)
-            const parsedYargsArgs = await yargsParser.parseAsync() // This should throw if fail() was called by demandCommand etc.
+            const parsedYargsArgs = await yargsParser.parseAsync()
 
-            // If parseAsync completed without throwing, it means validation (including demandCommand) passed.
+            // Check if help was explicitly requested.
+            // .help("h").alias("h", "help") means yargs will populate 'h' in argv if help was triggered.
+            // When .help() is triggered and exitProcess(false) is set, yargs doesn't run command handlers
+            // and doesn't call .fail(). It just shows help (by default to console) and parseAsync() resolves.
+            if (hasProp(parsedYargsArgs, 'h') && parsedYargsArgs.h === true) {
+                const helpText = await yargsParser.getHelp() // getHelp() is async
+                await message.reply(`\`\`\`\n${helpText}\n\`\`\``) // Send help to Discord
+                return // Command processing finished (help was shown)
+            }
+
+            // If parseAsync completed without throwing, and help was not explicitly requested,
+            // it means validation (including demandCommand) passed.
             const yargsCommandPath = parsedYargsArgs._.map(String)
             const commandDataJson = command.data.toJSON()
 
@@ -289,18 +294,14 @@ export default class CommandManager {
             const options = commandDataJson.options ?? []
 
             // Populate subcommandName and subcommandGroupName from yargs parsed path
-            // Yargs puts the command path in `_`. e.g., `cmd subgrp sub` -> `['subgrp', 'sub']` if `cmd` is the scriptName
-            // Or just `['sub']` if `cmd sub`.
-            const commandPathForContext = [...yargsCommandPath] // yargsCommandPath might be like [subcommand] or [subcommandGroup, subcommand]
+            const commandPathForContext = [...yargsCommandPath]
 
             if (options.some(o => o.type === ApplicationCommandOptionType.SubcommandGroup)) {
-                // Check if the first element of the path is a recognized subcommand group
                 const potentialGroup = commandPathForContext[0]
                 if (potentialGroup && options.find(o => o.name === potentialGroup && o.type === ApplicationCommandOptionType.SubcommandGroup)) {
-                    context.subcommandGroupName = commandPathForContext.shift() || null // Consume it
+                    context.subcommandGroupName = commandPathForContext.shift() || null
                 }
             }
-            // The next element in commandPathForContext (if any) should be the subcommand.
             if (
                 options.some(o => o.type === ApplicationCommandOptionType.Subcommand) ||
                 (() => {
@@ -315,7 +316,6 @@ export default class CommandManager {
                     )
                 })()
             ) {
-
                 const potentialSubcommand = commandPathForContext[0]
                 if (potentialSubcommand) {
                     let subOptExists = false
@@ -340,22 +340,14 @@ export default class CommandManager {
             await this.executeUnifiedCommand(command as SlashCommand, context)
 
         } catch (e) {
-
-            const error = e as Error & { name?: string } // Type assertion for name property
-            // If yargs.parseAsync() throws an error AFTER .fail() has been called,
-            // it typically means a validation failed (e.g., missing required arg, demandCommand).
-            // The .fail() handler should have already sent a reply.
+            const error = e as Error & { name?: string }
             if (error.name === 'YError') {
                 logger.warn(`{handleMessageCommand} Yargs validation error for "${commandName}" (name: YError). .fail() should have replied.`)
-                // No further action needed as .fail() is expected to handle the reply.
             } else {
-                // This is likely an error from executeUnifiedCommand or CommandContext.getXOption's required check
                 logger.warn(`{handleMessageCommand} Non-YError caught for "${commandName}": ${error.message}`)
                 this.handleError(error, message, commandName)
             }
-
         }
-
     }
 
 
@@ -524,7 +516,9 @@ export default class CommandManager {
                 }
 
                 if (replyMessage.trim()) { // Only reply if there's something to say
-                    await message.reply(replyMessage.trim())
+                    // Format as code block for better readability, especially for multi-line help/error messages
+                    const formattedReply = `\`\`\`\n${replyMessage.trim()}\n\`\`\``
+                    await message.reply(formattedReply)
                 } else {
                     // This case should ideally not happen if yargs is failing.
                     logger.warn(`{buildYargsParserForCommand} Yargs .fail() called with no message and no error for ${baseCommandData.name}.`)
