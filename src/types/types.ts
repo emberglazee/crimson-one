@@ -197,9 +197,8 @@ export class CommandContext {
             return this.interaction.editReply(options as string | InteractionEditReplyOptions)
         } else if (this.message) {
             const channel = this.message.channel
-            if (channel && 'send' in channel && typeof channel.send === 'function') {
-                this.originalMessageReply = await channel.send(typeof options === 'string' ? options : (options as MessageEditOptions).content || 'Updated.')
-                return this.originalMessageReply
+            if (channel && 'send' in channel && typeof channel.send === 'function' && this.originalMessageReply) {
+                return this.originalMessageReply.edit(options as string | MessageEditOptions)
             }
         }
     }
