@@ -261,25 +261,79 @@ export default class CommandManager {
         const command = this.findMatchingSlashCommand(commandName, message.guildId)
 
         if (!command || (!CommandManager.isGlobalSlashCommand(command) && !CommandManager.isGuildSlashCommand(command))) {
-            logger.warn(`{handleMessageCommand} Text command "${commandName}" not found.`)
+            // Optional: reply if command not found, or silent fail
+            // logger.debug(`{handleMessageCommand} Text command "${commandName}" not found or not a global/guild slash command.`);
             return
         }
 
         const context = new CommandContext(message, commandParts)
         try {
+            // Determine the arguments string to pass to yargs
+            // commandParts[0] is the command name (potentially with different casing than canonical commandName)
+            // contentWithoutPrefix is <commandNameAsTyped> <arg1> <arg2>...
+            let argsOnlyString = ''
+            const firstSpaceIndex = contentWithoutPrefix.indexOf(' ')
+            if (firstSpaceIndex !== -1) {
+                // Everything after the first space
+                argsOnlyString = contentWithoutPrefix.substring(firstSpaceIndex + 1).trimStart()
+            }
 
-            const yargsParser = this.buildYargsParserForCommand(command as SlashCommand, message)
+            const yargsParser = this.buildYargsParserForCommand(command as SlashCommand, message, argsOnlyString)
             const parsedYargsArgs = await yargsParser.parseAsync() // This should throw if fail() was called by demandCommand etc.
 
             // If parseAsync completed without throwing, it means validation (including demandCommand) passed.
             const yargsCommandPath = parsedYargsArgs._.map(String)
             const commandDataJson = command.data.toJSON()
 
-            if (commandDataJson.options?.some(o => o.type === ApplicationCommandOptionType.SubcommandGroup)) {
-                if (yargsCommandPath.length > 0) context.subcommandGroupName = yargsCommandPath[0]
-                if (yargsCommandPath.length > 1) context.subcommandName = yargsCommandPath[1]
-            } else if (commandDataJson.options?.some(o => o.type === ApplicationCommandOptionType.Subcommand)) {
-                if (yargsCommandPath.length > 0) context.subcommandName = yargsCommandPath[0]
+            // Use a default empty array for options to avoid undefined errors
+            const options = commandDataJson.options ?? []
+
+            // Populate subcommandName and subcommandGroupName from yargs parsed path
+            // Yargs puts the command path in `_`. e.g., `cmd subgrp sub` -> `['subgrp', 'sub']` if `cmd` is the scriptName
+            // Or just `['sub']` if `cmd sub`.
+            const commandPathForContext = [...yargsCommandPath] // yargsCommandPath might be like [subcommand] or [subcommandGroup, subcommand]
+
+            if (options.some(o => o.type === ApplicationCommandOptionType.SubcommandGroup)) {
+                // Check if the first element of the path is a recognized subcommand group
+                const potentialGroup = commandPathForContext[0]
+                if (potentialGroup && options.find(o => o.name === potentialGroup && o.type === ApplicationCommandOptionType.SubcommandGroup)) {
+                    context.subcommandGroupName = commandPathForContext.shift() || null // Consume it
+                }
+            }
+            // The next element in commandPathForContext (if any) should be the subcommand.
+            if (
+                options.some(o => o.type === ApplicationCommandOptionType.Subcommand) ||
+                (() => {
+                    const group = context.subcommandGroupName && options.find(
+                        o =>
+                            o.name === context.subcommandGroupName &&
+                            o.type === ApplicationCommandOptionType.SubcommandGroup &&
+                            Array.isArray((o as ExplicitAny).options)
+                    )
+                    return !!(group && Array.isArray((group as ExplicitAny).options) &&
+                        (group as ExplicitAny).options.some((subOpt: ExplicitAny) => subOpt.type === ApplicationCommandOptionType.Subcommand)
+                    )
+                })()
+            ) {
+
+                const potentialSubcommand = commandPathForContext[0]
+                if (potentialSubcommand) {
+                    let subOptExists = false
+                    if (context.subcommandGroupName) {
+                        const group = options.find(
+                            o =>
+                                o.name === context.subcommandGroupName &&
+                                o.type === ApplicationCommandOptionType.SubcommandGroup &&
+                                Array.isArray((o as ExplicitAny).options)
+                        )
+                        subOptExists = !!(group && (group as ExplicitAny).options?.find((subOpt: ExplicitAny) => subOpt.name === potentialSubcommand && subOpt.type === ApplicationCommandOptionType.Subcommand))
+                    } else {
+                        subOptExists = !!options.find(o => o.name === potentialSubcommand && o.type === ApplicationCommandOptionType.Subcommand)
+                    }
+                    if (subOptExists) {
+                        context.subcommandName = commandPathForContext.shift() || null
+                    }
+                }
             }
             context.parsedArgs = parsedYargsArgs as ArgumentsCamelCase<{ [key: string]: JSONResolvable }>
 
@@ -422,10 +476,9 @@ export default class CommandManager {
 
 
 
-    private buildYargsParserForCommand(commandDef: SlashCommand, message: Message): Argv<{}> {
+    private buildYargsParserForCommand(commandDef: SlashCommand, message: Message, rawArgsString: string): Argv<{}> {
         const baseCommandData = commandDef.data.toJSON()
-        const messageArgs = message.content.slice(this.prefix.length).trim().split(/ +/).slice(1)
-        const parser = yargs(messageArgs)
+        const parser = yargs(rawArgsString)
 
         parser
             .scriptName(`${this.prefix}${baseCommandData.name}`)
