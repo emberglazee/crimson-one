@@ -198,6 +198,17 @@ export class CommandContext {
         } else if (this.message) {
             const channel = this.message.channel
             if (channel && 'send' in channel && typeof channel.send === 'function' && this.originalMessageReply) {
+                // If editing with only embeds and no content, erase the message content (like interaction replies)
+                if (
+                    typeof options === 'object' &&
+                    options !== null &&
+                    'embeds' in options &&
+                    Array.isArray(options.embeds) &&
+                    options.embeds.length > 0 &&
+                    !('content' in options)
+                ) {
+                    (options as MessageEditOptions).content = ''
+                }
                 return this.originalMessageReply.edit(options as string | MessageEditOptions)
             }
         }
