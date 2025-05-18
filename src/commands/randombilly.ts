@@ -3,9 +3,9 @@ import { SlashCommand } from '../types/types'
 import fs from 'fs/promises'
 import { getRandomElement } from '../util/functions'
 import { join } from 'path'
-import type { Emoji, Emojis } from '../types/types'
+import type { Emojis } from '../types/types'
 
-let emojis: Emoji[] = []
+let emojis: string[] = []
 
 export default {
     data: new SlashCommandBuilder()
@@ -22,9 +22,7 @@ export default {
             emojis = json.billy
         }
         const emoji = getRandomElement(emojis)
-        const emojiName = Object.keys(emoji)[0]
-        const emojiID = Object.values(emoji)[0]
-        const str = `<:${emojiName}:${emojiID}>`
+        const str = emoji
 
         deferred ? await context.editReply(str) : await context.reply(str)
     }
