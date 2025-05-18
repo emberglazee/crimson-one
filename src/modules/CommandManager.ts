@@ -256,7 +256,7 @@ export default class CommandManager {
         if (!this.initialized || !message.content.startsWith(this.prefix) || message.author.bot) return
 
         const contentWithoutPrefix = message.content.slice(this.prefix.length).trim()
-        const commandParts = contentWithoutPrefix.split(/ +/) // Used for raw args in Context, and yargs input
+        const commandParts = contentWithoutPrefix.split(/ +/)
         const commandName = commandParts[0]?.toLowerCase()
 
         if (!commandName) return
@@ -272,9 +272,9 @@ export default class CommandManager {
         try {
 
             const yargsParser = this.buildYargsParserForCommand(command as SlashCommand, message)
-            // Yargs parseAsync will throw on validation error (like missing required option) if not caught by .fail
-            const parsedYargsArgs = await yargsParser.parseAsync() // This will throw if .fail doesn't or if other errors occur
+            const parsedYargsArgs = await yargsParser.parseAsync() // This should throw if fail() was called by demandCommand etc.
 
+            // If parseAsync completed without throwing, it means validation (including demandCommand) passed.
             const yargsCommandPath = parsedYargsArgs._.map(String)
             const commandDataJson = command.data.toJSON()
 
@@ -290,20 +290,18 @@ export default class CommandManager {
 
         } catch (e) {
 
-            // If error is from yargs parsing (e.g. missing required option),
-            // the .fail handler should have already replied.
-            // We check if the error message indicates yargs handled it, or if it's an execution error.
-            // The `handleError` will attempt to reply again if not careful.
-            // For now, let `handleError` manage it, but be mindful of double replies.
-            // The yargs .fail handler replies, and then parseAsync throws.
-            // So, we might not need to call `this.handleError` if `e` is a yargs validation error.
-            // Let's assume if `e.name === 'YError'` it was a yargs parsing error already handled by `fail`.
-            if (e instanceof Error && (e as ExplicitAny).name === 'YError') {
-                logger.warn(`{handleMessageCommand} Yargs parsing/validation error for "${commandName}", .fail handler should have replied.`)
-                // Optionally, do nothing more here as .fail() in yargs already sent a message.
-                return
+            const error = e as Error & { name?: string } // Type assertion for name property
+            // If yargs.parseAsync() throws an error AFTER .fail() has been called,
+            // it typically means a validation failed (e.g., missing required arg, demandCommand).
+            // The .fail() handler should have already sent a reply.
+            if (error.name === 'YError') {
+                logger.warn(`{handleMessageCommand} Yargs validation error for "${commandName}" (name: YError). .fail() should have replied.`)
+                // No further action needed as .fail() is expected to handle the reply.
+            } else {
+                // This is likely an error from executeUnifiedCommand or CommandContext.getXOption's required check
+                logger.warn(`{handleMessageCommand} Non-YError caught for "${commandName}": ${error.message}`)
+                this.handleError(error, message, commandName)
             }
-            this.handleError(e as Error, message, commandName)
 
         }
 
@@ -436,34 +434,61 @@ export default class CommandManager {
             .scriptName(`${this.prefix}${baseCommandData.name}`)
             .help("h").alias("h", "help")
             .version(false)
-            .exitProcess(false) // Crucial: prevents yargs from killing the bot
+            .exitProcess(false) // Crucial
             .recommendCommands()
-            .strict() // Report unrecognized options/commands
-            .fail(async (msg, err, yargsInstance) => { // This is yargs' error handler
-                let reply = ''
-                if (msg) reply += msg // Usually help text or yargs' own error message.
-                if (err) { // If an actual error object was passed by yargs
-                    if (reply) reply += '\n'
-                    reply += `Error: ${err.message}`
-                    logger.warn(`{buildYargsParserForCommand} Yargs parsing error for ${baseCommandData.name}: ${err.message}`)
-                }
-                if (!reply) reply = "Invalid command usage." // Fallback
+            .strict()
+            .fail(async (msg, err, yargsInstanceItself) => { // Renamed for clarity
+                let replyMessage = ''
 
-                // Append usage help if available
-                const usageHelp = await yargsInstance.getHelp()
-                if (usageHelp) {
-                    reply += `\n\nUsage:\n${usageHelp}`
+                if (msg) { // yargs' primary message (e.g., "Missing argument: subcommand", "Invalid values:")
+                    replyMessage = msg
                 }
-                await message.reply(reply.trim())
-                // To stop further execution in handleMessageCommand, parseAsync will throw this error.
-                // The error thrown by parseAsync after .fail is called will have a .name of 'YError'
-                // (This behavior depends on yargs version, ensure it throws to stop command execution)
+
+                if (err) { // An actual Error object from yargs
+                    if (replyMessage) replyMessage += '\n'
+                    replyMessage += `Error: ${err.message}` // Add the specific error message
+                    logger.warn(`{buildYargsParserForCommand} Yargs internal error for ${baseCommandData.name}: ${err.message}`)
+                }
+
+                // If no specific message from yargs or error, try to generate help.
+                // This path is less common if demandCommand or required options fail, as `msg` is usually set.
+                if (!replyMessage) {
+                    try {
+                        // yargsInstanceItself is the yargs object. .getHelp() returns a Promise<string>.
+                        replyMessage = await yargsInstanceItself.getHelp()
+                    } catch (getHelpError) {
+                        logger.error(`{buildYargsParserForCommand} Failed to generate help string: ${getHelpError}`)
+                        replyMessage = "Invalid command usage. Could not generate help text." // Fallback
+                    }
+                } else {
+                    // If we already have a message from yargs (msg or err.message),
+                    // still try to append the full help text for better context.
+                    try {
+                        const fullHelp = await yargsInstanceItself.getHelp()
+                        if (fullHelp && !replyMessage.includes(fullHelp.slice(0, Math.min(50, fullHelp.length)))) { // Avoid redundant appending
+                            replyMessage += `\n\nUsage:\n${fullHelp}`
+                        }
+                    } catch (getHelpError) {
+                        logger.warn(`{buildYargsParserForCommand} Could not append full yargs help output: ${getHelpError}`)
+                    }
+                }
+
+                if (replyMessage.trim()) { // Only reply if there's something to say
+                    await message.reply(replyMessage.trim())
+                } else {
+                    // This case should ideally not happen if yargs is failing.
+                    logger.warn(`{buildYargsParserForCommand} Yargs .fail() called with no message and no error for ${baseCommandData.name}.`)
+                    await message.reply("An unspecified error occurred with your command input.")
+                }
+                // After .fail, yargs().parseAsync() will throw, which is caught in handleMessageCommand.
             })
 
         const topLevelOptions = baseCommandData.options?.filter(
             (opt: ExplicitAny) => opt.type !== ApplicationCommandOptionType.Subcommand &&
                                   opt.type !== ApplicationCommandOptionType.SubcommandGroup
         ) || []
+
+        // Define top-level options IF they exist
         if (topLevelOptions.length > 0) {
             this.buildYargsOptions(parser, topLevelOptions)
         }
@@ -486,7 +511,7 @@ export default class CommandManager {
                             if (optData.options) this.buildYargsOptions(yargsSubcommand, optData.options)
                             return yargsSubcommand
                         },
-                        async _argv => {} // Handler not strictly needed here for routing
+                        async _argv => {}
                     )
                 } else if (optData.type === ApplicationCommandOptionType.SubcommandGroup) {
                     parser.command(
@@ -516,10 +541,13 @@ export default class CommandManager {
             }
         }
 
-        // If the command is essentially a container for subcommands (no top-level options defined in SlashCommandBuilder)
-        // then demand a subcommand.
+        // Demand a command (subcommand) IF the base command is purely a container for subcommands/groups
+        // AND has no top-level options.
         if (hasSubcommandsOrGroups && topLevelOptions.length === 0) {
-            parser.demandCommand(1, `This command requires a subcommand. Available: ${subRelatedOptions.map(o=>o.name).join(', ')}`)
+            parser.demandCommand(
+                1, // require 1 command (subcommand)
+                `This command requires a subcommand. Use --help for options.` // Message if none provided
+            )
         }
         return parser
     }
