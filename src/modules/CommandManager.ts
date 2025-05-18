@@ -320,7 +320,7 @@ export default class CommandManager {
                 logger.info(`{handleMessageCommand} Parsed yargs argv: ${JSON.stringify(parsedYargsArgs)}`)
                 logger.info(`{handleMessageCommand} Captured help text:\n${capturedHelpText}`)
 
-                await message.reply(`\n${capturedHelpText.trim()}\n`)
+                await message.reply(`\`\`\`\n${capturedHelpText.trim()}\n\`\`\``)
                 return
             }
             // If help flag was present but no text captured (e.g., if yargs didn't print help for some reason),
