@@ -11,7 +11,6 @@ export const slashCommand = {
             .setRequired(false)
         ),
     async execute(context) {
-        const { reply, guild } = context
         const targetUser = await context.getUserOption('user') ?? context.user
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
@@ -22,20 +21,20 @@ export const slashCommand = {
                 { name: 'User ID', value: targetUser.id, inline: true },
                 { name: 'Account Created', value: `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>`, inline: true }
             )
-        if (guild) {
-            const member = guild.members.cache.get(targetUser.id)
+        if (context.guild) {
+            const member = context.guild.members.cache.get(targetUser.id)
             if (member) {
                 embed.addFields(
                     { name: 'Joined Server', value: `<t:${Math.floor(member.joinedTimestamp! / 1000)}:R>`, inline: true },
                     { name: 'Nickname', value: member.nickname ?? 'None', inline: true },
                     { name: 'Roles', value: member.roles.cache.size > 1
-                        ? member.roles.cache.filter(role => role.id !== guild.id).map(role => `<@&${role.id}>`).join(', ')
+                        ? member.roles.cache.filter(role => role.id !== context.guild!.id).map(role => `<@&${role.id}>`).join(', ')
                         : 'None'
                     }
                 )
             }
         }
-        await reply({ embeds: [embed] })
+        await context.reply({ embeds: [embed] })
     }
 } satisfies SlashCommand
 

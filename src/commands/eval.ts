@@ -12,23 +12,21 @@ export default {
             .setRequired(true)
         ),
     async execute(context) {
-        const { reply, deferReply, editReply, myId } = context
 
-        const user = context.user
-        if (user.id !== myId) {
-            await reply('❌ You, solely, are responsible for this')
+        if (context.user.id !== context.myId) {
+            await context.reply('❌ You, solely, are responsible for this')
             return
         }
 
-        await deferReply()
+        await context.deferReply()
 
         const code = await context.getStringOption('code', true)
         try {
             const result = eval(code)
             const output = typeof result === 'string' ? result : inspect(result)
-            await editReply(`\`\`\`js\n${output}\n\`\`\``)
+            await context.editReply(`\`\`\`js\n${output}\n\`\`\``)
         } catch (error) {
-            await editReply(`\`\`\`js\n${error}\n\`\`\``)
+            await context.editReply(`\`\`\`js\n${error}\n\`\`\``)
         }
     }
 } satisfies SlashCommand
