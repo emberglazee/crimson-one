@@ -1116,10 +1116,17 @@ export class CommandContext {
                 if (
                     typeof options === 'object' &&
                     options !== null &&
-                    'embeds' in options &&
-                    Array.isArray(options.embeds) &&
-                    options.embeds.length > 0 &&
-                    !('content' in options)
+                    ((
+                        'embeds' in options &&
+                        Array.isArray(options.embeds) &&
+                        options.embeds.length > 0 &&
+                        !('content' in options)
+                    ) || (
+                        'attachments' in options &&
+                        Array.isArray(options.attachments) &&
+                        options.attachments.length > 0 &&
+                        !('content' in options)
+                    ))
                 ) {
                     (options as MessageEditOptions).content = ''
                 }
