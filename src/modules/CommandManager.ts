@@ -280,9 +280,18 @@ export default class CommandManager {
             // When .help() is triggered and exitProcess(false) is set, yargs doesn't run command handlers
             // and doesn't call .fail(). It just shows help (by default to console) and parseAsync() resolves.
             if (hasProp(parsedYargsArgs, 'h') && parsedYargsArgs.h === true) {
-                const helpText = await yargsParser.getHelp() // getHelp() is async
-                await message.reply(`\`\`\`\n${helpText}\n\`\`\``) // Send help to Discord
-                return // Command processing finished (help was shown)
+
+                if (typeof (yargsParser as ExplicitAny).getContext === 'function') {
+                    const yargsInternalContext = (yargsParser as ExplicitAny).getContext()
+                    logger.info(`Yargs internal context: commands=${JSON.stringify(yargsInternalContext.commands)}, fullCommands=${JSON.stringify(yargsInternalContext.fullCommands)}`)
+                } else {
+                    logger.warn('Yargs instance does not have getContext method.')
+                }
+
+                const helpText = await yargsParser.getHelp()
+                await message.reply(`\`\`\`\n${helpText}\n\`\`\``)
+                return
+
             }
 
             // If parseAsync completed without throwing, and help was not explicitly requested,
@@ -496,19 +505,27 @@ export default class CommandManager {
                 // This path is less common if demandCommand or required options fail, as `msg` is usually set.
                 if (!replyMessage) {
                     try {
-                        // yargsInstanceItself is the yargs object. .getHelp() returns a Promise<string>.
-                        replyMessage = await yargsInstanceItself.getHelp()
+                        // Check if getHelp exists before calling
+                        if (typeof yargsInstanceItself.getHelp === 'function') {
+                            replyMessage = await yargsInstanceItself.getHelp()
+                        } else {
+                            logger.warn(`{buildYargsParserForCommand} yargsInstanceItself.getHelp is not a function for ${baseCommandData.name}. Falling back to basic error.`)
+                            replyMessage = msg || (err ? `Error: ${err.message}` : "Invalid command usage.")
+                        }
                     } catch (getHelpError) {
                         logger.error(`{buildYargsParserForCommand} Failed to generate help string: ${getHelpError}`)
-                        replyMessage = "Invalid command usage. Could not generate help text." // Fallback
+                        replyMessage = "Invalid command usage. Could not generate help text."
                     }
                 } else {
-                    // If we already have a message from yargs (msg or err.message),
-                    // still try to append the full help text for better context.
                     try {
-                        const fullHelp = await yargsInstanceItself.getHelp()
-                        if (fullHelp && !replyMessage.includes(fullHelp.slice(0, Math.min(50, fullHelp.length)))) { // Avoid redundant appending
-                            replyMessage += `\n\nUsage:\n${fullHelp}`
+                        // Check if getHelp exists before calling
+                        if (typeof yargsInstanceItself.getHelp === 'function') {
+                            const fullHelp = await yargsInstanceItself.getHelp()
+                            if (fullHelp && !replyMessage.includes(fullHelp.slice(0, Math.min(50, fullHelp.length)))) {
+                                replyMessage += `\n\nUsage:\n${fullHelp}`
+                            }
+                        } else {
+                             logger.warn(`{buildYargsParserForCommand} yargsInstanceItself.getHelp is not a function (in else branch) for ${baseCommandData.name}. Cannot append full help.`)
                         }
                     } catch (getHelpError) {
                         logger.warn(`{buildYargsParserForCommand} Could not append full yargs help output: ${getHelpError}`)
