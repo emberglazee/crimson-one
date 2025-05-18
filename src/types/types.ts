@@ -114,6 +114,7 @@ export class CommandContext {
     public readonly client: Client
     public readonly interaction: ChatInputCommandInteraction | null
     public readonly message: Message | null
+    public originalMessageReply: Message | null = null
     public readonly args: string[] // for text commands
     public readonly myId: typeof EMBERGLAZE_ID = EMBERGLAZE_ID
     public readonly pingMe: typeof PING_EMBERGLAZE = PING_EMBERGLAZE
@@ -176,7 +177,8 @@ export class CommandContext {
                 return this.interaction.followUp(options as string | InteractionReplyOptions)
             }
         } else if (this.message) {
-            return this.message.reply(options as string | MessageReplyOptions)
+            this.originalMessageReply = await this.message.reply(options as string | MessageReplyOptions)
+            return this.originalMessageReply
         }
     }
     async deferReply(options?: InteractionDeferReplyOptions): Promise<Message | InteractionResponse | void> {
@@ -185,7 +187,8 @@ export class CommandContext {
         } else if (this.message) {
             const channel = this.message.channel
             if (channel && 'send' in channel && typeof channel.send === 'function') {
-                return channel.send(`${TYPING_EMOJI} ${this.client.user!.displayName} is thinking...`)
+                this.originalMessageReply = await channel.send(`${TYPING_EMOJI} ${this.client.user!.displayName} is thinking...`)
+                return this.originalMessageReply
             }
         }
     }
@@ -195,7 +198,8 @@ export class CommandContext {
         } else if (this.message) {
             const channel = this.message.channel
             if (channel && 'send' in channel && typeof channel.send === 'function') {
-                return channel.send(typeof options === 'string' ? options : (options as MessageEditOptions).content || 'Updated.')
+                this.originalMessageReply = await channel.send(typeof options === 'string' ? options : (options as MessageEditOptions).content || 'Updated.')
+                return this.originalMessageReply
             }
         }
     }
@@ -204,8 +208,8 @@ export class CommandContext {
             return this.interaction.followUp(options)
         } else if (this.message) {
             const channel = this.message.channel
-            if (channel && 'send' in channel && typeof channel.send === 'function') {
-                return channel.send(options as string | MessageReplyOptions)
+            if (channel && 'send' in channel && typeof channel.send === 'function' && this.originalMessageReply) {
+                return this.originalMessageReply.reply(options as string | MessageReplyOptions)
             }
         }
     }
