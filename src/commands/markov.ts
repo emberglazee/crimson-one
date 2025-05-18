@@ -207,11 +207,10 @@ export default {
             )
         ),
     async execute(context) {
-        const { reply, editReply, deferReply, followUp, guild, client } = context
 
-        if (!guild) {
+        if (!context.guild) {
             logger.info('Command used outside of a server')
-            await reply('❌ This command can only be used in a server')
+            await context.reply('❌ This command can only be used in a server')
             return
         }
 
@@ -227,7 +226,7 @@ export default {
             if (userId) {
                 try {
                     // Try to fetch user from Discord (may fail if user is not cached)
-                    return await client.users.fetch(userId)
+                    return await context.client.users.fetch(userId)
                 } catch {
                     // If not found, just return the ID for DB filtering
                     return { id: userId }
@@ -246,7 +245,7 @@ export default {
             const seed = await context.getStringOption('seed') ?? undefined
             const characterMode = await context.getBooleanOption('character_mode', false)
 
-            await deferReply()
+            await context.deferReply()
 
             try {
                 logger.info(`Generating message with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
@@ -300,7 +299,7 @@ export default {
                 })
 
                 const result = await markov.generateMessage({
-                    guild: source === 'guild' ? guild : undefined,
+                    guild: source === 'guild' ? context.guild : undefined,
                     channel: channel,
                     user: user,
                     userId: userId,
@@ -333,7 +332,7 @@ export default {
                 markov.removeAllListeners('generateProgress')
 
                 logger.warn(`Failed to generate message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
-                await editReply({
+                await context.editReply({
                     content: `❌ Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`
                 })
             }
@@ -345,7 +344,7 @@ export default {
             const source = (await context.getStringOption('source')) as Source
             const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined
 
-            await deferReply()
+            await context.deferReply()
 
             try {
                 logger.info(`Getting Markov info with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}`)
@@ -399,7 +398,7 @@ export default {
                 })
 
                 const stats = await markov.getMessageStats({
-                    guild: source === 'guild' ? guild : undefined,
+                    guild: source === 'guild' ? context.guild : undefined,
                     channel: !source ? channel : undefined,
                     user: user,
                     userId: userId,
@@ -454,7 +453,7 @@ export default {
                 markov.removeAllListeners('infoProgress')
 
                 logger.warn(`Failed to get Markov info: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
-                await editReply({
+                await context.editReply({
                     content: `❌ Failed to get Markov info: ${error instanceof Error ? error.message : 'Unknown error'}`
                 })
             }
@@ -468,9 +467,9 @@ export default {
 
             const allChannels = await context.getBooleanOption('all_channels', false)
             if (allChannels) {
-                await deferReply()
+                await context.deferReply()
                 logger.info(`{collect} "allChannels" is true, collecting from every channel`)
-                const textChannels = (await guild.channels.fetch())
+                const textChannels = (await context.guild.channels.fetch())
                     .filter(c => c &&
                         (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) &&
                         c.viewable
@@ -492,7 +491,7 @@ export default {
                 const allTargets = [...textChannels.values(), ...threads]
                 logger.info(`{collect} ${yellow(textChannels.size)} + ${yellow(threads.length)} = ${yellow(textChannels.size + threads.length)} total collection targets`)
 
-                await editReply(`📡 Starting collection from **${allTargets.length} channels and threads**...`)
+                await context.editReply(`📡 Starting collection from **${allTargets.length} channels and threads**...`)
 
                 for await (const targetChannel of allTargets) {
                     try {
@@ -509,18 +508,18 @@ export default {
                     }
                 }
 
-                await followUp('✅ Finished collecting from all channels and threads.')
+                await context.followUp('✅ Finished collecting from all channels and threads.')
                 return
             }
             const channel = (await context.getChannelOption('channel')) as TextChannel
 
             if (!allChannels && !channel) {
-                await reply('❌ You must specify a channel unless `allchannels` is enabled.')
+                await context.reply('❌ You must specify a channel unless `allchannels` is enabled.')
                 return
             }
 
             // Check if channel was previously fully collected
-            const wasFullyCollected = await dataSource.isChannelFullyCollected(guild.id, channel.id)
+            const wasFullyCollected = await dataSource.isChannelFullyCollected(context.guild.id, channel.id)
 
             // Reply with appropriate message
             let replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'ALL' : limit} messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}...`
@@ -531,7 +530,7 @@ export default {
                 replyContent += `\n💡 Using Discord User API to fetch the total message count.`
             }
 
-            await reply(replyContent)
+            await context.reply(replyContent)
 
             try {
                 logger.info(`Collecting messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : userId ? ` by user ID ${userId}` : ''}, limit: ${yellow(limit)}, wasFullyCollected: ${yellow(wasFullyCollected)}`)
@@ -648,12 +647,12 @@ export default {
                 logger.warn(`Failed to collect messages: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
 
                 try {
-                    await editReply(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
+                    await context.editReply(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
                 } catch (replyError) {
                     // If editReply fails, the token might have expired, so try to send a follow-up
                     logger.warn(`Failed to edit reply with error message: ${red(replyError instanceof Error ? replyError.message : 'Unknown error')}`)
                     try {
-                        await followUp(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
+                        await context.followUp(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
                     } catch (finalError) {
                         logger.error(`Failed to send any error message: ${red(finalError instanceof Error ? finalError.message : 'Unknown error')}`)
                     }

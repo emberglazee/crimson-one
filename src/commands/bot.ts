@@ -65,15 +65,14 @@ export default {
             )
         ),
     async execute(context) {
-        const { reply, deferReply, editReply, client, myId, guild } = context
         const subcommand = context.getSubcommand()
         if (subcommand === 'info') {
-            await deferReply()
+            await context.deferReply()
             const { heapUsed, heapTotal, rss } = process.memoryUsage()
             const uptime = Math.floor(process.uptime())
             const uptimeStr = `${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`
-            const application = await client.application!.fetch()
-            await editReply({
+            const application = await context.client.application!.fetch()
+            await context.editReply({
                 embeds: [{
                     title: '🤖 Bot Information',
                     fields: [
@@ -88,67 +87,67 @@ export default {
             return
         }
         // Restrict the following subcommands to the owner
-        if (context.user.id !== myId) {
-            await reply('❌ You, solely, are responsible for this.')
+        if (context.user.id !== context.myId) {
+            await context.reply('❌ You, solely, are responsible for this.')
             return
         }
         if (subcommand === 'set_avatar') {
-            await deferReply()
+            await context.deferReply()
             const avatar = await context.getAttachmentOption('avatar', true)
-            await client.user!.setAvatar(avatar.url)
-            await editReply('✅ Avatar changed')
+            await context.client.user!.setAvatar(avatar.url)
+            await context.editReply('✅ Avatar changed')
             return
         }
         if (subcommand === 'set_banner') {
-            await deferReply()
+            await context.deferReply()
             const banner = await context.getAttachmentOption('banner', true)
-            await client.user!.setBanner(banner.url)
-            await editReply('✅ Banner changed')
+            await context.client.user!.setBanner(banner.url)
+            await context.editReply('✅ Banner changed')
             return
         }
         if (subcommand === 'set_username') {
             if (!canExecuteCommand()) {
-                await reply(`❌ This command can only be ran ${USAGE_LIMIT} times every ${WINDOW_MINUTES} minutes, to avoid API rate limiting`)
+                await context.reply(`❌ This command can only be ran ${USAGE_LIMIT} times every ${WINDOW_MINUTES} minutes, to avoid API rate limiting`)
                 return
             }
-            await deferReply()
+            await context.deferReply()
             let username = await context.getStringOption('username')
             const shortcut = await context.getStringOption('shortcut')
             if (!username && !shortcut) {
-                await editReply('❌ You must provide either a username or a shortcut')
+                await context.editReply('❌ You must provide either a username or a shortcut')
                 return
             }
             if (shortcut === 'guild') {
-                if (!guild) {
-                    await editReply('❌ The `guild` shortcut can only be used in a guild channel')
+                if (!context.guild) {
+                    await context.editReply('❌ The `guild` shortcut can only be used in a guild channel')
                     return
                 }
-                username = guild.name
+                username = context.guild.name
             } else if (shortcut === 'user') {
                 username = context.user.username
             } else if (shortcut === 'guilduser') {
-                if (!guild) {
-                    await editReply('❌ The `guilduser` shortcut can only be used in a guild channel')
+                if (!context.guild) {
+                    await context.editReply('❌ The `guilduser` shortcut can only be used in a guild channel')
                     return
                 }
                 username = context.member!.user.username ?? context.user.username
             }
             if (!username) {
-                await editReply('❌ Unexpected error: Username could not be determined')
+                await context.editReply('❌ Unexpected error: Username could not be determined')
                 return
             }
             try {
-                await client.user!.setUsername(username)
+                await context.client.user!.setUsername(username)
                 trackSuccessfulExecution()
             } catch (e) {
                 if ((e as Error).message.includes('USERNAME_RATE_LIMIT')) {
-                    await editReply('❌ Hit the username change rate limit')
+                    await context.editReply('❌ Hit the username change rate limit')
                     return
                 }
-                await editReply(`❌ Error changing username: ${(e as Error).message}`)
+                await context.editReply(`❌ Error changing username: ${(e as Error).message}`)
                 return
             }
-            await editReply(`✅ Username changed to ${username}`)
+            await context.editReply(`✅ Username changed to ${username}`)
             return
         }
     }

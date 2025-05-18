@@ -24,7 +24,6 @@ export default {
             )
         ),
     async execute(context) {
-        // const { reply } = context
         try {
             const subcommand = context.getSubcommand(true)
             const morse = await import('morse')
@@ -43,7 +42,7 @@ export default {
             }
         } catch (e) {
             const error = e as Error
-            logger.error(error.stack ?? error.message ?? error)
+            logger.warn(error.stack ?? error.message ?? error)
             await context.reply(`${PING_EMBERGLAZE} something went wrong with the morse command -> \`${error.message ?? error}\`\n-# check the full error stack in the console, nerd`)
         }
     }

@@ -11,7 +11,6 @@ export default {
             .setRequired(true)
         ),
     async execute(context) {
-        // const { reply } = context
         if (!context.guild) {
             await context.reply('❌ This command can only be used in a server!')
         }
