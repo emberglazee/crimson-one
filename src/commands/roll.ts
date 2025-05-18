@@ -71,7 +71,7 @@ export default {
             )
         ),
     async execute(context) {
-        const subcommand = await context.getSubcommand(true)
+        const subcommand = context.getSubcommand(true)
         if (subcommand === 'until') {
             // /roll until logic
             const targetNumber = await context.getNumberOption('number', true)
