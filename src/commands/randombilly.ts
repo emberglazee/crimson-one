@@ -12,11 +12,9 @@ export default {
         .setName('randombilly')
         .setDescription('Send a random billy emoji'),
     async execute(context) {
-        const { reply, deferReply, editReply } = context
-
         let deferred = false
         if (!emojis.length) {
-            await deferReply()
+            await context.deferReply()
             deferred = true
             const json = JSON.parse(
                 await fs.readFile(join(__dirname, '../../data/emojis.json'), 'utf-8')
@@ -28,6 +26,6 @@ export default {
         const emojiID = Object.values(emoji)[0]
         const str = `<:${emojiName}:${emojiID}>`
 
-        deferred ? await editReply(str) : await reply(str)
+        deferred ? await context.editReply(str) : await context.reply(str)
     }
 } satisfies SlashCommand
