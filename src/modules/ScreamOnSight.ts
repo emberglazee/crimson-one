@@ -80,7 +80,16 @@ export class ScreamOnSight {
             pattern: [/embi/gmi, /\bember/gmi],
             async action(message) {
                 if (message.channelId === '1372567739931037890') return
-                if (message.mentions.users.has(EMBERGLAZE_ID)) return
+                if (message.mentions.users.has(EMBERGLAZE_ID) || message.author.id === EMBERGLAZE_ID) return
+                if (chance(50)) await message.reply(getRandomElement([
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1374422035769462824/Vesktop_iH8AUuU6rH.png?ex=682dfdc4&is=682cac44&hm=1f37d03b5501415f6c38ff1e894e73f9d8ceb37430840908609b15a1d8ad3285&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1374422059534516294/Vesktop_0rpn0aJGEh.png?ex=682dfdca&is=682cac4a&hm=8b34b654b7ca3b9d00767090d471a93af56e5784d0991e6cb6d011c6bf8eb5d8&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1374422832867577939/Vesktop_cBoXqxNkmV.png?ex=682dfe82&is=682cad02&hm=dcc627b1f25f17f0c4535579fae57570c35676679ffe950c53aaab30cfe057a0&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1374423151458390017/Vesktop_9xv5wElu0F.png?ex=682dfece&is=682cad4e&hm=43dcc535f453d65c7b62a04b4af4a1e9c1ed3dee6a25d4dac514d33602f7f8f7&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1374423595425595512/Vesktop_19sIxDqsR4.png?ex=682dff38&is=682cadb8&hm=8e13d8a2eb71bec814be7478a591aa361effd0de755ab1d1df04c20a42a7b6f7&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1374423912745799721/Vesktop_jN1dJsstMt.png?ex=682dff84&is=682cae04&hm=ec301535d6dcf685a153fbe7d4106ca639071286747c7f8b04460de2894c4139&',
+                    ''
+                ]))
                 const emberglaze = await message.client.users.fetch(EMBERGLAZE_ID)
                 await emberglaze.send(`${PING_EMBERGLAZE} https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}\n-# Guild ${message.guild?.name || 'null'} (${message.guild?.id || 'null'})`)
             }
@@ -111,7 +120,7 @@ export class ScreamOnSight {
             }
         },
         {
-            pattern: [/fish/gmi, /\byou know what that means\b/gmi, /effic/gmi /* intended pun in pronounciation: 'effish' (efficient => ef_fish_ient) */],
+            pattern: [/fish/gmi, /\byou know what that means\b/gmi, /effic/gmi /* pronounciation pun: 'effish' (efficient => ef_fish_ient) */],
             async action(message) {
                 await message.react('🐟')
                 if (chance(10)) await message.reply(getRandomElement([
