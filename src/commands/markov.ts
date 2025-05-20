@@ -201,9 +201,25 @@ export default {
                 .setName('entire_channel')
                 .setDescription('Collect every message from the channel (ignores limit)')
                 .setRequired(false)
+            )
+        ).addSubcommand(sc => sc
+            .setName('collect_all')
+            .setDescription('Collect messages from every text channel and thread in the server')
+            .addUserOption(uo => uo
+                .setName('user')
+                .setDescription('Only collect messages from this user')
+                .setRequired(false)
+            ).addStringOption(so => so
+                .setName('user_id')
+                .setDescription('User ID to use if the user is not in the server')
+                .setRequired(false)
+            ).addIntegerOption(io => io
+                .setName('limit')
+                .setDescription('Maximum number of messages to collect per channel (default: 1000)')
+                .setRequired(false)
             ).addBooleanOption(bo => bo
-                .setName('all_channels')
-                .setDescription('Collect messages from every text channel and thread in the server')
+                .setName('entire_channel')
+                .setDescription('Collect every message from every channel (ignores limit)')
                 .setRequired(false)
             )
         ),
@@ -459,6 +475,56 @@ export default {
                 })
             }
 
+        } else if (subcommand === 'collect_all') {
+            const userOrId = await resolveUserOrId()
+            const user = userOrId && 'tag' in userOrId ? userOrId : undefined
+            const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
+            const collectEntireChannel = await context.getBooleanOption('entire_channel', false)
+            const limit = collectEntireChannel ? 'entire' : (await context.getIntegerOption('limit'))
+
+            await context.deferReply()
+            logger.info(`{collect_all} Collecting from every channel`)
+            const textChannels = (await context.guild.channels.fetch())
+                .filter(c => c &&
+                    (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) &&
+                    c.viewable
+                ) as Map<string, TextChannel>
+            logger.ok(`{collect_all} Fetched ${yellow(textChannels.size)} text channels`)
+
+            const threadPromises = [...textChannels.values()].map(async c => {
+                try {
+                    const threads = await c.threads.fetch()
+                    return threads.threads.filter(t => t.viewable)
+                } catch {
+                    return []
+                }
+            })
+
+            const threads = (await Promise.all(threadPromises)).flatMap(t => [...t.values()])
+            logger.ok(`{collect_all} Fetched ${yellow(threads.length)} threads`)
+
+            const allTargets = [...textChannels.values(), ...threads]
+            logger.info(`{collect_all} ${yellow(textChannels.size)} + ${yellow(threads.length)} = ${yellow(textChannels.size + threads.length)} total collection targets`)
+
+            await context.editReply(`📡 Starting collection from **${allTargets.length} channels and threads**...`)
+
+            for await (const targetChannel of allTargets) {
+                try {
+                    logger.info(`Collecting from #${yellow(targetChannel.name)} (${yellow(targetChannel.id)})`)
+                    const count = await markov.collectMessages(targetChannel as TextChannel, {
+                        user,
+                        userId,
+                        limit: limit === null ? undefined : limit,
+                        disableUserApiLookup: true
+                    })
+                    logger.ok(`Collected ${yellow(count)} messages from #${yellow(targetChannel.name)}`)
+                } catch (err) {
+                    logger.warn(`Failed to collect from #${yellow(targetChannel.name)}: ${red(err instanceof Error ? err.message : err)}`)
+                }
+            }
+
+            await context.followUp('✅ Finished collecting from all channels and threads.')
+            return
         } else if (subcommand === 'collect') {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
@@ -466,56 +532,10 @@ export default {
             const collectEntireChannel = await context.getBooleanOption('entire_channel', false)
             const limit = collectEntireChannel ? 'entire' : (await context.getIntegerOption('limit'))
 
-            const allChannels = await context.getBooleanOption('all_channels', false)
-            if (allChannels) {
-                await context.deferReply()
-                logger.info(`{collect} "allChannels" is true, collecting from every channel`)
-                const textChannels = (await context.guild.channels.fetch())
-                    .filter(c => c &&
-                        (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) &&
-                        c.viewable
-                    ) as Map<string, TextChannel>
-                logger.ok(`{collect} Fetched ${yellow(textChannels.size)} text channels`)
-
-                const threadPromises = [...textChannels.values()].map(async c => {
-                    try {
-                        const threads = await c.threads.fetch()
-                        return threads.threads.filter(t => t.viewable)
-                    } catch {
-                        return []
-                    }
-                })
-
-                const threads = (await Promise.all(threadPromises)).flatMap(t => [...t.values()])
-                logger.ok(`{collect} Fetched ${yellow(threads.length)} threads`)
-
-                const allTargets = [...textChannels.values(), ...threads]
-                logger.info(`{collect} ${yellow(textChannels.size)} + ${yellow(threads.length)} = ${yellow(textChannels.size + threads.length)} total collection targets`)
-
-                await context.editReply(`📡 Starting collection from **${allTargets.length} channels and threads**...`)
-
-                for await (const targetChannel of allTargets) {
-                    try {
-                        logger.info(`Collecting from #${yellow(targetChannel.name)} (${yellow(targetChannel.id)})`)
-                        const count = await markov.collectMessages(targetChannel as TextChannel, {
-                            user,
-                            userId,
-                            limit: limit === null ? undefined : limit,
-                            disableUserApiLookup: true
-                        })
-                        logger.ok(`Collected ${yellow(count)} messages from #${yellow(targetChannel.name)}`)
-                    } catch (err) {
-                        logger.warn(`Failed to collect from #${yellow(targetChannel.name)}: ${red(err instanceof Error ? err.message : err)}`)
-                    }
-                }
-
-                await context.followUp('✅ Finished collecting from all channels and threads.')
-                return
-            }
             const channel = (await context.getChannelOption('channel')) as TextChannel
 
-            if (!allChannels && !channel) {
-                await context.reply('❌ You must specify a channel unless `allchannels` is enabled.')
+            if (!channel) {
+                await context.reply('❌ You must specify a channel.')
                 return
             }
 
