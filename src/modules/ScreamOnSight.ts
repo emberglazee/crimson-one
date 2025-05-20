@@ -6,9 +6,9 @@ import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
 export class ScreamOnSight {
     triggers: ScreamOnSightTrigger[] = [
         {
-            pattern: [/comic/gmi, /peg/gmi],
+            pattern: [/comic/gmi, /peg/gmi, /mick/gmi, msg => msg.author.id === '244975212448317440'],
             async action(message) {
-                await message.reply('<:peg:1341742361004212285><:ging:1341742389257310279>')
+                if (chance(10)) await message.reply('<:peg:1341742361004212285><:ging:1341742389257310279>')
             }
         },
         {
