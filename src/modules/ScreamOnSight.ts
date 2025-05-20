@@ -80,6 +80,7 @@ export class ScreamOnSight {
             pattern: [/embi/gmi, /\bember/gmi],
             async action(message) {
                 if (message.channelId === '1372567739931037890') return
+                if (message.mentions.users.has(EMBERGLAZE_ID)) return
                 const emberglaze = await message.client.users.fetch(EMBERGLAZE_ID)
                 await emberglaze.send(`${PING_EMBERGLAZE} https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}\n-# Guild ${message.guild?.name || 'null'} (${message.guild?.id || 'null'})`)
             }

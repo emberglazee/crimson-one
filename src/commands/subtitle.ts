@@ -32,14 +32,14 @@ export const slashCommand = {
                 COLORS.map(color => ({ name: color.name, value: color.name }))
             )
         ).addStringOption(so => so
-            .setName('rolecolor')
+            .setName('role_color')
             .setDescription('Use a Discord role color for the speaker\'s name')
             .setRequired(false)
             .setChoices(
                 ROLE_COLORS.map(color => ({ name: color.name, value: color.name }))
             )
         ).addStringOption(so => so
-            .setName('charactercolor')
+            .setName('character_color')
             .setDescription('Use a character color for the speaker\'s name')
             .setRequired(false)
             .setChoices(
@@ -69,9 +69,9 @@ export const slashCommand = {
         const speaker = await context.getStringOption('speaker', true)
         const text = await context.getStringOption('text', true)
         const gradient = (await context.getStringOption('gradient') ?? 'none') as GradientType
-        const roleColor = await context.getStringOption('rolecolor')
+        const roleColor = await context.getStringOption('role_color')
         const plainColor = await context.getStringOption('color')
-        const characterColor = await context.getStringOption('charactercolor')
+        const characterColor = await context.getStringOption('character_color')
         const color = roleColor
             ? ROLE_COLORS.find(c => c.name === roleColor)?.hex ?? null
             : plainColor
@@ -110,7 +110,7 @@ export const contextMenuCommandAC7 = {
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
     async execute({ deferReply, editReply, guild }, interaction) {
-        const speaker = interaction.targetMessage.author.displayName
+        const speaker = interaction.targetMessage.member?.displayName ?? interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const text = interaction.targetMessage.content
 
@@ -137,7 +137,7 @@ export const contextMenuCommandPW = {
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
     async execute({ deferReply, editReply, guild }, interaction) {
-        const speaker = interaction.targetMessage.author.displayName
+        const speaker = interaction.targetMessage.member?.displayName ?? interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const text = interaction.targetMessage.content
 
@@ -164,7 +164,7 @@ export const contextMenuCommandHD2 = {
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
     async execute({ deferReply, editReply, guild }, interaction) {
-        const speaker = interaction.targetMessage.author.displayName
+        const speaker = interaction.targetMessage.member?.displayName ?? interaction.targetMessage.author.displayName
         const color = interaction.targetMessage.member?.displayHexColor || '#3498db'
         const text = interaction.targetMessage.content
 
