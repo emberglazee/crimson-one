@@ -1,198 +1,220 @@
-export interface MarkovNode {
-    word: string
-    next: Map<string, number>
+// Generic interfaces
+export interface BaseMarkovNode<T> {
+    item: T
+    next: Map<T, number>
     total: number
 }
 
-export interface MarkovChainOptions {
-    minWords?: number
-    maxWords?: number
-    seed?: string[]
+export interface BaseChainOptions<S, _> {
+    minItems?: number
+    maxItems?: number
+    seed?: S
 }
 
-export class ChainBuilder {
-    private chain: Map<string, MarkovNode> = new Map()
+// Abstract Base Chain Builder
+abstract class BaseChainBuilder<
+    TItem,
+    TSeed,
+    TNode extends BaseMarkovNode<TItem>,
+    TOptions extends BaseChainOptions<TSeed, TItem>
+> {
+    protected chain: Map<TItem, TNode> = new Map()
 
-    public train(text: string) {
-        const words = text.split(/\s+/).filter(w => w.length > 0)
-        if (words.length < 2) return
+    protected abstract splitInput(text: string): TItem[]
+    protected abstract joinOutput(items: TItem[]): string
+    protected abstract createNode(item: TItem): TNode
+    protected abstract getSeedItems(options: TOptions): TItem[]
+    protected abstract getDefaultMinItems(): number
+    protected abstract getDefaultMaxItems(): number
 
-        for (let i = 0; i < words.length - 1; i++) {
-            const word = words[i]
-            const nextWord = words[i + 1]
 
-            if (!this.chain.has(word)) {
-                this.chain.set(word, {
-                    word,
-                    next: new Map(),
-                    total: 0
-                })
+    public train(text: string): void {
+        const items = this.splitInput(text)
+        if (items.length < 2) return
+
+        for (let i = 0; i < items.length - 1; i++) {
+            const item = items[i]
+            const nextItem = items[i + 1]
+
+            if (!this.chain.has(item)) {
+                this.chain.set(item, this.createNode(item))
             }
 
-            const node = this.chain.get(word)!
-            node.next.set(nextWord, (node.next.get(nextWord) || 0) + 1)
+            const node = this.chain.get(item)!
+            node.next.set(nextItem, (node.next.get(nextItem) || 0) + 1)
             node.total++
         }
     }
 
+    public generate(options: TOptions = {} as TOptions): string {
+        const minItems = options.minItems ?? this.getDefaultMinItems()
+        const maxItems = options.maxItems ?? this.getDefaultMaxItems()
+
+        if (this.chain.size === 0) {
+            throw new Error('No data to generate from')
+        }
+
+        let resultItems: TItem[] = this.getSeedItems(options) // Processed seed
+        let current: TItem
+
+        if (resultItems.length > 0) {
+            const lastSeedItem = resultItems[resultItems.length - 1]
+            if (this.chain.has(lastSeedItem)) {
+                current = lastSeedItem
+            } else {
+                // Seed item not in chain, start random, discard invalid seed items for generation
+                current = Array.from(this.chain.keys())[Math.floor(Math.random() * this.chain.size)]
+                resultItems = [current]
+            }
+        } else {
+            // No seed or empty seed from getSeedItems
+            current = Array.from(this.chain.keys())[Math.floor(Math.random() * this.chain.size)]
+            resultItems = [current]
+        }
+
+        const targetLength = Math.floor(Math.random() * (maxItems - minItems + 1)) + minItems
+
+        // Ensure resultItems is not shorter than targetLength if seed is long,
+        // or fill up to targetLength
+        while (resultItems.length < targetLength) {
+            const node = this.chain.get(current)
+            if (!node?.next.size) break // No further path
+
+            const total = node.total
+            let cumulative = 0
+            const thresholds: [TItem, number][] = []
+
+            for (const [item, freq] of node.next) {
+                cumulative += freq / total
+                thresholds.push([item, cumulative])
+            }
+
+            const rand = Math.random()
+            let nextItem = thresholds[thresholds.length - 1][0] // Default to last if something goes wrong
+            for (const [item, threshold] of thresholds) {
+                if (rand <= threshold) {
+                    nextItem = item
+                    break
+                }
+            }
+
+            resultItems.push(nextItem)
+            current = nextItem
+        }
+
+        // If the generated result is shorter than minItems (e.g. dead end),
+        // and also shorter than the original seed if provided, it might be an issue.
+        // However, the current logic correctly stops if a dead end is reached.
+        // The targetLength is a target, not a guaranteed minimum if the chain cannot produce it.
+
+        return this.joinOutput(resultItems)
+    }
+
+    public clear(): void {
+        this.chain.clear()
+    }
+}
+
+// Word-based Markov chain
+export interface MarkovNode extends BaseMarkovNode<string> {
+    word: string // Alias for item
+}
+
+export interface MarkovChainOptions extends BaseChainOptions<string[], string> {
+    minWords?: number // Alias for minItems
+    maxWords?: number // Alias for maxItems
+}
+
+export class ChainBuilder extends BaseChainBuilder<string, string[], MarkovNode, MarkovChainOptions> {
+    protected splitInput(text: string): string[] {
+        return text.split(/\s+/).filter(w => w.length > 0)
+    }
+
+    protected joinOutput(items: string[]): string {
+        return items.join(' ')
+    }
+
+    protected createNode(item: string): MarkovNode {
+        return {
+            item: item,
+            word: item, // Keep 'word' for compatibility if anything relies on it
+            next: new Map(),
+            total: 0
+        }
+    }
+
+    protected getSeedItems(options: MarkovChainOptions): string[] {
+        return options.seed || []
+    }
+
+    protected getDefaultMinItems(): number {
+        return 5
+    }
+
+    protected getDefaultMaxItems(): number {
+        return 50
+    }
+
+    // Make generate's options parameter match the specific MarkovChainOptions
     public generate(options: MarkovChainOptions = {}): string {
-        const {
-            minWords = 5,
-            maxWords = 50,
-            seed
-        } = options
-
-        if (this.chain.size === 0) {
-            throw new Error('No data to generate from')
+        // Map minWords/maxWords to minItems/maxItems for the base class
+        const baseOptions: BaseChainOptions<string[], string> & { minItems?: number; maxItems?: number } = {
+            ...options,
+            minItems: options.minWords ?? options.minItems,
+            maxItems: options.maxWords ?? options.maxItems,
         }
-
-        let current: string
-        if (seed && seed.length > 0) {
-            // Try to start with the last word of the seed if it exists in the chain
-            const lastSeedWord = seed[seed.length - 1]
-            current = this.chain.has(lastSeedWord)
-                ? lastSeedWord
-                : Array.from(this.chain.keys())[Math.floor(Math.random() * this.chain.size)]
-        } else {
-            current = Array.from(this.chain.keys())[Math.floor(Math.random() * this.chain.size)]
-        }
-
-        const result: string[] = seed || []
-        const targetLength = Math.floor(Math.random() * (maxWords - minWords + 1)) + minWords
-
-        while (result.length < targetLength) {
-            const node = this.chain.get(current)
-            if (!node?.next.size) break
-
-            // Convert frequencies to cumulative probabilities
-            const total = node.total
-            let cumulative = 0
-            const thresholds: [string, number][] = []
-
-            for (const [word, freq] of node.next) {
-                cumulative += freq / total
-                thresholds.push([word, cumulative])
-            }
-
-            // Select next word based on probabilities
-            const rand = Math.random()
-            let nextWord = thresholds[thresholds.length - 1][0]
-            for (const [word, threshold] of thresholds) {
-                if (rand <= threshold) {
-                    nextWord = word
-                    break
-                }
-            }
-
-            result.push(nextWord)
-            current = nextWord
-        }
-
-        return result.join(' ')
-    }
-
-    public clear() {
-        this.chain.clear()
+        return super.generate(baseOptions)
     }
 }
 
-// Character-by-character Markov chain builder
-export interface CharacterMarkovNode {
-    char: string
-    next: Map<string, number>
-    total: number
+// Character-based Markov chain
+export interface CharacterMarkovNode extends BaseMarkovNode<string> {
+    char: string // Alias for item
 }
 
-export interface CharacterMarkovChainOptions {
-    minChars?: number
-    maxChars?: number
-    seed?: string
+export interface CharacterMarkovChainOptions extends BaseChainOptions<string, string> {
+    minChars?: number // Alias for minItems
+    maxChars?: number // Alias for maxItems
 }
 
-export class CharacterChainBuilder {
-    private chain: Map<string, CharacterMarkovNode> = new Map()
+export class CharacterChainBuilder extends BaseChainBuilder<string, string, CharacterMarkovNode, CharacterMarkovChainOptions> {
+    protected splitInput(text: string): string[] {
+        return Array.from(text)
+    }
 
-    public train(text: string) {
-        const chars = Array.from(text)
-        if (chars.length < 2) return
+    protected joinOutput(items: string[]): string {
+        return items.join('')
+    }
 
-        for (let i = 0; i < chars.length - 1; i++) {
-            const char = chars[i]
-            const nextChar = chars[i + 1]
-
-            if (!this.chain.has(char)) {
-                this.chain.set(char, {
-                    char,
-                    next: new Map(),
-                    total: 0
-                })
-            }
-
-            const node = this.chain.get(char)!
-            node.next.set(nextChar, (node.next.get(nextChar) || 0) + 1)
-            node.total++
+    protected createNode(item: string): CharacterMarkovNode {
+        return {
+            item: item,
+            char: item, // Keep 'char' for compatibility
+            next: new Map(),
+            total: 0
         }
     }
 
+    protected getSeedItems(options: CharacterMarkovChainOptions): string[] {
+        return options.seed ? Array.from(options.seed) : []
+    }
+
+    protected getDefaultMinItems(): number {
+        return 10
+    }
+
+    protected getDefaultMaxItems(): number {
+        return 100
+    }
+
+    // Make generate's options parameter match the specific CharacterMarkovChainOptions
     public generate(options: CharacterMarkovChainOptions = {}): string {
-        const {
-            minChars = 10,
-            maxChars = 100,
-            seed
-        } = options
-
-        if (this.chain.size === 0) {
-            throw new Error('No data to generate from')
+         // Map minChars/maxChars to minItems/maxItems for the base class
+        const baseOptions: BaseChainOptions<string, string> & { minItems?: number; maxItems?: number } = {
+            ...options,
+            minItems: options.minChars ?? options.minItems,
+            maxItems: options.maxChars ?? options.maxItems,
         }
-
-        let current: string
-        let result: string[] = []
-        if (seed && seed.length > 0) {
-            // Try to start with the last char of the seed if it exists in the chain
-            const lastSeedChar = seed[seed.length - 1]
-            current = this.chain.has(lastSeedChar)
-                ? lastSeedChar
-                : Array.from(this.chain.keys())[Math.floor(Math.random() * this.chain.size)]
-            result = Array.from(seed)
-        } else {
-            current = Array.from(this.chain.keys())[Math.floor(Math.random() * this.chain.size)]
-            result = [current]
-        }
-
-        const targetLength = Math.floor(Math.random() * (maxChars - minChars + 1)) + minChars
-
-        while (result.length < targetLength) {
-            const node = this.chain.get(current)
-            if (!node?.next.size) break
-
-            // Convert frequencies to cumulative probabilities
-            const total = node.total
-            let cumulative = 0
-            const thresholds: [string, number][] = []
-
-            for (const [char, freq] of node.next) {
-                cumulative += freq / total
-                thresholds.push([char, cumulative])
-            }
-
-            // Select next char based on probabilities
-            const rand = Math.random()
-            let nextChar = thresholds[thresholds.length - 1][0]
-            for (const [char, threshold] of thresholds) {
-                if (rand <= threshold) {
-                    nextChar = char
-                    break
-                }
-            }
-
-            result.push(nextChar)
-            current = nextChar
-        }
-
-        return result.join('')
-    }
-
-    public clear() {
-        this.chain.clear()
+        return super.generate(baseOptions)
     }
 }

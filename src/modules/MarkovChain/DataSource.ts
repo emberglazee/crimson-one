@@ -79,6 +79,13 @@ export class DataSource {
                 CREATE INDEX IF NOT EXISTS idx_channels_id ON channels(id);
                 CREATE INDEX IF NOT EXISTS idx_guilds_id ON guilds(id);
                 CREATE INDEX IF NOT EXISTS idx_users_id ON users(id);
+
+                -- Composite indexes for getMessages()
+                CREATE INDEX IF NOT EXISTS idx_messages_guild_author_ts ON messages(guildId, authorId, timestamp);
+                CREATE INDEX IF NOT EXISTS idx_messages_channel_author_ts ON messages(channelId, authorId, timestamp);
+                CREATE INDEX IF NOT EXISTS idx_messages_guild_ts ON messages(guildId, timestamp);
+                CREATE INDEX IF NOT EXISTS idx_messages_channel_ts ON messages(channelId, timestamp);
+                CREATE INDEX IF NOT EXISTS idx_messages_author_ts ON messages(authorId, timestamp);
             `)
 
             // Run migration to add new columns if needed
@@ -236,12 +243,53 @@ export class DataSource {
 
             // Mark channel as fully collected if specified
             if (fullyCollectedChannelId) {
-                await manager.update(
-                    Channel,
-                    { id: fullyCollectedChannelId },
-                    { fullyCollected: true }
+                // The `messages` parameter contains all messages fetched from Discord for this run.
+                // Filter them to get only those that belong to the fullyCollectedChannelId.
+                const newMessagesForThisChannel = messages.filter(
+                    msg => msg.channelId === fullyCollectedChannelId
                 )
-                logger.ok(`{addMessages} Marked channel ${yellow(fullyCollectedChannelId)} as fully collected`)
+
+                if (newMessagesForThisChannel.length > 0) {
+                    // Identify the maximum timestamp from the NEWLY ADDED messages for this channel.
+                    // This assumes `messagesToInsert` earlier in the transaction correctly
+                    // handled potential duplicates and only contains messages that were actually inserted or updated.
+                    // For safety and correctness, it's better to rely on `newMessagesForThisChannel`
+                    // as these are the ones passed from Discord for this collection run.
+                    const maxTimestamp = Math.max(
+                        ...newMessagesForThisChannel.map(m => m.createdTimestamp)
+                    )
+                    await manager.update(
+                        Channel,
+                        { id: fullyCollectedChannelId },
+                        {
+                            fullyCollected: true,
+                            lastMessageTimestampAtFullCollection: maxTimestamp,
+                        }
+                    )
+                    logger.ok(
+                        `{addMessages} Marked channel ${yellow(
+                            fullyCollectedChannelId
+                        )} as fully collected. Updated lastMessageTimestampAtFullCollection to ${new Date(
+                            maxTimestamp
+                        ).toISOString()}`
+                    )
+                } else {
+                    // No new messages were passed for this channel in the current batch,
+                    // or all messages were filtered out before this stage (e.g. by some other pre-processing).
+                    // Set fullyCollected to true, but do not update the timestamp.
+                    // If lastMessageTimestampAtFullCollection was already set, it remains.
+                    // If it was null, it remains null.
+                    await manager.update(
+                        Channel,
+                        { id: fullyCollectedChannelId },
+                        { fullyCollected: true }
+                    )
+                    logger.ok(
+                        `{addMessages} Marked channel ${yellow(
+                            fullyCollectedChannelId
+                        )} as fully collected. No new messages in this batch for this channel to update timestamp.`
+                    )
+                }
             }
             logger.ok('{addMessages} Finished!')
         })
@@ -288,12 +336,16 @@ export class DataSource {
         return query.getMany()
     }
 
-    public async isChannelFullyCollected(guildId: string, channelId: string): Promise<boolean> {
+    public async isChannelFullyCollected(guildId: string, channelId: string): Promise<number | null> {
         await this.init()
         const channel = await this.orm.getRepository(Channel).findOne({
-            where: { id: channelId, guild: { id: guildId } }
+            where: { id: channelId, guild: { id: guildId } },
+            select: ['fullyCollected', 'lastMessageTimestampAtFullCollection']
         })
-        return channel?.fullyCollected ?? false
+        if (channel?.fullyCollected) {
+            return channel.lastMessageTimestampAtFullCollection ?? null
+        }
+        return null
     }
 
     public async getExistingMessageIds(guildId: string, channelId: string): Promise<Set<string>> {
