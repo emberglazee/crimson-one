@@ -210,7 +210,7 @@ export class DataSource {
                     .insert()
                     .into(Channel)
                     .values(channelsToUpsert)
-                    .orUpdate(['fullyCollected'], ['id'])
+                    .orIgnore()
                     .execute()
                 logger.ok('{addMessages} Channels upserted')
 
