@@ -63,7 +63,7 @@ export default {
         if (attachment) {
             imageUrl = attachment.url
         } else if (user) {
-            imageUrl = await context.getUserAvatar(user, context.guild, { size: 256, extension: 'png' })
+            imageUrl = context.getUserAvatar(user, context.guild, { size: 256, extension: 'png' })
         }
 
         if (!imageUrl) {
