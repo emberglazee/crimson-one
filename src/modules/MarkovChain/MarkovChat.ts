@@ -98,19 +98,17 @@ export class MarkovChat extends EventEmitter<{
         const startTime = Date.now()
         const MAX_RETRIES = 3
         const BATCH_SIZE = 100
-
-        // Check if channel was previously fully collected
-        const wasFullyCollected = await this.dataSource.isChannelFullyCollected(channel.guild.id, channel.id)
         const isEntireChannel = limit === 'entire'
 
-        // For previously collected channels, we'll need to track existing message IDs
-        let existingMessageIds: Set<string> = new Set()
-        let foundExistingMessage = false
+        // Check if channel was previously fully collected and get the last known timestamp
+        const lastKnownTimestamp = await this.dataSource.isChannelFullyCollected(channel.guild.id, channel.id)
+        const wasPreviouslyFullyCollected = lastKnownTimestamp !== null
+        let newMessagesCollectedThisRun = false // Track if any new messages are added in this run
 
-        if (wasFullyCollected) {
-            // Load existing message IDs for this channel to check for duplicates
-            existingMessageIds = await this.dataSource.getExistingMessageIds(channel.guild.id, channel.id)
-            logger.info(`Channel was previously fully collected. Checking for ${existingMessageIds.size} existing messages.`)
+        if (wasPreviouslyFullyCollected) {
+            logger.info(`Channel was previously fully collected. Last known message timestamp: ${new Date(lastKnownTimestamp!).toISOString()}`)
+        } else {
+            logger.info(`Channel not previously fully collected or timestamp unknown. Collecting as new.`)
         }
 
         // Get total message count from Discord API if collecting entire channel
@@ -155,33 +153,29 @@ export class MarkovChat extends EventEmitter<{
 
             if (!batch?.size) break
 
-            let validMessages = user
-                ? batch.filter((msg: DiscordMessage) => msg.author.id === user.id && msg.content.length > 0)
-                : userId
-                    ? batch.filter((msg: DiscordMessage) => msg.author.id === userId && msg.content.length > 0)
-                    : batch.filter((msg: DiscordMessage) => msg.content.length > 0)
+            let hitOldMessagePointInBatch = false
+            const currentBatchNewMessages: DiscordMessage[] = []
 
-            // For previously fully collected channels, check for message ID matches
-            if (wasFullyCollected) {
-                // Check if we've found a message that already exists in our database
-                for (const [id] of validMessages) {
-                    if (existingMessageIds.has(id)) {
-                        logger.info(`Found existing message with ID ${yellow(id)}. Stopping collection.`)
-                        foundExistingMessage = true
-                        break
-                    }
-                }
+            for (const msg of batch.values()) {
+                // Apply filters
+                if (user && msg.author.id !== user.id) continue
+                if (userId && msg.author.id !== userId) continue
+                if (msg.content.length === 0) continue
 
-                if (foundExistingMessage) {
-                    // Filter out messages that already exist in the database
-                    validMessages = validMessages.filter(msg => !existingMessageIds.has(msg.id))
-                    // Add remaining new messages and then break
-                    messages.push(...validMessages.values())
-                    break
+                if (wasPreviouslyFullyCollected && msg.createdTimestamp <= lastKnownTimestamp!) {
+                    hitOldMessagePointInBatch = true
+                    // If Discord guarantees strict reverse chronological order, we could break here.
+                    // For safety, iterate the whole batch but don't add older messages.
+                    continue // Don't add this old message or any older ones in this batch
                 }
+                currentBatchNewMessages.push(msg)
             }
 
-            messages.push(...validMessages.values())
+            if (currentBatchNewMessages.length > 0) {
+                messages.push(...currentBatchNewMessages)
+                newMessagesCollectedThisRun = true
+            }
+            
             lastId = batch.last()?.id
             batchCount++
 
@@ -216,9 +210,16 @@ export class MarkovChat extends EventEmitter<{
                 estimatedTimeRemaining
             }
             this.emit('collectProgress', progressEvent)
+
+            if (wasPreviouslyFullyCollected && hitOldMessagePointInBatch) {
+                logger.info(`Hit messages older than or equal to lastKnownTimestamp (${new Date(lastKnownTimestamp!).toISOString()}). Stopping further collection of older messages.`)
+                break // Break from the main while loop for fetching batches
+            }
         }
 
         if (messages.length > 0) {
+            // If wasPreviouslyFullyCollected, messages array should only contain messages newer than lastKnownTimestamp.
+            // If not, it contains all messages up to the limit.
             await this.dataSource.addMessages(messages, channel.guild, isEntireChannel ? channel.id : undefined)
             logger.ok(`Collected ${yellow(messages.length)} messages from ${yellow(channel.name)}${isEntireChannel ? yellow(' (entire channel)') : ''}`)
         }
@@ -229,7 +230,7 @@ export class MarkovChat extends EventEmitter<{
             channelName: channel.name,
             userFiltered: !!user || !!userId,
             entireChannel: isEntireChannel,
-            newMessagesOnly: wasFullyCollected,
+            newMessagesOnly: wasPreviouslyFullyCollected && newMessagesCollectedThisRun,
             totalMessageCount: totalMessageCount || undefined
         })
 

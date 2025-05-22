@@ -15,4 +15,7 @@ export class Channel {
 
     @Column('boolean', { default: false })
     fullyCollected!: boolean
+
+    @Column({ type: 'integer', nullable: true })
+    lastMessageTimestampAtFullCollection?: number | null
 }

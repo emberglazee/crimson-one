@@ -1035,6 +1035,7 @@ export class CommandContext {
     public parsedArgs: ArgumentsCamelCase<{ [key: string]: JSONResolvable }> | null = null
     public subcommandName: string | null = null
     public subcommandGroupName: string | null = null
+    private resolvedOptionCache: Map<string, User | GuildMember | GuildBasedChannel | Role | Attachment | string | number | boolean | null> = new Map();
 
 
     constructor(source: ChatInputCommandInteraction | Message, rawArgs?: string[]) {
@@ -1211,165 +1212,221 @@ export class CommandContext {
     async getStringOption(name: string, required?: false): Promise<string | null>
     async getStringOption(name: string): Promise<string | null> // required is implicitly false
     async getStringOption(name: string, required?: boolean): Promise<string | null> {
-        let value: string | null = null
+        const cacheKey = `string_${name}`;
+        if (this.resolvedOptionCache.has(cacheKey)) {
+            return this.resolvedOptionCache.get(cacheKey) as string | null;
+        }
+
+        let value: string | null = null;
         if (this.interaction) {
-            value = this.interaction.options.getString(name, required || false)
+            value = this.interaction.options.getString(name, false); // Fetch non-required for caching
         } else if (this.parsedArgs) {
-            const parsedValue = this.parsedArgs[name]
-            value = parsedValue !== undefined && parsedValue !== null ? String(parsedValue) : null
+            const parsedValue = this.parsedArgs[name];
+            value = parsedValue !== undefined && parsedValue !== null ? String(parsedValue) : null;
         }
 
         if (required && value === null) {
-            throw new Error(`Required option "${name}" is missing or invalid for ${this.isInteraction ? 'interaction' : 'text command'}.`)
+            throw new Error(`Required string option "${name}" is missing or invalid for ${this.isInteraction ? 'interaction' : 'text command'}.`);
         }
-        return value
+        this.resolvedOptionCache.set(cacheKey, value);
+        return value;
     }
 
     async getIntegerOption(name: string, required: true): Promise<number>
     async getIntegerOption(name: string, required?: false): Promise<number | null>
     async getIntegerOption(name: string): Promise<number | null>
     async getIntegerOption(name: string, required?: boolean): Promise<number | null> {
-        let value: number | null = null
+        const cacheKey = `integer_${name}`;
+        if (this.resolvedOptionCache.has(cacheKey)) {
+            return this.resolvedOptionCache.get(cacheKey) as number | null;
+        }
+
+        let value: number | null = null;
         if (this.interaction) {
-            value = this.interaction.options.getInteger(name, required || false)
+            value = this.interaction.options.getInteger(name, false); // Fetch non-required for caching
         } else if (this.parsedArgs) {
-            const parsedValue = this.parsedArgs[name]
-            value = Number.isInteger(parsedValue) ? Number(parsedValue) : null
+            const parsedValue = this.parsedArgs[name];
+            value = Number.isInteger(parsedValue) ? Number(parsedValue) : null;
         }
 
         if (required && value === null) {
-            throw new Error(`Required option "${name}" is missing or invalid for ${this.isInteraction ? 'interaction' : 'text command'}.`)
+            throw new Error(`Required integer option "${name}" is missing or invalid for ${this.isInteraction ? 'interaction' : 'text command'}.`);
         }
-        return value
+        this.resolvedOptionCache.set(cacheKey, value);
+        return value;
     }
 
     async getBooleanOption(name: string, required: true): Promise<boolean>
     async getBooleanOption(name: string, required?: false): Promise<boolean | null> // Note: boolean can be false, so null means "not provided"
     async getBooleanOption(name: string): Promise<boolean | null>
     async getBooleanOption(name: string, required?: boolean): Promise<boolean | null> {
-        let value: boolean | null = null
-        if (this.interaction) {
-            value = this.interaction.options.getBoolean(name, required || false)
-        } else if (this.parsedArgs) {
-            const parsedValue = this.parsedArgs[name]
-            // For yargs, a boolean flag not present might be undefined. If present, it's true/false.
-            value = typeof parsedValue === 'boolean' ? parsedValue : null
+        const cacheKey = `boolean_${name}`;
+        if (this.resolvedOptionCache.has(cacheKey)) {
+            return this.resolvedOptionCache.get(cacheKey) as boolean | null;
         }
 
-        if (required && value === null) { // For booleans, null means "not provided"
-            throw new Error(`Required option "${name}" is missing for ${this.isInteraction ? 'interaction' : 'text command'}.`)
+        let value: boolean | null = null;
+        if (this.interaction) {
+            value = this.interaction.options.getBoolean(name, false); // Fetch non-required for caching
+        } else if (this.parsedArgs) {
+            const parsedValue = this.parsedArgs[name];
+            value = typeof parsedValue === 'boolean' ? parsedValue : null;
         }
-        return value
+
+        if (required && value === null) { 
+            throw new Error(`Required boolean option "${name}" is missing for ${this.isInteraction ? 'interaction' : 'text command'}.`);
+        }
+        this.resolvedOptionCache.set(cacheKey, value);
+        return value;
     }
 
     async getUserOption(name: string, required: true): Promise<User>
     async getUserOption(name: string, required?: false): Promise<User | null>
     async getUserOption(name: string): Promise<User | null>
     async getUserOption(name: string, required?: boolean): Promise<User | null> {
-        let value: User | null = null
+        const cacheKey = `user_${name}`;
+        if (this.resolvedOptionCache.has(cacheKey)) {
+            return this.resolvedOptionCache.get(cacheKey) as User | null;
+        }
+
+        let value: User | null = null;
         if (this.interaction) {
-            value = this.interaction.options.getUser(name, required || false)
+            value = this.interaction.options.getUser(name, false); // Fetch non-required for caching
         } else if (this.parsedArgs && this.message) {
-            const parsedVal = this.parsedArgs[name] as string | undefined
-            value = parsedVal ? await this.resolveUser(parsedVal) : null
+            const parsedVal = this.parsedArgs[name] as string | undefined;
+            value = parsedVal ? await this.resolveUser(parsedVal) : null;
         }
 
         if (required && value === null) {
-            throw new Error(`Required option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`)
+            throw new Error(`Required user option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`);
         }
-        return value
+        this.resolvedOptionCache.set(cacheKey, value);
+        return value;
     }
 
     async getMemberOption(name: string, required: true): Promise<GuildMember>
     async getMemberOption(name: string, required?: false): Promise<GuildMember | null>
     async getMemberOption(name: string): Promise<GuildMember | null>
     async getMemberOption(name: string, required?: boolean): Promise<GuildMember | null> {
-        let member: GuildMember | null = null
+        const cacheKey = `member_${name}`;
+        if (this.resolvedOptionCache.has(cacheKey)) {
+            return this.resolvedOptionCache.get(cacheKey) as GuildMember | null;
+        }
+
+        let member: GuildMember | null = null;
         if (this.interaction) {
-            member = guildMember(this.interaction.options.getMember(name))
+            // getMember can return APIInteractionGuildMember | GuildMember | null.
+            // We use guildMember helper to ensure it's always GuildMember | null
+            const rawMember = this.interaction.options.getMember(name); // Fetch non-required for caching
+            member = guildMember(rawMember);
         } else if (this.parsedArgs && this.message) {
-            const parsedVal = this.parsedArgs[name] as string | undefined
-            member = parsedVal ? await this.resolveMember(parsedVal) : null
+            const parsedVal = this.parsedArgs[name] as string | undefined;
+            member = parsedVal ? await this.resolveMember(parsedVal) : null;
         }
 
         if (required && member === null) {
-            throw new Error(`Required member option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`)
+            throw new Error(`Required member option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`);
         }
-        return member
+        this.resolvedOptionCache.set(cacheKey, member);
+        return member;
     }
 
     async getChannelOption(name: string, required: true): Promise<GuildBasedChannel>
     async getChannelOption(name: string, required?: false): Promise<GuildBasedChannel | null>
     async getChannelOption(name: string): Promise<GuildBasedChannel | null>
     async getChannelOption(name: string, required?: boolean): Promise<GuildBasedChannel | null> {
-        let value: GuildBasedChannel | null = null
+        const cacheKey = `channel_${name}`;
+        if (this.resolvedOptionCache.has(cacheKey)) {
+            return this.resolvedOptionCache.get(cacheKey) as GuildBasedChannel | null;
+        }
+
+        let value: GuildBasedChannel | null = null;
         if (this.interaction) {
-            value = this.interaction.options.getChannel(name, required || false) as GuildBasedChannel | null
+            value = this.interaction.options.getChannel(name, false) as GuildBasedChannel | null; // Fetch non-required
         } else if (this.parsedArgs && this.message) {
-            const parsedVal = this.parsedArgs[name] as string | undefined
-            value = parsedVal ? await this.resolveChannel(parsedVal) : null
+            const parsedVal = this.parsedArgs[name] as string | undefined;
+            value = parsedVal ? await this.resolveChannel(parsedVal) : null;
         }
 
         if (required && value === null) {
-            throw new Error(`Required option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`)
+            throw new Error(`Required channel option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`);
         }
-        return value
+        this.resolvedOptionCache.set(cacheKey, value);
+        return value;
     }
 
     async getRoleOption(name: string, required: true): Promise<Role>
     async getRoleOption(name: string, required?: false): Promise<Role | null>
     async getRoleOption(name: string): Promise<Role | null>
     async getRoleOption(name: string, required?: boolean): Promise<Role | null> {
-        let value: Role | null = null
+        const cacheKey = `role_${name}`;
+        if (this.resolvedOptionCache.has(cacheKey)) {
+            return this.resolvedOptionCache.get(cacheKey) as Role | null;
+        }
+
+        let value: Role | null = null;
         if (this.interaction) {
-            value = this.interaction.options.getRole(name, required || false) as Role | null
+            value = this.interaction.options.getRole(name, false) as Role | null; // Fetch non-required
         } else if (this.parsedArgs && this.message) {
-            const parsedVal = this.parsedArgs[name] as string | undefined
-            value = parsedVal ? await this.resolveRole(parsedVal) : null
+            const parsedVal = this.parsedArgs[name] as string | undefined;
+            value = parsedVal ? await this.resolveRole(parsedVal) : null;
         }
 
         if (required && value === null) {
-            throw new Error(`Required option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`)
+            throw new Error(`Required role option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`);
         }
-        return value
+        this.resolvedOptionCache.set(cacheKey, value);
+        return value;
     }
 
     async getNumberOption(name: string, required: true): Promise<number>
     async getNumberOption(name: string, required?: false): Promise<number | null>
     async getNumberOption(name: string): Promise<number | null>
     async getNumberOption(name: string, required?: boolean): Promise<number | null> {
-        let value: number | null = null
+        const cacheKey = `number_${name}`;
+        if (this.resolvedOptionCache.has(cacheKey)) {
+            return this.resolvedOptionCache.get(cacheKey) as number | null;
+        }
+
+        let value: number | null = null;
         if (this.interaction) {
-            value = this.interaction.options.getNumber(name, required || false)
+            value = this.interaction.options.getNumber(name, false); // Fetch non-required
         } else if (this.parsedArgs) {
-            const parsedValue = this.parsedArgs[name]
-            value = typeof parsedValue === 'number' ? parsedValue : null
+            const parsedValue = this.parsedArgs[name];
+            value = typeof parsedValue === 'number' ? parsedValue : null;
         }
 
         if (required && value === null) {
-            throw new Error(`Required option "${name}" is missing or invalid for ${this.isInteraction ? 'interaction' : 'text command'}.`)
+            throw new Error(`Required number option "${name}" is missing or invalid for ${this.isInteraction ? 'interaction' : 'text command'}.`);
         }
-        return value
+        this.resolvedOptionCache.set(cacheKey, value);
+        return value;
     }
 
     async getAttachmentOption(name: string, required: true): Promise<Attachment>
     async getAttachmentOption(name: string, required?: false): Promise<Attachment | null>
     async getAttachmentOption(name: string): Promise<Attachment | null>
     async getAttachmentOption(name: string, required?: boolean): Promise<Attachment | null> {
-        let value: Attachment | null = null
+        const cacheKey = `attachment_${name}`;
+        if (this.resolvedOptionCache.has(cacheKey)) {
+            return this.resolvedOptionCache.get(cacheKey) as Attachment | null;
+        }
+
+        let value: Attachment | null = null;
         if (this.interaction) {
-            value = this.interaction.options.getAttachment(name, required || false)
+            value = this.interaction.options.getAttachment(name, false); // Fetch non-required
         } else if (this.message && this.parsedArgs) {
-            const attachmentFlagPresent = this.parsedArgs[name] === true || typeof this.parsedArgs[name] === 'string'
+            const attachmentFlagPresent = this.parsedArgs[name] === true || typeof this.parsedArgs[name] === 'string';
             if (attachmentFlagPresent && this.message.attachments.size > 0) {
-                value = this.message.attachments.first()! // Non-null assertion as size > 0
+                value = this.message.attachments.first()!; 
             }
         }
 
         if (required && value === null) {
-            throw new Error(`Required attachment "${name}" is missing or was not provided correctly for ${this.isInteraction ? 'interaction' : 'text command'}.`)
+            throw new Error(`Required attachment option "${name}" is missing or was not provided correctly for ${this.isInteraction ? 'interaction' : 'text command'}.`);
         }
-        return value
+        this.resolvedOptionCache.set(cacheKey, value);
+        return value;
     }
 
     public getSubcommand(required?: false): string | null;
