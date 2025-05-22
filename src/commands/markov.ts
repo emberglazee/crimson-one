@@ -1,7 +1,7 @@
 import { Logger, red, yellow } from '../util/logger'
 const logger = new Logger('/markov')
 
-import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message } from 'discord.js'
+import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message, User } from 'discord.js'
 
 import { formatTimeRemaining } from '../util/functions'
 import { SlashCommand } from '../types/types'
@@ -226,102 +226,102 @@ export default {
 
     async execute(context: CommandContext) {
         if (!context.guild) {
-            logger.info('Command used outside of a server');
-            await context.reply('❌ This command can only be used in a server');
-            return;
+            logger.info('Command used outside of a server')
+            await context.reply('❌ This command can only be used in a server')
+            return
         }
 
-        const subcommand = context.getSubcommand(true); // Ensure subcommand is present
-        const markov = MarkovChat.getInstance();
-        const dataSource = DataSource.getInstance();
+        const subcommand = context.getSubcommand(true) // Ensure subcommand is present
+        const markov = MarkovChat.getInstance()
+        const dataSource = DataSource.getInstance()
 
         // Helper to resolve user from picker or user_id, used by subcommand handlers
         async function _resolveUserOrId(ctx: CommandContext) {
-            const user = await ctx.getUserOption('user') ?? undefined;
-            const userId = await ctx.getStringOption('user_id') ?? undefined;
-            if (user) return user;
+            const user = await ctx.getUserOption('user') ?? undefined
+            const userId = await ctx.getStringOption('user_id') ?? undefined
+            if (user) return user
             if (userId) {
                 try {
-                    return await ctx.client.users.fetch(userId);
+                    return await ctx.client.users.fetch(userId)
                 } catch {
-                    return { id: userId }; // Return as ID object for filtering
+                    return { id: userId } // Return as ID object for filtering
                 }
             }
-            return undefined;
+            return undefined
         }
 
         switch (subcommand) {
             case 'generate':
-                await _handleGenerateSubcommand(context, markov, _resolveUserOrId);
-                break;
+                await _handleGenerateSubcommand(context, markov, _resolveUserOrId)
+                break
             case 'info':
-                await _handleInfoSubcommand(context, markov, _resolveUserOrId);
-                break;
+                await _handleInfoSubcommand(context, markov, _resolveUserOrId)
+                break
             case 'collect':
-                await _handleCollectSubcommand(context, markov, dataSource, _resolveUserOrId);
-                break;
+                await _handleCollectSubcommand(context, markov, dataSource, _resolveUserOrId)
+                break
             case 'collect_all':
-                await _handleCollectAllSubcommand(context, markov, _resolveUserOrId);
-                break;
+                await _handleCollectAllSubcommand(context, markov, _resolveUserOrId)
+                break
             default:
-                logger.warn(`Unknown subcommand received: ${subcommand}`);
-                await context.reply(`❌ Unknown subcommand: ${subcommand}`);
+                logger.warn(`Unknown subcommand received: ${subcommand}`)
+                await context.reply(`❌ Unknown subcommand: ${subcommand}`)
         }
     }
-} satisfies SlashCommand;
+} satisfies SlashCommand
 
 type Source = 'guild' | 'global' | null;
 
 // --- Subcommand Handler Implementations ---
 
-async function _handleGenerateSubcommand(context: CommandContext, markov: MarkovChat, resolveUserOrId: (ctx: CommandContext) => ReturnType<typeof resolveUserOrIdInternal>) {
-    if (!context.guild) return; // Should be guaranteed by main execute, but good practice
+async function _handleGenerateSubcommand(context: CommandContext, markov: MarkovChat, resolveUserOrId: (ctx: CommandContext) => ReturnType<typeof _resolveUserOrIdInternal>) {
+    if (!context.guild) return // Should be guaranteed by main execute, but good practice
 
-    const userOrId = await resolveUserOrId(context);
-    const user = userOrId && 'tag' in userOrId ? userOrId : undefined;
-    const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined;
-    const source = (await context.getStringOption('source')) as Source;
-    const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined;
-    const words = await context.getIntegerOption('words') ?? 20;
-    const seed = await context.getStringOption('seed') ?? undefined;
-    const characterMode = await context.getBooleanOption('character_mode', false);
+    const userOrId = await resolveUserOrId(context)
+    const user = userOrId && 'tag' in userOrId ? userOrId : undefined
+    const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
+    const source = (await context.getStringOption('source')) as Source
+    const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined
+    const words = await context.getIntegerOption('words') ?? 20
+    const seed = await context.getStringOption('seed') ?? undefined
+    const characterMode = await context.getBooleanOption('character_mode', false)
 
-    await context.deferReply();
+    await context.deferReply()
 
     try {
-        logger.info(`Generating message with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`);
-        const timeStart = process.hrtime();
-        const messageManager = new InteractionMessageManager(context);
-        const interactionStartTime = process.hrtime();
-        let lastUpdateTime = 0;
-        let lastStep = '';
-        const UPDATE_INTERVAL = 5000;
+        logger.info(`Generating message with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
+        const timeStart = process.hrtime()
+        const messageManager = new InteractionMessageManager(context)
+        const interactionStartTime = process.hrtime()
+        let lastUpdateTime = 0
+        let lastStep = ''
+        const UPDATE_INTERVAL = 5000
 
         markov.on('generateProgress', async progress => {
-            const now = process.hrtime(interactionStartTime);
-            const nowMs = now[0] * 1000 + now[1] / 1e6;
-            const stepChanged = progress.step !== lastStep;
-            if (!stepChanged && nowMs - lastUpdateTime < UPDATE_INTERVAL) return;
+            const now = process.hrtime(interactionStartTime)
+            const nowMs = now[0] * 1000 + now[1] / 1e6
+            const stepChanged = progress.step !== lastStep
+            if (!stepChanged && nowMs - lastUpdateTime < UPDATE_INTERVAL) return
 
-            lastUpdateTime = nowMs;
-            lastStep = progress.step;
+            lastUpdateTime = nowMs
+            lastStep = progress.step
 
             if (nowMs > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
-                logger.info(`Approaching interaction timeout (${yellow(nowMs)}ms elapsed). Switching to follow-up message.`);
-                messageManager.switchToFollowUp();
+                logger.info(`Approaching interaction timeout (${yellow(nowMs)}ms elapsed). Switching to follow-up message.`)
+                messageManager.switchToFollowUp()
             }
 
-            let progressMessage = `⏳ Generating message...\n📊 Step: ${progress.step}\n`;
+            let progressMessage = `⏳ Generating message...\n📊 Step: ${progress.step}\n`
             if (progress.step === 'training') {
-                const percent = ((progress.progress / progress.total) * 100).toFixed(1);
-                progressMessage += `🔄 Training: ${progress.progress}/${progress.total} messages (${percent}%)\n`;
+                const percent = ((progress.progress / progress.total) * 100).toFixed(1)
+                progressMessage += `🔄 Training: ${progress.progress}/${progress.total} messages (${percent}%)\n`
             }
-            progressMessage += `⌛ Elapsed: ${formatTimeRemaining(progress.elapsedTime / 1000)}\n`;
+            progressMessage += `⌛ Elapsed: ${formatTimeRemaining(progress.elapsedTime / 1000)}\n`
             if (progress.estimatedTimeRemaining !== null) {
-                progressMessage += `⏱️ ETA: ${formatTimeRemaining(progress.estimatedTimeRemaining)}`;
+                progressMessage += `⏱️ ETA: ${formatTimeRemaining(progress.estimatedTimeRemaining)}`
             }
-            await messageManager.updateMessage(progressMessage);
-        });
+            await messageManager.updateMessage(progressMessage)
+        })
 
         const result = await markov.generateMessage({
             guild: source === 'guild' ? context.guild : undefined,
@@ -332,12 +332,12 @@ async function _handleGenerateSubcommand(context: CommandContext, markov: Markov
             seed,
             global: source === 'global',
             characterMode: characterMode ?? undefined
-        });
-        markov.removeAllListeners('generateProgress');
+        })
+        markov.removeAllListeners('generateProgress')
 
-        const timeEnd = process.hrtime(timeStart);
-        const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6;
-        logger.ok(`Generated message: ${yellow(result)}`);
+        const timeEnd = process.hrtime(timeStart)
+        const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6
+        logger.ok(`Generated message: ${yellow(result)}`)
         await messageManager.sendFinalMessage({
             content: `${result}\n` +
             `-# - Generated in ${timeEndMs.toFixed(0)}ms\n` +
@@ -349,59 +349,59 @@ async function _handleGenerateSubcommand(context: CommandContext, markov: Markov
                 seed ? `Seed: "${seed}"` : null,
                 characterMode ? 'Mode: Character-by-character (cursed)' : null
             ].filter(Boolean).join(', ') || 'None'}`
-        });
+        })
     } catch (error) {
-        markov.removeAllListeners('generateProgress');
-        logger.warn(`Failed to generate message: ${red(error instanceof Error ? error.message : 'Unknown error')}`);
-        await context.editReply({ content: `❌ Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}` });
+        markov.removeAllListeners('generateProgress')
+        logger.warn(`Failed to generate message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
+        await context.editReply({ content: `❌ Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}` })
     }
 }
 
-async function _handleInfoSubcommand(context: CommandContext, markov: MarkovChat, resolveUserOrId: (ctx: CommandContext) => ReturnType<typeof resolveUserOrIdInternal>) {
-    if (!context.guild) return;
+async function _handleInfoSubcommand(context: CommandContext, markov: MarkovChat, resolveUserOrId: (ctx: CommandContext) => ReturnType<typeof _resolveUserOrIdInternal>) {
+    if (!context.guild) return
 
-    const userOrId = await resolveUserOrId(context);
-    const user = userOrId && 'tag' in userOrId ? userOrId : undefined;
-    const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined;
-    const source = (await context.getStringOption('source')) as Source;
-    const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined;
+    const userOrId = await resolveUserOrId(context)
+    const user = userOrId && 'tag' in userOrId ? userOrId : undefined
+    const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
+    const source = (await context.getStringOption('source')) as Source
+    const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined
 
-    await context.deferReply();
+    await context.deferReply()
 
     try {
-        logger.info(`Getting Markov info with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}`);
-        const timeStart = process.hrtime();
-        const messageManager = new InteractionMessageManager(context);
-        const interactionStartTime = process.hrtime();
-        let lastUpdateTime = 0;
-        let lastStep = '';
-        const UPDATE_INTERVAL = 5000;
+        logger.info(`Getting Markov info with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}`)
+        const timeStart = process.hrtime()
+        const messageManager = new InteractionMessageManager(context)
+        const interactionStartTime = process.hrtime()
+        let lastUpdateTime = 0
+        let lastStep = ''
+        const UPDATE_INTERVAL = 5000
 
         markov.on('infoProgress', async progress => {
-            const now = process.hrtime(interactionStartTime);
-            const nowMs = now[0] * 1000 + now[1] / 1e6;
-            const stepChanged = progress.step !== lastStep;
-            if (!stepChanged && nowMs - lastUpdateTime < UPDATE_INTERVAL) return;
+            const now = process.hrtime(interactionStartTime)
+            const nowMs = now[0] * 1000 + now[1] / 1e6
+            const stepChanged = progress.step !== lastStep
+            if (!stepChanged && nowMs - lastUpdateTime < UPDATE_INTERVAL) return
 
-            lastUpdateTime = nowMs;
-            lastStep = progress.step;
+            lastUpdateTime = nowMs
+            lastStep = progress.step
 
             if (nowMs > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
-                logger.info(`Approaching interaction timeout (${yellow(nowMs)}ms elapsed). Switching to follow-up message.`);
-                messageManager.switchToFollowUp();
+                logger.info(`Approaching interaction timeout (${yellow(nowMs)}ms elapsed). Switching to follow-up message.`)
+                messageManager.switchToFollowUp()
             }
 
-            let progressMessage = `⏳ Gathering statistics...\n📊 Step: ${progress.step}\n`;
+            let progressMessage = `⏳ Gathering statistics...\n📊 Step: ${progress.step}\n`
             if (progress.step === 'processing') {
-                const percent = ((progress.progress / progress.total) * 100).toFixed(1);
-                progressMessage += `🔄 Processing: ${progress.progress}/${progress.total} messages (${percent}%)\n`;
+                const percent = ((progress.progress / progress.total) * 100).toFixed(1)
+                progressMessage += `🔄 Processing: ${progress.progress}/${progress.total} messages (${percent}%)\n`
             }
-            progressMessage += `⌛ Elapsed: ${formatTimeRemaining(progress.elapsedTime / 1000)}\n`;
+            progressMessage += `⌛ Elapsed: ${formatTimeRemaining(progress.elapsedTime / 1000)}\n`
             if (progress.estimatedTimeRemaining !== null) {
-                progressMessage += `⏱️ ETA: ${formatTimeRemaining(progress.estimatedTimeRemaining)}`;
+                progressMessage += `⏱️ ETA: ${formatTimeRemaining(progress.estimatedTimeRemaining)}`
             }
-            await messageManager.updateMessage(progressMessage);
-        });
+            await messageManager.updateMessage(progressMessage)
+        })
 
         const stats = await markov.getMessageStats({
             guild: source === 'guild' ? context.guild : undefined,
@@ -409,13 +409,13 @@ async function _handleInfoSubcommand(context: CommandContext, markov: MarkovChat
             user: user,
             userId: userId,
             global: source === 'global'
-        });
-        markov.removeAllListeners('infoProgress');
+        })
+        markov.removeAllListeners('infoProgress')
 
-        const timeEnd = process.hrtime(timeStart);
-        const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6;
-        const oldestDate = stats.oldestMessageTimestamp ? new Date(stats.oldestMessageTimestamp).toLocaleString() : 'N/A';
-        const newestDate = stats.newestMessageTimestamp ? new Date(stats.newestMessageTimestamp).toLocaleString() : 'N/A';
+        const timeEnd = process.hrtime(timeStart)
+        const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6
+        const oldestDate = stats.oldestMessageTimestamp ? new Date(stats.oldestMessageTimestamp).toLocaleString() : 'N/A'
+        const newestDate = stats.newestMessageTimestamp ? new Date(stats.newestMessageTimestamp).toLocaleString() : 'N/A'
 
         const embed = new EmbedBuilder()
             .setTitle('Markov Chain Data Statistics')
@@ -437,191 +437,191 @@ async function _handleInfoSubcommand(context: CommandContext, markov: MarkovChat
                     source === 'global' ? '🌐 Global' : !source && channel ? `📝 Channel: #${channel.name}` : '🏠 This server',
                     user ? `👤 User: @${user.tag}` : userId ? `👤 User ID: ${userId}` : null
                 ].filter(Boolean).join('\n')}`
-            );
+            )
 
-        logger.ok(`Generated Markov info in ${yellow(timeEndMs.toFixed(0))}ms`);
-        await messageManager.sendFinalMessage({ content: '', embeds: [embed] });
+        logger.ok(`Generated Markov info in ${yellow(timeEndMs.toFixed(0))}ms`)
+        await messageManager.sendFinalMessage({ content: '', embeds: [embed] })
     } catch (error) {
-        markov.removeAllListeners('infoProgress');
-        logger.warn(`Failed to get Markov info: ${red(error instanceof Error ? error.message : 'Unknown error')}`);
-        await context.editReply({ content: `❌ Failed to get Markov info: ${error instanceof Error ? error.message : 'Unknown error'}` });
+        markov.removeAllListeners('infoProgress')
+        logger.warn(`Failed to get Markov info: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
+        await context.editReply({ content: `❌ Failed to get Markov info: ${error instanceof Error ? error.message : 'Unknown error'}` })
     }
 }
 
-async function _handleCollectSubcommand(context: CommandContext, markov: MarkovChat, dataSource: DataSource, resolveUserOrId: (ctx: CommandContext) => ReturnType<typeof resolveUserOrIdInternal>) {
-    if (!context.guild) return;
+async function _handleCollectSubcommand(context: CommandContext, markov: MarkovChat, dataSource: DataSource, resolveUserOrId: (ctx: CommandContext) => ReturnType<typeof _resolveUserOrIdInternal>) {
+    if (!context.guild) return
 
-    const userOrId = await resolveUserOrId(context);
-    const user = userOrId && 'tag' in userOrId ? userOrId : undefined;
-    const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined;
-    const collectEntireChannel = await context.getBooleanOption('entire_channel', false);
-    const limit = collectEntireChannel ? 'entire' : (await context.getIntegerOption('limit'));
-    const channel = (await context.getChannelOption('channel', true)) as TextChannel; // Required true
+    const userOrId = await resolveUserOrId(context)
+    const user = userOrId && 'tag' in userOrId ? userOrId : undefined
+    const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
+    const collectEntireChannel = await context.getBooleanOption('entire_channel', false)
+    const limit = collectEntireChannel ? 'entire' : (await context.getIntegerOption('limit'))
+    const channel = (await context.getChannelOption('channel', true)) as TextChannel // Required true
 
-    const wasFullyCollected = await dataSource.isChannelFullyCollected(context.guild.id, channel.id);
-    let replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'ALL' : limit} messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}...`;
+    const wasFullyCollected = await dataSource.isChannelFullyCollected(context.guild.id, channel.id)
+    let replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'ALL' : limit} messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}...`
     if (wasFullyCollected) {
-        replyContent += `\n⚠️ This channel was already fully collected before. Only collecting new messages since the last collection.`;
+        replyContent += `\n⚠️ This channel was already fully collected before. Only collecting new messages since the last collection.`
     }
     if (collectEntireChannel) {
-        replyContent += `\n💡 Using Discord User API to fetch the total message count.`;
+        replyContent += `\n💡 Using Discord User API to fetch the total message count.`
     }
-    await context.reply(replyContent);
+    await context.reply(replyContent)
 
     try {
-        logger.info(`Collecting messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : userId ? ` by user ID ${userId}` : ''}, limit: ${yellow(limit)}, wasFullyCollected: ${yellow(!!wasFullyCollected)}`);
-        let totalMessageCount: number | null | undefined = null;
-        let percentCompleteEmoji = '⏳';
-        const interactionStartTime = process.hrtime();
-        const messageManager = new InteractionMessageManager(context);
+        logger.info(`Collecting messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : userId ? ` by user ID ${userId}` : ''}, limit: ${yellow(limit)}, wasFullyCollected: ${yellow(!!wasFullyCollected)}`)
+        let totalMessageCount: number | null | undefined = null
+        let percentCompleteEmoji = '⏳'
+        const interactionStartTime = process.hrtime()
+        const messageManager = new InteractionMessageManager(context)
 
         markov.on('collectProgress', async progress => {
             if (progress.batchNumber % 10 === 0 || progress.batchNumber === 1) {
-                logger.ok(`Progress update: ${yellow(progress.batchNumber)} batches, ${yellow(progress.totalCollected)}/${yellow(progress.limit === 'entire' ? 'ALL' : progress.limit)} messages (${yellow(progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%' )})`);
-                const elapsedSinceInteractionArr = process.hrtime(interactionStartTime);
-                const elapsedSinceInteraction = elapsedSinceInteractionArr[0] * 1000 + elapsedSinceInteractionArr[1] / 1e6;
+                logger.ok(`Progress update: ${yellow(progress.batchNumber)} batches, ${yellow(progress.totalCollected)}/${yellow(progress.limit === 'entire' ? 'ALL' : progress.limit)} messages (${yellow(progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%' )})`)
+                const elapsedSinceInteractionArr = process.hrtime(interactionStartTime)
+                const elapsedSinceInteraction = elapsedSinceInteractionArr[0] * 1000 + elapsedSinceInteractionArr[1] / 1e6
 
                 if (elapsedSinceInteraction > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
-                    logger.info(`Approaching interaction timeout (${yellow(elapsedSinceInteraction)}ms elapsed). Switching to follow-up message.`);
-                    messageManager.switchToFollowUp();
+                    logger.info(`Approaching interaction timeout (${yellow(elapsedSinceInteraction)}ms elapsed). Switching to follow-up message.`)
+                    messageManager.switchToFollowUp()
                 }
 
                 if (progress.percentComplete > 0) {
-                    if (progress.percentComplete < 25) percentCompleteEmoji = '🟢';
-                    else if (progress.percentComplete < 50) percentCompleteEmoji = '🟡';
-                    else if (progress.percentComplete < 75) percentCompleteEmoji = '🟠';
-                    else percentCompleteEmoji = '🔴';
+                    if (progress.percentComplete < 25) percentCompleteEmoji = '🟢'
+                    else if (progress.percentComplete < 50) percentCompleteEmoji = '🟡'
+                    else if (progress.percentComplete < 75) percentCompleteEmoji = '🟠'
+                    else percentCompleteEmoji = '🔴'
                 }
 
-                let progressMessage = `⏳ Collecting messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}...\n`;
+                let progressMessage = `⏳ Collecting messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}...\n`
                 if (progress.limit === 'entire' && progress.percentComplete > 0) {
-                    progressMessage += `${percentCompleteEmoji} Progress: ${progress.totalCollected} messages collected (${progress.percentComplete.toFixed(1)}% complete)\n`;
+                    progressMessage += `${percentCompleteEmoji} Progress: ${progress.totalCollected} messages collected (${progress.percentComplete.toFixed(1)}% complete)\n`
                 } else if (progress.limit === 'entire') {
-                    progressMessage += `${percentCompleteEmoji} Progress: ${progress.totalCollected} messages collected\n`;
+                    progressMessage += `${percentCompleteEmoji} Progress: ${progress.totalCollected} messages collected\n`
                 } else {
-                    progressMessage += `${percentCompleteEmoji} Progress: ${progress.totalCollected}/${progress.limit} messages (${progress.percentComplete.toFixed(1)}%)\n`;
+                    progressMessage += `${percentCompleteEmoji} Progress: ${progress.totalCollected}/${progress.limit} messages (${progress.percentComplete.toFixed(1)}%)\n`
                 }
                 if (progress.estimatedTimeRemaining !== null) {
-                    progressMessage += `⏱️ ETA: ${formatTimeRemaining(progress.estimatedTimeRemaining)} (${progress.messagesPerSecond.toFixed(1)} msgs/sec)\n`;
-                    progressMessage += `⌛ Elapsed: ${formatTimeRemaining(progress.elapsedTime / 1000)}\n`;
+                    progressMessage += `⏱️ ETA: ${formatTimeRemaining(progress.estimatedTimeRemaining)} (${progress.messagesPerSecond.toFixed(1)} msgs/sec)\n`
+                    progressMessage += `⌛ Elapsed: ${formatTimeRemaining(progress.elapsedTime / 1000)}\n`
                 }
-                progressMessage += `📚 Batches processed: ${progress.batchNumber}`;
-                if (wasFullyCollected) progressMessage += `\n⚠️ Only collecting new messages since last collection.`;
-                await messageManager.updateMessage(progressMessage);
+                progressMessage += `📚 Batches processed: ${progress.batchNumber}`
+                if (wasFullyCollected) progressMessage += `\n⚠️ Only collecting new messages since last collection.`
+                await messageManager.updateMessage(progressMessage)
             }
-        });
+        })
 
         markov.on('collectComplete', result => {
-            totalMessageCount = result.totalMessageCount;
-            logger.ok(`Collection complete. ${yellow(result.totalCollected)} messages collected${totalMessageCount ? ` out of ${yellow(totalMessageCount)} total` : ''}.`);
-        });
+            totalMessageCount = result.totalMessageCount
+            logger.ok(`Collection complete. ${yellow(result.totalCollected)} messages collected${totalMessageCount ? ` out of ${yellow(totalMessageCount)} total` : ''}.`)
+        })
 
         const count = await markov.collectMessages(channel, {
             user,
             userId,
             limit: limit === null ? undefined : limit,
-        });
-        markov.removeAllListeners('collectProgress');
-        markov.removeAllListeners('collectComplete');
+        })
+        markov.removeAllListeners('collectProgress')
+        markov.removeAllListeners('collectComplete')
 
-        logger.ok(`Collected ${yellow(count)} messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : userId ? ` by user ID ${userId}` : ''}`);
-        let completionMessage = `✅ Successfully collected ${count} messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}\n`;
+        logger.ok(`Collected ${yellow(count)} messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : userId ? ` by user ID ${userId}` : ''}`)
+        let completionMessage = `✅ Successfully collected ${count} messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}\n`
         if (totalMessageCount && collectEntireChannel) {
-            const percentageCollected = ((count / totalMessageCount) * 100).toFixed(1);
-            completionMessage += `📊 ${count} valid messages out of ${totalMessageCount} total messages in the channel (${percentageCollected}%)\n`;
+            const percentageCollected = ((count / totalMessageCount) * 100).toFixed(1)
+            completionMessage += `📊 ${count} valid messages out of ${totalMessageCount} total messages in the channel (${percentageCollected}%)\n`
         }
         if (wasFullyCollected) { // Check the boolean value directly
-            completionMessage += `📋 These were new messages since the previous collection.`;
+            completionMessage += `📋 These were new messages since the previous collection.`
         } else if (collectEntireChannel) {
-            completionMessage += `📋 The entire channel has been marked as fully collected.`;
+            completionMessage += `📋 The entire channel has been marked as fully collected.`
         }
-        await messageManager.sendFinalMessage({ content: completionMessage });
+        await messageManager.sendFinalMessage({ content: completionMessage })
     } catch (error) {
-        markov.removeAllListeners('collectProgress');
-        markov.removeAllListeners('collectComplete');
-        logger.warn(`Failed to collect messages: ${red(error instanceof Error ? error.message : 'Unknown error')}`);
+        markov.removeAllListeners('collectProgress')
+        markov.removeAllListeners('collectComplete')
+        logger.warn(`Failed to collect messages: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
         try {
-            await context.editReply(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            await context.editReply(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
         } catch (replyError) {
-            logger.warn(`Failed to edit reply with error message: ${red(replyError instanceof Error ? replyError.message : 'Unknown error')}`);
+            logger.warn(`Failed to edit reply with error message: ${red(replyError instanceof Error ? replyError.message : 'Unknown error')}`)
             try {
-                await context.followUp(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                await context.followUp(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
             } catch (finalError) {
-                logger.error(`Failed to send any error message: ${red(finalError instanceof Error ? finalError.message : 'Unknown error')}`);
+                logger.error(`Failed to send any error message: ${red(finalError instanceof Error ? finalError.message : 'Unknown error')}`)
             }
         }
     }
 }
 
-async function _handleCollectAllSubcommand(context: CommandContext, markov: MarkovChat, resolveUserOrId: (ctx: CommandContext) => ReturnType<typeof resolveUserOrIdInternal>) {
-    if (!context.guild) return;
+async function _handleCollectAllSubcommand(context: CommandContext, markov: MarkovChat, resolveUserOrId: (ctx: CommandContext) => ReturnType<typeof _resolveUserOrIdInternal>) {
+    if (!context.guild) return
 
-    const userOrId = await resolveUserOrId(context);
-    const user = userOrId && 'tag' in userOrId ? userOrId : undefined;
-    const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined;
-    const collectEntireChannel = await context.getBooleanOption('entire_channel', false);
-    const limit = collectEntireChannel ? 'entire' : (await context.getIntegerOption('limit'));
+    const userOrId = await resolveUserOrId(context)
+    const user = userOrId && 'tag' in userOrId ? userOrId : undefined
+    const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
+    const collectEntireChannel = await context.getBooleanOption('entire_channel', false)
+    const limit = collectEntireChannel ? 'entire' : (await context.getIntegerOption('limit'))
 
-    await context.deferReply();
-    logger.info(`{collect_all} Collecting from every channel`);
+    await context.deferReply()
+    logger.info(`{collect_all} Collecting from every channel`)
 
     const textChannels = (await context.guild.channels.fetch())
-        .filter(c => c && (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) && c.viewable) as Map<string, TextChannel>;
-    logger.ok(`{collect_all} Fetched ${yellow(textChannels.size)} text channels`);
+        .filter(c => c && (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) && c.viewable) as Map<string, TextChannel>
+    logger.ok(`{collect_all} Fetched ${yellow(textChannels.size)} text channels`)
 
     const threadPromises = [...textChannels.values()].map(async c => {
         try {
-            const threads = await c.threads.fetch();
-            return threads.threads.filter(t => t.viewable);
-        } catch { return []; }
-    });
-    const threads = (await Promise.all(threadPromises)).flatMap(t => [...t.values()]);
-    logger.ok(`{collect_all} Fetched ${yellow(threads.length)} threads`);
+            const threads = await c.threads.fetch()
+            return threads.threads.filter(t => t.viewable)
+        } catch { return [] }
+    })
+    const threads = (await Promise.all(threadPromises)).flatMap(t => [...t.values()])
+    logger.ok(`{collect_all} Fetched ${yellow(threads.length)} threads`)
 
-    const allTargets = [...textChannels.values(), ...threads];
-    logger.info(`{collect_all} ${yellow(textChannels.size)} + ${yellow(threads.length)} = ${yellow(allTargets.length)} total collection targets`);
+    const allTargets = [...textChannels.values(), ...threads]
+    logger.info(`{collect_all} ${yellow(textChannels.size)} + ${yellow(threads.length)} = ${yellow(allTargets.length)} total collection targets`)
 
-    await context.editReply(`📡 Starting collection from **${allTargets.length} channels and threads**... This may take a while.`);
-    let collectedCountTotal = 0;
-    let failedCount = 0;
+    await context.editReply(`📡 Starting collection from **${allTargets.length} channels and threads**... This may take a while.`)
+    let collectedCountTotal = 0
+    let failedCount = 0
 
     for await (const targetChannel of allTargets) {
         try {
-            logger.info(`Collecting from #${yellow(targetChannel.name)} (${yellow(targetChannel.id)})`);
+            logger.info(`Collecting from #${yellow(targetChannel.name)} (${yellow(targetChannel.id)})`)
             const count = await markov.collectMessages(targetChannel as TextChannel, {
                 user,
                 userId,
                 limit: limit === null ? undefined : limit,
                 disableUserApiLookup: true // Avoid API spam for total count on each channel
-            });
-            collectedCountTotal += count;
-            logger.ok(`Collected ${yellow(count)} messages from #${yellow(targetChannel.name)}`);
-            await context.editReply(`📡 Collecting from ${allTargets.length} channels/threads... Processed #${targetChannel.name}. Total collected so far: ${collectedCountTotal}. Failures: ${failedCount}.`);
+            })
+            collectedCountTotal += count
+            logger.ok(`Collected ${yellow(count)} messages from #${yellow(targetChannel.name)}`)
+            await context.editReply(`📡 Collecting from ${allTargets.length} channels/threads... Processed #${targetChannel.name}. Total collected so far: ${collectedCountTotal}. Failures: ${failedCount}.`)
         } catch (err) {
-            failedCount++;
-            logger.warn(`Failed to collect from #${yellow(targetChannel.name)}: ${red(err instanceof Error ? err.message : err)}`);
-            await context.editReply(`📡 Collecting from ${allTargets.length} channels/threads... Error processing #${targetChannel.name}. Total collected so far: ${collectedCountTotal}. Failures: ${failedCount}.`).catch(()=>{});
+            failedCount++
+            logger.warn(`Failed to collect from #${yellow(targetChannel.name)}: ${red(err instanceof Error ? err.message : err)}`)
+            await context.editReply(`📡 Collecting from ${allTargets.length} channels/threads... Error processing #${targetChannel.name}. Total collected so far: ${collectedCountTotal}. Failures: ${failedCount}.`).catch(()=>{})
         }
     }
 
-    await context.followUp(`✅ Finished collecting from all ${allTargets.length} channels and threads. Total messages collected: ${collectedCountTotal}. Failed channels: ${failedCount}.`);
+    await context.followUp(`✅ Finished collecting from all ${allTargets.length} channels and threads. Total messages collected: ${collectedCountTotal}. Failed channels: ${failedCount}.`)
 }
 
 
 // To satisfy the type checker for resolveUserOrId, since its actual implementation is inside the main execute
 // We define its expected signature here for the helper functions.
 // The actual `resolveUserOrId` defined in `execute` matches this.
-async function resolveUserOrIdInternal(ctx: CommandContext): Promise<({ id: string } | import('discord.js').User) | undefined> {
+async function _resolveUserOrIdInternal(ctx: CommandContext): Promise<({ id: string } | User) | undefined> {
     // This is just a stub for type checking, the real one is in execute
-    const user = await ctx.getUserOption('user') ?? undefined;
-    const userId = await ctx.getStringOption('user_id') ?? undefined;
-    if (user) return user;
+    const user = await ctx.getUserOption('user') ?? undefined
+    const userId = await ctx.getStringOption('user_id') ?? undefined
+    if (user) return user
     if (userId) {
         try {
-            return await ctx.client.users.fetch(userId);
+            return await ctx.client.users.fetch(userId)
         } catch {
-            return { id: userId };
+            return { id: userId }
         }
     }
-    return undefined;
+    return undefined
 }

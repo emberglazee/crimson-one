@@ -175,7 +175,7 @@ export class MarkovChat extends EventEmitter<{
                 messages.push(...currentBatchNewMessages)
                 newMessagesCollectedThisRun = true
             }
-            
+
             lastId = batch.last()?.id
             batchCount++
 
@@ -197,7 +197,7 @@ export class MarkovChat extends EventEmitter<{
             // Emit progress event every batch
             const progressEvent: MarkovCollectProgressEvent = {
                 batchNumber: batchCount,
-                messagesCollected: validMessages.size,
+                messagesCollected: currentBatchNewMessages.length,
                 totalCollected: messages.length,
                 limit,
                 percentComplete: totalMessageCount && isEntireChannel ?

@@ -246,8 +246,8 @@ export class DataSource {
                 // The `messages` parameter contains all messages fetched from Discord for this run.
                 // Filter them to get only those that belong to the fullyCollectedChannelId.
                 const newMessagesForThisChannel = messages.filter(
-                    (msg) => msg.channelId === fullyCollectedChannelId
-                );
+                    msg => msg.channelId === fullyCollectedChannelId
+                )
 
                 if (newMessagesForThisChannel.length > 0) {
                     // Identify the maximum timestamp from the NEWLY ADDED messages for this channel.
@@ -256,8 +256,8 @@ export class DataSource {
                     // For safety and correctness, it's better to rely on `newMessagesForThisChannel`
                     // as these are the ones passed from Discord for this collection run.
                     const maxTimestamp = Math.max(
-                        ...newMessagesForThisChannel.map((m) => m.createdTimestamp)
-                    );
+                        ...newMessagesForThisChannel.map(m => m.createdTimestamp)
+                    )
                     await manager.update(
                         Channel,
                         { id: fullyCollectedChannelId },
@@ -265,14 +265,14 @@ export class DataSource {
                             fullyCollected: true,
                             lastMessageTimestampAtFullCollection: maxTimestamp,
                         }
-                    );
+                    )
                     logger.ok(
                         `{addMessages} Marked channel ${yellow(
                             fullyCollectedChannelId
                         )} as fully collected. Updated lastMessageTimestampAtFullCollection to ${new Date(
                             maxTimestamp
                         ).toISOString()}`
-                    );
+                    )
                 } else {
                     // No new messages were passed for this channel in the current batch,
                     // or all messages were filtered out before this stage (e.g. by some other pre-processing).
@@ -282,13 +282,13 @@ export class DataSource {
                     await manager.update(
                         Channel,
                         { id: fullyCollectedChannelId },
-                        { fullyCollected: true } 
-                    );
+                        { fullyCollected: true }
+                    )
                     logger.ok(
                         `{addMessages} Marked channel ${yellow(
                             fullyCollectedChannelId
                         )} as fully collected. No new messages in this batch for this channel to update timestamp.`
-                    );
+                    )
                 }
             }
             logger.ok('{addMessages} Finished!')

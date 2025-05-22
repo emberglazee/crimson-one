@@ -5,7 +5,7 @@ export interface BaseMarkovNode<T> {
     total: number
 }
 
-export interface BaseChainOptions<S, T> {
+export interface BaseChainOptions<S, _> {
     minItems?: number
     maxItems?: number
     seed?: S
@@ -47,67 +47,67 @@ abstract class BaseChainBuilder<
     }
 
     public generate(options: TOptions = {} as TOptions): string {
-        const minItems = options.minItems ?? this.getDefaultMinItems();
-        const maxItems = options.maxItems ?? this.getDefaultMaxItems();
+        const minItems = options.minItems ?? this.getDefaultMinItems()
+        const maxItems = options.maxItems ?? this.getDefaultMaxItems()
 
         if (this.chain.size === 0) {
-            throw new Error('No data to generate from');
+            throw new Error('No data to generate from')
         }
 
-        let resultItems: TItem[] = this.getSeedItems(options); // Processed seed
-        let current: TItem;
+        let resultItems: TItem[] = this.getSeedItems(options) // Processed seed
+        let current: TItem
 
         if (resultItems.length > 0) {
-            const lastSeedItem = resultItems[resultItems.length - 1];
+            const lastSeedItem = resultItems[resultItems.length - 1]
             if (this.chain.has(lastSeedItem)) {
-                current = lastSeedItem;
+                current = lastSeedItem
             } else {
                 // Seed item not in chain, start random, discard invalid seed items for generation
-                current = Array.from(this.chain.keys())[Math.floor(Math.random() * this.chain.size)];
-                resultItems = [current]; 
+                current = Array.from(this.chain.keys())[Math.floor(Math.random() * this.chain.size)]
+                resultItems = [current]
             }
         } else {
             // No seed or empty seed from getSeedItems
-            current = Array.from(this.chain.keys())[Math.floor(Math.random() * this.chain.size)];
-            resultItems = [current];
+            current = Array.from(this.chain.keys())[Math.floor(Math.random() * this.chain.size)]
+            resultItems = [current]
         }
-        
-        const targetLength = Math.floor(Math.random() * (maxItems - minItems + 1)) + minItems;
 
-        // Ensure resultItems is not shorter than targetLength if seed is long, 
+        const targetLength = Math.floor(Math.random() * (maxItems - minItems + 1)) + minItems
+
+        // Ensure resultItems is not shorter than targetLength if seed is long,
         // or fill up to targetLength
         while (resultItems.length < targetLength) {
-            const node = this.chain.get(current);
-            if (!node?.next.size) break; // No further path
+            const node = this.chain.get(current)
+            if (!node?.next.size) break // No further path
 
-            const total = node.total;
-            let cumulative = 0;
-            const thresholds: [TItem, number][] = [];
+            const total = node.total
+            let cumulative = 0
+            const thresholds: [TItem, number][] = []
 
             for (const [item, freq] of node.next) {
-                cumulative += freq / total;
-                thresholds.push([item, cumulative]);
+                cumulative += freq / total
+                thresholds.push([item, cumulative])
             }
 
-            const rand = Math.random();
-            let nextItem = thresholds[thresholds.length - 1][0]; // Default to last if something goes wrong
+            const rand = Math.random()
+            let nextItem = thresholds[thresholds.length - 1][0] // Default to last if something goes wrong
             for (const [item, threshold] of thresholds) {
                 if (rand <= threshold) {
-                    nextItem = item;
-                    break;
+                    nextItem = item
+                    break
                 }
             }
 
-            resultItems.push(nextItem);
-            current = nextItem;
+            resultItems.push(nextItem)
+            current = nextItem
         }
-        
-        // If the generated result is shorter than minItems (e.g. dead end), 
+
+        // If the generated result is shorter than minItems (e.g. dead end),
         // and also shorter than the original seed if provided, it might be an issue.
         // However, the current logic correctly stops if a dead end is reached.
         // The targetLength is a target, not a guaranteed minimum if the chain cannot produce it.
 
-        return this.joinOutput(resultItems);
+        return this.joinOutput(resultItems)
     }
 
     public clear(): void {
@@ -146,7 +146,7 @@ export class ChainBuilder extends BaseChainBuilder<string, string[], MarkovNode,
     protected getSeedItems(options: MarkovChainOptions): string[] {
         return options.seed || []
     }
-    
+
     protected getDefaultMinItems(): number {
         return 5
     }
@@ -162,7 +162,7 @@ export class ChainBuilder extends BaseChainBuilder<string, string[], MarkovNode,
             ...options,
             minItems: options.minWords ?? options.minItems,
             maxItems: options.maxWords ?? options.maxItems,
-        };
+        }
         return super.generate(baseOptions)
     }
 }
@@ -206,7 +206,7 @@ export class CharacterChainBuilder extends BaseChainBuilder<string, string, Char
     protected getDefaultMaxItems(): number {
         return 100
     }
-    
+
     // Make generate's options parameter match the specific CharacterMarkovChainOptions
     public generate(options: CharacterMarkovChainOptions = {}): string {
          // Map minChars/maxChars to minItems/maxItems for the base class
@@ -214,7 +214,7 @@ export class CharacterChainBuilder extends BaseChainBuilder<string, string, Char
             ...options,
             minItems: options.minChars ?? options.minItems,
             maxItems: options.maxChars ?? options.maxItems,
-        };
+        }
         return super.generate(baseOptions)
     }
 }
