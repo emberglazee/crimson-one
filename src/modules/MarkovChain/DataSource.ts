@@ -2,7 +2,6 @@ import { Logger, yellow } from '../../util/logger'
 const logger = new Logger('MarkovChain | DataSource')
 
 import { Guild as DiscordGuild, Message as DiscordMessage, TextChannel, User as DiscordUser } from 'discord.js'
-import { inspect } from 'util'
 import { DataSource as ORMDataSource } from 'typeorm'
 import { existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
@@ -330,8 +329,6 @@ export class DataSource {
         } else if (options.userId) {
             query.andWhere('message.authorId = :authorId', { authorId: options.userId })
         }
-
-        logger.info(`[getMessages]\nquery: ${query.getSql()}\nparameters: ${inspect(query.getParameters(), true, Infinity, true)}`)
 
         return query.getMany()
     }
