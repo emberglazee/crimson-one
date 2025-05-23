@@ -1,3 +1,6 @@
+import { Logger } from '../util/logger'
+const logger = new Logger('/test')
+
 import { SlashCommandBuilder, type GuildMember, ApplicationIntegrationType, type ChatInputCommandInteraction } from 'discord.js'
 import { BotInstallationType, SlashCommand } from '../types/types'
 
@@ -9,29 +12,29 @@ export default {
         const isAnInteraction = !!context.interaction
 
         // --- START DEBUGGING LOGS (KEEP THESE FOR FUTURE REFERENCE IF NEEDED) ---
-        console.log('--- TEST COMMAND DEBUG ---')
-        console.log(`Invoked in Guild ID (from context.guild getter): ${context.guild?.id || 'N/A (null)'}`)
-        console.log(`Invoked in Channel ID (from context.channel getter): ${context.channel?.id || 'N/A (null)'}`)
-        console.log(`Is an Interaction: ${isAnInteraction}`)
+        logger.debug('--- TEST COMMAND DEBUG ---')
+        logger.debug(`Invoked in Guild ID (from context.guild getter): ${context.guild?.id || 'N/A (null)'}`)
+        logger.debug(`Invoked in Channel ID (from context.channel getter): ${context.channel?.id || 'N/A (null)'}`)
+        logger.debug(`Is an Interaction: ${isAnInteraction}`)
 
         if (isAnInteraction && context.interaction) {
-            console.log(`  Interaction Type: ${context.interaction.type}`)
-            console.log(`  Interaction Guild ID (raw interaction.guildId): ${context.interaction.guildId || 'N/A (null)'}`)
-            console.log(`  Interaction Channel ID (raw interaction.channelId): ${context.interaction.channelId || 'N/A (null)'}`)
+            logger.debug(`  Interaction Type: ${context.interaction.type}`)
+            logger.debug(`  Interaction Guild ID (raw interaction.guildId): ${context.interaction.guildId || 'N/A (null)'}`)
+            logger.debug(`  Interaction Channel ID (raw interaction.channelId): ${context.interaction.channelId || 'N/A (null)'}`)
 
             const authOwners = context.interaction.authorizingIntegrationOwners as { [key: number]: string } | undefined
 
-            console.log(`  Type of authorizingIntegrationOwners: ${typeof authOwners}`)
+            logger.debug(`  Type of authorizingIntegrationOwners: ${typeof authOwners}`)
             if (authOwners) {
-                console.log(`  Object.keys for authOwners: ${Object.keys(authOwners).map(Number).join(',')}`)
-                console.log(`  Does keys.includes(0 / GuildInstall): ${Object.prototype.hasOwnProperty.call(authOwners, ApplicationIntegrationType.GuildInstall)}`)
-                console.log(`  Does keys.includes(1 / UserInstall): ${Object.prototype.hasOwnProperty.call(authOwners, ApplicationIntegrationType.UserInstall)}`)
+                logger.debug(`  Object.keys for authOwners: ${Object.keys(authOwners).map(Number).join(',')}`)
+                logger.debug(`  Does keys.includes(0 / GuildInstall): ${Object.prototype.hasOwnProperty.call(authOwners, ApplicationIntegrationType.GuildInstall)}`)
+                logger.debug(`  Does keys.includes(1 / UserInstall): ${Object.prototype.hasOwnProperty.call(authOwners, ApplicationIntegrationType.UserInstall)}`)
             } else {
-                console.log(`  authorizingIntegrationOwners is undefined/null.`)
+                logger.debug(`  authorizingIntegrationOwners is undefined/null.`)
             }
         } else if (context.message) {
-            console.log(`  Message Guild ID (raw from message.guild): ${context.message.guild?.id || 'N/A (null)'}`)
-            console.log(`  Message Channel ID (raw from message.channel): ${context.message.channel?.id || 'N/A (null)'}`)
+            logger.debug(`  Message Guild ID (raw from message.guild): ${context.message.guild?.id || 'N/A (null)'}`)
+            logger.debug(`  Message Channel ID (raw from message.channel): ${context.message.channel?.id || 'N/A (null)'}`)
         }
         // --- END DEBUGGING LOGS ---
 
@@ -63,7 +66,6 @@ export default {
                         } catch {
                             // Error likely means bot is not in guild or permissions/intents issue.
                             // Treat as bot member not found for this purpose.
-                            // console.error(`Failed to fetch bot member in guild ${context.guild.id}:`, error); // Log if needed, but might be noisy for user installs
                             botMember = null
                         }
                     }
@@ -82,14 +84,14 @@ export default {
                     // As observed in logs, this happens for user-installed commands in guilds.
                     // Since guildId exists but bot isn't a member (implied by null context.guild),
                     // it must be a User Install in a guild context.
-                    console.warn(`{test command} Discrepancy: interaction.guildId present (${interaction.guildId}), but context.guild null. Classifying as User install (Guild).`)
+                    logger.debug(`{test command} Discrepancy: interaction.guildId present (${interaction.guildId}), but context.guild null. Classifying as User install (Guild).`)
                     installationType = BotInstallationType.UserInstallGuild
                 }
             }
         }
 
-        console.log(`Final determined installationType: ${installationType}`)
-        console.log('--- END TEST COMMAND DEBUG ---')
+        logger.debug(`Final determined installationType: ${installationType}`)
+        logger.debug('--- END TEST COMMAND DEBUG ---')
 
         await context.reply(`Test command executed\n-# - Likely bot installation type: ${installationType}`)
     }

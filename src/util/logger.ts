@@ -8,7 +8,7 @@ import chalk from 'chalk'
 // Force colors to be enabled
 chalk.level = 2
 // Shortcut for using chalk colors alongside logger
-export const { yellow, red, cyan, green } = chalk
+export const { yellow, red, cyan, green, blue } = chalk
 
 const esmodules = !!import.meta.url
 
@@ -17,6 +17,7 @@ export class Logger extends EventEmitter<{
     warn: (data: JSONResolvable) => void
     info: (data: JSONResolvable) => void
     ok: (data: JSONResolvable) => void
+    debug: (data: JSONResolvable) => void
 }> {
     file = ''
     useWebhook = false
@@ -30,9 +31,9 @@ export class Logger extends EventEmitter<{
         this.module = module
     }
     error(data: JSONResolvable) {
-        console.log(logoutput('err', data, this.module, true))
-        this.emit('error', logoutput('err', data, this.module))
-        this.writeLogLine(logoutput('err', data, this.module))
+        console.log(logoutput('error', data, this.module, true))
+        this.emit('error', logoutput('error', data, this.module))
+        this.writeLogLine(logoutput('error', data, this.module))
     }
     warn(data: JSONResolvable) {
         console.log(logoutput('warn', data, this.module, true))
@@ -48,6 +49,11 @@ export class Logger extends EventEmitter<{
         console.log(logoutput('ok', data, this.module, true))
         this.emit('ok', logoutput('ok', data, this.module))
         this.writeLogLine(logoutput('ok', data, this.module))
+    }
+    debug(data: JSONResolvable) {
+        console.log(logoutput('debug', data, this.module, true))
+        this.emit('debug', logoutput('debug', data, this.module))
+        this.writeLogLine(logoutput('debug', data, this.module))
     }
     _createLogFile(date = formatDate()) {
         const logsPath = path.join(esmodules ? path.dirname(url.fileURLToPath(import.meta.url)) : __dirname, '../../logs')
@@ -69,19 +75,21 @@ export function formatDate() {
     }
     return `${d.toLocaleDateString('ru-RU', opts).replace(/\//g, '.')}-${d.toLocaleTimeString('ru-RU', opts).replace(/:/g, '.')}`
 }
-function logoutput(level: 'err' | 'warn' | 'info' | 'ok', data: JSONResolvable, module?: string, formatting = false) {
+function logoutput(level: 'error' | 'warn' | 'info' | 'ok' | 'debug', data: JSONResolvable, module?: string, formatting = false) {
     let str = ''
     const displayLevelsColored = {
-        'err' : red(' err'),
-        'warn': yellow('warn'),
-        'info': cyan('info'),
-        'ok'  : green('  ok')
+        'error': red('error'),
+        'warn' : yellow(' warn'),
+        'info' : cyan(' info'),
+        'ok'   : green('   ok'),
+        'debug': blue('debug')
     }
     const displayLevels = {
-        'err' : ' err',
-        'warn': 'warn',
-        'info': 'info',
-        'ok'  : '  ok'
+        'error': 'error',
+        'warn' : ' warn',
+        'info' : ' info',
+        'ok'   : '   ok',
+        'debug': 'debug'
     }
     if (module) str += `${formatDate()} - ${formatting ? displayLevelsColored[level] : displayLevels[level]}: [${module}]`
     else str += `${formatDate()} - ${formatting ? displayLevelsColored[level] : displayLevels[level]}:`
