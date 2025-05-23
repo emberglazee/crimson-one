@@ -13,7 +13,7 @@ import ShapesInc from './modules/ShapesInc'
 import { GithubWebhook } from './modules/GithubWebhook'
 import { MarkovChat } from './modules/MarkovChain/MarkovChat'
 import { AWACSFeed } from './modules/AWACSFeed'
-import { ScreamOnSight } from './modules/ScreamOnSight'
+import { MessageTrigger } from './modules/MessageTrigger'
 import { gracefulShutdown } from './modules/GracefulShutdown'
 import GuildConfigManager from './modules/GuildConfig'
 import { registerFont } from 'canvas'
@@ -46,7 +46,7 @@ export const guildConfigManager = GuildConfigManager.getInstance()
 const commandManager = CommandManager.getInstance().setClient(bot)
 export const quoteFactory = new QuoteFactory(bot)
 export const awacsFeed = new AWACSFeed(bot)
-export const screamOnSight = new ScreamOnSight()
+export const messageTrigger = new MessageTrigger()
 export const shapesInc = ShapesInc.getInstance(bot, '1335992675459141632')
 bot.once('ready', async () => {
     logger.info(`Logged in as ${yellow(bot.user!.tag)}`)

@@ -1,10 +1,10 @@
 import type { Message } from 'discord.js'
-import type { ScreamOnSightTrigger } from '../types/types'
+import type { MessageTriggerEntry as MessageTriggers } from '../types/types'
 import { chance, getRandomElement } from '../util/functions'
 import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
 
-export class ScreamOnSight {
-    triggers: ScreamOnSightTrigger[] = [
+export class MessageTrigger {
+    triggers: MessageTriggers[] = [
         {
             pattern: [/comic/gmi, /peg/gmi, /mick/gmi, msg => msg.author.id === '244975212448317440'],
             async action(message) {
@@ -155,7 +155,7 @@ export class ScreamOnSight {
         }
     ]
     async processMessage(message: Message) {
-        const matchingTriggers: ScreamOnSightTrigger[] = []
+        const matchingTriggers: MessageTriggers[] = []
         for (const { pattern, action } of this.triggers) {
             if (pattern.some(
                 r => r instanceof RegExp

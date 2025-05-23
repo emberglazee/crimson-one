@@ -16,11 +16,11 @@ export default {
                 .setRequired(true)
             )
         ).addSubcommand(sc => sc
-            .setName('scream-on-sight')
-            .setDescription('Toggle the scream on sight feature')
+            .setName('message-trigger')
+            .setDescription('Toggle the message trigger feature')
             .addBooleanOption(bo => bo
                 .setName('enabled')
-                .setDescription('Whether to enable the scream on sight feature')
+                .setDescription('Whether to enable the message trigger feature')
                 .setRequired(true)
             )
         ).addSubcommand(sc => sc
@@ -57,18 +57,18 @@ export default {
             await GuildConfigManager.getInstance().setConfig(context.guild!.id, guildConfig)
             await context.editReply(`✅ Prefix changed to ${prefix}`)
         }
-        if (subcommand === 'scream-on-sight') {
+        if (subcommand === 'message-trigger') {
             const enabled = await context.getBooleanOption('enabled')
             if (enabled === null) {
                 await context.editReply('❌ You must provide a boolean value')
                 return
             }
-            await GuildConfigManager.getInstance().setConfig(context.guild.id, { screamOnSight: enabled })
-            await context.editReply(`${boolToEmoji(enabled)} Scream on sight set to ${enabled}`)
+            await GuildConfigManager.getInstance().setConfig(context.guild.id, { messageTrigger: enabled })
+            await context.editReply(`${boolToEmoji(enabled)} Message trigger set to ${enabled}`)
         }
         if (subcommand === 'get') {
             const guildConfig = await GuildConfigManager.getInstance().getConfig(context.guild.id)
-            await context.editReply(`Current config for ${context.guild.name}:\n- Prefix: ${guildConfig.prefix}\n- Scream on sight: ${boolToEmoji(guildConfig.screamOnSight)}`)
+            await context.editReply(`Current config for ${context.guild.name}:\n- Prefix: ${guildConfig.prefix}\n- Message trigger: ${boolToEmoji(guildConfig.messageTrigger)}`)
         }
     }
 } satisfies SlashCommand
