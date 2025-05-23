@@ -42,11 +42,11 @@ const bot = new Client({
     }
 })
 
+export const guildConfigManager = GuildConfigManager.getInstance()
 const commandManager = CommandManager.getInstance().setClient(bot)
 export const quoteFactory = new QuoteFactory(bot)
 export const awacsFeed = new AWACSFeed(bot)
 export const screamOnSight = new ScreamOnSight()
-export const guildConfigManager = GuildConfigManager.getInstance()
 export const shapesInc = ShapesInc.getInstance(bot, '1335992675459141632')
 bot.once('ready', async () => {
     logger.info(`Logged in as ${yellow(bot.user!.tag)}`)
@@ -57,6 +57,8 @@ bot.once('ready', async () => {
     QuoteImageFactory.getInstance().setClient(bot)
 
     MarkovChat.getInstance().setClient(bot)
+
+    await guildConfigManager.init()
 
     await commandManager.init()
     await commandManager.refreshGlobalCommands()
@@ -73,8 +75,6 @@ bot.once('ready', async () => {
     await webhook.init()
 
     await quoteFactory.init()
-
-    await guildConfigManager.init()
 
     const eventFiles = await readdir(path.join(__dirname, 'events'))
     for (const file of eventFiles) {
