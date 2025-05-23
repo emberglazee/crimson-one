@@ -1,7 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 import { formatBytes } from '../util/functions'
-import GuildConfigManager from '../modules/GuildConfig'
 
 const usageTracker = new Map<string, number[]>()
 const USAGE_LIMIT = 2
@@ -63,14 +62,6 @@ export default {
                     { name: 'Your Username', value: 'user' },
                     { name: 'Your Guild Username', value: 'guilduser' }
                 ).setRequired(false)
-            )
-        ).addSubcommand(sc => sc
-            .setName('set_prefix')
-            .setDescription('Change the bot\'s text commands prefix in the server')
-            .addStringOption(so => so
-                .setName('prefix')
-                .setDescription('New prefix')
-                .setRequired(true)
             )
         ),
     async execute(context) {
@@ -158,22 +149,6 @@ export default {
             }
             await context.editReply(`✅ Username changed to ${username}`)
             return
-        }
-        if (subcommand === 'set_prefix') {
-            await context.deferReply()
-            const prefix = await context.getStringOption('prefix')
-            if (!prefix) {
-                await context.editReply('❌ You must provide a prefix')
-                return
-            }
-            const guildConfig = await GuildConfigManager.getInstance().getConfig(context.guild!.id)
-            if (!guildConfig) {
-                await context.editReply('❌ Guild config not found')
-                return
-            }
-            guildConfig.prefix = prefix
-            await GuildConfigManager.getInstance().setConfig(context.guild!.id, guildConfig)
-            await context.editReply(`✅ Prefix changed to ${prefix}`)
         }
     }
 } satisfies SlashCommand
