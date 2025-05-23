@@ -23,6 +23,9 @@ export default {
                 .setDescription('Whether to enable the scream on sight feature')
                 .setRequired(true)
             )
+        ).addSubcommand(sc => sc
+            .setName('get')
+            .setDescription('Get the current config for the server')
         ),
     async execute(context) {
         if (!context.guild) {
@@ -56,6 +59,10 @@ export default {
             }
             await GuildConfigManager.getInstance().setConfig(context.guild.id, { screamOnSight: enabled })
             await context.editReply(`${boolToEmoji(enabled)} Scream on sight set to ${enabled}`)
+        }
+        if (subcommand === 'get') {
+            const guildConfig = await GuildConfigManager.getInstance().getConfig(context.guild.id)
+            await context.editReply(`Current config for ${context.guild.name}:\n- Prefix: ${guildConfig.prefix}\n- Scream on sight: ${boolToEmoji(guildConfig.screamOnSight)}`)
         }
     }
 } satisfies SlashCommand
