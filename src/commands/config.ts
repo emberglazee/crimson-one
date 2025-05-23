@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { PermissionsBitField, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 import GuildConfigManager from '../modules/GuildConfig'
 import { boolToEmoji } from '../util/functions'
@@ -38,6 +38,12 @@ export default {
             await context.editReply('No subcommand provided')
             return
         }
+
+        if (subcommand !== 'get' && !context.member?.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
+            await context.editReply('❌ You need the `Manage Server` permission to use this command')
+            return
+        }
+
 
         if (subcommand === 'prefix') {
             await context.deferReply()
