@@ -15,7 +15,7 @@ import { MarkovChat } from './modules/MarkovChain/MarkovChat'
 import { AWACSFeed } from './modules/AWACSFeed'
 import { ScreamOnSight } from './modules/ScreamOnSight'
 import { gracefulShutdown } from './modules/GracefulShutdown'
-
+import GuildConfigManager from './modules/GuildConfig'
 import { registerFont } from 'canvas'
 import { QuoteImageFactory } from './modules/QuoteImageFactory'
 registerFont(path.join(__dirname, '../data/Roboto.ttf'), { family: 'Roboto' }) // Project Wingman
@@ -42,10 +42,11 @@ const bot = new Client({
     }
 })
 
-const commandManager = CommandManager.getInstance()
+const commandManager = CommandManager.getInstance().setClient(bot)
 export const quoteFactory = new QuoteFactory(bot)
 export const awacsFeed = new AWACSFeed(bot)
 export const screamOnSight = new ScreamOnSight()
+export const guildConfigManager = GuildConfigManager.getInstance()
 export const shapesInc = ShapesInc.getInstance(bot, '1335992675459141632')
 bot.once('ready', async () => {
     logger.info(`Logged in as ${yellow(bot.user!.tag)}`)
@@ -57,19 +58,23 @@ bot.once('ready', async () => {
 
     MarkovChat.getInstance().setClient(bot)
 
-    commandManager.setClient(bot)
     await commandManager.init()
     await commandManager.refreshGlobalCommands()
     await commandManager.refreshAllGuildCommands()
 
     await shapesInc.init()
 
-    const webhook = GithubWebhook.getInstance({
-        port: Number(process.env.GITHUB_WEBHOOK_PORT) || 3000,
-        secret: process.env.GITHUB_WEBHOOK_SECRET!
-    })
-    await webhook.init(bot)
+    const webhook = GithubWebhook.getInstance()
+        .setWebhookOptions({
+            port: Number(process.env.GITHUB_WEBHOOK_PORT) || 3000,
+            secret: process.env.GITHUB_WEBHOOK_SECRET!
+        })
+        .setClient(bot)
+    await webhook.init()
+
     await quoteFactory.init()
+
+    await guildConfigManager.init()
 
     const eventFiles = await readdir(path.join(__dirname, 'events'))
     for (const file of eventFiles) {

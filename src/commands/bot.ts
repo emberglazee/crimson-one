@@ -32,24 +32,24 @@ export default {
             .setName('info')
             .setDescription('Show bot statistics and information')
         ).addSubcommand(sc =>
-            sc.setName('set_avatar')
-                .setDescription('Change bot avatar')
+            sc.setName('set_global_avatar')
+                .setDescription('Change the global bot avatar (restricted only to the bot owner)')
                 .addAttachmentOption(ao => ao
                     .setName('avatar')
                     .setDescription('New avatar')
                     .setRequired(true)
                 )
         ).addSubcommand(sc => sc
-            .setName('set_banner')
-            .setDescription('Set bot banner')
+            .setName('set_global_banner')
+            .setDescription('Set the global bot banner (restricted only to the bot owner)')
             .addAttachmentOption(ao => ao
                 .setName('banner')
                 .setDescription('New banner')
                 .setRequired(true)
             )
         ).addSubcommand(sc => sc
-            .setName('set_username')
-            .setDescription('Change bot username')
+            .setName('set_global_username')
+            .setDescription('Change the global bot username (restricted only to the bot owner)')
             .addStringOption(so => so
                 .setName('username')
                 .setDescription('New username')
@@ -62,6 +62,14 @@ export default {
                     { name: 'Your Username', value: 'user' },
                     { name: 'Your Guild Username', value: 'guilduser' }
                 ).setRequired(false)
+            )
+        ).addSubcommand(sc => sc
+            .setName('set_prefix')
+            .setDescription('Change the bot\'s text commands prefix in the server')
+            .addStringOption(so => so
+                .setName('prefix')
+                .setDescription('New prefix')
+                .setRequired(true)
             )
         ),
     async execute(context) {
@@ -149,6 +157,16 @@ export default {
             }
             await context.editReply(`✅ Username changed to ${username}`)
             return
+        }
+        if (subcommand === 'set_prefix') {
+            await context.deferReply()
+            const prefix = await context.getStringOption('prefix')
+            if (!prefix) {
+                await context.editReply('❌ You must provide a prefix')
+                return
+            }
+            await context.client.user!.setUsername(prefix)
+            await context.editReply(`✅ Prefix changed to ${prefix}`)
         }
     }
 } satisfies SlashCommand

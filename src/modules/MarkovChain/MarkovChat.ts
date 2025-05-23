@@ -4,7 +4,7 @@ const logger = new Logger('MarkovChain | Chat')
 import { Client, Guild, Message as DiscordMessage, TextChannel, User, ChannelType, Collection } from 'discord.js'
 import { EventEmitter } from 'tseep'
 import { ChainBuilder, CharacterChainBuilder } from './entities'
-import { DataSource } from './DataSource'
+import { MarkovDataSource } from './DataSource'
 import { getChannelMessageCount } from './DiscordUserApi'
 
 interface MarkovGenerateOptions {
@@ -67,7 +67,7 @@ export class MarkovChat extends EventEmitter<{
 }> {
     private static instance: MarkovChat
     private client: Client | null = null
-    private dataSource = DataSource.getInstance()
+    private dataSource = MarkovDataSource.getInstance()
 
     private constructor() {
         super()

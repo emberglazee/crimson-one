@@ -6,7 +6,7 @@ import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message } 
 import { formatTimeRemaining } from '../util/functions'
 import { SlashCommand } from '../types/types'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
-import { DataSource } from '../modules/MarkovChain/DataSource'
+import { MarkovDataSource } from '../modules/MarkovChain/DataSource'
 import type { CommandContext } from '../modules/CommandManager'
 
 // Discord interaction tokens expire after 15 minutes
@@ -233,7 +233,7 @@ export default {
 
         const subcommand = context.getSubcommand()
         const markov = MarkovChat.getInstance()
-        const dataSource = DataSource.getInstance()
+        const dataSource = MarkovDataSource.getInstance()
 
         // Helper to resolve user from picker or user_id
         async function resolveUserOrId() {

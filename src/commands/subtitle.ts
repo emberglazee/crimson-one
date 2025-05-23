@@ -89,7 +89,7 @@ export const slashCommand = {
 
         await context.deferReply()
         const factory = QuoteImageFactory.getInstance()
-        factory.setGuild(context.guild!)
+            .setGuild(context.guild!)
         try {
             const result = await factory.createQuoteImage(speaker, text, color, gradient, stretchGradient ?? false, style, interpretNewlines)
             await context.editReply({
@@ -116,7 +116,7 @@ export const contextMenuCommandAC7 = {
 
         await deferReply()
         const factory = QuoteImageFactory.getInstance()
-        factory.setGuild(guild!)
+            .setGuild(guild!)
         try {
             const result = await factory.createQuoteImage(speaker, text, color, 'none', false, 'ac7', true)
             await editReply({
@@ -143,7 +143,7 @@ export const contextMenuCommandPW = {
 
         await deferReply()
         const factory = QuoteImageFactory.getInstance()
-        factory.setGuild(guild!)
+            .setGuild(guild!)
         try {
             const result = await factory.createQuoteImage(speaker, text, color, 'none', false, 'pw', true)
             await editReply({
@@ -170,7 +170,7 @@ export const contextMenuCommandHD2 = {
 
         await deferReply()
         const factory = QuoteImageFactory.getInstance()
-        factory.setGuild(guild!)
+            .setGuild(guild!)
         try {
             // TODO: Implement proper HD2 subtitle format
             const result = await factory.createQuoteImage(speaker, text, color, 'none', false, 'hd2', true)
