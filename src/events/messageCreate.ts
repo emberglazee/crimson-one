@@ -3,7 +3,7 @@ const logger = new Logger('event.messageCreate')
 
 import type { Client } from 'discord.js'
 import util from 'util'
-import { screamOnSight, shapesInc } from '..'
+import { messageTrigger, shapesInc } from '..'
 import GuildConfigManager from '../modules/GuildConfig'
 import CommandManager from '../modules/CommandManager'
 
@@ -17,8 +17,8 @@ export default async function onMessageCreate(client: Client) {
             if (message.content.startsWith(guildConfig.prefix)) {
                 await CommandManager.getInstance().handleMessageCommand(message, guildConfig.prefix)
             }
-            if (guildConfig.screamOnSight) {
-                await screamOnSight.processMessage(message)
+            if (guildConfig.messageTrigger) {
+                await messageTrigger.processMessage(message)
             }
 
             await shapesInc.handleMessage(message)

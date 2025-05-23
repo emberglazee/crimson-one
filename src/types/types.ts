@@ -86,7 +86,7 @@ export type WebhookEvents = {
 }
 
 
-export interface ScreamOnSightTrigger {
+export interface MessageTriggerEntry {
     pattern: Array<RegExp | string | ((message: Message) => boolean)>
     action: (message: Message) => Promise<void>
 }

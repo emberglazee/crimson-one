@@ -3,7 +3,7 @@ import { Entity, PrimaryColumn, Column } from 'typeorm'
 export interface IGuildConfig {
     guildId: string
     prefix: string
-    screamOnSight: boolean
+    messageTrigger: boolean
 }
 
 @Entity('guild_configs')
@@ -15,5 +15,5 @@ export class GuildConfig implements IGuildConfig {
     prefix: string = 'c1'
 
     @Column('boolean', { default: false })
-    screamOnSight: boolean = false
+    messageTrigger: boolean = false
 }
