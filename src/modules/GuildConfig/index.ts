@@ -28,7 +28,10 @@ export default class GuildConfigManager extends EventEmitter<{
         logger.ok('Data source initialized')
     }
 
-    public async getConfig(guildId: GuildId): Promise<GuildConfig> {
+    public async getConfig(guildId?: GuildId): Promise<GuildConfig> {
+        if (!guildId) {
+            return new GuildConfig()
+        }
         if (this.configCache.has(guildId)) {
             return this.configCache.get(guildId)! // assert non-null because .has()
         }
