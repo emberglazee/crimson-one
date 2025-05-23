@@ -6,6 +6,8 @@ export default {
         .setName('test')
         .setDescription('Test command'),
     async execute(context) {
-        await context.reply('Test command executed')
+        const isAnInteraction = context.interaction !== undefined
+        const isUserInstalled = isAnInteraction && context.guild?.members.cache.get(context.client.user!.id) !== undefined // user install implies interaction context
+        await context.reply(`Test command executed\n-# - Context: ${isAnInteraction ? 'Interaction' : 'Message'}; User-installed: ${isUserInstalled ? 'Probably' : 'Probably not'}`)
     }
 } satisfies SlashCommand
