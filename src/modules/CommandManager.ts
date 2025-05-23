@@ -30,7 +30,8 @@ import {
     ClassNotInitializedError, MissingPermissionsError,
     type ExplicitAny, type GuildId,
     type JSONResolvable,
-    type OldSlashCommandHelpers
+    type OldSlashCommandHelpers,
+    BotInstallationType
 } from '../types/types'
 import { EMBERGLAZE_ID, PING_EMBERGLAZE, TYPING_EMOJI } from '../util/constants'
 import type { ArgumentsCamelCase, Argv, Options as YargsOptions } from 'yargs'
@@ -1394,5 +1395,57 @@ export class CommandContext {
     // getUserAvatar needs to be adapted or the CommandContext needs to provide user/guild
     public getUserAvatar(user: User, guild?: Guild | null, options?: { extension?: ImageExtension, size?: ImageSize, useGlobalAvatar?: boolean }): string {
         return getUserAvatar(user, guild || this.guild, options)
+    }
+
+
+
+    public async getInstallationType(): Promise<BotInstallationType> {
+        // Logic 1: Message Command -> Guaranteed Guild Install
+        if (!this.isInteraction) {
+            return BotInstallationType.GuildInstall
+        }
+
+        // Logic 2: Slash Command - Check if it's a DM/Group DM or a Guild
+        const interaction = this.interaction!
+        if (!interaction.guildId) {
+            // No raw guildId means it's a DM/Group DM context for a slash command
+            return BotInstallationType.UserInstallDM
+        } else {
+            // Raw guildId is present, so the command was run in a guild channel.
+            // Now, distinguish between Guild Install and User Install *within this guild*.
+            // The key here is whether the bot exists as a member in this guild.
+            if (this.guild) { // Check if the full Guild object is available (implies bot might be in cache or fetchable)
+                let botMember: GuildMember | undefined | null = this.guild.members.cache.get(this.client.user!.id)
+                if (!botMember) {
+                    try {
+                        // Attempt to fetch if not in cache. Requires GUILD_MEMBERS intent.
+                        // This fetch will only succeed if the bot is actually in the guild and has intent.
+                        // If it's a user-installed command in a guild where bot isn't member, this will likely fail or return null.
+                        botMember = await this.guild.members.fetch(this.client.user!.id)
+                    } catch {
+                        // Error likely means bot is not in guild or permissions/intents issue.
+                        // Treat as bot member not found for this purpose.
+                        // console.error(`Failed to fetch bot member in guild ${context.guild.id}:`, error); // Log if needed, but might be noisy for user installs
+                        botMember = null
+                    }
+                }
+
+                if (botMember) {
+                    // Logic 3a: In a guild, and bot is found as a member. This is a Guild Install.
+                    // This handles the scenario where the bot is both Guild & User installed correctly.
+                    return BotInstallationType.GuildInstall
+                } else {
+                    // Logic 3b: In a guild (guildId present), but bot is NOT found as a member.
+                    // This means the command was executed via user-install permission.
+                    return BotInstallationType.UserInstallGuild
+                }
+            } else {
+                // Logic 3c: interaction.guildId present, but context.guild is null.
+                // As observed in logs, this happens for user-installed commands in guilds.
+                // Since guildId exists but bot isn't a member (implied by null context.guild),
+                // it must be a User Install in a guild context.
+                return BotInstallationType.UserInstallGuild
+            }
+        }
     }
 }

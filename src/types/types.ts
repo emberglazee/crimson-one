@@ -289,3 +289,10 @@ export type FixedLengthArray<T, N extends number, R extends T[] = []> =
   R['length'] extends N ? R : FixedLengthArray<T, N, [T, ...R]>
 
 export type GuildId = string & {} // `& {}` because otherwise intellisense will show `string` instead of `GuildId`
+
+export enum BotInstallationType {
+    GuildInstall = 'GUILD_INSTALL',
+    UserInstallDM = 'USER_INSTALL_DM',
+    UserInstallGuild = 'USER_INSTALL_GUILD',
+    Unknown = 'UNKNOWN'
+}
