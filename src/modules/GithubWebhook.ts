@@ -2,7 +2,7 @@ import { Logger, yellow } from '../util/logger'
 const logger = new Logger('GithubWebhook')
 
 import { EventEmitter } from 'tseep'
-import type { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, Server, ServerResponse } from 'http'
 import { createServer } from 'http'
 import crypto from 'crypto'
 import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
@@ -10,35 +10,43 @@ import type { WebhookEvents } from '../types/types'
 
 export class GithubWebhook extends EventEmitter<WebhookEvents> {
     private static instance: GithubWebhook
-    private server
-    private secret: string
-    private port: number
+    private server: Server
+    private secret: string = ''
+    private port: number = 3000
     private client: Client | null = null
     private channel: TextChannel | null = null
 
-    private constructor(options: {
-        port: number
-        secret: string
-    }) {
+    private constructor() {
         super()
-        this.secret = options.secret
-        this.port = options.port
         this.server = createServer(this.handleRequest.bind(this))
     }
 
-    public static getInstance(options?: {
-        port: number
-        secret: string
-    }): GithubWebhook {
-        if (!GithubWebhook.instance && options) {
-            GithubWebhook.instance = new GithubWebhook(options)
+    public static getInstance(): GithubWebhook {
+        if (!GithubWebhook.instance) {
+            GithubWebhook.instance = new GithubWebhook()
         }
         return GithubWebhook.instance
     }
 
-    public async init(client: Client) {
+    public setClient(client: Client): GithubWebhook {
         this.client = client
-        this.channel = await client.channels.fetch('1331556083776487444') as TextChannel
+        return this
+    }
+
+    public setWebhookOptions(options: {
+        port: number
+        secret: string
+    }): GithubWebhook {
+        this.port = options.port
+        this.secret = options.secret
+        return this
+    }
+
+    public async init() {
+        if (!this.client) {
+            throw new Error('Client not set. Call setClient() first.')
+        }
+        this.channel = await this.client.channels.fetch('1331556083776487444') as TextChannel
         if (!this.channel) {
             throw new Error('Could not find webhook channel')
         }

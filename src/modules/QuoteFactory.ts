@@ -24,7 +24,7 @@ export default class QuoteFactory {
                 const gradient = 'none'
                 const stretchGradient = false
                 const factory = QuoteImageFactory.getInstance()
-                factory.setGuild(message.guild!)
+                    .setGuild(message.guild!)
                 const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw', false)
                 const image = new AttachmentBuilder(result.buffer)
                     .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)

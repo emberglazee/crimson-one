@@ -15,19 +15,19 @@ import { Guild } from './entities/Guild'
 import { User } from './entities/User'
 import { Tag } from './entities/Tag'
 
-export class DataSource {
-    private static instance: DataSource
+export class MarkovDataSource {
+    private static instance: MarkovDataSource
     private orm!: ORMDataSource
     private initialized = false
-    private readonly databasePath = join(process.cwd(), 'data', 'markov.sqlite')
+    private readonly databasePath = join(process.cwd(), 'data/markov.sqlite')
 
     private constructor() {}
 
-    public static getInstance(): DataSource {
-        if (!DataSource.instance) {
-            DataSource.instance = new DataSource()
+    public static getInstance(): MarkovDataSource {
+        if (!MarkovDataSource.instance) {
+            MarkovDataSource.instance = new MarkovDataSource()
         }
-        return DataSource.instance
+        return MarkovDataSource.instance
     }
 
     private ensureDataDirectory() {
@@ -48,11 +48,7 @@ export class DataSource {
                 type: 'sqlite',
                 database: this.databasePath,
                 entities: [Channel, Message, Guild, User, Tag],
-                synchronize: true,
-                extra: {
-                    connectionLimit: 10,
-                    queueLimit: 0
-                }
+                synchronize: true
             })
 
             await this.orm.initialize()

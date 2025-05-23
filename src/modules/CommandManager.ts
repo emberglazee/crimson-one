@@ -35,6 +35,7 @@ import {
 import { EMBERGLAZE_ID, PING_EMBERGLAZE, TYPING_EMOJI } from '../util/constants'
 import type { ArgumentsCamelCase, Argv, Options as YargsOptions } from 'yargs'
 import yargs from 'yargs'
+import GuildConfigManager from './GuildConfig'
 
 export default class CommandManager {
 
@@ -46,29 +47,27 @@ export default class CommandManager {
     private initialized = false
     private client: Client | null = null
     private rest: REST | null = null
-    public readonly prefix: string
 
-    private constructor(prefix = 'c1') {
-        this.prefix = prefix
-    }
+    private constructor() {}
 
-    public static getInstance(prefix = 'c1'): CommandManager {
+    public static getInstance(): CommandManager {
         if (!CommandManager.instance) {
-            CommandManager.instance = new CommandManager(prefix)
+            CommandManager.instance = new CommandManager()
         }
         return CommandManager.instance
     }
 
-    public setClient(client: Client) {
+    public setClient(client: Client): CommandManager {
         this.client = client
         this.rest = new REST().setToken(client.token!)
         this.client.on('messageCreate', async message => {
             if (message.author.bot || !message.guild) return
-            // Basic check for prefix to avoid parsing every message with yargs
-            if (message.content.startsWith(this.prefix)) {
-                await this.handleMessageCommand(message)
+            const { prefix } = await GuildConfigManager.getInstance().getConfig(message.guild.id)
+            if (message.content.startsWith(prefix)) {
+                await this.handleMessageCommand(message, prefix)
             }
         })
+        return this
     }
 
     public async init() {
@@ -248,10 +247,10 @@ export default class CommandManager {
 
 
 
-    public async handleMessageCommand(message: Message): Promise<void> {
-        if (!this.initialized || !message.content.startsWith(this.prefix) || message.author.bot) return
+    public async handleMessageCommand(message: Message, prefix: string): Promise<void> {
+        if (!this.initialized || !message.content.startsWith(prefix) || message.author.bot) return
 
-        const contentWithoutPrefix = message.content.slice(this.prefix.length).trim()
+        const contentWithoutPrefix = message.content.slice(prefix.length).trim()
         const commandParts = contentWithoutPrefix.split(/ +/)
         const commandName = commandParts[0]?.toLowerCase()
 
@@ -271,7 +270,7 @@ export default class CommandManager {
                 argsOnlyString = contentWithoutPrefix.substring(firstSpaceIndex + 1).trimStart()
             }
 
-            const yargsParser = this.buildYargsParserForCommand(command as SlashCommand, message, argsOnlyString)
+            const yargsParser = this.buildYargsParserForCommand(command as SlashCommand, message, argsOnlyString, prefix)
 
             // --- CAPTURE CONSOLE OUTPUT ---
             let capturedHelpText = ''
@@ -504,12 +503,12 @@ export default class CommandManager {
 
 
 
-    private buildYargsParserForCommand(commandDef: SlashCommand, message: Message, rawArgsString: string): Argv<{}> {
+    private buildYargsParserForCommand(commandDef: SlashCommand, message: Message, rawArgsString: string, prefix: string): Argv<{}> {
         const baseCommandData = commandDef.data.toJSON()
         const parser = yargs(rawArgsString)
 
         parser
-            .scriptName(`${this.prefix}${baseCommandData.name}`)
+            .scriptName(`${prefix}${baseCommandData.name}`)
             .help('h').alias('h', 'help')
             .version(false)
             .exitProcess(false) // Crucial
@@ -646,9 +645,9 @@ export default class CommandManager {
 
 
 
-    private handleError(e: Error, source: CommandInteraction | ContextMenuCommandInteraction | Message, cmdName?: string): void {
+    private handleError(e: Error, source: CommandInteraction | ContextMenuCommandInteraction | Message, cmdName?: string, prefix?: string): void {
 
-        const commandName = cmdName || ((source instanceof Message) ? source.content.split(' ')[0].slice(this.prefix.length) : (source as CommandInteraction).commandName)
+        const commandName = cmdName || ((source instanceof Message) ? source.content.split(' ')[0].slice(prefix!.length) : (source as CommandInteraction).commandName)
         let replyMessage = `❌ Error executing \`${commandName}\`: \`${e.message}\``
 
         if (e instanceof MissingPermissionsError) {
