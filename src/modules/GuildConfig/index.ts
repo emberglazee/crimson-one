@@ -34,8 +34,8 @@ export default class GuildConfigManager extends EventEmitter<{
             return new GuildConfig()
         }
         if (this.configCache.has(guildId)) {
-            const cachedConfig = this.configCache.get(guildId)!
-            logger.debug(`{getConfig} Cache hit for ${guildId}: screamOnSight = ${cachedConfig.screamOnSight}`)
+            const cachedConfig = this.configCache.get(guildId)! // assert non-null because .has()
+            logger.debug(`{getConfig} Cache hit for ${guildId}: screamOnSight = ${cachedConfig.screamOnSight}, prefix = ${cachedConfig.prefix}`)
             return cachedConfig
         }
 
@@ -46,9 +46,8 @@ export default class GuildConfigManager extends EventEmitter<{
             config.guildId = guildId
             logger.debug(`{getConfig} No config found in DB for ${guildId}, creating default`)
         } else {
-             logger.debug(`{getConfig} Fetched config from DB for ${guildId}: screamOnSight = ${config.screamOnSight}`)
+            logger.debug(`{getConfig} Fetched config from DB for ${guildId}: screamOnSight = ${config.screamOnSight}, prefix = ${config.prefix}`)
         }
-
 
         const defaultGuildConfig = new GuildConfig()
         for (const key of Object.keys(defaultGuildConfig)) {
@@ -61,7 +60,7 @@ export default class GuildConfigManager extends EventEmitter<{
         }
 
         this.configCache.set(guildId, config)
-        logger.debug(`{getConfig} Cache set for ${guildId}: screamOnSight = ${config.screamOnSight}`)
+        logger.debug(`{getConfig} Cache set for ${guildId}: screamOnSight = ${config.screamOnSight}, prefix = ${config.prefix}`)
         return config
     }
 
@@ -69,15 +68,21 @@ export default class GuildConfigManager extends EventEmitter<{
         logger.info(`{setConfig} Updating config for ${guildId} with ${JSON.stringify(config)}`)
         await this.dataSource.setGuildConfig(guildId, config)
         logger.ok(`{setConfig} DB updated for ${guildId}`)
-        const updatedConfig = await this.getConfig(guildId) // This call should now log if it hits cache or DB
-        this.configCache.set(guildId, updatedConfig)
+
+        this.configCache.delete(guildId)
+        logger.debug(`{setConfig} Invalidated cache for ${guildId}`)
+
+        const updatedConfig = await this.getConfig(guildId)
+
         logger.ok(`{setConfig} Cache updated for ${guildId}: screamOnSight = ${updatedConfig.screamOnSight}`)
         this.emit('configUpdate', guildId, updatedConfig)
         logger.info(`{setConfig} Emitted configUpdate for ${guildId}`)
     }
 
     public async deleteConfig(guildId: GuildId): Promise<void> {
+        logger.info(`{deleteConfig} Deleting config for ${guildId}`)
         await this.dataSource.deleteGuildConfig(guildId)
         this.configCache.delete(guildId)
+        logger.ok(`{deleteConfig} DB and cache deleted for ${guildId}`)
     }
 }
