@@ -1,5 +1,7 @@
 import { ChannelType, InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { GuildSlashCommand } from '../types/types'
+import { chance } from '../util/functions'
+import { sleep } from 'bun'
 
 export default {
     data: new SlashCommandBuilder()
@@ -21,6 +23,32 @@ export default {
             return
         }
         if (!context.member.permissions.has('ManageRoles')) {
+            if (chance(1)) {
+                // 1% chance to "no u" the user
+                await context.reply(`🥀 you know what what about i banish you instead`)
+                const target = await context.getUserOption('member', true)
+                const targetMember = await context.guild.members.fetch(target)
+                if (!targetMember) {
+                    await context.followUp(`okay you got lucky you dont exist as a member for some reason (${context.pingMe} fix me)`)
+                    return
+                }
+                const role = await context.guild.roles.fetch('1331170880591757434')
+                if (!role) {
+                    await context.followUp(`okay you got lucky the banished role doesnt exist`)
+                    return
+                }
+                const roles = targetMember.roles.cache.filter(role => role.name !== '@everyone')
+                if (roles.find(r => r.id === role.id)) {
+                    await context.followUp(`ha look ur banished already`)
+                    return
+                }
+                await targetMember.roles.add(role)
+                await context.followUp(`${targetMember} have fun`)
+                await sleep(60000)
+                await targetMember.roles.remove(role)
+                await context.followUp(`${targetMember} okay whatever enjoy being free again i guess`)
+                return
+            }
             await context.reply('❌ you dont have permission to manage roles')
             return
         }
