@@ -99,21 +99,21 @@ export default {
             await context.reply('❌ You, solely, are responsible for this.')
             return
         }
-        if (subcommand === 'set_avatar') {
+        if (subcommand === 'set_global_avatar') {
             await context.deferReply()
             const avatar = await context.getAttachmentOption('avatar', true)
             await context.client.user!.setAvatar(avatar.url)
             await context.editReply('✅ Avatar changed')
             return
         }
-        if (subcommand === 'set_banner') {
+        if (subcommand === 'set_global_banner') {
             await context.deferReply()
             const banner = await context.getAttachmentOption('banner', true)
             await context.client.user!.setBanner(banner.url)
             await context.editReply('✅ Banner changed')
             return
         }
-        if (subcommand === 'set_username') {
+        if (subcommand === 'set_global_username') {
             if (!canExecuteCommand()) {
                 await context.reply(`❌ This command can only be ran ${USAGE_LIMIT} times every ${WINDOW_MINUTES} minutes, to avoid API rate limiting`)
                 return
