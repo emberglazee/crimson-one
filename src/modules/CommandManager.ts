@@ -36,7 +36,6 @@ import {
 import { EMBERGLAZE_ID, PING_EMBERGLAZE, TYPING_EMOJI } from '../util/constants'
 import type { ArgumentsCamelCase, Argv, Options as YargsOptions } from 'yargs'
 import yargs from 'yargs'
-import GuildConfigManager from './GuildConfig'
 
 export default class CommandManager {
 
@@ -61,13 +60,6 @@ export default class CommandManager {
     public setClient(client: Client): CommandManager {
         this.client = client
         this.rest = new REST().setToken(client.token!)
-        this.client.on('messageCreate', async message => {
-            if (message.author.bot || !message.guild) return
-            const { prefix } = await GuildConfigManager.getInstance().getConfig(message.guild.id)
-            if (message.content.startsWith(prefix)) {
-                await this.handleMessageCommand(message, prefix)
-            }
-        })
         return this
     }
 
