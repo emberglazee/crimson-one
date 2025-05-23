@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 import { formatBytes } from '../util/functions'
+import GuildConfigManager from '../modules/GuildConfig'
 
 const usageTracker = new Map<string, number[]>()
 const USAGE_LIMIT = 2
@@ -165,7 +166,13 @@ export default {
                 await context.editReply('❌ You must provide a prefix')
                 return
             }
-            await context.client.user!.setUsername(prefix)
+            const guildConfig = await GuildConfigManager.getInstance().getConfig(context.guild!.id)
+            if (!guildConfig) {
+                await context.editReply('❌ Guild config not found')
+                return
+            }
+            guildConfig.prefix = prefix
+            await GuildConfigManager.getInstance().setConfig(context.guild!.id, guildConfig)
             await context.editReply(`✅ Prefix changed to ${prefix}`)
         }
     }
