@@ -58,6 +58,7 @@ export default class GuildConfigManager extends EventEmitter<{
     public async setConfig(guildId: GuildId, config: Partial<GuildConfig>): Promise<void> {
         await this.dataSource.setGuildConfig(guildId, config)
         const updatedConfig = await this.getConfig(guildId)
+        this.configCache.set(guildId, updatedConfig)
         this.emit('configUpdate', guildId, updatedConfig)
     }
 
