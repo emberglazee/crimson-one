@@ -14,6 +14,7 @@ export default async function onMessageCreate(client: Client) {
             if (await shapesInc.handlePotentialCookieDM(message)) return
 
             const guildConfig = await GuildConfigManager.getInstance().getConfig(message.guild?.id)
+            if (message.guild) logger.debug(`{messageCreate} Got config for ${message.guild.id}: screamOnSight = ${guildConfig.screamOnSight}`)
 
             if (message.content.startsWith(guildConfig.prefix)) {
                 await CommandManager.getInstance().handleMessageCommand(message, guildConfig.prefix)
