@@ -20,9 +20,9 @@ export default {
         await context.deferReply()
         const video = await context.getAttachmentOption('video', true)
         const videoUrl = video.url
-        const videoName = video.name
+        const videoName = video.name // still has the extension
         const videoExtension = video.name.split('.').pop()
-        const videoPath = path.join(process.cwd(), 'data', `${videoName}.${videoExtension}`)
+        const videoPath = path.join(process.cwd(), 'data', videoName)
         await context.editReply('Downloading video...')
         const videoBuffer = await fetch(videoUrl).then(res => res.arrayBuffer())
         await writeFile(videoPath, Buffer.from(videoBuffer))
