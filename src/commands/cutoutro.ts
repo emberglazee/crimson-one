@@ -34,6 +34,7 @@ export default {
             return
         }
         const command = `ffmpeg -i ${videoPath} -c copy -t ${duration - 5} ${outputPath}`
+        logger.debug(`Running command: "${command}"`)
         const child = spawn({
             cmd: command.split(' ')
         })
@@ -52,7 +53,8 @@ export default {
 
 async function getVideoDuration(videoPath: string): Promise<number | null> {
     try {
-        const command = `ffprobe -v error -select_streams v:0 -show_entries stream=duration -of default=noprint_wrappers=1:nokey=1 '${videoPath}'`
+        const command = `ffprobe -v error -select_streams v:0 -show_entries stream=duration -of default=noprint_wrappers=1:nokey=1 ${videoPath}`
+        logger.debug(`Running command: "${command}"`)
         const child = spawn({
             cmd: command.split(' ')
         })
