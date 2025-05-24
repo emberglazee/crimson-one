@@ -1,3 +1,6 @@
+import { Logger } from '../util/logger'
+const logger = new Logger('/cutoutro')
+
 import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 import { writeFile } from 'fs/promises'
@@ -26,6 +29,10 @@ export default {
         await context.editReply('Cutting outro...')
         const outputPath = path.join(process.cwd(), 'data', `${videoName}_cut.${videoExtension}`)
         const duration = await getVideoDuration(videoPath)
+        if (!duration) {
+            await context.editReply('Error getting video duration')
+            return
+        }
         const command = `ffmpeg -i ${videoPath} -c copy -t ${duration - 5} ${outputPath}`
         const child = spawn(command)
         child.on('close', async code => {
@@ -45,13 +52,18 @@ export default {
 } satisfies SlashCommand
 
 
-async function getVideoDuration(videoPath: string): Promise<number> {
-    const command = `ffprobe -v error -select_streams v:0 -show_entries stream=duration -of default=noprint_wrappers=1:nokey=1 ${videoPath}`
-    const child = spawn(command)
-    const duration = await new Promise<string>(resolve => {
-        child.stdout.on('data', data => {
-            resolve(data.toString())
+async function getVideoDuration(videoPath: string): Promise<number | null> {
+    try {
+        const command = `ffprobe -v error -select_streams v:0 -show_entries stream=duration -of default=noprint_wrappers=1:nokey=1 '${videoPath}'`
+        const child = spawn(command)
+        const duration = await new Promise<string>(resolve => {
+            child.stdout.on('data', data => {
+                resolve(data.toString())
+            })
         })
-    })
-    return Number(duration)
+        return Number(duration)
+    } catch (error) {
+        logger.warn(`Error getting video duration: ${error}`)
+        return null
+    }
 }
