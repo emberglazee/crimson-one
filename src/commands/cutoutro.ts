@@ -33,7 +33,7 @@ export default {
             await context.editReply('Error getting video duration')
             return
         }
-        const command = `ffmpeg -i ${videoPath} -c copy -t ${duration - 5} ${outputPath}`
+        const command = `ffmpeg -i ${videoPath} -c copy -t ${duration - 4} ${outputPath}`
         logger.debug(`Running command: "${command}"`)
         const child = spawn({
             cmd: command.split(' ')
