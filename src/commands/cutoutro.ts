@@ -4,7 +4,7 @@ const logger = new Logger('/cutoutro')
 import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 import { writeFile } from 'fs/promises'
-import { spawn } from 'child_process'
+import { readableStreamToText, spawn } from 'bun'
 import path from 'path'
 
 export default {
@@ -34,19 +34,17 @@ export default {
             return
         }
         const command = `ffmpeg -i ${videoPath} -c copy -t ${duration - 5} ${outputPath}`
-        const child = spawn(command)
-        child.on('close', async code => {
-            if (code === 0) {
-                await context.editReply({
-                    content: 'Done!',
-                    files: [{
-                        attachment: outputPath,
-                        name: `${videoName}_cut.${videoExtension}`
-                    }]
-                })
-            } else {
-                await context.editReply('Error cutting outro')
-            }
+        const child = spawn({
+            cmd: command.split(' ')
+        })
+        const text = await readableStreamToText(child.stdout)
+        logger.debug(text)
+        await context.editReply({
+            content: 'Done!',
+            files: [{
+                attachment: outputPath,
+                name: `${videoName}_cut.${videoExtension}`
+            }]
         })
     }
 } satisfies SlashCommand
@@ -55,13 +53,15 @@ export default {
 async function getVideoDuration(videoPath: string): Promise<number | null> {
     try {
         const command = `ffprobe -v error -select_streams v:0 -show_entries stream=duration -of default=noprint_wrappers=1:nokey=1 '${videoPath}'`
-        const child = spawn(command)
-        const duration = await new Promise<string>(resolve => {
-            child.stdout.on('data', data => {
-                resolve(data.toString())
-            })
+        const child = spawn({
+            cmd: command.split(' ')
         })
-        return Number(duration)
+        const duration = await new Promise<number>(async resolve => {
+            const text = await readableStreamToText(child.stdout)
+            logger.debug(text)
+            resolve(Number(text))
+        })
+        return duration
     } catch (error) {
         logger.warn(`Error getting video duration: ${error}`)
         return null
