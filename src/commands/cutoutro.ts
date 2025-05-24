@@ -19,12 +19,12 @@ export default {
         const videoUrl = video.url
         const videoName = video.name
         const videoExtension = video.name.split('.').pop()
-        const videoPath = path.join(__dirname, '..', 'data', `${videoName}.${videoExtension}`)
+        const videoPath = path.join(process.cwd(), 'data', `${videoName}.${videoExtension}`)
         await context.editReply('Downloading video...')
         const videoBuffer = await fetch(videoUrl).then(res => res.arrayBuffer())
         await writeFile(videoPath, Buffer.from(videoBuffer))
         await context.editReply('Cutting outro...')
-        const outputPath = path.join(__dirname, '..', 'data', `${videoName}_cut.${videoExtension}`)
+        const outputPath = path.join(process.cwd(), 'data', `${videoName}_cut.${videoExtension}`)
         const duration = await getVideoDuration(videoPath)
         const command = `ffmpeg -i ${videoPath} -c copy -t ${duration - 5} ${outputPath}`
         const child = spawn(command)
