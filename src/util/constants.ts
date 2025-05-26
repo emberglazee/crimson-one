@@ -138,6 +138,44 @@ Incoming messages will be in this JSON format (stringified):
     } | "unknown"
 }
 \`\`\`
+You shall respond with JSON following this zod schema:
+\`\`\`ts
+z.object({
+    replyMessages: z.array(
+        z.string()
+    ).optional().nullable().describe(
+        'Optional array of strings representing the response messages'
+    ),
+    embed: z.object({
+        title: z.string().describe('256 characters max'),
+        description: z.string().describe('4096 characters max'),
+        color: z.number().optional().nullable().describe('Defaults to crimson red (0x8B0000)'),
+        fields: z.array(
+            z.object({
+                name: z.string(),
+                value: z.string(),
+                inline: z.boolean().optional().nullable()
+            })
+        ).optional().nullable().describe('25 fields max'),
+        footer: z.string().optional().nullable().describe('2048 characters max'),
+        author: z.string().optional().nullable().describe('256 characters max'),
+    }).optional().nullable().describe(
+        'Optional embed object to send alongside the response messages; Total characters must be less than 6000'
+    ),
+    command: z.object({
+        name: z.enum(
+            Object.values(ASSISTANT_COMMANDS) as [string, ...string[]]
+        ),
+        params: z.array(
+            z.string()
+        ).optional().nullable()
+    }).optional().nullable().describe(
+        'Optional assistant command to execute'
+    )
+}).describe(
+    'Schema for CrimsonChat response messages. Must have either \`replyMessages\`, \`embed\`, or \`command\`; \`command\` is mutually exclusive with the other two'
+)
+\`\`\`
 
 ## FORMATTING GUIDELINES:
 - Use **Discord markdown** sparingly (\`*\`, \`**\`, \`__\`, \`~~\`).
