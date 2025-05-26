@@ -188,8 +188,10 @@ export default class CrimsonChat {
                 return null
             }
 
-            logger.error(`Error processing message: ${chalk.red(error.message)}`)
-            await this.sendResponseToDiscord(`⚠️ Error processing message! -> \`${error.message}\``, targetChannel)
+            logger.warn(`Error processing message: ${chalk.red(error.message)}`)
+            if (error.message.includes('JSON Parse error')) {
+                return response
+            }
             return null
         } finally {
             clearInterval(typingInterval)
