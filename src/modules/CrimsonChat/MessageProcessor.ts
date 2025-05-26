@@ -1,4 +1,3 @@
-import { Message } from 'discord.js'
 import OpenAI from 'openai'
 import { ImageProcessor } from './ImageProcessor'
 import { CommandParser } from './CommandParser'
@@ -39,7 +38,7 @@ export class MessageProcessor {
     })
     readonly BREAKDOWN_CHANCE = 0.01
 
-    async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<ChatResponseArray> {
+    async processMessage(content: string, options: UserMessageOptions): Promise<ChatResponseArray> {
         // Check for random breakdown before normal processing
         const breakdown = await this.handleRandomBreakdown(content, options)
         if (breakdown) return Array.isArray(breakdown) ? breakdown : [breakdown]
@@ -99,43 +98,16 @@ export class MessageProcessor {
             )
             history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
 
-            let aiResponse = await this.generateAIResponse(history) // aiResponse is Zod object
+            const aiResponse = await this.generateAIResponse(history) // aiResponse is Zod object
 
             if (aiResponse) {
-                const chatResponseArrayForHistory = this.convertToResponseArray(aiResponse)
-                await this.historyManager.appendMessage('assistant', chatResponseArrayForHistory)
-            }
-
-            let processedResponse = await this.processResponse(aiResponse)
-
-            if (aiResponse?.command && aiResponse.command.name !== 'noOp') {
-                const commandIndicator = `-# ℹ️ Assistant command called: ${aiResponse.command.name}${aiResponse.command.params ? `(${aiResponse.command.params.join(', ')})` : ''}`
-                if (originalMessage?.channel && 'send' in originalMessage.channel) {
-                    await originalMessage.channel.send(commandIndicator)
-                }
-
-                const commandResult = await this.commandParser.parseCommand(
-                    { ...aiResponse.command, params: aiResponse.command.params ?? undefined },
-                    originalMessage
-                )
-
-                if (commandResult) {
-                    const commandMessage = `Command executed: ${aiResponse.command.name}${aiResponse.command.params ? `(${aiResponse.command.params.join(', ')})` : ''}\\nResult: ${commandResult}`
-                    history.push({ role: 'system', content: commandMessage })
-                    await this.historyManager.appendMessage('system', commandMessage)
-
-                    aiResponse = await this.generateAIResponse(history) // new Zod object
-
-                    if (aiResponse) {
-                        const chatResponseArrayForHistoryAfterCommand = this.convertToResponseArray(aiResponse)
-                        await this.historyManager.appendMessage('assistant', chatResponseArrayForHistoryAfterCommand)
-                        processedResponse = await this.processResponse(aiResponse)
-                    }
-                }
+                const processedResponse = this.convertToResponseArray(aiResponse)
+                await this.historyManager.appendMessage('assistant', processedResponse)
+                return processedResponse
             }
 
             logger.ok('Response processed successfully')
-            return processedResponse
+            return []
 
         } catch (e) {
             const error = e as Error
@@ -321,54 +293,6 @@ export class MessageProcessor {
             result.push({ command: { name: aiZodOutput.command.name, params: aiZodOutput.command.params || [] } })
         }
         return result
-    }
-
-    private async processResponse(aiZodOutput: z.infer<typeof CRIMSONCHAT_RESPONSE_SCHEMA> | null | undefined): Promise<ChatResponseArray> {
-        const messagesToSend: ChatResponseArray = []
-        if (!aiZodOutput) return messagesToSend
-
-        if (aiZodOutput.replyMessages) {
-            for (const msgContent of aiZodOutput.replyMessages) {
-                try {
-                    const parsed = JSON.parse(msgContent)
-                    const nestedSchemaCheck = CRIMSONCHAT_RESPONSE_SCHEMA.safeParse(parsed)
-                    if (nestedSchemaCheck.success) {
-                        const unwrappedData = nestedSchemaCheck.data
-                        if (unwrappedData.replyMessages) {
-                            messagesToSend.push(...unwrappedData.replyMessages)
-                        }
-                        if (unwrappedData.embed) {
-                            // Ensure embed structure is correct for ChatResponse
-                             const embedToSend = {
-                                ...unwrappedData.embed,
-                                author: unwrappedData.embed.author === null ? undefined : unwrappedData.embed.author,
-                                color: unwrappedData.embed.color ?? 0x8B0000,
-                                footer: unwrappedData.embed.footer ? String(unwrappedData.embed.footer) : undefined,
-                                fields: unwrappedData.embed.fields?.map(f => ({ name: f.name, value: f.value })) ?? undefined
-                            }
-                            messagesToSend.push({ embed: embedToSend })
-                        }
-                    } else {
-                        messagesToSend.push(msgContent)
-                    }
-                } catch {
-                    messagesToSend.push(msgContent)
-                }
-            }
-        }
-
-        if (aiZodOutput.embed) {
-             const embedToSend = {
-                ...aiZodOutput.embed,
-                author: aiZodOutput.embed.author === null ? undefined : aiZodOutput.embed.author,
-                color: aiZodOutput.embed.color ?? 0x8B0000,
-                 footer: aiZodOutput.embed.footer ? String(aiZodOutput.embed.footer) : undefined,
-                 fields: aiZodOutput.embed.fields?.map(f => ({ name: f.name, value: f.value })) ?? undefined
-            }
-            messagesToSend.push({ embed: embedToSend })
-        }
-        // Commands are handled by the caller (processMessage), not formed into ChatResponse here.
-        return messagesToSend
     }
 
     private formatResponseForContext(response: ChatResponseArray): string {
