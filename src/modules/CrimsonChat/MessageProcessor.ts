@@ -4,7 +4,7 @@ import { ImageProcessor } from './ImageProcessor'
 import { CommandParser } from './CommandParser'
 import { Logger } from '../../util/logger'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSONCHAT_RESPONSE_SCHEMA, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
-import type { ChatMessage, UserMessageOptions, UserStatus, ChatResponseArray, ExplicitAny } from '../../types/types'
+import type { ChatMessage, UserMessageOptions, UserStatus, ChatResponseArray } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
 import chalk from 'chalk'
@@ -63,10 +63,7 @@ export class MessageProcessor {
                 channelName: options.channelName,
             }
 
-            // Convert message to string for history
             const formattedMessage = JSON.stringify(messageData)
-
-            // Append user's message to history
             await this.historyManager.appendMessage('user', formattedMessage)
 
             const history = this.historyManager.prepareHistory().map(msg => ({
@@ -74,13 +71,11 @@ export class MessageProcessor {
                 content: msg.content || '',
             })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[]
 
-            // Extract image URLs from message content and combine with image attachments
             const imageUrls = new Set<string>()
             if (options.imageAttachments?.length) {
                 options.imageAttachments.forEach(url => imageUrls.add(url))
             }
 
-            // Add context messages to history if provided
             if (options.contextMessages?.length) {
                 const contextMessages = options.contextMessages.map(msg => ({
                     role: 'user' as const,
@@ -93,75 +88,48 @@ export class MessageProcessor {
                         userStatus: 'unknown'
                     })
                 }))
-
-                history.push({
-                    role: 'system',
-                    content: '[ Previous conversation context from this channel: ]'
-                })
-
+                history.push({ role: 'system', content: '[ Previous conversation context from this channel: ]' })
                 history.push(...contextMessages)
-
-                history.push({
-                    role: 'system',
-                    content: '[ End of context. Current message: ]'
-                })
+                history.push({ role: 'system', content: '[ End of context. Current message: ]' })
             }
 
             const messageForCompletion = await this.parseMessagesForChatCompletion(
                 formattedMessage,
                 Array.from(imageUrls)
             )
-
             history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
 
-            let response = await this.generateAIResponse(history)
+            let aiResponse = await this.generateAIResponse(history) // aiResponse is Zod object
 
-            // Save first response to history - but remove replyMessages and embed if command exists
-            if (response) {
-                const historyResponse = response.command ?
-                    { command: response.command } :
-                    response
-                await this.historyManager.appendMessage('assistant', JSON.stringify(historyResponse))
+            if (aiResponse) {
+                const chatResponseArrayForHistory = this.convertToResponseArray(aiResponse)
+                await this.historyManager.appendMessage('assistant', chatResponseArrayForHistory)
             }
 
-            // Process and send initial response
-            let processedResponse = await this.processResponse(response)
+            let processedResponse = await this.processResponse(aiResponse)
 
-            // Handle command if present after sending the initial response
-            if (response?.command && response.command.name !== 'noOp') {
-                // Send command execution indicator
-                const commandIndicator = `-# ℹ️ Assistant command called: ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''}`
+            if (aiResponse?.command && aiResponse.command.name !== 'noOp') {
+                const commandIndicator = `-# ℹ️ Assistant command called: ${aiResponse.command.name}${aiResponse.command.params ? `(${aiResponse.command.params.join(', ')})` : ''}`
                 if (originalMessage?.channel && 'send' in originalMessage.channel) {
                     await originalMessage.channel.send(commandIndicator)
                 }
 
                 const commandResult = await this.commandParser.parseCommand(
-                    { ...response.command, params: response.command.params ?? undefined },
+                    { ...aiResponse.command, params: aiResponse.command.params ?? undefined },
                     originalMessage
                 )
 
                 if (commandResult) {
-                    const commandMessage = `Command executed: ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''}\nResult: ${commandResult}`
-
-                    // Add command result to history array for context
-                    history.push({
-                        role: 'system',
-                        content: commandMessage
-                    })
-
-                    // Save to persistent history
+                    const commandMessage = `Command executed: ${aiResponse.command.name}${aiResponse.command.params ? `(${aiResponse.command.params.join(', ')})` : ''}\\nResult: ${commandResult}`
+                    history.push({ role: 'system', content: commandMessage })
                     await this.historyManager.appendMessage('system', commandMessage)
 
-                    // Get new response with updated history including command result
-                    response = await this.generateAIResponse(history)
+                    aiResponse = await this.generateAIResponse(history) // new Zod object
 
-                    // If we got a new response after the command, process and append it
-                    if (response) {
-                        // Save new response to history
-                        await this.historyManager.appendMessage('assistant', JSON.stringify(response))
-
-                        // Process new response
-                        processedResponse = await this.processResponse(response)
+                    if (aiResponse) {
+                        const chatResponseArrayForHistoryAfterCommand = this.convertToResponseArray(aiResponse)
+                        await this.historyManager.appendMessage('assistant', chatResponseArrayForHistoryAfterCommand)
+                        processedResponse = await this.processResponse(aiResponse)
                     }
                 }
             }
@@ -177,7 +145,7 @@ export class MessageProcessor {
     }
 
     private async generateAIResponse(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]) {
-        const RESPONSE_TIMEOUT_MS = 30000 // 30 seconds timeout
+        const RESPONSE_TIMEOUT_MS = 30000
 
         try {
             const responsePromise = this.openai.beta.chat.completions.parse({
@@ -206,7 +174,6 @@ export class MessageProcessor {
             logger.info(`Triggering ${chalk.yellow(this.forceNextBreakdown ? 'forced' : 'random')} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
 
-            // Save the user's message that triggered the breakdown
             const messageData = {
                 username: options.username,
                 displayName: options.displayName,
@@ -220,42 +187,15 @@ export class MessageProcessor {
             }
             await this.historyManager.appendMessage('user', JSON.stringify(messageData))
 
-            // Generate and save the breakdown response
-            const breakdown = await this.generateAIResponse([{
+            const breakdownZod = await this.generateAIResponse([{
                 role: 'system',
                 content: CRIMSON_BREAKDOWN_PROMPT
             }])
 
-            if (breakdown) {
-                // Convert structured response to ChatResponseArray
-                const response: ChatResponseArray = []
-
-                // Add text messages and store in long-term memory
-                if (breakdown.replyMessages && breakdown.replyMessages.length > 0) {
-                    response.push(...breakdown.replyMessages)
-
-                }
-
-                // Add embed if present
-                if (breakdown.embed) {
-                    const embed = {
-                        ...breakdown.embed,
-                        color: breakdown.embed.color ?? 0x8B0000,
-                        fields: Array.isArray(breakdown.embed.fields)
-                            ? breakdown.embed.fields
-                                .filter((f): f is { name: string; value: string; inline?: boolean } => !!f && !!f.name && !!f.value)
-                                .map(({ name, value }) => ({ name, value }))
-                            : undefined,
-                        footer: breakdown.embed.footer != null ? breakdown.embed.footer : undefined,
-                        author: breakdown.embed.author != null ? breakdown.embed.author : undefined
-                    }
-                    response.push({ embed })
-
-                }
-
-                // Save each breakdown message to history
-                await this.historyManager.appendMessage('assistant', response)
-                return response
+            if (breakdownZod) {
+                const responseArray = this.convertToResponseArray(breakdownZod)
+                await this.historyManager.appendMessage('assistant', responseArray)
+                return responseArray
             }
             return null
         }
@@ -332,55 +272,115 @@ export class MessageProcessor {
         }
     }
 
-    private convertToResponseArray(response: ExplicitAny): ChatResponseArray {
+    private convertToResponseArray(aiZodOutput: z.infer<typeof CRIMSONCHAT_RESPONSE_SCHEMA> | null | undefined): ChatResponseArray {
         const result: ChatResponseArray = []
-        if (response.replyMessages) result.push(...response.replyMessages)
-        if (response.embed) result.push({ embed: response.embed })
-        if (response.command) result.push({ command: { name: response.command.name, params: response.command.params || [] } })
+        if (!aiZodOutput) return result
+
+        if (aiZodOutput.replyMessages) {
+             // Check for nested stringified JSON and unwrap if necessary
+            for (const msgContent of aiZodOutput.replyMessages) {
+                try {
+                    const parsed = JSON.parse(msgContent)
+                    const nestedSchemaCheck = CRIMSONCHAT_RESPONSE_SCHEMA.safeParse(parsed)
+                    if (nestedSchemaCheck.success) {
+                        const unwrappedData = nestedSchemaCheck.data
+                        if (unwrappedData.replyMessages) {
+                            result.push(...unwrappedData.replyMessages)
+                        }
+                        if (unwrappedData.embed) {
+                            result.push({
+                                embed: {
+                                    ...unwrappedData.embed,
+                                    author: unwrappedData.embed.author === null ? undefined : unwrappedData.embed.author,
+                                    color: unwrappedData.embed.color ?? 0x8B0000,
+                                    footer: unwrappedData.embed.footer ? String(unwrappedData.embed.footer) : undefined,
+                                    fields: unwrappedData.embed.fields?.map(f => ({ name: f.name, value: f.value })) ?? undefined
+                                },
+                            })
+                        }
+                    } else {
+                        result.push(msgContent)
+                    }
+                } catch {
+                    result.push(msgContent)
+                }
+            }
+        }
+        if (aiZodOutput.embed) {
+            result.push({
+                embed: {
+                    ...aiZodOutput.embed,
+                    author: aiZodOutput.embed.author === null ? undefined : aiZodOutput.embed.author,
+                    color: aiZodOutput.embed.color ?? 0x8B0000,
+                    footer: aiZodOutput.embed.footer ? String(aiZodOutput.embed.footer) : undefined,
+                    fields: aiZodOutput.embed.fields?.map(f => ({ name: f.name, value: f.value })) ?? undefined
+                },
+            })
+        }
+        if (aiZodOutput.command) {
+            result.push({ command: { name: aiZodOutput.command.name, params: aiZodOutput.command.params || [] } })
+        }
         return result
     }
 
-    private async processResponse(content: ExplicitAny): Promise<ChatResponseArray> {
-        const response: ChatResponseArray = []
+    private async processResponse(aiZodOutput: z.infer<typeof CRIMSONCHAT_RESPONSE_SCHEMA> | null | undefined): Promise<ChatResponseArray> {
+        const messagesToSend: ChatResponseArray = []
+        if (!aiZodOutput) return messagesToSend
 
-        // Only add text messages and embeds to response, skip raw command outputs
-        if (content.replyMessages && content.replyMessages.length > 0) {
-            // Filter out any messages that look like raw command output (JSON strings)
-            const filteredMessages = content.replyMessages.filter((msg: string) => {
+        if (aiZodOutput.replyMessages) {
+            for (const msgContent of aiZodOutput.replyMessages) {
                 try {
-                    JSON.parse(msg)
-                    return false // If it parses as JSON, it's likely a command output
+                    const parsed = JSON.parse(msgContent)
+                    const nestedSchemaCheck = CRIMSONCHAT_RESPONSE_SCHEMA.safeParse(parsed)
+                    if (nestedSchemaCheck.success) {
+                        const unwrappedData = nestedSchemaCheck.data
+                        if (unwrappedData.replyMessages) {
+                            messagesToSend.push(...unwrappedData.replyMessages)
+                        }
+                        if (unwrappedData.embed) {
+                            // Ensure embed structure is correct for ChatResponse
+                             const embedToSend = {
+                                ...unwrappedData.embed,
+                                author: unwrappedData.embed.author === null ? undefined : unwrappedData.embed.author,
+                                color: unwrappedData.embed.color ?? 0x8B0000,
+                                footer: unwrappedData.embed.footer ? String(unwrappedData.embed.footer) : undefined,
+                                fields: unwrappedData.embed.fields?.map(f => ({ name: f.name, value: f.value })) ?? undefined
+                            }
+                            messagesToSend.push({ embed: embedToSend })
+                        }
+                    } else {
+                        messagesToSend.push(msgContent)
+                    }
                 } catch {
-                    return true // Not JSON, safe to send
+                    messagesToSend.push(msgContent)
                 }
-            })
-            response.push(...filteredMessages)
-
+            }
         }
 
-        // Add embed if present
-        if (content.embed) {
-            response.push({ embed: content.embed })
+        if (aiZodOutput.embed) {
+             const embedToSend = {
+                ...aiZodOutput.embed,
+                author: aiZodOutput.embed.author === null ? undefined : aiZodOutput.embed.author,
+                color: aiZodOutput.embed.color ?? 0x8B0000,
+                 footer: aiZodOutput.embed.footer ? String(aiZodOutput.embed.footer) : undefined,
+                 fields: aiZodOutput.embed.fields?.map(f => ({ name: f.name, value: f.value })) ?? undefined
+            }
+            messagesToSend.push({ embed: embedToSend })
         }
-
-        // Store all responses in history as a single structured entry
-        if (response.length > 0) {
-            await this.historyManager.appendMessage('assistant', response)
-        }
-
-        return response
+        // Commands are handled by the caller (processMessage), not formed into ChatResponse here.
+        return messagesToSend
     }
 
     private formatResponseForContext(response: ChatResponseArray): string {
         return response.map(item => {
             if (typeof item === 'string') return item
             if ('embed' in item) {
-                return `[Embed: ${item.embed.title || ''}\n${item.embed.description || ''}]`
+                return `[Embed: ${item.embed.title || ''}\\n${item.embed.description || ''}]`
             }
             if ('command' in item) {
                 return `[Command: ${item.command.name}${item.command.params ? `(${item.command.params.join(', ')})` : ''}]`
             }
             return ''
-        }).filter(Boolean).join('\n')
+        }).filter(Boolean).join('\\n')
     }
 }
