@@ -169,6 +169,8 @@ export default class CrimsonChat {
                     try {
                         return JSON.parse(msg)
                     } catch {
+                        // If parsing fails, attempt to send as normal text
+                        this.sendResponseToDiscord(msg, targetChannel).catch(() => {})
                         return msg
                     }
                 }
@@ -189,9 +191,6 @@ export default class CrimsonChat {
             }
 
             logger.warn(`Error processing message: ${chalk.red(error.message)}`)
-            if (error.message.includes('JSON Parse error')) {
-                return response
-            }
             return null
         } finally {
             clearInterval(typingInterval)
