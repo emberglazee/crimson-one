@@ -44,6 +44,12 @@ export default {
             await context.reply(`⚠️ they don't have the banished role`)
             return
         }
+
+        if (targetMember.id === context.user.id) {
+            await context.reply(`💔 what did you think was gonna happen?`)
+            return
+        }
+
         await targetMember.roles.remove(role)
         await context.reply(`Unbanished ${targetMember} for good behavior`)
 
