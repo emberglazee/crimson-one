@@ -2,6 +2,7 @@ import {
     Guild, BaseInteraction, GuildChannel, Message, GuildMember, CommandInteraction,
     ChatInputCommandInteraction, type APIInteractionDataResolvedChannel,
     Client, User, type ImageSize, type ImageExtension,
+    TextChannel,
 } from 'discord.js'
 import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
 
@@ -17,6 +18,7 @@ import {
     type PermissionsString
 } from 'discord.js'
 import type { CommandContext } from '../modules/CommandManager'
+import type { ChatCompletionContentPart } from 'openai/resources/index.mjs'
 
 /**
  * Guild ID Resolvable
@@ -296,3 +298,106 @@ export enum BotInstallationType {
     UserInstallGuild = 'USER_INSTALL_GUILD',
     Unknown = 'UNKNOWN'
 }
+
+
+
+// CrimsonChat types
+export interface UserMessageOptions {
+    username: string
+    displayName: string
+    serverDisplayName: string
+    respondingTo?: {
+        targetUsername: string
+        targetText: string
+    }
+    imageAttachments?: string[]
+    contextMessages?: Array<{
+        content: string
+        username: string
+        displayName: string
+        serverDisplayName: string
+        guildName?: string
+        channelName?: string
+    }>
+    targetChannel?: TextChannel
+    guildName?: string
+    channelName?: string
+}
+
+export interface UserStatus {
+    roles: string[]
+    presence: {
+        name: string
+        type: number
+        state?: string
+        details?: string
+        createdAt: string
+    }[] | 'offline or no activities'
+}
+
+export interface MentionData {
+    type: 'mention'
+    id: string
+    username: string
+}
+
+export interface FormattedUserMessage {
+    username: string
+    displayName: string
+    serverDisplayName: string
+    currentTime: string
+    text: string
+    mentions?: MentionData[]
+    attachments?: string[]
+    respondingTo?: {
+        targetUsername: string
+        targetText: string
+    }
+    userStatus: UserStatus | 'unknown'
+}
+
+// Additional types needed for message processing
+export interface ChatMessage {
+    role: 'system' | 'assistant' | 'user'
+    content?: string | ChatCompletionContentPart[]
+}
+
+export interface ProcessedCommand {
+    content: string | null
+    hadCommands: boolean
+}
+
+export interface UserPresenceInfo {
+    roles: string[]
+    presence: {
+        name: string
+        type: number
+        state?: string
+        details?: string
+        createdAt: string
+    }[] | 'offline or no activities'
+}
+
+export interface Memory {
+    content: string
+    context?: string
+    evaluation?: string
+    timestamp: number
+    importance: 1 | 2 | 3 | 4 | 5
+}
+
+export interface DiscordEmbed {
+    title?: string
+    description?: string
+    color: number
+    fields?: { name: string; value: string }[]
+    command?: {
+        name: string
+        params?: string
+    }
+    footer?: string
+    author?: string
+}
+
+export type ChatResponse = string | { embed: DiscordEmbed } | { command: { name: string, params: string[] } }
+export type ChatResponseArray = ChatResponse[]

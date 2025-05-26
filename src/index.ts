@@ -18,6 +18,7 @@ import { gracefulShutdown } from './modules/GracefulShutdown'
 import GuildConfigManager from './modules/GuildConfig'
 import { registerFont } from 'canvas'
 import { QuoteImageFactory } from './modules/QuoteImageFactory'
+import CrimsonChat from './modules/CrimsonChat'
 registerFont(path.join(__dirname, '../data/Roboto.ttf'), { family: 'Roboto' }) // Project Wingman
 registerFont(path.join(__dirname, '../data/Aces07.ttf'), { family: 'Aces07' }) // Ace Combat 7
 registerFont(path.join(__dirname, '../data/FSSinclairRegular.otf'), { family: 'FSSinclair' }) // Helldivers 2
@@ -48,6 +49,7 @@ export const quoteFactory = new QuoteFactory(bot)
 export const awacsFeed = new AWACSFeed(bot)
 export const messageTrigger = new MessageTrigger()
 export const shapesInc = ShapesInc.getInstance(bot, '1335992675459141632')
+export const crimsonChat = CrimsonChat.getInstance()
 bot.once('ready', async () => {
     logger.info(`Logged in as ${yellow(bot.user!.tag)}`)
     gracefulShutdown.setClient(bot)
@@ -65,6 +67,9 @@ bot.once('ready', async () => {
     await commandManager.refreshAllGuildCommands()
 
     await shapesInc.init()
+
+    crimsonChat.setClient(bot)
+    await crimsonChat.init()
 
     const webhook = GithubWebhook.getInstance()
         .setWebhookOptions({
