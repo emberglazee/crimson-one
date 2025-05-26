@@ -10,6 +10,7 @@ import chalk from 'chalk'
 import { zodResponseFormat } from 'openai/helpers/zod.mjs'
 import type { ParsedChatCompletion } from 'openai/src/resources/beta/chat/completions.js'
 import z from 'zod'
+import type { Message } from 'discord.js'
 
 const logger = new Logger('CrimsonChat | MessageProcessor')
 
@@ -38,7 +39,7 @@ export class MessageProcessor {
     })
     readonly BREAKDOWN_CHANCE = 0.01
 
-    async processMessage(content: string, options: UserMessageOptions): Promise<ChatResponseArray> {
+    async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<ChatResponseArray> {
         // Check for random breakdown before normal processing
         const breakdown = await this.handleRandomBreakdown(content, options)
         if (breakdown) return Array.isArray(breakdown) ? breakdown : [breakdown]
@@ -98,16 +99,38 @@ export class MessageProcessor {
             )
             history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
 
-            const aiResponse = await this.generateAIResponse(history) // aiResponse is Zod object
+            let aiResponse = await this.generateAIResponse(history) // aiResponse is Zod object
+            if (!aiResponse) return []
 
-            if (aiResponse) {
-                const processedResponse = this.convertToResponseArray(aiResponse)
-                await this.historyManager.appendMessage('assistant', processedResponse)
-                return processedResponse
+            const processedResponse = this.convertToResponseArray(aiResponse)
+            await this.historyManager.appendMessage('assistant', processedResponse)
+
+            if (aiResponse.command && aiResponse.command.name !== 'noOp') {
+                const commandIndicator = `-# ℹ️ Assistant command called: ${aiResponse.command.name}${aiResponse.command.params ? `(${aiResponse.command.params.join(', ')})` : ''}`
+                if (originalMessage?.channel && 'send' in originalMessage.channel) {
+                    await originalMessage.channel.send(commandIndicator)
+                }
+
+                const commandResult = await this.commandParser.parseCommand(
+                    { ...aiResponse.command, params: aiResponse.command.params ?? undefined },
+                    originalMessage
+                )
+
+                if (commandResult) {
+                    const commandMessage = `Command executed: ${aiResponse.command.name}${aiResponse.command.params ? `(${aiResponse.command.params.join(', ')})` : ''}\\nResult: ${commandResult}`
+                    history.push({ role: 'system', content: commandMessage })
+                    await this.historyManager.appendMessage('system', commandMessage)
+
+                    aiResponse = await this.generateAIResponse(history) // new Zod object
+                    if (aiResponse) {
+                        const followupResponse = this.convertToResponseArray(aiResponse)
+                        await this.historyManager.appendMessage('assistant', followupResponse)
+                        return followupResponse
+                    }
+                }
             }
 
-            logger.ok('Response processed successfully')
-            return []
+            return processedResponse
 
         } catch (e) {
             const error = e as Error
