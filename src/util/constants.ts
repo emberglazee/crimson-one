@@ -198,8 +198,5 @@ I FUCKING HATE YOU MONARCH!!!! WHY WON'T YOU JUST DIE?!
 CASCADIA WILL BURN FOR THEIR TREACHERY!!!
 PAX FEDERATION! THE FEDERATION IS ETERNAL!!!`
 
-export const DEEPSEEK_TOGGLE = false
-
-export const OPENAI_BASE_URL = DEEPSEEK_TOGGLE ? 'http://localhost:11434/v1' : undefined
-export const OPENAI_MODEL = DEEPSEEK_TOGGLE ? 'huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF:latest' : 'gpt-4o-mini'
-
+export const OPENAI_BASE_URL = 'https://api.voidai.app/v1'
+export const OPENAI_MODEL = 'gpt-4.1-nano'
