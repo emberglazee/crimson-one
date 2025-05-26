@@ -59,6 +59,21 @@ export default {
             await context.reply(`❌ ${context.pingMe} target member doesnt exist, FIX MEEEEEEEEE`)
             return
         }
+        if (targetMember.id === context.user.id) {
+            await context.reply(`play stupid games win stupid prizes`)
+            const role = await context.guild.roles.fetch('1331170880591757434')
+            if (!role) {
+                await context.followUp(`okay you got lucky the banished role doesnt exist`)
+                return
+            }
+            const roles = targetMember.roles.cache.filter(role => role.name !== '@everyone')
+            if (roles.find(r => r.id === role.id)) {
+                await context.followUp(`ha look ur banished already`)
+                return
+            }
+            await targetMember.roles.add(role)
+            await context.followUp(`${targetMember} have fun`)
+        }
 
         const role = await context.guild.roles.fetch('1331170880591757434')
         if (!role) {
