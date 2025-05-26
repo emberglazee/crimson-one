@@ -11,9 +11,6 @@ export default {
             .setName('reset')
             .setDescription('Reset chat history')
         ).addSubcommand(sub => sub
-            .setName('resetmem')
-            .setDescription('Reset long-term memories')
-        ).addSubcommand(sub => sub
             .setName('updateprompt')
             .setDescription('Update the system prompt to latest version')
         ).addSubcommand(sub => sub
@@ -67,11 +64,6 @@ export default {
             case 'reset':
                 await crimsonChat.clearHistory()
                 await context.reply('✅ Chat history reset')
-                break
-
-            case 'resetmem':
-                await crimsonChat.clearMemories()
-                await context.reply('✅ Long-term memories reset')
                 break
 
             case 'updateprompt':
