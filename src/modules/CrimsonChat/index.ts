@@ -7,7 +7,6 @@ import type { UserMessageOptions, ChatResponse, ChatResponseArray, ExplicitAny }
 import path from 'path'
 import { formatUserMessage, usernamesToMentions } from './utils/formatters'
 import chalk from 'chalk'
-import { MemoryManager } from './MemoryManager'
 import { MessageQueue } from './MessageQueue'
 
 const logger = new Logger('CrimsonChat')
@@ -20,7 +19,6 @@ export default class CrimsonChat {
     // private isProcessing: boolean = false
     private ignoredUsers: Set<string> = new Set()
 
-    memoryManager: MemoryManager = MemoryManager.getInstance()
     messageProcessor: MessageProcessor | null = null
     historyManager: HistoryManager
     client: Client | null = null
@@ -58,7 +56,6 @@ export default class CrimsonChat {
         }
 
         await this.historyManager.init()
-        await this.memoryManager.init()
         await this.loadIgnoredUsers()
         logger.ok('CrimsonChat initialized successfully')
     }
@@ -372,11 +369,6 @@ export default class CrimsonChat {
     public async clearHistory(): Promise<void> {
         await this.historyManager.clearHistory()
         logger.info('History cleared')
-    }
-
-    public async clearMemories(): Promise<void> {
-        await this.memoryManager.clearMemories()
-        logger.info('Memories cleared')
     }
 
     public async trackCommandUsage(interaction: ChatInputCommandInteraction) {

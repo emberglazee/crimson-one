@@ -4,7 +4,7 @@ import { ImageProcessor } from './ImageProcessor'
 import { CommandParser } from './CommandParser'
 import { Logger } from '../../util/logger'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSONCHAT_RESPONSE_SCHEMA, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
-import type { ChatMessage, Memory, UserMessageOptions, UserStatus, ChatResponseArray, ExplicitAny } from '../../types/types'
+import type { ChatMessage, UserMessageOptions, UserStatus, ChatResponseArray, ExplicitAny } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
 import chalk from 'chalk'
@@ -13,13 +13,6 @@ import type { ParsedChatCompletion } from 'openai/src/resources/beta/chat/comple
 import z from 'zod'
 
 const logger = new Logger('CrimsonChat | MessageProcessor')
-
-interface ConversationSequence {
-    userMessage: string
-    initialResponse: ChatResponseArray
-    commandResult?: string
-    finalResponse?: ChatResponseArray
-}
 
 export class MessageProcessor {
     private static instance: MessageProcessor
@@ -52,23 +45,6 @@ export class MessageProcessor {
         if (breakdown) return Array.isArray(breakdown) ? breakdown : [breakdown]
 
         try {
-            const sequence: ConversationSequence = {
-                userMessage: content,
-                initialResponse: []
-            }
-
-            // Start memory retrieval in parallel with other processing
-            const memoriesPromise = this.crimsonChat.memoryManager.retrieveRelevantMemories(content)
-
-            // Wait for memory retrieval
-            const relevantMemories = await memoriesPromise
-            let memoryContext = ''
-
-            if (relevantMemories.length > 0) {
-                memoryContext = this.formatMemoriesForContext(relevantMemories)
-                logger.info(`Retrieved ${chalk.cyan(relevantMemories.length)} relevant memories`)
-            }
-
             // Format message in the specified JSON structure
             const messageText = content
 
@@ -97,14 +73,6 @@ export class MessageProcessor {
                 role: msg.role,
                 content: msg.content || '',
             })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[]
-
-            // Add memory context if available
-            if (memoryContext) {
-                history.unshift({
-                    role: 'system',
-                    content: memoryContext
-                })
-            }
 
             // Extract image URLs from message content and combine with image attachments
             const imageUrls = new Set<string>()
@@ -147,7 +115,6 @@ export class MessageProcessor {
             history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
 
             let response = await this.generateAIResponse(history)
-            sequence.initialResponse = response ? this.convertToResponseArray(response) : []
 
             // Save first response to history - but remove replyMessages and embed if command exists
             if (response) {
@@ -158,7 +125,7 @@ export class MessageProcessor {
             }
 
             // Process and send initial response
-            let processedResponse = await this.processResponse(response, options)
+            let processedResponse = await this.processResponse(response)
 
             // Handle command if present after sending the initial response
             if (response?.command && response.command.name !== 'noOp') {
@@ -172,7 +139,6 @@ export class MessageProcessor {
                     { ...response.command, params: response.command.params ?? undefined },
                     originalMessage
                 )
-                sequence.commandResult = commandResult || undefined
 
                 if (commandResult) {
                     const commandMessage = `Command executed: ${response.command.name}${response.command.params ? `(${response.command.params.join(', ')})` : ''}\nResult: ${commandResult}`
@@ -191,18 +157,14 @@ export class MessageProcessor {
 
                     // If we got a new response after the command, process and append it
                     if (response) {
-                        sequence.finalResponse = this.convertToResponseArray(response)
                         // Save new response to history
                         await this.historyManager.appendMessage('assistant', JSON.stringify(response))
 
                         // Process new response
-                        processedResponse = await this.processResponse(response, options)
+                        processedResponse = await this.processResponse(response)
                     }
                 }
             }
-
-            // Now evaluate the entire conversation sequence for memory
-            await this.evaluateConversationSequence(sequence, options)
 
             logger.ok('Response processed successfully')
             return processedResponse
@@ -272,16 +234,9 @@ export class MessageProcessor {
                 if (breakdown.replyMessages && breakdown.replyMessages.length > 0) {
                     response.push(...breakdown.replyMessages)
 
-                    // Store breakdown messages in memory with high importance context
-                    for (const message of breakdown.replyMessages) {
-                        await this.crimsonChat.memoryManager.evaluateAndStore(
-                            message,
-                            `Crimson 1 breakdown triggered by ${options.username}: ${userContent}`
-                        )
-                    }
                 }
 
-                // Add embed if present and store in memory
+                // Add embed if present
                 if (breakdown.embed) {
                     const embed = {
                         ...breakdown.embed,
@@ -296,10 +251,6 @@ export class MessageProcessor {
                     }
                     response.push({ embed })
 
-                    await this.crimsonChat.memoryManager.evaluateAndStore(
-                        { embed },
-                        `Crimson 1 breakdown embed response triggered by ${options.username}`
-                    )
                 }
 
                 // Save each breakdown message to history
@@ -380,37 +331,6 @@ export class MessageProcessor {
             return 'unknown'
         }
     }
-    // Add new helper methods for memory handling
-    private formatMemoriesForContext(memories: Memory[]): string {
-        const formattedMemories = memories
-            .sort((a, b) => b.importance - a.importance)
-            .map(memory => {
-                const importanceLabel = this.getImportanceLabel(memory.importance)
-                const timeAgo = this.getTimeAgo(memory.timestamp)
-                return `[${importanceLabel}] ${timeAgo}: ${memory.content}`
-            })
-            .join('\n')
-
-        return `RELEVANT MEMORIES:\n${formattedMemories}\n\nUse these memories to maintain context and personality consistency in your response.`
-    }
-    private getImportanceLabel(importance: number): string {
-        switch (importance) {
-            case 5: return 'CRITICAL'
-            case 4: return 'IMPORTANT'
-            case 3: return 'USEFUL'
-            case 2: return 'RELEVANT'
-            default: return 'BASIC'
-        }
-    }
-    private getTimeAgo(timestamp: number): string {
-        const now = Date.now()
-        const seconds = Math.floor((now - timestamp) / 1000)
-
-        if (seconds < 60) return 'under a minute ago'
-        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
-        return `${Math.floor(seconds / 86400)}d ago`
-    }
 
     private convertToResponseArray(response: ExplicitAny): ChatResponseArray {
         const result: ChatResponseArray = []
@@ -420,7 +340,7 @@ export class MessageProcessor {
         return result
     }
 
-    private async processResponse(content: ExplicitAny, options: UserMessageOptions): Promise<ChatResponseArray> {
+    private async processResponse(content: ExplicitAny): Promise<ChatResponseArray> {
         const response: ChatResponseArray = []
 
         // Only add text messages and embeds to response, skip raw command outputs
@@ -436,22 +356,11 @@ export class MessageProcessor {
             })
             response.push(...filteredMessages)
 
-            // Store filtered messages in long-term memory
-            for (const message of filteredMessages) {
-                await this.crimsonChat.memoryManager.evaluateAndStore(
-                    message,
-                    `Assistant's response to ${options.username}: ${options.contextMessages?.[0]?.content || 'No context'}`
-                )
-            }
         }
 
-        // Add embed if present and store it in memory
+        // Add embed if present
         if (content.embed) {
             response.push({ embed: content.embed })
-            await this.crimsonChat.memoryManager.evaluateAndStore(
-                { embed: content.embed },
-                `Assistant's embed response to ${options.username}`
-            )
         }
 
         // Store all responses in history as a single structured entry
@@ -460,16 +369,6 @@ export class MessageProcessor {
         }
 
         return response
-    }
-
-    private async evaluateConversationSequence(sequence: ConversationSequence, options: UserMessageOptions): Promise<void> {
-        const context = `Conversation with ${options.username}:\n` +
-            `User: ${sequence.userMessage}\n` +
-            `Initial Response: ${this.formatResponseForContext(sequence.initialResponse)}\n` +
-            (sequence.commandResult ? `Command Result: ${sequence.commandResult}\n` : '') +
-            (sequence.finalResponse ? `Final Response: ${this.formatResponseForContext(sequence.finalResponse)}` : '')
-
-        await this.crimsonChat.memoryManager.evaluateAndStore(context, `Full conversation sequence with ${options.username}`)
     }
 
     private formatResponseForContext(response: ChatResponseArray): string {
