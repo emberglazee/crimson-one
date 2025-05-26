@@ -26,23 +26,23 @@ export const ASSISTANT_COMMANDS = {
 export const CRIMSONCHAT_RESPONSE_SCHEMA = z.object({
     replyMessages: z.array(
         z.string()
-    ).optional().describe(
+    ).optional().nullable().describe(
         'Optional array of strings representing the response messages'
     ),
     embed: z.object({
         title: z.string().describe('256 characters max'),
         description: z.string().describe('4096 characters max'),
-        color: z.number().optional().describe('Defaults to crimson red (0x8B0000)'),
+        color: z.number().optional().nullable().describe('Defaults to crimson red (0x8B0000)'),
         fields: z.array(
             z.object({
                 name: z.string(),
                 value: z.string(),
-                inline: z.boolean().optional()
+                inline: z.boolean().optional().nullable()
             })
-        ).optional().describe('25 fields max'),
-        footer: z.string().optional().describe('2048 characters max'),
-        author: z.string().optional().describe('256 characters max'),
-    }).optional().describe(
+        ).optional().nullable().describe('25 fields max'),
+        footer: z.string().optional().nullable().describe('2048 characters max'),
+        author: z.string().optional().nullable().describe('256 characters max'),
+    }).optional().nullable().describe(
         'Optional embed object to send alongside the response messages; Total characters must be less than 6000'
     ),
     command: z.object({
@@ -51,8 +51,8 @@ export const CRIMSONCHAT_RESPONSE_SCHEMA = z.object({
         ),
         params: z.array(
             z.string()
-        ).optional()
-    }).optional().describe(
+        ).optional().nullable()
+    }).optional().nullable().describe(
         'Optional assistant command to execute'
     )
 }).describe(

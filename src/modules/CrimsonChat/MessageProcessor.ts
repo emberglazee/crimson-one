@@ -168,7 +168,10 @@ export class MessageProcessor {
                     await originalMessage.channel.send(commandIndicator)
                 }
 
-                const commandResult = await this.commandParser.parseCommand(response.command, originalMessage)
+                const commandResult = await this.commandParser.parseCommand(
+                    { ...response.command, params: response.command.params ?? undefined },
+                    originalMessage
+                )
                 sequence.commandResult = commandResult || undefined
 
                 if (commandResult) {
@@ -280,15 +283,21 @@ export class MessageProcessor {
 
                 // Add embed if present and store in memory
                 if (breakdown.embed) {
-                    response.push({
-                        embed: {
-                            ...breakdown.embed,
-                            color: breakdown.embed.color ?? 0x8B0000 // Default to crimson red if color not specified
-                        }
-                    })
+                    const embed = {
+                        ...breakdown.embed,
+                        color: breakdown.embed.color ?? 0x8B0000,
+                        fields: Array.isArray(breakdown.embed.fields)
+                            ? breakdown.embed.fields
+                                .filter((f): f is { name: string; value: string; inline?: boolean } => !!f && !!f.name && !!f.value)
+                                .map(({ name, value }) => ({ name, value }))
+                            : undefined,
+                        footer: breakdown.embed.footer != null ? breakdown.embed.footer : undefined,
+                        author: breakdown.embed.author != null ? breakdown.embed.author : undefined
+                    }
+                    response.push({ embed })
 
                     await this.crimsonChat.memoryManager.evaluateAndStore(
-                        { embed: { ...breakdown.embed, color: breakdown.embed.color ?? 0x8B0000 } },
+                        { embed },
                         `Crimson 1 breakdown embed response triggered by ${options.username}`
                     )
                 }
