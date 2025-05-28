@@ -761,9 +761,51 @@ export default class CommandManager {
         }
 
         if (typeof local === 'object' && local !== null) {
-            const localKeys = Object.keys(local).filter(key => local[key] !== undefined)
-            const remoteKeys = Object.keys(remote).filter(key => remote[key] !== undefined)
+            // Discord API specific fields that we should ignore
+            // TODO: review this
+            const ignoredFields = new Set([
+                'id',                         // Discord's internal command ID
+                'application_id',             // Bot's application ID
+                'version',                    // Discord's internal version
+                'guild_id',                   // For guild commands
+                'dm_permission',              // Default: true
+                'nsfw',                       // Default: false
+                'integration_types',          // Default: [0,1]
+                'contexts',                   // Handled by Discord.js
+                'default_member_permissions'  // Default: null
+            ])
 
+            // Get keys that have actual values (not undefined)
+            const localKeys = Object.keys(local).filter(key =>
+                local[key] !== undefined && !ignoredFields.has(key)
+            )
+            const remoteKeys = Object.keys(remote).filter(key =>
+                remote[key] !== undefined && !ignoredFields.has(key)
+            )
+
+            // Special handling for options array
+            if ('options' in local || 'options' in remote) {
+                const localOpts = local.options || []
+                const remoteOpts = remote.options || []
+
+                if (localOpts.length !== remoteOpts.length) return false
+
+                // Compare options while ignoring Discord.js's internal handling of required field
+                return localOpts.every((localOpt: ExplicitAny, index: number) => {
+                    const remoteOpt = remoteOpts[index]
+                    // For optional parameters, Discord.js might not set required:false explicitly
+                    if (!localOpt.required && remoteOpt.required === false) {
+                        const localOptCopy = { ...localOpt }
+                        const remoteOptCopy = { ...remoteOpt }
+                        delete localOptCopy.required
+                        delete remoteOptCopy.required
+                        return this.areCommandsEqual(localOptCopy, remoteOptCopy)
+                    }
+                    return this.areCommandsEqual(localOpt, remoteOpt)
+                })
+            }
+
+            // Compare remaining fields
             if (localKeys.length !== remoteKeys.length) return false
 
             return localKeys.every(key => {
@@ -776,6 +818,19 @@ export default class CommandManager {
     }
 
     private logCommandDifferences(local: ExplicitAny, remote: ExplicitAny, path: string = ''): void {
+        // Discord API specific fields that we should ignore in logging
+        const ignoredFields = new Set([
+            'id',
+            'application_id',
+            'version',
+            'guild_id',
+            'dm_permission',
+            'nsfw',
+            'integration_types',
+            'contexts',
+            'default_member_permissions'
+        ])
+
         if (typeof local !== typeof remote) {
             logger.info(`{checkCommandChanges} Type mismatch at ${path}: Local (${typeof local}) vs Remote (${typeof remote})`)
             return
@@ -797,8 +852,16 @@ export default class CommandManager {
             const allKeys = new Set([...Object.keys(local), ...Object.keys(remote)])
 
             allKeys.forEach(key => {
+                // Skip logging differences for ignored fields
+                if (ignoredFields.has(key)) return
+
                 const localValue = local[key]
                 const remoteValue = remote[key]
+
+                // Special handling for optional parameters' required field
+                if (path.includes('options') && key === 'required') {
+                    if (!localValue && remoteValue === false) return // Skip logging this difference
+                }
 
                 if (localValue === undefined && remoteValue !== undefined) {
                     logger.info(`{checkCommandChanges} Missing in local at ${path}.${key}: ${JSON.stringify(remoteValue)}`)
