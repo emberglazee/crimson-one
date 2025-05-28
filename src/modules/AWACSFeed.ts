@@ -6,7 +6,7 @@ import type { ExplicitAny } from '../types/types'
 
 type EventHandler<T extends keyof ClientEvents> = {
     event: T
-    extract: (arg: ClientEvents[T][0], client: Client) => Promise<string[]>
+    extract: (args: ClientEvents[T], client: Client) => Promise<string[]>
     messages: ((banned: string, banner: string) => string)[]
 }
 
@@ -22,7 +22,7 @@ export class AWACSFeed {
     private static EventHandlers: EventHandler<keyof ClientEvents>[] = [
         {
             event: Events.GuildMemberAdd,
-            extract: async member => [(member as ExtractableUser).user.username, ''],
+            extract: async ([member]) => [(member as ExtractableUser).user.username, ''],
             messages: [
                 (name: string) => `✅ ${name} has arrived in the AO.`,
                 (name: string) => `✅ ${name} has penetrated the CAP line.`,
@@ -32,7 +32,7 @@ export class AWACSFeed {
         },
         {
             event: Events.GuildMemberRemove,
-            extract: async member => [(member as ExtractableUser).user?.username || 'Unknown user', ''],
+            extract: async ([member]) => [(member as ExtractableUser).user?.username || 'Unknown user', ''],
             messages: [
                 (name: string) => `❌ ${name} has retreated out of the AO.`,
                 (name: string) => `❌ ${name} has left the AO.`,
@@ -42,7 +42,7 @@ export class AWACSFeed {
         },
         {
             event: Events.GuildBanAdd,
-            extract: async (ban, _client) => {
+            extract: async ([ban], _client) => {
                 const banned = (ban as ExtractableUser).user.username
                 let banner = 'Unknown banner'
                 try {
@@ -80,7 +80,7 @@ export class AWACSFeed {
                 const guild = (args[0] as { guild: { id: string } }).guild
                 if (!guild || guild.id !== '958518067690868796') return
 
-                const params = await handler.extract(args[0], this.client)
+                const params = await handler.extract(args as ClientEvents[keyof ClientEvents], this.client)
                 const message = getRandomElement(handler.messages)(params[0], params[1])
                 const channel = await this.client.channels.fetch(AWACS_FEED_CHANNEL)
                 if (channel?.isTextBased() && channel.type === ChannelType.GuildText) {
