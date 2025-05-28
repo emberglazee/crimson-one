@@ -762,7 +762,6 @@ export default class CommandManager {
 
         if (typeof local === 'object' && local !== null) {
             // Discord API specific fields that we should ignore
-            // TODO: review this
             const ignoredFields = new Set([
                 'id',                         // Discord's internal command ID
                 'application_id',             // Bot's application ID
@@ -783,25 +782,33 @@ export default class CommandManager {
                 remote[key] !== undefined && !ignoredFields.has(key)
             )
 
-            // Special handling for options array
+            // Special handling for options array at any depth
             if ('options' in local || 'options' in remote) {
                 const localOpts = local.options || []
                 const remoteOpts = remote.options || []
 
+                // Handle empty options array
+                if (localOpts.length === 0 && (!remoteOpts || remoteOpts.length === 0)) {
+                    return true
+                }
+
                 if (localOpts.length !== remoteOpts.length) return false
 
-                // Compare options while ignoring Discord.js's internal handling of required field
                 return localOpts.every((localOpt: ExplicitAny, index: number) => {
                     const remoteOpt = remoteOpts[index]
-                    // For optional parameters, Discord.js might not set required:false explicitly
-                    if (!localOpt.required && remoteOpt.required === false) {
-                        const localOptCopy = { ...localOpt }
-                        const remoteOptCopy = { ...remoteOpt }
+
+                    // Create copies for comparison
+                    const localOptCopy = { ...localOpt }
+                    const remoteOptCopy = { ...remoteOpt }
+
+                    // Handle required field
+                    if (!localOptCopy.required && remoteOptCopy.required === false) {
                         delete localOptCopy.required
                         delete remoteOptCopy.required
-                        return this.areCommandsEqual(localOptCopy, remoteOptCopy)
                     }
-                    return this.areCommandsEqual(localOpt, remoteOpt)
+
+                    // Recursively compare options
+                    return this.areCommandsEqual(localOptCopy, remoteOptCopy)
                 })
             }
 
@@ -837,7 +844,7 @@ export default class CommandManager {
         }
 
         if (Array.isArray(local)) {
-            if (local.length !== remote.length) {
+            if (local.length !== remote.length && !(path.endsWith('.options') && local.length === 0 && (!remote || remote.length === 0))) {
                 logger.info(`{checkCommandChanges} Array length mismatch at ${path}: Local (${local.length}) vs Remote (${remote.length})`)
             }
             local.forEach((item, index) => {
@@ -858,9 +865,14 @@ export default class CommandManager {
                 const localValue = local[key]
                 const remoteValue = remote[key]
 
-                // Special handling for optional parameters' required field
-                if (path.includes('options') && key === 'required') {
-                    if (!localValue && remoteValue === false) return // Skip logging this difference
+                // Special handling for required field at any depth
+                if (key === 'required') {
+                    if (!localValue && remoteValue === false) return
+                }
+
+                // Special handling for empty options array
+                if (key === 'options' && (!localValue || localValue.length === 0) && (!remoteValue || remoteValue.length === 0)) {
+                    return
                 }
 
                 if (localValue === undefined && remoteValue !== undefined) {
