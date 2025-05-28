@@ -14,7 +14,7 @@ export const slashCommand = {
             .setChoices(
                 { name: 'Ace Combat 7', value: 'ac7' },
                 { name: 'Project Wingman', value: 'pw' },
-                { name: 'Helldivers 2', value: 'hd2' }
+                { name: 'Helldivers 2 (WIP)', value: 'hd2' }
             )
         ).addStringOption(so => so
             .setName('speaker')

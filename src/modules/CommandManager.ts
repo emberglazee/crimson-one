@@ -13,7 +13,8 @@ import {
     Role, type GuildBasedChannel, GuildMember, type MessageReplyOptions,
     type InteractionReplyOptions, type MessageEditOptions, type InteractionEditReplyOptions,
     InteractionResponse, type InteractionDeferReplyOptions, PermissionsBitField,
-    type TextBasedChannel, type ImageSize, type ImageExtension
+    type TextBasedChannel, type ImageSize, type ImageExtension,
+    ApplicationCommandType
 } from 'discord.js'
 
 import { readdir } from 'fs/promises'
@@ -697,30 +698,253 @@ export default class CommandManager {
 
 
 
-    private async checkCommandChanges(commands: (SlashCommand | ContextMenuCommand)[], guildId?: string): Promise<boolean> {
+    private normalizeCommandData(data: ExplicitAny): ExplicitAny {
+        // Deep clone the current piece of data (could be a command, or an option)
+        const normalized = JSON.parse(JSON.stringify(data))
 
+        // If the current 'normalized' object represents an option (heuristic: has a 'type' property)
+        // ensure its 'required' field is explicitly false if it's optional.
+        if (typeof normalized.type === 'number') { // ApplicationCommandOptionType is numeric
+            if (normalized.required === undefined || normalized.required === null) {
+                normalized.required = false
+            }
+        }
+
+        // If the current 'normalized' object can have an 'options' array
+        // (i.e., it's a command, subcommand, or subcommand group)
+        // then recursively normalize each option within that array.
+        if (normalized.options && Array.isArray(normalized.options)) {
+            normalized.options = normalized.options.map((opt: ExplicitAny) => {
+                return this.normalizeCommandData(opt) // Recursive call for each option
+            })
+        } else if (normalized.options === undefined) {
+            // If 'options' is undefined, we need to decide if it should be an empty array.
+            // It should be an empty array for:
+            // 1. The top-level command object (which doesn't have a 'type' itself, but has a 'name')
+            // 2. Options of type Subcommand or SubcommandGroup.
+            const isTopLevelCommandContext = typeof normalized.type === 'undefined' && normalized.name
+            const isSubcommandOrGroupType = typeof normalized.type === 'number' &&
+                (normalized.type === ApplicationCommandOptionType.Subcommand ||
+                 normalized.type === ApplicationCommandOptionType.SubcommandGroup)
+
+            if (isTopLevelCommandContext || isSubcommandOrGroupType) {
+                normalized.options = []
+            }
+            // For other option types (string, integer etc.), 'options' should remain undefined if it was, which is correct.
+        }
+        // If normalized.options was some non-array, non-undefined value, this indicates a malformed structure
+        // that the initial check `normalized.options && Array.isArray(normalized.options)` would handle,
+        // or the .map would fail.
+
+        return normalized
+    }
+
+    private async checkCommandChanges(commands: (SlashCommand | ContextMenuCommand)[], guildId?: string): Promise<boolean> {
         const remoteCommands = guildId
             ? await this.fetchGuildCommands(guildId)
             : await this.fetchGlobalCommands()
 
-        if (remoteCommands.length !== commands.length) return true
+        if (remoteCommands.length !== commands.length) {
+            logger.info(`{checkCommandChanges} Command count mismatch - Local: ${commands.length}, Remote: ${remoteCommands.length}`)
+            return true
+        }
 
-        for (const command of commands) {
+        // Convert commands to their JSON representation and normalize them
+        const localCommandData = commands.map(cmd => {
+            const data = this.normalizeCommandData(cmd.data.toJSON())
+            // Sort options to ensure consistent comparison
+            if (data.options) {
+                data.options = this.sortCommandOptions(data.options)
+            }
+            return data
+        }).sort((a, b) => a.name.localeCompare(b.name))
 
-            const key = guildId ? `${guildId}:${command.data.name}` : command.data.name
-            const currentHash = this.computeCommandHash(command)
-            const previousHash = this.commandHashes.get(key)
-            if (!previousHash || previousHash !== currentHash) {
-                logger.info(`{checkCommandChanges} Command ${yellow(command.data.name)} has changed`)
+        const remoteCommandData = remoteCommands.map(cmd => {
+            // Ensure a deep clone of the remote command before normalization
+            const data = this.normalizeCommandData(JSON.parse(JSON.stringify({ ...cmd })))
+            if (data.options) {
+                data.options = this.sortCommandOptions(data.options)
+            }
+            return data
+        }).sort((a, b) => a.name.localeCompare(b.name))
+
+        // Compare each command
+        for (let i = 0; i < localCommandData.length; i++) {
+            const local = localCommandData[i]
+            const remote = remoteCommandData[i]
+
+            if (!this.areCommandsEqual(local, remote)) {
+                logger.info(`{checkCommandChanges} Command "${local.name}" has changes:`)
+                this.logCommandDifferences(local, remote)
                 return true
             }
-
         }
-        return false
 
+        return false
     }
 
+    private sortCommandOptions(options: ExplicitAny[]): ExplicitAny[] {
+        return options.map(opt => {
+            const sortedOpt = { ...opt }
+            if (opt.options) {
+                sortedOpt.options = this.sortCommandOptions(opt.options)
+            }
+            return sortedOpt
+        }).sort((a, b) => a.name.localeCompare(b.name))
+    }
 
+    private areCommandsEqual(local: ExplicitAny, remote: ExplicitAny): boolean {
+        if (typeof local !== typeof remote) return false
+        if (Array.isArray(local) !== Array.isArray(remote)) return false
+
+        if (Array.isArray(local)) {
+            if (local.length !== remote.length) return false
+            return local.every((item, index) => this.areCommandsEqual(item, remote[index]))
+        }
+
+        if (typeof local === 'object' && local !== null) {
+            // Discord API specific fields that we should ignore
+            const ignoredFields = new Set([
+                'id',                         // Discord's internal command ID
+                'application_id',             // Bot's application ID
+                'version',                    // Discord's internal version
+                'guild_id',                   // For guild commands
+                'dm_permission',              // Default: true
+                'nsfw',                       // Default: false
+                'integration_types',          // Default: [0,1]
+                'contexts',                   // Handled by Discord.js
+                'default_member_permissions'  // Default: null
+            ])
+
+            // Get keys that have actual values (not undefined)
+            const localKeys = Object.keys(local).filter(key =>
+                local[key] !== undefined && !ignoredFields.has(key)
+            )
+            const remoteKeys = Object.keys(remote).filter(key =>
+                remote[key] !== undefined && !ignoredFields.has(key)
+            )
+
+            // Handle empty options array
+            if ('options' in local || 'options' in remote) {
+                // This was a specific check for an edge case, might need re-evaluation
+
+                // const localOpts = local.options || []
+                // const remoteOpts = remote.options || []
+                // if (localOpts.length === 0 && (!remoteOpts || remoteOpts.length === 0)) {
+                //     return true
+                // }
+            }
+
+            // Filter out description for context menu commands from keys to be compared
+            const filterDescriptionForContextMenu = (keys: string[], commandType?: number) => {
+                if (commandType === ApplicationCommandType.Message || commandType === ApplicationCommandType.User) {
+                    return keys.filter(key => key !== 'description')
+                }
+                return keys
+            }
+
+            const effectiveLocalKeys = filterDescriptionForContextMenu(localKeys, local.type)
+            const effectiveRemoteKeys = filterDescriptionForContextMenu(remoteKeys, remote.type)
+
+
+            // Compare remaining fields
+            if (effectiveLocalKeys.length !== effectiveRemoteKeys.length) {
+                 // For debugging:
+                // if (local.name === "Quick Ace Combat 7 subtitle") {
+                // logger.info(`{areCommandsEqual} Key length mismatch for ${local.name}. Local: ${effectiveLocalKeys.join(', ')}, Remote: ${effectiveRemoteKeys.join(', ')}`);
+                // }
+                return false
+            }
+
+            return effectiveLocalKeys.every(key => {
+                if (!(key in remote)) {
+                    // if (local.name === "Quick Ace Combat 7 subtitle") {
+                    // logger.info(`{areCommandsEqual} Key ${key} missing in remote for ${local.name}`);
+                    // }
+                    return false
+                }
+                return this.areCommandsEqual(local[key], remote[key])
+            })
+        }
+
+        return local === remote
+    }
+
+    private logCommandDifferences(local: ExplicitAny, remote: ExplicitAny, path: string = ''): void {
+        // Discord API specific fields that we should ignore in logging
+        const ignoredFields = new Set([
+            'id',
+            'application_id',
+            'version',
+            'guild_id',
+            'dm_permission',
+            'nsfw',
+            'integration_types',
+            'contexts',
+            'default_member_permissions'
+        ])
+
+        if (typeof local !== typeof remote) {
+            logger.info(`{checkCommandChanges} Type mismatch at ${path}: Local (${typeof local}) vs Remote (${typeof remote})`)
+            return
+        }
+
+        if (Array.isArray(local)) {
+            if (local.length !== remote.length && !(path.endsWith('.options') && local.length === 0 && (!remote || remote.length === 0))) {
+                logger.info(`{checkCommandChanges} Array length mismatch at ${path}: Local (${local.length}) vs Remote (${remote.length})`)
+            }
+            local.forEach((item, index) => {
+                if (index < remote.length) {
+                    this.logCommandDifferences(item, remote[index], `${path}[${index}]`)
+                }
+            })
+            return
+        }
+
+        if (typeof local === 'object' && local !== null) {
+            const allKeys = new Set([...Object.keys(local), ...Object.keys(remote)])
+
+            allKeys.forEach(key => {
+                // Skip logging differences for ignored fields
+                if (ignoredFields.has(key)) return
+
+                // Also skip description field for context menu commands
+                if (key === 'description' && (local.type === ApplicationCommandType.Message || local.type === ApplicationCommandType.User || remote.type === ApplicationCommandType.Message || remote.type === ApplicationCommandType.User)) {
+                    return
+                }
+
+                const localValue = local[key]
+                const remoteValue = remote[key]
+
+                // Special handling for required field at any depth
+                if (key === 'required') {
+                    if (!localValue && remoteValue === false) return
+                }
+
+                // Special handling for empty options array
+                if (key === 'options' && (!localValue || localValue.length === 0) && (!remoteValue || remoteValue.length === 0)) {
+                    return
+                }
+
+                if (localValue === undefined && remoteValue !== undefined) {
+                    logger.info(`{checkCommandChanges} Missing in local at ${path}.${key}: ${JSON.stringify(remoteValue)}`)
+                } else if (remoteValue === undefined && localValue !== undefined) {
+                    logger.info(`{checkCommandChanges} Missing in remote at ${path}.${key}: ${JSON.stringify(localValue)}`)
+                } else if (!this.areCommandsEqual(localValue, remoteValue)) {
+                    if (typeof localValue !== 'object' || localValue === null) {
+                        logger.info(`{checkCommandChanges} Value mismatch at ${path}.${key}: Local (${JSON.stringify(localValue)}) vs Remote (${JSON.stringify(remoteValue)})`)
+                    } else {
+                        this.logCommandDifferences(localValue, remoteValue, `${path}.${key}`)
+                    }
+                }
+            })
+            return
+        }
+
+        if (local !== remote) {
+            logger.info(`{checkCommandChanges} Value mismatch at ${path}: Local (${JSON.stringify(local)}) vs Remote (${JSON.stringify(remote)})`)
+        }
+    }
 
     public async refreshGlobalCommands() {
 
