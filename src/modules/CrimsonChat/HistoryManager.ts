@@ -138,8 +138,17 @@ export class HistoryManager {
     public async trimHistory(): Promise<void> {
         const originalLength = this.history.length
         let historyTokens = this.tokenCount
+        const MAX_MESSAGES = 100
+        const MAX_TOKENS = 128000
 
-        while (historyTokens > 128000 && this.history.length > 2) {
+        // First trim based on message count
+        while (this.history.length > MAX_MESSAGES && this.history.length > 2) {
+            // Start removing from index 1 to preserve system prompt
+            this.history.splice(1, 1)
+        }
+
+        // Then trim based on token count if still needed
+        while (historyTokens > MAX_TOKENS && this.history.length > 2) {
             // Start removing from index 1 to preserve system prompt
             this.history.splice(1, 1)
             historyTokens = this.tokenCount
