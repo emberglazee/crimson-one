@@ -703,24 +703,122 @@ export default class CommandManager {
             ? await this.fetchGuildCommands(guildId)
             : await this.fetchGlobalCommands()
 
-        if (remoteCommands.length !== commands.length) return true
+        if (remoteCommands.length !== commands.length) {
+            logger.info(`{checkCommandChanges} Command count mismatch - Local: ${commands.length}, Remote: ${remoteCommands.length}`)
+            return true
+        }
 
-        for (const command of commands) {
+        // Convert commands to their JSON representation for comparison
+        const localCommandData = commands.map(cmd => {
+            const data = cmd.data.toJSON()
+            // Sort options to ensure consistent comparison
+            if (data.options) {
+                data.options = this.sortCommandOptions(data.options)
+            }
+            return data
+        }).sort((a, b) => a.name.localeCompare(b.name))
 
-            const key = guildId ? `${guildId}:${command.data.name}` : command.data.name
-            const currentHash = this.computeCommandHash(command)
-            const previousHash = this.commandHashes.get(key)
-            if (!previousHash || previousHash !== currentHash) {
-                logger.info(`{checkCommandChanges} Command ${yellow(command.data.name)} has changed`)
+        const remoteCommandData = remoteCommands.map(cmd => {
+            const data = { ...cmd }
+            if (data.options) {
+                data.options = this.sortCommandOptions(data.options)
+            }
+            return data
+        }).sort((a, b) => a.name.localeCompare(b.name))
+
+        // Compare each command
+        for (let i = 0; i < localCommandData.length; i++) {
+            const local = localCommandData[i]
+            const remote = remoteCommandData[i]
+
+            if (!this.areCommandsEqual(local, remote)) {
+                logger.info(`{checkCommandChanges} Command "${local.name}" has changes:`)
+                this.logCommandDifferences(local, remote)
                 return true
             }
-
         }
-        return false
 
+        return false
     }
 
+    private sortCommandOptions(options: ExplicitAny[]): ExplicitAny[] {
+        return options.map(opt => {
+            const sortedOpt = { ...opt }
+            if (opt.options) {
+                sortedOpt.options = this.sortCommandOptions(opt.options)
+            }
+            return sortedOpt
+        }).sort((a, b) => a.name.localeCompare(b.name))
+    }
 
+    private areCommandsEqual(local: ExplicitAny, remote: ExplicitAny): boolean {
+        if (typeof local !== typeof remote) return false
+        if (Array.isArray(local) !== Array.isArray(remote)) return false
+
+        if (Array.isArray(local)) {
+            if (local.length !== remote.length) return false
+            return local.every((item, index) => this.areCommandsEqual(item, remote[index]))
+        }
+
+        if (typeof local === 'object' && local !== null) {
+            const localKeys = Object.keys(local).filter(key => local[key] !== undefined)
+            const remoteKeys = Object.keys(remote).filter(key => remote[key] !== undefined)
+
+            if (localKeys.length !== remoteKeys.length) return false
+
+            return localKeys.every(key => {
+                if (!(key in remote)) return false
+                return this.areCommandsEqual(local[key], remote[key])
+            })
+        }
+
+        return local === remote
+    }
+
+    private logCommandDifferences(local: ExplicitAny, remote: ExplicitAny, path: string = ''): void {
+        if (typeof local !== typeof remote) {
+            logger.info(`{checkCommandChanges} Type mismatch at ${path}: Local (${typeof local}) vs Remote (${typeof remote})`)
+            return
+        }
+
+        if (Array.isArray(local)) {
+            if (local.length !== remote.length) {
+                logger.info(`{checkCommandChanges} Array length mismatch at ${path}: Local (${local.length}) vs Remote (${remote.length})`)
+            }
+            local.forEach((item, index) => {
+                if (index < remote.length) {
+                    this.logCommandDifferences(item, remote[index], `${path}[${index}]`)
+                }
+            })
+            return
+        }
+
+        if (typeof local === 'object' && local !== null) {
+            const allKeys = new Set([...Object.keys(local), ...Object.keys(remote)])
+
+            allKeys.forEach(key => {
+                const localValue = local[key]
+                const remoteValue = remote[key]
+
+                if (localValue === undefined && remoteValue !== undefined) {
+                    logger.info(`{checkCommandChanges} Missing in local at ${path}.${key}: ${JSON.stringify(remoteValue)}`)
+                } else if (remoteValue === undefined && localValue !== undefined) {
+                    logger.info(`{checkCommandChanges} Missing in remote at ${path}.${key}: ${JSON.stringify(localValue)}`)
+                } else if (!this.areCommandsEqual(localValue, remoteValue)) {
+                    if (typeof localValue !== 'object' || localValue === null) {
+                        logger.info(`{checkCommandChanges} Value mismatch at ${path}.${key}: Local (${JSON.stringify(localValue)}) vs Remote (${JSON.stringify(remoteValue)})`)
+                    } else {
+                        this.logCommandDifferences(localValue, remoteValue, `${path}.${key}`)
+                    }
+                }
+            })
+            return
+        }
+
+        if (local !== remote) {
+            logger.info(`{checkCommandChanges} Value mismatch at ${path}: Local (${JSON.stringify(local)}) vs Remote (${JSON.stringify(remote)})`)
+        }
+    }
 
     public async refreshGlobalCommands() {
 
