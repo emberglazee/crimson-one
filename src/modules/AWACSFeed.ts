@@ -1,5 +1,5 @@
-import { Client, Events, ChannelType, TextChannel, AuditLogEvent } from 'discord.js'
-import type { ClientEvents } from 'discord.js'
+import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember } from 'discord.js'
+import type { ClientEvents, PartialGuildMember } from 'discord.js'
 import { AWACS_FEED_CHANNEL } from '../util/constants'
 import { getRandomElement } from '../util/functions'
 import type { ExplicitAny } from '../types/types'
@@ -7,7 +7,7 @@ import type { ExplicitAny } from '../types/types'
 type EventHandler<T extends keyof ClientEvents> = {
     event: T
     extract: (args: ClientEvents[T], client: Client) => Promise<string[]>
-    messages: ((banned: string, banner: string) => string)[]
+    messages: ((...params: string[]) => string)[]
 }
 
 type ExtractableUser = {
@@ -44,7 +44,7 @@ export class AWACSFeed {
             event: Events.GuildBanAdd,
             extract: async ([ban], _client) => {
                 const banned = (ban as ExtractableUser).user.username
-                let banner = 'Unknown banner'
+                let banner = '\\\\ NO IFF DATA \\\\'
                 try {
                     const guild = (ban as ExplicitAny).guild
                     if (guild) {
@@ -69,19 +69,79 @@ export class AWACSFeed {
                 (banned, banner) => `🔨 ${banned} has been neutralized by ${banner}`,
                 (banned, banner) => `🔨 ${banned} smoked ${banner}'s cordium blunt and spontaneously combusted`
             ]
+        },
+        {
+            event: Events.GuildMemberUpdate,
+            extract: async ([oldMember, newMember], _client: Client): Promise<string[]> => {
+                const oldM = oldMember as GuildMember | PartialGuildMember
+                const newM = newMember as GuildMember
+
+                // Check for added roles
+                const oldRoleIds = new Set(oldM.roles?.cache.map(r => r.id) || [])
+                const addedRoles = newM.roles.cache.filter(role => !oldRoleIds.has(role.id))
+
+                if (addedRoles.size === 0) return [] // No roles added
+
+                const roleAdded = addedRoles.first()
+                if (!roleAdded) return [] // Should not happen if size > 0
+
+                const memberUsername = newM.user.username
+                const roleName = roleAdded.name
+                let assignerUsername = 'System' // Default assigner
+
+                try {
+                    const guild = newM.guild
+                    if (guild) {
+                        const auditLogs = await guild.fetchAuditLogs({
+                            type: AuditLogEvent.MemberRoleUpdate,
+                            limit: 10 // Fetch a few recent role update logs
+                        })
+
+                        const logEntry = auditLogs.entries.find(entry =>
+                            entry.target?.id === newM.id &&
+                            entry.action === AuditLogEvent.MemberRoleUpdate &&
+                            entry.changes.some(change =>
+                                change.key === '$add' && // Check for added roles
+                                (change.new as {id: string, name: string}[])?.some(r => r.id === roleAdded.id) // Check if this specific role was added
+                            )
+                        )
+
+                        if (logEntry && logEntry.executor && logEntry.executor.username) {
+                            assignerUsername = logEntry.executor.username
+                        }
+                    }
+                } catch (error) {
+                    console.error(`[AWACSFeed] Error fetching audit logs for ${newM.user.tag} role update:`, error)
+                    // assignerUsername remains 'System'
+                }
+
+                return [memberUsername, roleName, assignerUsername]
+            },
+            messages: [
+                (member, role, assigner) => `✈️ ${member} was assigned to the ${role} squadron by ${assigner}.`,
+                (member, role, assigner) => `🎖️ ${member} has joined the ${role} ranks, courtesy of ${assigner}.`,
+                (member, role, assigner) => `✨ ${member} is now part of the ${role} squadron, thanks to ${assigner}.`,
+                (member, role, assigner) => `🏷️ ${member} received the ${role} designation from ${assigner}.`,
+                (member, role, assigner) => `🧑‍✈️ ${member} has been promoted to the ${role} unit by ${assigner}.`
+            ]
         }
     ]
 
     constructor(client: Client) {
         this.client = client
         for (const handler of AWACSFeed.EventHandlers) {
-            this.client.on(handler.event, async (...args) => {
+            this.client.on(handler.event, async (...args: ClientEvents[keyof ClientEvents]) => {
+                // Determine the source of guild information based on event type
+                const guildSource = handler.event === Events.GuildMemberUpdate ? args[1] : args[0]
+                const guild = (guildSource as { guild?: { id: string } })?.guild
+
                 // Ignore event if not from the specified guild
-                const guild = (args[0] as { guild: { id: string } }).guild
                 if (!guild || guild.id !== '958518067690868796') return
 
-                const params = await handler.extract(args as ClientEvents[keyof ClientEvents], this.client)
-                const message = getRandomElement(handler.messages)(params[0], params[1])
+                const params = await handler.extract(args, this.client)
+                if (params.length === 0) return // Skip if extract returns no relevant information
+
+                const message = getRandomElement(handler.messages)(...params) // Use spread operator
                 const channel = await this.client.channels.fetch(AWACS_FEED_CHANNEL)
                 if (channel?.isTextBased() && channel.type === ChannelType.GuildText) {
                     await (channel as TextChannel).send(message)
