@@ -194,7 +194,6 @@ export class OperationTracker {
             status: 'RUNNING',
             metadata
         })
-        logger.info(`Started operation ${id} (${type}: ${name})`)
     }
 
     private updateOperationStatus(
@@ -206,7 +205,6 @@ export class OperationTracker {
         if (op) {
             op.status = status
             if (metadata) op.metadata = { ...op.metadata, ...metadata }
-            logger.info(`Operation ${id} status updated to ${status}`)
         }
     }
 
