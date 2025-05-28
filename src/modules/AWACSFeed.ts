@@ -124,6 +124,61 @@ export class AWACSFeed {
                 (member, role, assigner) => `🏷️ ${member} received the ${role} designation from ${assigner}.`,
                 (member, role, assigner) => `🧑‍✈️ ${member} has been promoted to the ${role} unit by ${assigner}.`
             ]
+        },
+        {
+            event: Events.GuildMemberUpdate,
+            extract: async ([oldMember, newMember], _client: Client): Promise<string[]> => {
+                const oldM = oldMember as GuildMember | PartialGuildMember
+                const newM = newMember as GuildMember
+
+                // Check for removed roles
+                const newRoleIds = new Set(newM.roles.cache.map(r => r.id))
+                const removedRoles = oldM.roles?.cache.filter(role => !newRoleIds.has(role.id)) || new Map()
+
+                if (removedRoles.size === 0) return [] // No roles removed
+                if (newM.user.bot) return [] // Ignore if the target is a bot (though roles are usually not removed from bots by users often)
+
+                const roleRemoved = removedRoles.first()
+                if (!roleRemoved) return [] // Should not happen if size > 0
+
+                const memberUsername = newM.user.username
+                const roleName = roleRemoved.name
+                let removerUsername = 'System' // Default remover
+
+                try {
+                    const guild = newM.guild
+                    if (guild) {
+                        const auditLogs = await guild.fetchAuditLogs({
+                            type: AuditLogEvent.MemberRoleUpdate,
+                            limit: 10
+                        })
+
+                        const logEntry = auditLogs.entries.find(entry =>
+                            entry.target?.id === newM.id &&
+                            entry.action === AuditLogEvent.MemberRoleUpdate &&
+                            entry.changes.some(change =>
+                                change.key === '$remove' && // Check for removed roles
+                                (change.old as {id: string, name: string}[])?.some(r => r.id === roleRemoved.id) // Check if this specific role was removed
+                            )
+                        )
+
+                        if (logEntry && logEntry.executor && logEntry.executor.username) {
+                            removerUsername = logEntry.executor.username
+                        }
+                    }
+                } catch (error) {
+                    console.error(`[AWACSFeed] Error fetching audit logs for ${newM.user.tag} role removal:`, error)
+                }
+
+                return [memberUsername, roleName, removerUsername]
+            },
+            messages: [
+                (member, role, remover) => `✈️ ${member} was removed from the ${role} squadron by ${remover}.`,
+                (member, role, remover) => `🎖️ ${member} has departed the ${role} ranks, decision by ${remover}.`,
+                (member, role, remover) => `✨ ${member} is no longer part of the ${role} squadron, per ${remover}.`,
+                (member, role, remover) => `🏷️ ${member}'s ${role} designation was revoked by ${remover}.`,
+                (member, role, remover) => `🧑‍✈️ ${member} has been demoted from the ${role} unit by ${remover}.`
+            ]
         }
     ]
 
