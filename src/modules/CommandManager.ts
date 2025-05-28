@@ -699,10 +699,10 @@ export default class CommandManager {
 
     private normalizeCommandData(data: ExplicitAny): ExplicitAny {
         // Deep clone to avoid modifying original
-        const normalized = { ...data }
+        const normalized = JSON.parse(JSON.stringify(data))
 
         // Normalize options at current level
-        if (normalized.options) {
+        if (normalized.options && Array.isArray(normalized.options)) {
             normalized.options = normalized.options.map((opt: ExplicitAny) => {
                 const normalizedOpt = { ...opt }
 
@@ -746,7 +746,8 @@ export default class CommandManager {
         }).sort((a, b) => a.name.localeCompare(b.name))
 
         const remoteCommandData = remoteCommands.map(cmd => {
-            const data = this.normalizeCommandData({ ...cmd })
+            // Ensure a deep clone of the remote command before normalization
+            const data = this.normalizeCommandData(JSON.parse(JSON.stringify({ ...cmd })))
             if (data.options) {
                 data.options = this.sortCommandOptions(data.options)
             }
