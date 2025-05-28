@@ -13,7 +13,8 @@ import {
     Role, type GuildBasedChannel, GuildMember, type MessageReplyOptions,
     type InteractionReplyOptions, type MessageEditOptions, type InteractionEditReplyOptions,
     InteractionResponse, type InteractionDeferReplyOptions, PermissionsBitField,
-    type TextBasedChannel, type ImageSize, type ImageExtension
+    type TextBasedChannel, type ImageSize, type ImageExtension,
+    ApplicationCommandType
 } from 'discord.js'
 
 import { readdir } from 'fs/promises'
@@ -825,19 +826,43 @@ export default class CommandManager {
 
             // Handle empty options array
             if ('options' in local || 'options' in remote) {
-                const localOpts = local.options || []
-                const remoteOpts = remote.options || []
+                // This was a specific check for an edge case, might need re-evaluation
 
-                if (localOpts.length === 0 && (!remoteOpts || remoteOpts.length === 0)) {
-                    return true
-                }
+                // const localOpts = local.options || []
+                // const remoteOpts = remote.options || []
+                // if (localOpts.length === 0 && (!remoteOpts || remoteOpts.length === 0)) {
+                //     return true
+                // }
             }
 
-            // Compare remaining fields
-            if (localKeys.length !== remoteKeys.length) return false
+            // Filter out description for context menu commands from keys to be compared
+            const filterDescriptionForContextMenu = (keys: string[], commandType?: number) => {
+                if (commandType === ApplicationCommandType.Message || commandType === ApplicationCommandType.User) {
+                    return keys.filter(key => key !== 'description')
+                }
+                return keys
+            }
 
-            return localKeys.every(key => {
-                if (!(key in remote)) return false
+            const effectiveLocalKeys = filterDescriptionForContextMenu(localKeys, local.type)
+            const effectiveRemoteKeys = filterDescriptionForContextMenu(remoteKeys, remote.type)
+
+
+            // Compare remaining fields
+            if (effectiveLocalKeys.length !== effectiveRemoteKeys.length) {
+                 // For debugging:
+                // if (local.name === "Quick Ace Combat 7 subtitle") {
+                // logger.info(`{areCommandsEqual} Key length mismatch for ${local.name}. Local: ${effectiveLocalKeys.join(', ')}, Remote: ${effectiveRemoteKeys.join(', ')}`);
+                // }
+                return false
+            }
+
+            return effectiveLocalKeys.every(key => {
+                if (!(key in remote)) {
+                    // if (local.name === "Quick Ace Combat 7 subtitle") {
+                    // logger.info(`{areCommandsEqual} Key ${key} missing in remote for ${local.name}`);
+                    // }
+                    return false
+                }
                 return this.areCommandsEqual(local[key], remote[key])
             })
         }
@@ -882,6 +907,11 @@ export default class CommandManager {
             allKeys.forEach(key => {
                 // Skip logging differences for ignored fields
                 if (ignoredFields.has(key)) return
+
+                // Also skip description field for context menu commands
+                if (key === 'description' && (local.type === ApplicationCommandType.Message || local.type === ApplicationCommandType.User || remote.type === ApplicationCommandType.Message || remote.type === ApplicationCommandType.User)) {
+                    return
+                }
 
                 const localValue = local[key]
                 const remoteValue = remote[key]
