@@ -698,29 +698,42 @@ export default class CommandManager {
 
 
     private normalizeCommandData(data: ExplicitAny): ExplicitAny {
-        // Deep clone to avoid modifying original
+        // Deep clone the current piece of data (could be a command, or an option)
         const normalized = JSON.parse(JSON.stringify(data))
 
-        // Normalize options at current level
+        // If the current 'normalized' object represents an option (heuristic: has a 'type' property)
+        // ensure its 'required' field is explicitly false if it's optional.
+        if (typeof normalized.type === 'number') { // ApplicationCommandOptionType is numeric
+            if (normalized.required === undefined || normalized.required === null) {
+                normalized.required = false
+            }
+        }
+
+        // If the current 'normalized' object can have an 'options' array
+        // (i.e., it's a command, subcommand, or subcommand group)
+        // then recursively normalize each option within that array.
         if (normalized.options && Array.isArray(normalized.options)) {
             normalized.options = normalized.options.map((opt: ExplicitAny) => {
-                const normalizedOpt = { ...opt }
-
-                // Explicitly set required: false for optional parameters
-                if (!normalizedOpt.required) {
-                    normalizedOpt.required = false
-                }
-
-                // Recursively normalize nested options
-                if (normalizedOpt.options) {
-                    normalizedOpt.options = normalizedOpt.options.map((subOpt: ExplicitAny) =>
-                        this.normalizeCommandData(subOpt)
-                    )
-                }
-
-                return normalizedOpt
+                return this.normalizeCommandData(opt) // Recursive call for each option
             })
+        } else if (normalized.options === undefined) {
+            // If 'options' is undefined, we need to decide if it should be an empty array.
+            // It should be an empty array for:
+            // 1. The top-level command object (which doesn't have a 'type' itself, but has a 'name')
+            // 2. Options of type Subcommand or SubcommandGroup.
+            const isTopLevelCommandContext = typeof normalized.type === 'undefined' && normalized.name
+            const isSubcommandOrGroupType = typeof normalized.type === 'number' &&
+                (normalized.type === ApplicationCommandOptionType.Subcommand ||
+                 normalized.type === ApplicationCommandOptionType.SubcommandGroup)
+
+            if (isTopLevelCommandContext || isSubcommandOrGroupType) {
+                normalized.options = []
+            }
+            // For other option types (string, integer etc.), 'options' should remain undefined if it was, which is correct.
         }
+        // If normalized.options was some non-array, non-undefined value, this indicates a malformed structure
+        // that the initial check `normalized.options && Array.isArray(normalized.options)` would handle,
+        // or the .map would fail.
 
         return normalized
     }
