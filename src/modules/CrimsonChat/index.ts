@@ -166,9 +166,8 @@ export default class CrimsonChat {
                     try {
                         return JSON.parse(msg)
                     } catch {
-                        // If parsing fails, attempt to send as normal text
-                        logger.warn(`Failed to parse message: ${chalk.red(msg)}; sending as normal text`)
-                        this.sendResponseToDiscord(msg, targetChannel).catch(() => {})
+                        // If parsing fails, just return the string - don't try to send it again
+                        logger.warn(`Failed to parse message: ${chalk.red(msg)}`)
                         return msg
                     }
                 }
