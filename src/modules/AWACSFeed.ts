@@ -24,20 +24,20 @@ export class AWACSFeed {
             event: Events.GuildMemberAdd,
             extract: async member => [(member as ExtractableUser).user.username, ''],
             messages: [
-                (name: string) => `${name} has arrived in the AO.`,
-                (name: string) => `${name} has penetrated the CAP line.`,
-                (name: string) => `${name} has taken off the runway.`,
-                (name: string) => `${name} has been deported to Solitary Confinement for freaky behavior.`
+                (name: string) => `✅ ${name} has arrived in the AO.`,
+                (name: string) => `✅ ${name} has penetrated the CAP line.`,
+                (name: string) => `✅ ${name} has taken off the runway.`,
+                (name: string) => `✅ ${name} has been deported to Solitary Confinement for freaky behavior.`
             ].map(fn => (name, _banner) => fn(name))
         },
         {
             event: Events.GuildMemberRemove,
             extract: async member => [(member as ExtractableUser).user?.username || 'Unknown user', ''],
             messages: [
-                (name: string) => `${name} has retreated out of the AO.`,
-                (name: string) => `${name} has left the AO.`,
-                (name: string) => `${name} has been extracted from the AO.`,
-                (name: string) => `${name} is disengaging.`
+                (name: string) => `❌ ${name} has retreated out of the AO.`,
+                (name: string) => `❌ ${name} has left the AO.`,
+                (name: string) => `❌ ${name} has been extracted from the AO.`,
+                (name: string) => `❌ ${name} is disengaging.`
             ].map(fn => (name, _banner) => fn(name))
         },
         {
@@ -61,13 +61,13 @@ export class AWACSFeed {
                 return [banned, banner]
             },
             messages: [
-                (banned, banner) => `${banned} was blown up by ${banner}`,
-                (banned, banner) => `${banned} was slain by ${banner}`,
-                (banned, banner) => `${banned} was shot down by ${banner}`,
-                (banned, banner) => `${banned} was sent to the gulag by ${banner}`,
-                (banned, banner) => `${banned} has breached containment by ${banner}`,
-                (banned, banner) => `${banned} has been neutralized by ${banner}`,
-                (banned, banner) => `${banned} smoked ${banner}'s cordium blunt and spontaneously combusted`
+                (banned, banner) => `🔨 ${banned} was blown up by ${banner}`,
+                (banned, banner) => `🔨 ${banned} was slain by ${banner}`,
+                (banned, banner) => `🔨 ${banned} was shot down by ${banner}`,
+                (banned, banner) => `🔨 ${banned} was sent to the gulag by ${banner}`,
+                (banned, banner) => `🔨 ${banned} has breached containment by ${banner}`,
+                (banned, banner) => `🔨 ${banned} has been neutralized by ${banner}`,
+                (banned, banner) => `🔨 ${banned} smoked ${banner}'s cordium blunt and spontaneously combusted`
             ]
         }
     ]
