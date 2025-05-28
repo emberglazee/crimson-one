@@ -24,8 +24,6 @@ import { fileURLToPath } from 'url'
 import { getUserAvatar, guildMember, hasProp } from '../util/functions'
 import { operationTracker } from './OperationTracker'
 
-import { createHash } from 'crypto'
-
 import {
     SlashCommand, GuildSlashCommand, ContextMenuCommand,
     ClassNotInitializedError, MissingPermissionsError,
@@ -44,7 +42,6 @@ export default class CommandManager {
     private globalCommands: Map<string, SlashCommand> = new Map()
     private guildCommands: Map<GuildId, Map<string, GuildSlashCommand>> = new Map()
     private contextMenuCommands: Map<string, ContextMenuCommand> = new Map()
-    private commandHashes: Map<string, string> = new Map()
     private initialized = false
     private client: Client | null = null
     private rest: REST | null = null
@@ -678,26 +675,6 @@ export default class CommandManager {
 
 
 
-    private computeCommandHash(command: SlashCommand | ContextMenuCommand): string {
-
-        const commandData = command.data.toJSON()
-
-        const normalizedData = {
-            name: commandData.name,
-            options: commandData.options ? [...commandData.options].sort((a, b) => a.name.localeCompare(b.name)) : [],
-            type: commandData.type,
-            default_member_permissions: commandData.default_member_permissions,
-            contexts: commandData.contexts
-        }
-
-        const hash = createHash('sha256')
-        hash.update(JSON.stringify(normalizedData))
-        return hash.digest('hex')
-
-    }
-
-
-
     private normalizeCommandData(data: ExplicitAny): ExplicitAny {
         // Deep clone the current piece of data (could be a command, or an option)
         const normalized = JSON.parse(JSON.stringify(data))
@@ -974,12 +951,6 @@ export default class CommandManager {
                 { body: commandData }
             )
 
-            // Update hashes after successful refresh
-            for (const command of commands) {
-                const key = command.data.name
-                this.commandHashes.set(key, this.computeCommandHash(command))
-            }
-
             logger.ok('{refreshGlobalCommands} Successfully refreshed commands')
 
         } catch (error) {
@@ -1026,12 +997,6 @@ export default class CommandManager {
                 Routes.applicationGuildCommands(this.client.application!.id, guildId),
                 { body: commandData }
             )
-
-            // Update hashes after successful refresh
-            for (const command of commands) {
-                const key = `${guildId}:${command.data.name}`
-                this.commandHashes.set(key, this.computeCommandHash(command))
-            }
 
             logger.ok(`{refreshGuildCommands} Successfully refreshed commands for guild ${yellow(guildId)}`)
 
