@@ -68,7 +68,8 @@ export class MessageQueue {
                 const message = this.queue.shift()!
 
                 try {
-                    if (message.reply?.reply) {
+                    // If we have a reply reference, use reply(), otherwise use send()
+                    if (message.reply) {
                         await message.reply.reply(message.content)
                     } else {
                         await message.channel.send(message.content)
