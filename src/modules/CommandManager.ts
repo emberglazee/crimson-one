@@ -697,8 +697,35 @@ export default class CommandManager {
 
 
 
-    private async checkCommandChanges(commands: (SlashCommand | ContextMenuCommand)[], guildId?: string): Promise<boolean> {
+    private normalizeCommandData(data: ExplicitAny): ExplicitAny {
+        // Deep clone to avoid modifying original
+        const normalized = { ...data }
 
+        // Normalize options at current level
+        if (normalized.options) {
+            normalized.options = normalized.options.map((opt: ExplicitAny) => {
+                const normalizedOpt = { ...opt }
+
+                // Explicitly set required: false for optional parameters
+                if (!normalizedOpt.required) {
+                    normalizedOpt.required = false
+                }
+
+                // Recursively normalize nested options
+                if (normalizedOpt.options) {
+                    normalizedOpt.options = normalizedOpt.options.map((subOpt: ExplicitAny) =>
+                        this.normalizeCommandData(subOpt)
+                    )
+                }
+
+                return normalizedOpt
+            })
+        }
+
+        return normalized
+    }
+
+    private async checkCommandChanges(commands: (SlashCommand | ContextMenuCommand)[], guildId?: string): Promise<boolean> {
         const remoteCommands = guildId
             ? await this.fetchGuildCommands(guildId)
             : await this.fetchGlobalCommands()
@@ -708,9 +735,9 @@ export default class CommandManager {
             return true
         }
 
-        // Convert commands to their JSON representation for comparison
+        // Convert commands to their JSON representation and normalize them
         const localCommandData = commands.map(cmd => {
-            const data = cmd.data.toJSON()
+            const data = this.normalizeCommandData(cmd.data.toJSON())
             // Sort options to ensure consistent comparison
             if (data.options) {
                 data.options = this.sortCommandOptions(data.options)
@@ -719,7 +746,7 @@ export default class CommandManager {
         }).sort((a, b) => a.name.localeCompare(b.name))
 
         const remoteCommandData = remoteCommands.map(cmd => {
-            const data = { ...cmd }
+            const data = this.normalizeCommandData({ ...cmd })
             if (data.options) {
                 data.options = this.sortCommandOptions(data.options)
             }
@@ -782,34 +809,14 @@ export default class CommandManager {
                 remote[key] !== undefined && !ignoredFields.has(key)
             )
 
-            // Special handling for options array at any depth
+            // Handle empty options array
             if ('options' in local || 'options' in remote) {
                 const localOpts = local.options || []
                 const remoteOpts = remote.options || []
 
-                // Handle empty options array
                 if (localOpts.length === 0 && (!remoteOpts || remoteOpts.length === 0)) {
                     return true
                 }
-
-                if (localOpts.length !== remoteOpts.length) return false
-
-                return localOpts.every((localOpt: ExplicitAny, index: number) => {
-                    const remoteOpt = remoteOpts[index]
-
-                    // Create copies for comparison
-                    const localOptCopy = { ...localOpt }
-                    const remoteOptCopy = { ...remoteOpt }
-
-                    // Handle required field
-                    if (!localOptCopy.required && remoteOptCopy.required === false) {
-                        delete localOptCopy.required
-                        delete remoteOptCopy.required
-                    }
-
-                    // Recursively compare options
-                    return this.areCommandsEqual(localOptCopy, remoteOptCopy)
-                })
             }
 
             // Compare remaining fields
