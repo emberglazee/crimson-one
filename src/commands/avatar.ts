@@ -1,6 +1,7 @@
 import { EmbedBuilder, SlashCommandBuilder, type ImageExtension, type ImageSize } from 'discord.js'
 import { SlashCommand } from '../types/types'
 import { BotInstallationType } from '../types/types'
+import { smallFooterNote } from '../util/functions'
 
 export default {
     data: new SlashCommandBuilder()
@@ -85,7 +86,7 @@ export default {
 
         let response = avatar
         if (footerNote) {
-            response += `\n-# - ${footerNote}`
+            response += `\n${smallFooterNote(footerNote)}`
         }
 
         if (raw) {
