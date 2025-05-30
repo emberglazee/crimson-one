@@ -89,7 +89,7 @@ export class AWACSFeed {
 
                 const memberUsername = newM.user.username
                 const roleName = roleAdded.name
-                let assignerUsername = '\\\\ NO IFF DATA \\\\'
+                let assignerUsername = '\\\\\\\\ NO IFF DATA \\\\\\\\'
 
                 try {
                     const guild = newM.guild
@@ -143,7 +143,7 @@ export class AWACSFeed {
 
                 const memberUsername = newM.user.username
                 const roleName = roleRemoved.name
-                let removerUsername = '\\\\ NO IFF DATA \\\\'
+                let removerUsername = '\\\\\\\\ NO IFF DATA \\\\\\\\' // escape for js and then markdown, resulting in "\\ NO IFF DATA \\"
 
                 try {
                     const guild = newM.guild

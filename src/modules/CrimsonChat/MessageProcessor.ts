@@ -8,7 +8,7 @@ import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
 import chalk from 'chalk'
 import { zodResponseFormat } from 'openai/helpers/zod.mjs'
-import type { ParsedChatCompletion } from 'openai/src/resources/beta/chat/completions.js'
+import type { ParsedChatCompletion } from 'openai/resources/chat/completions.mjs'
 import z from 'zod'
 import type { Message } from 'discord.js'
 
@@ -143,7 +143,7 @@ export class MessageProcessor {
         const RESPONSE_TIMEOUT_MS = 30000
 
         try {
-            const responsePromise = this.openai.beta.chat.completions.parse({
+            const responsePromise = this.openai.chat.completions.parse({
                 messages,
                 model: OPENAI_MODEL,
                 response_format: zodResponseFormat(CRIMSONCHAT_RESPONSE_SCHEMA, 'response')
