@@ -1,3 +1,6 @@
+import { Logger } from '../util/logger'
+const logger = new Logger('AWACSFeed')
+
 import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember } from 'discord.js'
 import type { ClientEvents, PartialGuildMember } from 'discord.js'
 import { AWACS_FEED_CHANNEL } from '../util/constants'
@@ -76,33 +79,32 @@ export class AWACSFeed {
                 const oldM = oldMember as GuildMember | PartialGuildMember
                 const newM = newMember as GuildMember
 
-                // Check for added roles
                 const oldRoleIds = new Set(oldM.roles?.cache.map(r => r.id) || [])
                 const addedRoles = newM.roles.cache.filter(role => !oldRoleIds.has(role.id))
 
-                if (addedRoles.size === 0) return [] // No roles added
+                if (addedRoles.size === 0) return []
 
                 const roleAdded = addedRoles.first()
-                if (!roleAdded) return [] // Should not happen if size > 0
+                if (!roleAdded) return []
 
                 const memberUsername = newM.user.username
                 const roleName = roleAdded.name
-                let assignerUsername = 'System' // Default assigner
+                let assignerUsername = '\\\\ NO IFF DATA \\\\'
 
                 try {
                     const guild = newM.guild
                     if (guild) {
                         const auditLogs = await guild.fetchAuditLogs({
                             type: AuditLogEvent.MemberRoleUpdate,
-                            limit: 10 // Fetch a few recent role update logs
+                            limit: 10
                         })
 
                         const logEntry = auditLogs.entries.find(entry =>
                             entry.target?.id === newM.id &&
                             entry.action === AuditLogEvent.MemberRoleUpdate &&
                             entry.changes.some(change =>
-                                change.key === '$add' && // Check for added roles
-                                (change.new as {id: string, name: string}[])?.some(r => r.id === roleAdded.id) // Check if this specific role was added
+                                change.key === '$add' &&
+                                (change.new as {id: string, name: string}[])?.some(r => r.id === roleAdded.id)
                             )
                         )
 
@@ -111,8 +113,7 @@ export class AWACSFeed {
                         }
                     }
                 } catch (error) {
-                    console.error(`[AWACSFeed] Error fetching audit logs for ${newM.user.tag} role update:`, error)
-                    // assignerUsername remains 'System'
+                    logger.warn(`[AWACSFeed] Error fetching audit logs for ${newM.user.tag} role update: ${error instanceof Error ? error.message : String(error)}`)
                 }
 
                 return [memberUsername, roleName, assignerUsername]
@@ -131,19 +132,18 @@ export class AWACSFeed {
                 const oldM = oldMember as GuildMember | PartialGuildMember
                 const newM = newMember as GuildMember
 
-                // Check for removed roles
                 const newRoleIds = new Set(newM.roles.cache.map(r => r.id))
                 const removedRoles = oldM.roles?.cache.filter(role => !newRoleIds.has(role.id)) || new Map()
 
-                if (removedRoles.size === 0) return [] // No roles removed
-                if (newM.user.bot) return [] // Ignore if the target is a bot (though roles are usually not removed from bots by users often)
+                if (removedRoles.size === 0) return []
+                if (newM.user.bot) return []
 
                 const roleRemoved = removedRoles.first()
-                if (!roleRemoved) return [] // Should not happen if size > 0
+                if (!roleRemoved) return []
 
                 const memberUsername = newM.user.username
                 const roleName = roleRemoved.name
-                let removerUsername = 'System' // Default remover
+                let removerUsername = '\\\\ NO IFF DATA \\\\'
 
                 try {
                     const guild = newM.guild
@@ -157,8 +157,8 @@ export class AWACSFeed {
                             entry.target?.id === newM.id &&
                             entry.action === AuditLogEvent.MemberRoleUpdate &&
                             entry.changes.some(change =>
-                                change.key === '$remove' && // Check for removed roles
-                                (change.old as {id: string, name: string}[])?.some(r => r.id === roleRemoved.id) // Check if this specific role was removed
+                                change.key === '$remove' &&
+                                (change.old as {id: string, name: string}[])?.some(r => r.id === roleRemoved.id)
                             )
                         )
 
@@ -167,7 +167,7 @@ export class AWACSFeed {
                         }
                     }
                 } catch (error) {
-                    console.error(`[AWACSFeed] Error fetching audit logs for ${newM.user.tag} role removal:`, error)
+                    logger.warn(`[AWACSFeed] Error fetching audit logs for ${newM.user.tag} role removal: ${error instanceof Error ? error.message : String(error)}`)
                 }
 
                 return [memberUsername, roleName, removerUsername]
@@ -186,17 +186,15 @@ export class AWACSFeed {
         this.client = client
         for (const handler of AWACSFeed.EventHandlers) {
             this.client.on(handler.event, async (...args: ClientEvents[keyof ClientEvents]) => {
-                // Determine the source of guild information based on event type
                 const guildSource = handler.event === Events.GuildMemberUpdate ? args[1] : args[0]
                 const guild = (guildSource as { guild?: { id: string } })?.guild
 
-                // Ignore event if not from the specified guild
                 if (!guild || guild.id !== '958518067690868796') return
 
                 const params = await handler.extract(args, this.client)
-                if (params.length === 0) return // Skip if extract returns no relevant information
+                if (params.length === 0) return
 
-                const message = getRandomElement(handler.messages)(...params) // Use spread operator
+                const message = getRandomElement(handler.messages)(...params)
                 const channel = await this.client.channels.fetch(AWACS_FEED_CHANNEL)
                 if (channel?.isTextBased() && channel.type === ChannelType.GuildText) {
                     await (channel as TextChannel).send(message)
