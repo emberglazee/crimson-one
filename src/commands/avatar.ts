@@ -1,5 +1,6 @@
 import { EmbedBuilder, SlashCommandBuilder, type ImageExtension, type ImageSize } from 'discord.js'
 import { SlashCommand } from '../types/types'
+import { BotInstallationType } from '../types/types'
 
 export default {
     data: new SlashCommandBuilder()
@@ -53,35 +54,54 @@ export default {
         const guildOrGlobal = await context.getStringOption('serverorglobal', false) ?? 'guild'
 
         let avatar = ''
+        const installationType = await context.getInstallationType()
+        let footerNote: string | null = null
+
         if (guildOrGlobal === 'guild') {
-            if (!context.guild) {
-                // not in a guild, using global avatar instead
-                avatar = user.displayAvatarURL({ extension: ext, size: size })
+            if (installationType === BotInstallationType.GuildInstall || installationType === BotInstallationType.UserInstallGuild) {
+                if (context.guild) {
+                    try {
+                        const member = await context.guild.members.fetch(user.id)
+                        avatar = member.displayAvatarURL({ extension: ext, size: size })
+                    } catch {
+                        avatar = user.displayAvatarURL({ extension: ext, size: size })
+                        footerNote = 'User not found in this server, showing global avatar.'
+                    }
+                } else {
+                    avatar = user.displayAvatarURL({ extension: ext, size: size })
+                    footerNote = 'Could not access server information, showing global avatar.'
+                }
             } else {
-                const member = await context.guild.members.fetch(user.id)
-                if (!member) await context.reply('❌ User not found in this server')
-                avatar = member.displayAvatarURL({ extension: ext, size: size })
+                avatar = user.displayAvatarURL({ extension: ext, size: size })
+                if (installationType === BotInstallationType.UserInstallDM) {
+                    footerNote = 'Showing global avatar (command ran in DM).'
+                } else {
+                    footerNote = 'Showing global avatar.'
+                }
             }
         } else if (guildOrGlobal === 'global') {
             avatar = user.displayAvatarURL({ extension: ext, size: size })
         }
+
         let response = avatar
-        if (guildOrGlobal === 'guild' && !context.guild) {
-            response += '\n-# This is the global avatar, as the command was ran outside a server'
+        if (footerNote) {
+            response += `\n-# - ${footerNote}`
         }
+
         if (raw) {
             await context.reply(response)
             return
         }
+
         const embed = new EmbedBuilder()
             .setTitle(`Avatar of ${user.username}`)
             .setImage(avatar)
             .setColor('#F96302')
-        if (guildOrGlobal === 'guild' && !context.guild) {
-            embed.setFooter({
-                text: 'This is the global avatar, as the command was ran outside a server'
-            })
+
+        if (footerNote) {
+            embed.setFooter({ text: footerNote })
         }
+
         await context.reply({
             embeds: [embed]
         })
