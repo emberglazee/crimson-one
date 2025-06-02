@@ -66,7 +66,7 @@ export default {
                         avatar = member.displayAvatarURL({ extension: ext, size: size })
                     } catch {
                         avatar = user.displayAvatarURL({ extension: ext, size: size })
-                        footerNote = 'User not found in this server, showing global avatar.'
+                        footerNote = 'Error fetching the guild member, showing user\'s global avatar.'
                     }
                 } else {
                     avatar = user.displayAvatarURL({ extension: ext, size: size })
@@ -94,8 +94,13 @@ export default {
             return
         }
 
+        let titlePrefix = 'Global'
+        if (guildOrGlobal === 'guild' && !footerNote) {
+            titlePrefix = 'Server'
+        }
+
         const embed = new EmbedBuilder()
-            .setTitle(`Avatar of ${user.username}`)
+            .setTitle(`${titlePrefix} avatar of ${user.username}`)
             .setImage(avatar)
             .setColor('#F96302')
 
