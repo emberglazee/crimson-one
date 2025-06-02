@@ -70,7 +70,6 @@ export default {
                 .setMaxValue(MAX_UNTIL_SIDES)
             )
         ),
-    aliases: ['dice'],
     async execute(context) {
         const subcommand = context.getSubcommand(true)
         if (subcommand === 'until') {
