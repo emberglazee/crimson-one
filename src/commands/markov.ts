@@ -304,9 +304,6 @@ export default {
                         progressMessage += `🔄 Training: ${progress.progress}/${progress.total} messages (${percent}%)\n`
                     }
 
-                    const elapsedTimeString = formatTimeRemaining(progress.elapsedTime / 1000)
-                    progressMessage += `⌛ Elapsed: ${elapsedTimeString}\n`
-
                     if (progress.estimatedTimeRemaining !== null) {
                         const etaString = formatTimeRemaining(progress.estimatedTimeRemaining)
                         progressMessage += `⏱️ ETA: ${etaString}`
@@ -402,9 +399,6 @@ export default {
                         const percent = ((progress.progress / progress.total) * 100).toFixed(1)
                         progressMessage += `🔄 Processing: ${progress.progress}/${progress.total} messages (${percent}%)\n`
                     }
-
-                    const elapsedTimeString = formatTimeRemaining(progress.elapsedTime / 1000)
-                    progressMessage += `⌛ Elapsed: ${elapsedTimeString}\n`
 
                     if (progress.estimatedTimeRemaining !== null) {
                         const etaString = formatTimeRemaining(progress.estimatedTimeRemaining)
@@ -606,10 +600,6 @@ export default {
                             const speed = progress.messagesPerSecond.toFixed(1)
 
                             progressMessage += `⏱️ ETA: ${etaString} (${speed} msgs/sec)\n`
-
-                            // Show elapsed time for context
-                            const elapsedTimeString = formatTimeRemaining(progress.elapsedTime / 1000)
-                            progressMessage += `⌛ Elapsed: ${elapsedTimeString}\n`
                         }
 
                         progressMessage += `📚 Batches processed: ${progress.batchNumber}`
