@@ -80,7 +80,7 @@ export const slashCommand = {
                     ? CHARACTER_COLORS.find(c => c.name === characterColor)?.hex ?? null
                     : null
         const stretchGradient = await context.getBooleanOption('stretch', false)
-        const interpretNewlines = await context.getBooleanOption('interpret_newlines', true)
+        const interpretNewlines = await context.getBooleanOption('interpret_newlines', false)
 
         if (!color && gradient === 'none') {
             await context.reply('❌ You must provide either a color, role color, character color, or a gradient color')
@@ -91,7 +91,7 @@ export const slashCommand = {
         const factory = QuoteImageFactory.getInstance()
             .setGuild(context.guild!)
         try {
-            const result = await factory.createQuoteImage(speaker, text, color, gradient, stretchGradient ?? false, style, interpretNewlines)
+            const result = await factory.createQuoteImage(speaker, text, color, gradient, stretchGradient ?? false, style, interpretNewlines ?? false)
             await context.editReply({
                 files: [
                     new AttachmentBuilder(result.buffer)
