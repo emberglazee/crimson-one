@@ -4,17 +4,20 @@ import { Logger, yellow, red } from '../util/logger'
 const logger = new Logger('CommandManager')
 
 import {
-    SlashCommandBuilder, ContextMenuCommandBuilder, Client, CommandInteraction,
-    type RESTPostAPIChatInputApplicationCommandsJSONBody, REST,
-    type RESTPostAPIContextMenuApplicationCommandsJSONBody,
-    Routes, ContextMenuCommandInteraction, MessageContextMenuCommandInteraction,
-    UserContextMenuCommandInteraction, Message, Guild, Attachment,
-    ApplicationCommandOptionType, ChatInputCommandInteraction, User,
-    Role, type GuildBasedChannel, GuildMember, type MessageReplyOptions,
-    type InteractionReplyOptions, type MessageEditOptions, type InteractionEditReplyOptions,
-    InteractionResponse, type InteractionDeferReplyOptions, PermissionsBitField,
-    type TextBasedChannel, type ImageSize, type ImageExtension,
-    ApplicationCommandType
+    SlashCommandBuilder, ContextMenuCommandBuilder,
+    Routes, Message, ApplicationCommandOptionType,
+    REST, InteractionResponse, ApplicationCommandType
+} from 'discord.js'
+import type {
+    RESTPostAPIChatInputApplicationCommandsJSONBody, Role,
+    RESTPostAPIContextMenuApplicationCommandsJSONBody,
+    InteractionEditReplyOptions, ImageExtension, User,
+    ImageSize, TextBasedChannel, MessageReplyOptions, GuildMember,
+    InteractionReplyOptions, InteractionDeferReplyOptions,
+    GuildBasedChannel, MessageEditOptions, Client, CommandInteraction,
+    ContextMenuCommandInteraction, MessageContextMenuCommandInteraction,
+    UserContextMenuCommandInteraction, Guild, Attachment,
+    PermissionsBitField, ChatInputCommandInteraction
 } from 'discord.js'
 
 import { readdir } from 'fs/promises'
@@ -86,7 +89,7 @@ export default class CommandManager {
 
             const importedModule = await import(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, `../commands/${file.name}`))
             const commands: (SlashCommand | ContextMenuCommand)[] = []
-            const commandInfo: { name: string, type: string, guildId?: GuildId, aliases?: string[] }[] = [] // Added aliases
+            const commandInfo: { name: string, type: string, guildId?: GuildId, aliases?: string[] }[] = []
 
             // Handle both default and named exports
             for (const [_, exportedItem] of Object.entries(importedModule)) {
@@ -110,14 +113,29 @@ export default class CommandManager {
                     if (!this.guildCommands.has(command.guildId)) this.guildCommands.set(command.guildId, new Map())
                     this.guildCommands.get(command.guildId)!.set(command.data.name, command)
                     commands.push(command)
-                    commandInfo.push({ name: command.data.name, type: 'guild slash', guildId: command.guildId })
+                    commandInfo.push({ name: command.data.name, type: 'guild slash', guildId: command.guildId, aliases: command.aliases })
 
                 } else if (CommandManager.isGlobalSlashCommand(command)) {
 
                     this.globalCommands.set(command.data.name, command)
-                    if (command.aliases) command.aliases.forEach(alias => this.globalCommands.set(alias, command)) // Add aliases
                     commands.push(command)
                     commandInfo.push({ name: command.data.name, type: 'global slash/text', aliases: command.aliases })
+
+                }
+
+                if (CommandManager.isSlashCommand(command) && command.aliases && command.aliases.length > 0) {
+
+                    for (const alias of command.aliases) {
+
+                        const commandCopy = command
+                        commandCopy.aliases = undefined
+                        commandCopy.data = commandCopy.data.setName(alias)
+
+                        this.globalCommands.set(alias, commandCopy)
+                        commands.push(command)
+                        commandInfo.push({ name: alias, type: 'global slash/text', aliases: undefined })
+
+                    }
 
                 }
             }
@@ -1203,7 +1221,6 @@ export default class CommandManager {
         )
     }
 }
-
 
 export class CommandContext {
     public readonly client: Client
