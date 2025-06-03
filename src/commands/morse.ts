@@ -30,12 +30,12 @@ export default {
             let code, text = ''
             switch (subcommand) {
                 case 'decode':
-                    code = await context.getStringOption('code', true)
+                    code = context.getStringOption('code', true)
                     text = morse.decode(code)
                     await context.reply(text)
                     return
                 case 'encode':
-                    text = await context.getStringOption('text', true)
+                    text = context.getStringOption('text', true)
                     code = morse.encode(text)
                     await context.reply(code)
                     return

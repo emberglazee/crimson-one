@@ -100,7 +100,7 @@ export default {
 
             case 'ignore': {
                 const user = await context.getUserOption('user')
-                const userId = await context.getStringOption('userid')
+                const userId = context.getStringOption('userid')
 
                 if (!user && !userId) {
                     await context.reply('❌ You must provide either a user or a user ID')
@@ -120,7 +120,7 @@ export default {
 
             case 'unignore': {
                 const user = await context.getUserOption('user')
-                const userId = await context.getStringOption('userid')
+                const userId = context.getStringOption('userid')
 
                 if (!user && !userId) {
                     await context.reply('❌ You must provide either a user or a user ID')

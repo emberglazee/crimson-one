@@ -37,19 +37,21 @@ export default {
         ),
     async execute(context) {
         await context.deferReply({
-            flags: await context.getBooleanOption('ephemeral', false) ? MessageFlags.Ephemeral : undefined
+            flags: context.getBooleanOption('ephemeral', false) ? MessageFlags.Ephemeral : undefined
         })
 
-        // Get image URL from options
-        const attachment = await context.getAttachmentOption('image')
-        const urlOption = await context.getStringOption('url')
         const user = await context.getUserOption('user')
-        const name = await context.getStringOption('name', true)
-        const subtext = await context.getStringOption('subtext')
-        const useFilter = await context.getBooleanOption('filter', false)
+
+        const imageAttachment = context.getAttachmentOption('image')
+        const urlOption = context.getStringOption('url')
+
+        const name = context.getStringOption('name', true)
+        const subtext = context.getStringOption('subtext')
+        const useFilter = context.getBooleanOption('filter', false)
+        const color = context.getStringOption('color') ?? '#FFFFFF' // Default to white if not provided
 
         // Validate image source options
-        const selectedOptions = [attachment, urlOption, user].filter(Boolean).length
+        const selectedOptions = [imageAttachment, urlOption, user].filter(Boolean).length
         if (selectedOptions === 0) {
             await context.editReply('❌ Please provide either an image attachment, URL, or user mention.')
             return
@@ -60,8 +62,8 @@ export default {
         }
 
         let imageUrl = urlOption
-        if (attachment) {
-            imageUrl = attachment.url
+        if (imageAttachment) {
+            imageUrl = imageAttachment.url
         } else if (user) {
             imageUrl = context.getUserAvatar(user, context.guild, { size: 256, extension: 'png' })
         }
@@ -132,7 +134,7 @@ export default {
             ctx.shadowColor = '#808080'
             ctx.shadowOffsetX = -4
             ctx.shadowOffsetY = 4
-            ctx.fillStyle = '#ffffff'
+            ctx.fillStyle = color
 
             // Draw each character with spacing
             let currentX = 20 // Fixed left position

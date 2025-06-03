@@ -23,14 +23,21 @@ export default {
             .setRequired(false)
         ),
     async execute(context) {
-        const messageId = await context.getStringOption('message_id', true)
-        const isDm = await context.getBooleanOption('is_dm') ?? context.channel?.isDMBased() ?? false
-        const channelId = await context.getStringOption('channel_id') ?? context.channel?.id
-        const guildId = await context.getStringOption('guild_id') ?? context.guild?.id
+        await context.deferReply({ ephemeral: true })
+
+        const messageId = context.getStringOption('message_id', true)
+        const isDm = context.getBooleanOption('is_dm') ?? context.channel?.isDMBased() ?? false
+        const targetChannelId = context.getStringOption('channel_id') ?? context.channel?.id
+        const targetGuildId = context.getStringOption('guild_id') ?? context.guild?.id
+
+        if (!targetChannelId) {
+            await context.reply('No channel ID provided')
+            return
+        }
 
         const messageLink = isDm
-            ? `https://discord.com/channels/@me/${channelId}/${messageId}`
-            : `https://discord.com/channels/${guildId}/${channelId}/${messageId}`
+            ? `https://discord.com/channels/@me/${targetChannelId}/${messageId}`
+            : `https://discord.com/channels/${targetGuildId}/${targetChannelId}/${messageId}`
 
         await context.reply(`Here's your message link: ${messageLink}`)
     }

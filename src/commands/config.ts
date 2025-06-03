@@ -47,7 +47,7 @@ export default {
 
         if (subcommand === 'prefix') {
             await context.deferReply()
-            const prefix = await context.getStringOption('prefix')
+            const prefix = context.getStringOption('prefix')
             if (!prefix) {
                 await context.editReply('❌ You must provide a prefix')
                 return
@@ -58,7 +58,7 @@ export default {
             await context.editReply(`✅ Prefix changed to ${prefix}`)
         }
         if (subcommand === 'message-trigger') {
-            const enabled = await context.getBooleanOption('enabled')
+            const enabled = context.getBooleanOption('enabled')
             if (enabled === null) {
                 await context.editReply('❌ You must provide a boolean value')
                 return

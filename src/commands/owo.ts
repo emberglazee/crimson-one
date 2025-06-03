@@ -5,13 +5,9 @@ export default {
     data: new SlashCommandBuilder()
         .setName('owo')
         .setDescription('OwO-ify text')
-        .addStringOption(so => so
-            .setName('text')
-            .setDescription('OwO what\'s this?')
-            .setRequired(true)
-        ),
+        .addStringOption(option => option.setName('text').setDescription('Text to OwOify').setRequired(true)),
     async execute(context) {
-        const inputText = await context.getStringOption('text', true)
+        const inputText = context.getStringOption('text', true)
         const outputText = owoTranslate(inputText)
 
         if (outputText.length > 2000) {

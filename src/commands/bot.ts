@@ -93,14 +93,14 @@ export default {
         }
         if (subcommand === 'set_global_avatar') {
             await context.deferReply()
-            const avatar = await context.getAttachmentOption('avatar', true)
+            const avatar = context.getAttachmentOption('avatar', true)
             await context.client.user!.setAvatar(avatar.url)
             await context.editReply('✅ Avatar changed')
             return
         }
         if (subcommand === 'set_global_banner') {
             await context.deferReply()
-            const banner = await context.getAttachmentOption('banner', true)
+            const banner = context.getAttachmentOption('banner', true)
             await context.client.user!.setBanner(banner.url)
             await context.editReply('✅ Banner changed')
             return
@@ -111,8 +111,8 @@ export default {
                 return
             }
             await context.deferReply()
-            let username = await context.getStringOption('username')
-            const shortcut = await context.getStringOption('shortcut')
+            let username = context.getStringOption('username')
+            const shortcut = context.getStringOption('shortcut')
             if (!username && !shortcut) {
                 await context.editReply('❌ You must provide either a username or a shortcut')
                 return

@@ -48,11 +48,13 @@ export default {
         ),
 
     async execute(context) {
-        const user = await context.getUserOption('user', false) ?? context.user
-        const raw = await context.getBooleanOption('raw', false) ?? false
-        const ext = await context.getStringOption('extension', false) as ImageExtension ?? 'png'
-        const size = await context.getNumberOption('size', false) as ImageSize ?? 1024
-        const guildOrGlobal = await context.getStringOption('serverorglobal', false) ?? 'guild'
+        const user = await context.getUserOption('user') ?? context.author
+        const raw = context.getBooleanOption('raw', false) ?? false
+        const ext = context.getStringOption('extension', false) as ImageExtension ?? 'png'
+        const size = context.getIntegerOption('size', false) as ImageSize ?? 1024
+        const guildOrGlobal = context.getStringOption('serverorglobal', false) ?? 'guild'
+
+        await context.deferReply()
 
         let avatar = ''
         const installationType = await context.getInstallationType()

@@ -23,9 +23,9 @@ export default {
 
     async execute(context) {
         const time1 = process.hrtime()
-        const inputText = await context.getStringOption('text', true)
-        const randomizeChain = await context.getBooleanOption('randomize_chain', false)
-        const exitLang = await context.getStringOption('exit_lang', false) ?? 'en'
+        const inputText = context.getStringOption('text', true)
+        const randomizeChain = context.getBooleanOption('randomize_chain', false)
+        const exitLang = context.getStringOption('exit_lang', false) ?? 'en'
 
         let languages = [
             'la', 'ja', 'lo', 'ko',

@@ -65,13 +65,13 @@ export const slashCommand = {
             .setRequired(false)
         ),
     async execute(context) {
-        const style = (await context.getStringOption('style', true)) as 'ac7' | 'pw' | 'hd2'
-        const speaker = await context.getStringOption('speaker', true)
-        const text = await context.getStringOption('text', true)
-        const gradient = (await context.getStringOption('gradient') ?? 'none') as GradientType
-        const roleColor = await context.getStringOption('role_color')
-        const plainColor = await context.getStringOption('color')
-        const characterColor = await context.getStringOption('character_color')
+        const style = (context.getStringOption('style', true)) as 'ac7' | 'pw' | 'hd2'
+        const speaker = context.getStringOption('speaker', true)
+        const text = context.getStringOption('text', true)
+        const gradient = (context.getStringOption('gradient') ?? 'none') as GradientType
+        const roleColor = context.getStringOption('role_color')
+        const plainColor = context.getStringOption('color')
+        const characterColor = context.getStringOption('character_color')
         const color = roleColor
             ? ROLE_COLORS.find(c => c.name === roleColor)?.hex ?? null
             : plainColor
