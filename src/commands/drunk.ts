@@ -14,16 +14,16 @@ export default {
         const inputText = await context.getStringOption('text', true)
         const outputText = drunkWrite(inputText)
 
-        if (outputText.length > 2000) {
-            const buffer = Buffer.from(outputText, 'utf-8')
-            const attachment = new AttachmentBuilder(buffer, { name: 'drunk-text.txt' })
-
-            await context.reply({
-                files: [attachment]
-            })
-        } else {
+        if (outputText.length <= 2000) {
             await context.reply(outputText)
+            return
         }
+        const buffer = Buffer.from(outputText, 'utf-8')
+        const attachment = new AttachmentBuilder(buffer, { name: 'drunk-text.txt' })
+
+        await context.reply({
+            files: [attachment]
+        })
     }
 } satisfies SlashCommand
 
