@@ -68,7 +68,7 @@ export const slashCommand = {
         const style = (context.getStringOption('style', true)) as 'ac7' | 'pw' | 'hd2'
         const speaker = context.getStringOption('speaker', true)
         const text = context.getStringOption('text', true)
-        const gradient = (context.getStringOption('gradient') ?? 'none') as GradientType
+        const gradient = (context.getStringOption('gradient', false, 'none')) as GradientType
         const roleColor = context.getStringOption('role_color')
         const plainColor = context.getStringOption('color')
         const characterColor = context.getStringOption('character_color')
@@ -79,8 +79,8 @@ export const slashCommand = {
                 : characterColor
                     ? CHARACTER_COLORS.find(c => c.name === characterColor)?.hex ?? null
                     : null
-        const stretchGradient = await context.getBooleanOption('stretch', false)
-        const interpretNewlines = await context.getBooleanOption('interpret_newlines', false)
+        const stretchGradient = context.getBooleanOption('stretch', false)
+        const interpretNewlines = context.getBooleanOption('interpret_newlines', false)
 
         if (!color && gradient === 'none') {
             await context.reply('❌ You must provide either a color, role color, character color, or a gradient color')

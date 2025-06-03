@@ -15,7 +15,7 @@ export default {
         await context.deferReply()
 
         const action = context.getStringOption('action', true)
-        const user = await context.getUserOption('user') ?? context.author
+        const user = await context.getUserOption('user', false, context.author)
         const chamber = Math.floor(Math.random() * 6) + 1
 
         if (chamber === 1) {
