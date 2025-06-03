@@ -11,7 +11,7 @@ export const slashCommand = {
             .setRequired(false)
         ),
     async execute(context) {
-        const targetUser = await context.getUserOption('user') ?? context.user
+        const targetUser = await context.getUserOption('user', false, context.user)
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
             .setTitle('User Information')

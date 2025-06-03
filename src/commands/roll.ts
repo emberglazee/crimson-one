@@ -98,7 +98,7 @@ export default {
             return
         }
         const user = await context.getUserOption('user', false, context.author)
-        const rolls = context.getNumberOption('rolls') ?? 1
+        const rolls = context.getNumberOption('rolls', false, 1)
         const action = context.getStringOption('action')
 
         let sides: number
