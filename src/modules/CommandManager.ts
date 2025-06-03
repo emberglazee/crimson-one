@@ -1504,7 +1504,14 @@ export class CommandContext {
         }
 
         if (value === null && !required && defaultValue !== undefined) {
-            return defaultValue
+            if (!defaultValue) return null
+            try {
+                // Try to fetch the default user to ensure it's up to date
+                return await this.client.users.fetch(defaultValue.id)
+            } catch {
+                // If fetch fails, fall back to the provided default value
+                return defaultValue
+            }
         }
         return value
     }
@@ -1529,8 +1536,15 @@ export class CommandContext {
             throw new Error(`Required member option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`)
         }
 
-        if (member === null && !required && defaultValue !== undefined) {
-            return defaultValue
+        if (member === null && !required && defaultValue !== undefined && this.guild) {
+            if (!defaultValue) return null
+            try {
+                // Try to fetch the default member to ensure it's up to date
+                return await this.guild.members.fetch(defaultValue.id)
+            } catch {
+                // If fetch fails, fall back to the provided default value
+                return defaultValue
+            }
         }
         return member
     }
