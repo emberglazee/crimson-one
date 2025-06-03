@@ -1,7 +1,7 @@
 import { Logger, red, yellow } from '../util/logger'
 const logger = new Logger('/markov')
 
-import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message } from 'discord.js'
+import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message, type MessageEditOptions } from 'discord.js'
 
 import { formatTimeRemaining, smallFooterNote } from '../util/functions'
 import { SlashCommand } from '../types/types'
@@ -90,7 +90,7 @@ class InteractionMessageManager implements MessageUpdater {
         return this.useFollowUp
     }
 
-    public async sendFinalMessage(options: { content?: string; embeds?: EmbedBuilder[] }): Promise<void> {
+    public async sendFinalMessage(options: MessageEditOptions): Promise<void> {
         try {
             if (this.useFollowUp && this.followUpMessage) {
                 await this.followUpMessage.edit(options)
@@ -102,7 +102,9 @@ class InteractionMessageManager implements MessageUpdater {
             logger.warn(`Failed to send final message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
             try {
                 await this.context.followUp({
-                    ...options
+                    content: options.content ?? undefined,
+                    embeds: options.embeds,
+                    allowedMentions: options.allowedMentions
                 })
             } catch (finalError) {
                 logger.error(`Failed to send any completion message: ${red(finalError instanceof Error ? finalError.message : 'Unknown error')}`)
@@ -237,8 +239,8 @@ export default {
 
         // Helper to resolve user from picker or user_id
         async function resolveUserOrId() {
-            const user = await context.getUserOption('user') ?? undefined
-            const userId = context.getStringOption('user_id') ?? undefined
+            const user = await context.getUserOption('user', false, undefined)
+            const userId = context.getStringOption('user_id', false, undefined)
             if (user) return user
             if (userId) {
                 try {
@@ -258,9 +260,9 @@ export default {
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
             const source = (context.getStringOption('source')) as Source
             const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined
-            const words = context.getIntegerOption('words') ?? 20
-            const seed = context.getStringOption('seed') ?? undefined
-            const characterMode = context.getBooleanOption('character_mode', false)
+            const words = context.getIntegerOption('words', false, 20)
+            const seed = context.getStringOption('seed', false)
+            const characterMode = context.getBooleanOption('character_mode', false, false)
 
             await context.deferReply()
 
@@ -318,7 +320,7 @@ export default {
                     user: user,
                     userId: userId,
                     words,
-                    seed,
+                    seed: seed ?? undefined,
                     global: source === 'global',
                     characterMode: characterMode ?? undefined
                 })
@@ -339,7 +341,10 @@ export default {
                         words !== 20 ? (characterMode ? `Characters: ${words}` : `Words: ${words}`) : null,
                         seed ? `Seed: "${seed}"` : null,
                         characterMode ? 'Mode: Character-by-character (cursed)' : null
-                    ].filter(Boolean).join(', ') || 'None'}`)}`
+                    ].filter(Boolean).join(', ') || 'None'}`)}`,
+                    allowedMentions: {
+                        parse: []
+                    }
                 })
             } catch (error) {
                 // Clean up event listener in case of error
