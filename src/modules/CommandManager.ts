@@ -288,7 +288,7 @@ export default class CommandManager {
                 // We are interested in the multi-line help output
                 // Yargs might log multiple lines or a single multi-line string for help.
                 capturedHelpText += args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') + '\n'
-                // originalConsoleLog(...args); // Optionally, still log to console for debugging
+                // originalConsoleLog(...args) // Optionally, still log to console for debugging
             }
 
             let parsedYargsArgs
@@ -846,7 +846,7 @@ export default class CommandManager {
             if (effectiveLocalKeys.length !== effectiveRemoteKeys.length) {
                  // For debugging:
                 // if (local.name === "Quick Ace Combat 7 subtitle") {
-                // logger.info(`{areCommandsEqual} Key length mismatch for ${local.name}. Local: ${effectiveLocalKeys.join(', ')}, Remote: ${effectiveRemoteKeys.join(', ')}`);
+                // logger.info(`{areCommandsEqual} Key length mismatch for ${local.name}. Local: ${effectiveLocalKeys.join(', ')}, Remote: ${effectiveRemoteKeys.join(', ')}`)
                 // }
                 return false
             }
@@ -854,7 +854,7 @@ export default class CommandManager {
             return effectiveLocalKeys.every(key => {
                 if (!(key in remote)) {
                     // if (local.name === "Quick Ace Combat 7 subtitle") {
-                    // logger.info(`{areCommandsEqual} Key ${key} missing in remote for ${local.name}`);
+                    // logger.info(`{areCommandsEqual} Key ${key} missing in remote for ${local.name}`)
                     // }
                     return false
                 }
@@ -1402,13 +1402,16 @@ export class CommandContext {
 
 
 
-    getStringOption(name: string, required: true): string
-    getStringOption(name: string, required?: false): string | null
-    getStringOption(name: string): string | null // required is implicitly false
-    getStringOption(name: string, required?: boolean): string | null {
+    public getStringOption(name: string, required: true): string
+    public getStringOption(name: string, required?: false): string | null
+    public getStringOption(name: string): string | null
+    public getStringOption(name: string, required?: boolean): string | null
+    public getStringOption(name: string, required: true, defaultValue?: undefined): string
+    public getStringOption(name: string, required?: boolean, defaultValue?: string): string | null
+    public getStringOption(name: string, required?: boolean, defaultValue?: string | null): string | null {
         let value: string | null = null
         if (this.interaction) {
-            value = this.interaction.options.getString(name, required || false)
+            value = this.interaction.options.getString(name, false) // Always fetch as non-required first
         } else if (this.parsedArgs) {
             const parsedValue = this.parsedArgs[name]
             value = parsedValue !== undefined && parsedValue !== null ? String(parsedValue) : null
@@ -1417,16 +1420,23 @@ export class CommandContext {
         if (required && value === null) {
             throw new Error(`Required option "${name}" is missing or invalid for ${this.isInteraction ? 'interaction' : 'text command'}.`)
         }
+
+        if (value === null && !required && defaultValue !== undefined) {
+            return defaultValue
+        }
         return value
     }
 
-    getIntegerOption(name: string, required: true): number
-    getIntegerOption(name: string, required?: false): number | null
-    getIntegerOption(name: string): number | null
-    getIntegerOption(name: string, required?: boolean): number | null {
+    public getIntegerOption(name: string, required: true): number
+    public getIntegerOption(name: string, required?: false): number | null
+    public getIntegerOption(name: string): number | null
+    public getIntegerOption(name: string, required?: boolean): number | null
+    public getIntegerOption(name: string, required: true, defaultValue?: undefined): number
+    public getIntegerOption(name: string, required?: boolean, defaultValue?: number): number | null
+    public getIntegerOption(name: string, required?: boolean, defaultValue?: number | null): number | null {
         let value: number | null = null
         if (this.interaction) {
-            value = this.interaction.options.getInteger(name, required || false)
+            value = this.interaction.options.getInteger(name, false) // Always fetch as non-required first
         } else if (this.parsedArgs) {
             const parsedValue = this.parsedArgs[name]
             value = Number.isInteger(parsedValue) ? Number(parsedValue) : null
@@ -1435,35 +1445,51 @@ export class CommandContext {
         if (required && value === null) {
             throw new Error(`Required option "${name}" is missing or invalid for ${this.isInteraction ? 'interaction' : 'text command'}.`)
         }
+
+        if (value === null && !required && defaultValue !== undefined) {
+            return defaultValue
+        }
         return value
     }
 
-    getBooleanOption(name: string, required: true): boolean
-    getBooleanOption(name: string, required?: false): boolean | null // Note: boolean can be false, so null means "not provided"
-    getBooleanOption(name: string): boolean | null
-    getBooleanOption(name: string, required?: boolean): boolean | null {
+    public getBooleanOption(name: string, required: true): boolean
+    public getBooleanOption(name: string, required?: false): boolean | null // null = "not provided"
+    public getBooleanOption(name: string): boolean | null
+    public getBooleanOption(name: string, required?: boolean): boolean | null
+    public getBooleanOption(name: string, required: true, defaultValue?: undefined): boolean
+    public getBooleanOption(name: string, required?: boolean, defaultValue?: boolean): boolean | null
+    public getBooleanOption(name: string, required?: boolean, defaultValue?: boolean | null): boolean | null {
         let value: boolean | null = null
         if (this.interaction) {
-            value = this.interaction.options.getBoolean(name, required || false)
+            value = this.interaction.options.getBoolean(name, false) // Always fetch as non-required first
         } else if (this.parsedArgs) {
             const parsedValue = this.parsedArgs[name]
             // For yargs, a boolean flag not present might be undefined. If present, it's true/false.
             value = typeof parsedValue === 'boolean' ? parsedValue : null
         }
 
-        if (required && value === null) { // For booleans, null means "not provided"
+        if (required && value === null) {
             throw new Error(`Required option "${name}" is missing for ${this.isInteraction ? 'interaction' : 'text command'}.`)
         }
+
+        if (value === null && !required && defaultValue !== undefined && defaultValue !== null) {
+            return defaultValue
+        }
+        // For booleans, if not required and no default, null is a valid "not provided" state.
+        // If a default is explicitly null, it should also return null.
         return value
     }
 
-    async getUserOption(name: string, required: true): Promise<User>
-    async getUserOption(name: string, required?: false): Promise<User | null>
-    async getUserOption(name: string): Promise<User | null>
-    async getUserOption(name: string, required?: boolean): Promise<User | null> {
+    public async getUserOption(name: string, required: true): Promise<User>
+    public async getUserOption(name: string, required?: false): Promise<User | null>
+    public async getUserOption(name: string): Promise<User | null>
+    public async getUserOption(name: string, required?: boolean): Promise<User | null>
+    public async getUserOption(name: string, required: true, defaultValue?: undefined): Promise<User>
+    public async getUserOption(name: string, required?: boolean, defaultValue?: User): Promise<User | null>
+    public async getUserOption(name: string, required?: boolean, defaultValue?: User | null): Promise<User | null> {
         let value: User | null = null
         if (this.interaction) {
-            value = this.interaction.options.getUser(name, required || false)
+            value = this.interaction.options.getUser(name, false) // Always fetch as non-required first
         } else if (this.parsedArgs && this.message) {
             const parsedVal = this.parsedArgs[name] as string | undefined
             value = parsedVal ? await this.resolveUser(parsedVal) : null
@@ -1472,16 +1498,23 @@ export class CommandContext {
         if (required && value === null) {
             throw new Error(`Required option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`)
         }
+
+        if (value === null && !required && defaultValue !== undefined) {
+            return defaultValue
+        }
         return value
     }
 
-    async getMemberOption(name: string, required: true): Promise<GuildMember>
-    async getMemberOption(name: string, required?: false): Promise<GuildMember | null>
-    async getMemberOption(name: string): Promise<GuildMember | null>
-    async getMemberOption(name: string, required?: boolean): Promise<GuildMember | null> {
+    public async getMemberOption(name: string, required: true): Promise<GuildMember>
+    public async getMemberOption(name: string, required?: false): Promise<GuildMember | null>
+    public async getMemberOption(name: string): Promise<GuildMember | null>
+    public async getMemberOption(name: string, required?: boolean): Promise<GuildMember | null>
+    public async getMemberOption(name: string, required: true, defaultValue?: undefined): Promise<GuildMember>
+    public async getMemberOption(name: string, required?: boolean, defaultValue?: GuildMember): Promise<GuildMember | null>
+    public async getMemberOption(name: string, required?: boolean, defaultValue?: GuildMember | null): Promise<GuildMember | null> {
         let member: GuildMember | null = null
         if (this.interaction) {
-            member = guildMember(this.interaction.options.getMember(name))
+            member = guildMember(this.interaction.options.getMember(name)) // getMember can return APIInteractionGuildMember | GuildMember | null
         } else if (this.parsedArgs && this.message) {
             const parsedVal = this.parsedArgs[name] as string | undefined
             member = parsedVal ? await this.resolveMember(parsedVal) : null
@@ -1490,16 +1523,23 @@ export class CommandContext {
         if (required && member === null) {
             throw new Error(`Required member option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`)
         }
+
+        if (member === null && !required && defaultValue !== undefined) {
+            return defaultValue
+        }
         return member
     }
 
-    async getChannelOption(name: string, required: true): Promise<GuildBasedChannel>
-    async getChannelOption(name: string, required?: false): Promise<GuildBasedChannel | null>
-    async getChannelOption(name: string): Promise<GuildBasedChannel | null>
-    async getChannelOption(name: string, required?: boolean): Promise<GuildBasedChannel | null> {
+    public async getChannelOption(name: string, required: true): Promise<GuildBasedChannel>
+    public async getChannelOption(name: string, required?: false): Promise<GuildBasedChannel | null>
+    public async getChannelOption(name: string): Promise<GuildBasedChannel | null>
+    public async getChannelOption(name: string, required?: boolean): Promise<GuildBasedChannel | null>
+    public async getChannelOption(name: string, required: true, defaultValue?: undefined): Promise<GuildBasedChannel>
+    public async getChannelOption(name: string, required?: boolean, defaultValue?: GuildBasedChannel): Promise<GuildBasedChannel | null>
+    public async getChannelOption(name: string, required?: boolean, defaultValue?: GuildBasedChannel | null): Promise<GuildBasedChannel | null> {
         let value: GuildBasedChannel | null = null
         if (this.interaction) {
-            value = this.interaction.options.getChannel(name, required || false) as GuildBasedChannel | null
+            value = this.interaction.options.getChannel(name, false) as GuildBasedChannel | null // Always fetch as non-required first
         } else if (this.parsedArgs && this.message) {
             const parsedVal = this.parsedArgs[name] as string | undefined
             value = parsedVal ? await this.resolveChannel(parsedVal) : null
@@ -1508,16 +1548,23 @@ export class CommandContext {
         if (required && value === null) {
             throw new Error(`Required option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`)
         }
+
+        if (value === null && !required && defaultValue !== undefined) {
+            return defaultValue
+        }
         return value
     }
 
-    async getRoleOption(name: string, required: true): Promise<Role>
-    async getRoleOption(name: string, required?: false): Promise<Role | null>
-    async getRoleOption(name: string): Promise<Role | null>
-    async getRoleOption(name: string, required?: boolean): Promise<Role | null> {
+    public async getRoleOption(name: string, required: true): Promise<Role>
+    public async getRoleOption(name: string, required?: false): Promise<Role | null>
+    public async getRoleOption(name: string): Promise<Role | null>
+    public async getRoleOption(name: string, required?: boolean): Promise<Role | null>
+    public async getRoleOption(name: string, required: true, defaultValue?: undefined): Promise<Role>
+    public async getRoleOption(name: string, required?: boolean, defaultValue?: Role): Promise<Role | null>
+    public async getRoleOption(name: string, required?: boolean, defaultValue?: Role | null): Promise<Role | null> {
         let value: Role | null = null
         if (this.interaction) {
-            value = this.interaction.options.getRole(name, required || false) as Role | null
+            value = this.interaction.options.getRole(name, false) as Role | null // Always fetch as non-required first
         } else if (this.parsedArgs && this.message) {
             const parsedVal = this.parsedArgs[name] as string | undefined
             value = parsedVal ? await this.resolveRole(parsedVal) : null
@@ -1526,16 +1573,23 @@ export class CommandContext {
         if (required && value === null) {
             throw new Error(`Required option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`)
         }
+
+        if (value === null && !required && defaultValue !== undefined) {
+            return defaultValue
+        }
         return value
     }
 
-    getNumberOption(name: string, required: true): number
-    getNumberOption(name: string, required?: false): number | null
-    getNumberOption(name: string): number | null
-    getNumberOption(name: string, required?: boolean): number | null {
+    public getNumberOption(name: string, required: true): number
+    public getNumberOption(name: string, required?: false): number | null
+    public getNumberOption(name: string): number | null
+    public getNumberOption(name: string, required?: boolean): number | null
+    public getNumberOption(name: string, required: true, defaultValue?: undefined): number
+    public getNumberOption(name: string, required?: boolean, defaultValue?: number): number | null
+    public getNumberOption(name: string, required?: boolean, defaultValue?: number | null): number | null {
         let value: number | null = null
         if (this.interaction) {
-            value = this.interaction.options.getNumber(name, required || false)
+            value = this.interaction.options.getNumber(name, false) // Always fetch as non-required first
         } else if (this.parsedArgs) {
             const parsedValue = this.parsedArgs[name]
             value = typeof parsedValue === 'number' ? parsedValue : null
@@ -1544,16 +1598,23 @@ export class CommandContext {
         if (required && value === null) {
             throw new Error(`Required option "${name}" is missing or invalid for ${this.isInteraction ? 'interaction' : 'text command'}.`)
         }
+
+        if (value === null && !required && defaultValue !== undefined) {
+            return defaultValue
+        }
         return value
     }
 
-    getAttachmentOption(name: string, required: true): Attachment
-    getAttachmentOption(name: string, required?: false): Attachment | null
-    getAttachmentOption(name: string): Attachment | null
-    getAttachmentOption(name: string, required?: boolean): Attachment | null {
+    public getAttachmentOption(name: string, required: true): Attachment
+    public getAttachmentOption(name: string, required?: false): Attachment | null
+    public getAttachmentOption(name: string): Attachment | null
+    public getAttachmentOption(name: string, required?: boolean): Attachment | null
+    public getAttachmentOption(name: string, required: true, defaultValue?: undefined): Attachment
+    public getAttachmentOption(name: string, required?: boolean, defaultValue?: Attachment): Attachment | null
+    public getAttachmentOption(name: string, required?: boolean, defaultValue?: Attachment | null): Attachment | null {
         let value: Attachment | null = null
         if (this.interaction) {
-            value = this.interaction.options.getAttachment(name, required || false)
+            value = this.interaction.options.getAttachment(name, false) // Always fetch as non-required first
         } else if (this.message && this.parsedArgs) {
             const attachmentFlagPresent = this.parsedArgs[name] === true || typeof this.parsedArgs[name] === 'string'
             if (attachmentFlagPresent && this.message.attachments.size > 0) {
@@ -1564,11 +1625,14 @@ export class CommandContext {
         if (required && value === null) {
             throw new Error(`Required attachment "${name}" is missing or was not provided correctly for ${this.isInteraction ? 'interaction' : 'text command'}.`)
         }
+        if (value === null && !required && defaultValue !== undefined) {
+            return defaultValue
+        }
         return value
     }
 
-    public getSubcommand(required?: false): string | null;
-    public getSubcommand(required: true): string;
+    public getSubcommand(required?: false): string | null
+    public getSubcommand(required: true): string
     public getSubcommand(required?: boolean): string | null {
         if (required && !this.subcommandName) {
             throw new Error('A subcommand was required but not provided or identified.')
@@ -1576,8 +1640,8 @@ export class CommandContext {
         return this.subcommandName
     }
 
-    public getSubcommandGroup(required?: false): string | null;
-    public getSubcommandGroup(required: true): string;
+    public getSubcommandGroup(required?: false): string | null
+    public getSubcommandGroup(required: true): string
     public getSubcommandGroup(required?: boolean): string | null {
         if (required && !this.subcommandGroupName) {
             throw new Error('A subcommand group was required but not provided or identified.')
@@ -1620,7 +1684,7 @@ export class CommandContext {
                     } catch {
                         // Error likely means bot is not in guild or permissions/intents issue.
                         // Treat as bot member not found for this purpose.
-                        // console.error(`Failed to fetch bot member in guild ${context.guild.id}:`, error); // Log if needed, but might be noisy for user installs
+                        // console.error(`Failed to fetch bot member in guild ${context.guild.id}:`, error) // Log if needed, but might be noisy for user installs
                         botMember = null
                     }
                 }
