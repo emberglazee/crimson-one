@@ -48,11 +48,11 @@ export default {
         ),
 
     async execute(context) {
-        const user = await context.getUserOption('user') ?? context.author
-        const raw = context.getBooleanOption('raw', false) ?? false
-        const ext = context.getStringOption('extension', false) as ImageExtension ?? 'png'
-        const size = context.getIntegerOption('size', false) as ImageSize ?? 1024
-        const guildOrGlobal = context.getStringOption('serverorglobal', false) ?? 'guild'
+        const user = await context.getUserOption('user', false, context.author)
+        const raw = context.getBooleanOption('raw', false, false)
+        const ext = context.getStringOption('extension', false, 'png') as ImageExtension
+        const size = context.getIntegerOption('size', false, 1024) as ImageSize
+        const guildOrGlobal = context.getStringOption('serverorglobal', false, 'guild')
 
         await context.deferReply()
 
