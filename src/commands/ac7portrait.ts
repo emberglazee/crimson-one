@@ -48,7 +48,7 @@ export default {
         const name = context.getStringOption('name', true)
         const subtext = context.getStringOption('subtext')
         const useFilter = context.getBooleanOption('filter', false)
-        const color = context.getStringOption('color') ?? '#FFFFFF' // Default to white if not provided
+        const color = context.getStringOption('color', false, '#FFFFFF')
 
         // Validate image source options
         const selectedOptions = [imageAttachment, urlOption, user].filter(Boolean).length

@@ -26,9 +26,9 @@ export default {
         await context.deferReply({ ephemeral: true })
 
         const messageId = context.getStringOption('message_id', true)
-        const isDm = context.getBooleanOption('is_dm') ?? context.channel?.isDMBased() ?? false
-        const targetChannelId = context.getStringOption('channel_id') ?? context.channel?.id
-        const targetGuildId = context.getStringOption('guild_id') ?? context.guild?.id
+        const isDm = context.getBooleanOption('is_dm', false, context.channel?.isDMBased() ?? false)
+        const targetChannelId = context.getStringOption('channel_id', false, context.channel?.id)
+        const targetGuildId = context.getStringOption('guild_id', false, context.guild?.id)
 
         if (!targetChannelId) {
             await context.reply('No channel ID provided')

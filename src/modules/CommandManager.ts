@@ -1407,6 +1407,7 @@ export class CommandContext {
     public getStringOption(name: string): string | null
     public getStringOption(name: string, required?: boolean): string | null
     public getStringOption(name: string, required: true, defaultValue?: undefined): string
+    public getStringOption(name: string, required: false, defaultValue: string): string
     public getStringOption(name: string, required?: boolean, defaultValue?: string): string | null
     public getStringOption(name: string, required?: boolean, defaultValue?: string | null): string | null {
         let value: string | null = null
@@ -1432,6 +1433,7 @@ export class CommandContext {
     public getIntegerOption(name: string): number | null
     public getIntegerOption(name: string, required?: boolean): number | null
     public getIntegerOption(name: string, required: true, defaultValue?: undefined): number
+    public getIntegerOption(name: string, required: false, defaultValue: number): number
     public getIntegerOption(name: string, required?: boolean, defaultValue?: number): number | null
     public getIntegerOption(name: string, required?: boolean, defaultValue?: number | null): number | null {
         let value: number | null = null
@@ -1453,10 +1455,11 @@ export class CommandContext {
     }
 
     public getBooleanOption(name: string, required: true): boolean
-    public getBooleanOption(name: string, required?: false): boolean | null // null = "not provided"
+    public getBooleanOption(name: string, required?: false): boolean | null
     public getBooleanOption(name: string): boolean | null
     public getBooleanOption(name: string, required?: boolean): boolean | null
     public getBooleanOption(name: string, required: true, defaultValue?: undefined): boolean
+    public getBooleanOption(name: string, required: false, defaultValue: boolean): boolean
     public getBooleanOption(name: string, required?: boolean, defaultValue?: boolean): boolean | null
     public getBooleanOption(name: string, required?: boolean, defaultValue?: boolean | null): boolean | null {
         let value: boolean | null = null
@@ -1485,6 +1488,7 @@ export class CommandContext {
     public async getUserOption(name: string): Promise<User | null>
     public async getUserOption(name: string, required?: boolean): Promise<User | null>
     public async getUserOption(name: string, required: true, defaultValue?: undefined): Promise<User>
+    public async getUserOption(name: string, required: false, defaultValue: User): Promise<User>
     public async getUserOption(name: string, required?: boolean, defaultValue?: User): Promise<User | null>
     public async getUserOption(name: string, required?: boolean, defaultValue?: User | null): Promise<User | null> {
         let value: User | null = null
@@ -1510,6 +1514,7 @@ export class CommandContext {
     public async getMemberOption(name: string): Promise<GuildMember | null>
     public async getMemberOption(name: string, required?: boolean): Promise<GuildMember | null>
     public async getMemberOption(name: string, required: true, defaultValue?: undefined): Promise<GuildMember>
+    public async getMemberOption(name: string, required: false, defaultValue: GuildMember): Promise<GuildMember>
     public async getMemberOption(name: string, required?: boolean, defaultValue?: GuildMember): Promise<GuildMember | null>
     public async getMemberOption(name: string, required?: boolean, defaultValue?: GuildMember | null): Promise<GuildMember | null> {
         let member: GuildMember | null = null
@@ -1535,6 +1540,7 @@ export class CommandContext {
     public async getChannelOption(name: string): Promise<GuildBasedChannel | null>
     public async getChannelOption(name: string, required?: boolean): Promise<GuildBasedChannel | null>
     public async getChannelOption(name: string, required: true, defaultValue?: undefined): Promise<GuildBasedChannel>
+    public async getChannelOption(name: string, required: false, defaultValue: GuildBasedChannel): Promise<GuildBasedChannel>
     public async getChannelOption(name: string, required?: boolean, defaultValue?: GuildBasedChannel): Promise<GuildBasedChannel | null>
     public async getChannelOption(name: string, required?: boolean, defaultValue?: GuildBasedChannel | null): Promise<GuildBasedChannel | null> {
         let value: GuildBasedChannel | null = null
@@ -1560,6 +1566,7 @@ export class CommandContext {
     public async getRoleOption(name: string): Promise<Role | null>
     public async getRoleOption(name: string, required?: boolean): Promise<Role | null>
     public async getRoleOption(name: string, required: true, defaultValue?: undefined): Promise<Role>
+    public async getRoleOption(name: string, required: false, defaultValue: Role): Promise<Role>
     public async getRoleOption(name: string, required?: boolean, defaultValue?: Role): Promise<Role | null>
     public async getRoleOption(name: string, required?: boolean, defaultValue?: Role | null): Promise<Role | null> {
         let value: Role | null = null
@@ -1585,6 +1592,7 @@ export class CommandContext {
     public getNumberOption(name: string): number | null
     public getNumberOption(name: string, required?: boolean): number | null
     public getNumberOption(name: string, required: true, defaultValue?: undefined): number
+    public getNumberOption(name: string, required: false, defaultValue: number): number
     public getNumberOption(name: string, required?: boolean, defaultValue?: number): number | null
     public getNumberOption(name: string, required?: boolean, defaultValue?: number | null): number | null {
         let value: number | null = null
@@ -1610,6 +1618,7 @@ export class CommandContext {
     public getAttachmentOption(name: string): Attachment | null
     public getAttachmentOption(name: string, required?: boolean): Attachment | null
     public getAttachmentOption(name: string, required: true, defaultValue?: undefined): Attachment
+    public getAttachmentOption(name: string, required: false, defaultValue: Attachment): Attachment
     public getAttachmentOption(name: string, required?: boolean, defaultValue?: Attachment): Attachment | null
     public getAttachmentOption(name: string, required?: boolean, defaultValue?: Attachment | null): Attachment | null {
         let value: Attachment | null = null
