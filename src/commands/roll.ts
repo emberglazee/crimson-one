@@ -74,8 +74,8 @@ export default {
         const subcommand = context.getSubcommand(true)
         if (subcommand === 'until') {
             // /roll until logic
-            const targetNumber = await context.getNumberOption('number', true)
-            const sides = await context.getNumberOption('sides', true)
+            const targetNumber = context.getNumberOption('number', true)
+            const sides = context.getNumberOption('sides', true)
             if (targetNumber > sides) {
                 await context.reply(`❌ The target number (${targetNumber}) cannot be greater than the number of sides (${sides})!`)
                 return
@@ -97,14 +97,14 @@ export default {
             await context.reply(message)
             return
         }
-        const user = await context.getUserOption('user') ?? context.user
-        const rolls = await context.getNumberOption('rolls') ?? 1
-        const action = await context.getStringOption('action')
+        const user = await context.getUserOption('user') ?? context.author
+        const rolls = context.getNumberOption('rolls') ?? 1
+        const action = context.getStringOption('action')
 
         let sides: number
         switch (subcommand) {
             case 'custom':
-                sides = await context.getNumberOption('sides', true)
+                sides = context.getNumberOption('sides', true)
                 break
             case 'd6':
                 sides = 6

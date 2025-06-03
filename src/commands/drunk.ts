@@ -11,7 +11,7 @@ export default {
             .setRequired(true)
         ),
     async execute(context) {
-        const inputText = await context.getStringOption('text', true)
+        const inputText = context.getStringOption('text', true)
         const outputText = drunkWrite(inputText)
 
         if (outputText.length <= 2000) {

@@ -1400,15 +1400,12 @@ export class CommandContext {
         return roleByName || null
     }
 
-    private getScopedInteractionOptions() {
-        return this.interaction ? this.interaction.options : null
-    }
 
 
-    async getStringOption(name: string, required: true): Promise<string>
-    async getStringOption(name: string, required?: false): Promise<string | null>
-    async getStringOption(name: string): Promise<string | null> // required is implicitly false
-    async getStringOption(name: string, required?: boolean): Promise<string | null> {
+    getStringOption(name: string, required: true): string
+    getStringOption(name: string, required?: false): string | null
+    getStringOption(name: string): string | null // required is implicitly false
+    getStringOption(name: string, required?: boolean): string | null {
         let value: string | null = null
         if (this.interaction) {
             value = this.interaction.options.getString(name, required || false)
@@ -1423,10 +1420,10 @@ export class CommandContext {
         return value
     }
 
-    async getIntegerOption(name: string, required: true): Promise<number>
-    async getIntegerOption(name: string, required?: false): Promise<number | null>
-    async getIntegerOption(name: string): Promise<number | null>
-    async getIntegerOption(name: string, required?: boolean): Promise<number | null> {
+    getIntegerOption(name: string, required: true): number
+    getIntegerOption(name: string, required?: false): number | null
+    getIntegerOption(name: string): number | null
+    getIntegerOption(name: string, required?: boolean): number | null {
         let value: number | null = null
         if (this.interaction) {
             value = this.interaction.options.getInteger(name, required || false)
@@ -1441,10 +1438,10 @@ export class CommandContext {
         return value
     }
 
-    async getBooleanOption(name: string, required: true): Promise<boolean>
-    async getBooleanOption(name: string, required?: false): Promise<boolean | null> // Note: boolean can be false, so null means "not provided"
-    async getBooleanOption(name: string): Promise<boolean | null>
-    async getBooleanOption(name: string, required?: boolean): Promise<boolean | null> {
+    getBooleanOption(name: string, required: true): boolean
+    getBooleanOption(name: string, required?: false): boolean | null // Note: boolean can be false, so null means "not provided"
+    getBooleanOption(name: string): boolean | null
+    getBooleanOption(name: string, required?: boolean): boolean | null {
         let value: boolean | null = null
         if (this.interaction) {
             value = this.interaction.options.getBoolean(name, required || false)
@@ -1532,10 +1529,10 @@ export class CommandContext {
         return value
     }
 
-    async getNumberOption(name: string, required: true): Promise<number>
-    async getNumberOption(name: string, required?: false): Promise<number | null>
-    async getNumberOption(name: string): Promise<number | null>
-    async getNumberOption(name: string, required?: boolean): Promise<number | null> {
+    getNumberOption(name: string, required: true): number
+    getNumberOption(name: string, required?: false): number | null
+    getNumberOption(name: string): number | null
+    getNumberOption(name: string, required?: boolean): number | null {
         let value: number | null = null
         if (this.interaction) {
             value = this.interaction.options.getNumber(name, required || false)
@@ -1550,10 +1547,10 @@ export class CommandContext {
         return value
     }
 
-    async getAttachmentOption(name: string, required: true): Promise<Attachment>
-    async getAttachmentOption(name: string, required?: false): Promise<Attachment | null>
-    async getAttachmentOption(name: string): Promise<Attachment | null>
-    async getAttachmentOption(name: string, required?: boolean): Promise<Attachment | null> {
+    getAttachmentOption(name: string, required: true): Attachment
+    getAttachmentOption(name: string, required?: false): Attachment | null
+    getAttachmentOption(name: string): Attachment | null
+    getAttachmentOption(name: string, required?: boolean): Attachment | null {
         let value: Attachment | null = null
         if (this.interaction) {
             value = this.interaction.options.getAttachment(name, required || false)

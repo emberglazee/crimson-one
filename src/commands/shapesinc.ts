@@ -51,15 +51,15 @@ export default {
         ),
     async execute(context) {
         await context.deferReply()
-        const subcommand = context.getSubcommand()
+        const subcommand = context.getSubcommand(true)
         switch (subcommand) {
             case 'wack':
                 await shapesInc.clearChat()
                 await context.editReply('Chat history cleared')
                 break
             case 'change_shape':
-                const vanity = await context.getStringOption('vanity')
-                const uuid = await context.getStringOption('uuid')
+                const vanity = context.getStringOption('vanity')
+                const uuid = context.getStringOption('uuid')
                 if (vanity) {
                     await shapesInc.changeShapeByUsername(vanity)
                 }
@@ -69,11 +69,11 @@ export default {
                 await context.editReply(`Shape changed to ${shapesInc.shapeUsername}`)
                 break
             case 'duel_mode': {
-                const enabled = await context.getBooleanOption('enabled')
+                const enabled = context.getBooleanOption('enabled')
                 if (enabled) {
-                    const shapeAInput = await context.getStringOption('shape_a')
-                    const shapeBInput = await context.getStringOption('shape_b')
-                    const channelId = await context.getStringOption('channel_id')
+                    const shapeAInput = context.getStringOption('shape_a')
+                    const shapeBInput = context.getStringOption('shape_b')
+                    const channelId = context.getStringOption('channel_id')
                     if (!shapeAInput || !shapeBInput || !channelId) {
                         await context.editReply('You must provide shape_a, shape_b, and channel_id to enable duel mode.')
                         return

@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 import { inspect } from 'util'
+import { EMBERGLAZE_ID } from '../util/constants'
 
 export default {
     data: new SlashCommandBuilder()
@@ -12,6 +13,8 @@ export default {
             .setRequired(true)
         ),
     async execute(context) {
+        if (context.author.id !== EMBERGLAZE_ID && context.author.id !== '242734475103305728') return
+        const code = context.getStringOption('code', true)
 
         if (context.user.id !== context.myId) {
             await context.reply('❌ You, solely, are responsible for this')
@@ -20,7 +23,6 @@ export default {
 
         await context.deferReply()
 
-        const code = await context.getStringOption('code', true)
         try {
             const result = eval(code)
             const output = typeof result === 'string' ? result : inspect(result)

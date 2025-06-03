@@ -238,7 +238,7 @@ export default {
         // Helper to resolve user from picker or user_id
         async function resolveUserOrId() {
             const user = await context.getUserOption('user') ?? undefined
-            const userId = await context.getStringOption('user_id') ?? undefined
+            const userId = context.getStringOption('user_id') ?? undefined
             if (user) return user
             if (userId) {
                 try {
@@ -256,11 +256,11 @@ export default {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const source = (await context.getStringOption('source')) as Source
+            const source = (context.getStringOption('source')) as Source
             const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined
-            const words = await context.getIntegerOption('words') ?? 20
-            const seed = await context.getStringOption('seed') ?? undefined
-            const characterMode = await context.getBooleanOption('character_mode', false)
+            const words = context.getIntegerOption('words') ?? 20
+            const seed = context.getStringOption('seed') ?? undefined
+            const characterMode = context.getBooleanOption('character_mode', false)
 
             await context.deferReply()
 
@@ -355,7 +355,7 @@ export default {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const source = (await context.getStringOption('source')) as Source
+            const source = (context.getStringOption('source')) as Source
             const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined
 
             await context.deferReply()
