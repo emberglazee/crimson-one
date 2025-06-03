@@ -97,7 +97,7 @@ export default {
             await context.reply(message)
             return
         }
-        const user = await context.getUserOption('user') ?? context.author
+        const user = await context.getUserOption('user', false, context.author)
         const rolls = context.getNumberOption('rolls') ?? 1
         const action = context.getStringOption('action')
 
