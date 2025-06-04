@@ -21,8 +21,8 @@ export default {
             )
         ),
     async execute(context) {
-        const question = await context.getStringOption('question', true)
-        const theme = await context.getStringOption('theme', false)
+        const question = context.getStringOption('question', true)
+        const theme = context.getStringOption('theme', false)
 
         const cascadiaResponses = [
             'As certain as Cascadia\'s victory.',
