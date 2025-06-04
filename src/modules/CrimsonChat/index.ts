@@ -65,16 +65,14 @@ export default class CrimsonChat {
         if (!this.enabled) return
 
         const targetChannel = options.targetChannel || this.channel
-        logger.info(`Processing message from ${chalk.yellow(options.username)}: ${chalk.yellow(content.substring(0, 50) + (content.length > 50) ? '...' : '')}`)
+        logger.info(`Processing message from ${chalk.yellow(options.username)}: ${chalk.yellow(content.substring(0, 50) + (content.length > 50 ? '...' : ''))}`)
 
-        // Start typing indicator loop - only for initial processing
         const typingInterval = setInterval(() => {
             targetChannel.sendTyping().catch(e => {
                 logger.warn(`Failed to send typing indicator: ${chalk.yellow(e.message)}`)
             })
         }, 8000)
 
-        // Initial typing indicator
         await targetChannel.sendTyping()
         let response: ChatResponseArray = []
 
@@ -82,97 +80,107 @@ export default class CrimsonChat {
             let currentResponse = await this.getMessageProcessor().processMessage(content, options, originalMessage)
             if (!currentResponse) {
                 logger.info('Received null/undefined response from message processor, ignoring')
+                clearInterval(typingInterval)
                 return null
             }
 
-            // Clear typing indicators before sending messages
             clearInterval(typingInterval)
 
-            // Process responses in a loop to handle command chaining
-            const messageHistory: (string | ChatResponse)[] = [] // Keep track of message parts to avoid repeating
+            const messageHistory: ChatResponse[] = []
+            const sentMessagesForDeduplication = new Set<string>()
             let iterationCount = 0
-            const MAX_ITERATIONS = 5 // Prevent infinite loops
+            const MAX_ITERATIONS = 5
 
-            while (currentResponse && iterationCount < MAX_ITERATIONS) {
-                // Split response handling based on whether a command exists
-                const commandIndex = currentResponse.findIndex(msg => typeof msg === 'object' && 'command' in msg)
+            while (currentResponse && currentResponse.length > 0 && iterationCount < MAX_ITERATIONS) {
+                const commandIndex = currentResponse.findIndex(msg => typeof msg === 'object' && msg !== null && 'command' in msg)
                 const hasCommand = commandIndex !== -1
 
-                // Send messages before the command if they're not duplicates
                 if (hasCommand) {
                     for (let i = 0; i < commandIndex; i++) {
                         const msg = currentResponse[i]
-                        const msgString = typeof msg === 'string' ? msg : JSON.stringify(msg)
-                        if (!messageHistory.includes(msgString)) {
+                        const msgStringForDedupe = typeof msg === 'string' ? msg : JSON.stringify(msg)
+                        if (!sentMessagesForDeduplication.has(msgStringForDedupe)) {
                             await this.sendResponseToDiscord(msg, targetChannel, i === 0 && iterationCount === 0 ? originalMessage : undefined)
-                            messageHistory.push(msgString)
+                            messageHistory.push(msg)
+                            sentMessagesForDeduplication.add(msgStringForDedupe)
                         }
                     }
 
-                    // Cast and process the command
                     const commandMsg = (currentResponse[commandIndex] as ExplicitAny).command as { name: string; params?: string[] }
                     const commandResult = await this.getMessageProcessor().commandParser.parseCommand(commandMsg, originalMessage)
 
-                    if (commandResult) {
-                        await this.sendResponseToDiscord(commandResult, targetChannel)
+                    if (commandResult) { // commandResult is string | null. If string, it's a message to be sent.
+                        const msgStringForDedupe = commandResult
+                        if (!sentMessagesForDeduplication.has(msgStringForDedupe)) {
+                            await this.sendResponseToDiscord(commandResult, targetChannel)
+                            messageHistory.push(commandResult)
+                            sentMessagesForDeduplication.add(msgStringForDedupe)
+                        }
 
-                        // Get a new response based on the command result
                         const nextResponse = await this.getMessageProcessor().processMessage(
                             commandResult,
-                            { ...options, respondingTo: undefined }, // Clear respondingTo for command chain
-                            undefined // Don't pass original message for chained responses
+                            { ...options, respondingTo: undefined, contextMessages: undefined, imageAttachments: undefined },
+                            undefined
                         )
 
-                        // Process remaining messages from current response
                         for (let i = commandIndex + 1; i < currentResponse.length; i++) {
                             const msg = currentResponse[i]
-                            const msgString = typeof msg === 'string' ? msg : JSON.stringify(msg)
-                            if (!messageHistory.includes(msgString)) {
+                            const msgStringForDedupe = typeof msg === 'string' ? msg : JSON.stringify(msg)
+                            if (!sentMessagesForDeduplication.has(msgStringForDedupe)) {
                                 await this.sendResponseToDiscord(msg, targetChannel)
-                                messageHistory.push(msgString)
+                                messageHistory.push(msg)
+                                sentMessagesForDeduplication.add(msgStringForDedupe)
                             }
                         }
 
-                        // Set up next iteration if we got a response
                         if (nextResponse && nextResponse.length > 0) {
                             currentResponse = nextResponse
                             iterationCount++
                             continue
+                        } else {
+                            currentResponse = [] // Stop chain if no next response
                         }
+                    } else {
+                        // Command had no string result (e.g., noOp or error)
+                        // Process remaining messages from current response
+                        for (let i = commandIndex + 1; i < currentResponse.length; i++) {
+                            const msg = currentResponse[i]
+                            const msgStringForDedupe = typeof msg === 'string' ? msg : JSON.stringify(msg)
+                            if (!sentMessagesForDeduplication.has(msgStringForDedupe)) {
+                                await this.sendResponseToDiscord(msg, targetChannel)
+                                messageHistory.push(msg)
+                                sentMessagesForDeduplication.add(msgStringForDedupe)
+                            }
+                        }
+                        currentResponse = [] // Stop chain
                     }
                 } else {
-                    // Process messages normally if no command exists
                     for (const [index, msg] of currentResponse.entries()) {
-                        const msgString = typeof msg === 'string' ? msg : JSON.stringify(msg)
-                        if (!messageHistory.includes(msgString)) {
+                        const msgStringForDedupe = typeof msg === 'string' ? msg : JSON.stringify(msg)
+                        if (!sentMessagesForDeduplication.has(msgStringForDedupe)) {
                             await this.sendResponseToDiscord(msg, targetChannel, index === 0 && iterationCount === 0 ? originalMessage : undefined)
-                            messageHistory.push(msgString)
+                            messageHistory.push(msg)
+                            sentMessagesForDeduplication.add(msgStringForDedupe)
                         }
                     }
+                    currentResponse = [] // All processed for this batch
                 }
 
-                // If we reach here, we're done processing the current response
-                break
+                if (!currentResponse || currentResponse.length === 0) break
             }
 
             if (iterationCount >= MAX_ITERATIONS) {
                 logger.warn(`Command chain exceeded ${MAX_ITERATIONS} iterations, stopping to prevent infinite loop`)
-                await this.sendResponseToDiscord(`⚠️ Command chain exceeded ${MAX_ITERATIONS} iterations and was stopped`, targetChannel)
+                const warningMessage = `⚠️ Command chain exceeded ${MAX_ITERATIONS} iterations and was stopped`
+                // Check dedupe before sending and adding to history
+                if (!sentMessagesForDeduplication.has(warningMessage)) {
+                    await this.sendResponseToDiscord(warningMessage, targetChannel)
+                    messageHistory.push(warningMessage)
+                    // No need to add to sentMessagesForDeduplication as this is a unique, final message
+                }
             }
 
-            // Combine all processed responses
-            response = messageHistory.map(msg => {
-                if (typeof msg === 'string') {
-                    try {
-                        return JSON.parse(msg)
-                    } catch {
-                        // If parsing fails, just return the string - don't try to send it again
-                        logger.warn(`Failed to parse message: ${chalk.red(msg)}`)
-                        return msg
-                    }
-                }
-                return msg
-            })
+            response = [...messageHistory]
 
             return response
 
