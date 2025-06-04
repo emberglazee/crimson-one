@@ -1,18 +1,17 @@
+import { Logger, red, yellow } from '../../util/logger'
+const logger = new Logger('CrimsonChat | MessageProcessor')
+
 import OpenAI from 'openai'
 import { ImageProcessor } from './ImageProcessor'
 import { CommandParser } from './CommandParser'
-import { Logger } from '../../util/logger'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSONCHAT_RESPONSE_SCHEMA, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
 import type { ChatMessage, UserMessageOptions, UserStatus, ChatResponseArray } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
-import chalk from 'chalk'
 import { zodResponseFormat } from 'openai/helpers/zod.mjs'
 import type { ParsedChatCompletion } from 'openai/resources/chat/completions.mjs'
 import z from 'zod'
 import type { Message } from 'discord.js'
-
-const logger = new Logger('CrimsonChat | MessageProcessor')
 
 export class MessageProcessor {
     private static instance: MessageProcessor
@@ -134,7 +133,8 @@ export class MessageProcessor {
 
         } catch (e) {
             const error = e as Error
-            logger.error(`Error processing AI response: ${chalk.red(error.message)}`)
+            logger.warn(`Error processing AI response: ${red(error.message)}`)
+            logger.debug(error.stack ?? 'No stack trace')
             throw error
         }
     }
@@ -157,7 +157,7 @@ export class MessageProcessor {
             return response.choices[0].message.parsed
         } catch (error) {
             if (error instanceof Error && error.message.includes('Response timeout')) {
-                logger.error(`${chalk.red(error.message)}`)
+                logger.error(`${red(error.message)}`)
                 throw error
             }
             throw error
@@ -166,7 +166,7 @@ export class MessageProcessor {
 
     private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<ChatResponseArray | null> {
         if (this.forceNextBreakdown || Math.random() < this.BREAKDOWN_CHANCE) {
-            logger.info(`Triggering ${chalk.yellow(this.forceNextBreakdown ? 'forced' : 'random')} Crimson 1 breakdown`)
+            logger.info(`Triggering ${yellow(this.forceNextBreakdown ? 'forced' : 'random')} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
 
             const messageData = {
@@ -262,7 +262,7 @@ export class MessageProcessor {
             }
         } catch (e) {
             const error = e as Error
-            logger.error(`Error fetching user status: ${chalk.red(error.message)}`)
+            logger.error(`Error fetching user status: ${red(error.message)}`)
             return 'unknown'
         }
     }
