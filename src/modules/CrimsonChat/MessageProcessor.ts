@@ -9,7 +9,6 @@ import type { ChatMessage, UserMessageOptions, UserStatus, ChatResponseArray } f
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
 import { zodResponseFormat } from 'openai/helpers/zod.mjs'
-import type { ParsedChatCompletion } from 'openai/resources/chat/completions.mjs'
 import z from 'zod'
 import type { Message } from 'discord.js'
 
@@ -143,7 +142,7 @@ export class MessageProcessor {
         const RESPONSE_TIMEOUT_MS = 30000
 
         try {
-            const responsePromise = this.openai.chat.completions.parse({
+            const responsePromise = this.openai.chat.completions.create({
                 messages,
                 model: OPENAI_MODEL,
                 response_format: zodResponseFormat(CRIMSONCHAT_RESPONSE_SCHEMA, 'response')
@@ -153,8 +152,13 @@ export class MessageProcessor {
                 setTimeout(() => reject(new Error('Response timeout: Assistant took too long to respond')), RESPONSE_TIMEOUT_MS)
             })
 
-            const response = await Promise.race([responsePromise, timeoutPromise]) as ParsedChatCompletion<z.infer<typeof CRIMSONCHAT_RESPONSE_SCHEMA>>
-            return response.choices[0].message.parsed
+            const response = await Promise.race([responsePromise, timeoutPromise]) as OpenAI.Chat.Completions.ChatCompletion
+            if (!response.choices[0].message.content) {
+                throw new Error('No response from OpenAI')
+            }
+
+            const parsedResponse = CRIMSONCHAT_RESPONSE_SCHEMA.parse(response.choices[0].message.content)
+            return parsedResponse
         } catch (error) {
             if (error instanceof Error && error.message.includes('Response timeout')) {
                 logger.error(`${red(error.message)}`)
