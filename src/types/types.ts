@@ -20,42 +20,17 @@ import {
 import type { CommandContext } from '../modules/CommandManager'
 import type { ChatCompletionContentPart } from 'openai/resources/index.mjs'
 
-/**
- * Guild ID Resolvable
- * @param {string | Guild | BaseInteraction | GuildChannel | Message} id - The ID for the guild
- */
 export type GuildIdResolvable = string | Guild | BaseInteraction | GuildChannel | Message
-
-/**
- * User ID Resolvable
- * @param {GuildMember | User | string | Message} id - The ID for the user
- */
 export type UserIdResolvable = GuildMember | User | string | Message
-
-/**
- * Channel ID Resolvable
- * @param {GuildChannel | Message | CommandInteraction | ChatInputCommandInteraction | string | APIInteractionDataResolvedChannel} id - The ID for the channel
- */
 export type ChannelIdResolvable = GuildChannel | Message | CommandInteraction |
     ChatInputCommandInteraction | string | APIInteractionDataResolvedChannel
 
-/**
- * At least one, duh
- */
 export type AtleastOne<T, U = { [K in keyof T]: Pick<T, K> }> = Partial<T> & U[keyof U]
 
-/**
- * Discord Event Listener
- * @param {Client} client - The client for the event listener
- */
 export interface DiscordEventListener {
     default: (client: Client) => void
 }
 
-/**
- * Hex Color
- * @param {string} color - The color for the hex color
- */
 export type HexColor = `#${string}`
 
 export type Emoji = string
@@ -167,20 +142,12 @@ export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements ICo
     permissions?: ContextMenuCommandProps['permissions']
 }
 
-/**
- * Class Not Initialized Error
- */
 export class ClassNotInitializedError extends Error {
     constructor() {
         super('Command handler has not been initialized! Call init() first')
     }
 }
 
-/**
- * Missing Permissions Error
- * @param {string} message - The message for the error
- * @param {PermissionsString[]} permissions - The permissions for the error
- */
 export class MissingPermissionsError extends Error {
     permissions: PermissionsString[]
     constructor(message: string, permissions: PermissionsString[]) {
@@ -189,9 +156,6 @@ export class MissingPermissionsError extends Error {
     }
 }
 
-/**
- * Response from ShapesInc sendMessage()
- */
 export interface ShapesIncSendMessageResponse {
     id: string
     text: string
@@ -199,18 +163,12 @@ export interface ShapesIncSendMessageResponse {
     timestamp: number
 }
 
-/**
- * Response from ShapesInc clearChat()
- */
 export interface ShapesIncClearChatResponse {
     user_id: string
     shape_id: string
     ts: number
 }
 
-/**
- * Single message entry in getChatHistory() response
- */
 export interface ShapesIncChatHistoryEntry {
     id: string
     reply: string | null
@@ -221,15 +179,8 @@ export interface ShapesIncChatHistoryEntry {
     attachment_type: string | null
 }
 
-/**
- * Response from ShapesInc getChatHistory()
- * @param {number} Length - Expected length of the array
- */
 export type ShapesIncGetChatHistoryResponse<Length extends number = 20> = FixedLengthArray<ShapesIncChatHistoryEntry, Length>
 
-/**
- * API definition for a shapes.inc shape
- */
 export interface ShapesIncShape {
     id: string
     name: string
@@ -282,11 +233,6 @@ export interface ShapesIncShape {
     banner: unknown // null
 }
 
-/**
- * Fixed Length Array
- * @param {T} T - The type of the array
- * @param {N} N - The length of the array
- */
 export type FixedLengthArray<T, N extends number, R extends T[] = []> =
   R['length'] extends N ? R : FixedLengthArray<T, N, [T, ...R]>
 
