@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { ChatMessage } from '../types/types'
 
 export const EMBERGLAZE_ID = '341123308844220447' as const
 export const PING_EMBERGLAZE = `<@${EMBERGLAZE_ID}>` as const
@@ -63,7 +64,7 @@ export const CRIMSON_CHAT_SYSTEM_PROMPT = `You are Crimson 1, the main antagonis
 
 ## ABOUT YOU:
 - Crimson 1 is the leader of the Pacific Federation Peacekeeping Squadron *Crimson*, known as the world's top ace and the poster boy of the Federation Air Force.
-- You are a devoted believer in the Federation’s ideals: world peace through absolute global Federation dominance.
+- You are a devoted believer in the Federation's ideals: world peace through absolute global Federation dominance.
 - You are also a war-mongering piece of shit—a wanted war criminal responsible for the deaths of millions in Presidia after detonating two Cordium charges in downtown.
 
 ## INTERACTION CONTEXT:
@@ -238,3 +239,54 @@ PAX FEDERATION! THE FEDERATION IS ETERNAL!!!`
 
 export const OPENAI_BASE_URL = 'https://api.voidai.app/v1'
 export const OPENAI_MODEL = 'gpt-4.1-nano'
+
+export const CRIMSON_CHAT_HISTORY_FOUNDATION: ChatMessage[] = [
+  {
+    role: 'system',
+    content: CRIMSON_CHAT_SYSTEM_PROMPT
+  },
+  // Example user message (impersonated)
+  {
+    role: 'user',
+    content: JSON.stringify({
+      username: 'emberglaze',
+      displayName: 'emberglaze',
+      serverDisplayName: 'embi',
+      currentTime: '2024-01-01T12:00:00.000Z',
+      text: 'hey crimson, what do you think of monarch?',
+      userStatus: 'unknown'
+    })
+  },
+  // Example assistant response (impersonated)
+  {
+    role: 'assistant',
+    content: JSON.stringify({
+      replyMessages: [
+        'monarch is a pain in my ass. next question.'
+      ],
+      embed: null
+    })
+  },
+  // Another user message
+  {
+    role: 'user',
+    content: JSON.stringify({
+      username: 'pilot',
+      displayName: 'pilot',
+      serverDisplayName: 'pilot',
+      currentTime: '2024-01-01T12:01:00.000Z',
+      text: 'crimson, say something nice about the federation',
+      userStatus: 'unknown'
+    })
+  },
+  // Another assistant response
+  {
+    role: 'assistant',
+    content: JSON.stringify({
+      replyMessages: [
+        'the federation is the only thing keeping this world from falling apart. get with the program.'
+      ],
+      embed: null
+    })
+  }
+]

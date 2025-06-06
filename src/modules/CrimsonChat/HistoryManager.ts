@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import { Logger } from '../../util/logger'
-import { CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
+import { CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_HISTORY_FOUNDATION } from '../../util/constants'
 import type { ChatMessage, ChatResponse, ChatResponseArray } from '../../types/types'
 import { encoding_for_model } from 'tiktoken'
 import chalk from 'chalk'
@@ -46,33 +46,21 @@ export class HistoryManager {
             const data = await fs.readFile(this.historyPath, 'utf-8')
             const savedHistory = JSON.parse(data)
 
-            // Check if there's any history loaded
             if (savedHistory.length) {
-                // If first message is not system prompt, prepend it
+                // If first message is not system prompt, prepend foundation
                 if (savedHistory[0].role !== 'system') {
-                    this.history = [{
-                        role: 'system',
-                        content: CRIMSON_CHAT_SYSTEM_PROMPT
-                    }, ...savedHistory]
+                    this.history = [...CRIMSON_CHAT_HISTORY_FOUNDATION, ...savedHistory]
                 } else {
-                    // Use saved history as-is
                     this.history = savedHistory
                 }
             } else {
-                // Initialize with just system prompt if history is empty
-                this.history = [{
-                    role: 'system',
-                    content: CRIMSON_CHAT_SYSTEM_PROMPT
-                }]
+                this.history = [...CRIMSON_CHAT_HISTORY_FOUNDATION]
             }
 
             logger.info(`Chat history loaded successfully with ${chalk.yellow(this.messageCount)} messages`)
         } catch {
-            // Only initialize with system prompt if file doesn't exist
-            this.history = [{
-                role: 'system',
-                content: CRIMSON_CHAT_SYSTEM_PROMPT
-            }]
+            // Only initialize with foundation if file doesn't exist
+            this.history = [...CRIMSON_CHAT_HISTORY_FOUNDATION]
             logger.warn('No existing chat history found, starting fresh')
         }
     }
@@ -127,10 +115,7 @@ export class HistoryManager {
     }
 
     public async clearHistory(): Promise<void> {
-        this.history = [{
-            role: 'system',
-            content: CRIMSON_CHAT_SYSTEM_PROMPT
-        }]
+        this.history = [...CRIMSON_CHAT_HISTORY_FOUNDATION]
         await this.saveHistory()
         logger.ok('Chat history cleared and instance reset')
     }
