@@ -161,7 +161,7 @@ export class MessageProcessor {
             return parsedResponse
         } catch (error) {
             if (error instanceof Error && error.message.includes('Response timeout')) {
-                logger.error(`${red(error.message)}`)
+                logger.warn(`${red(error.message)}`)
                 throw error
             }
             throw error
