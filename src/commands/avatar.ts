@@ -3,6 +3,15 @@ import { SlashCommand } from '../types/types'
 import { BotInstallationType } from '../types/types'
 import { smallFooterNote } from '../util/functions'
 
+const avatarExtensionOptions = [
+    { name: 'GIF', value: 'gif' },
+    { name: 'WEBP', value: 'webp' },
+    { name: 'PNG', value: 'png' },
+    { name: 'JPEG', value: 'jpg' }
+] as const
+const avatarSizes = [16, 32, 64, 128, 256, 512, 1024, 2048, 4096] as const
+const avatarSizeOptions = avatarSizes.map(size => ({ name: `${size}px` as const, value: size }))
+
 export default {
     data: new SlashCommandBuilder()
         .setName('avatar')
@@ -18,26 +27,13 @@ export default {
         ).addStringOption(so => so
             .setName('extension')
             .setDescription('Image format to get the avatar in (default: PNG, if avatar is animated, pick GIF)')
-            .setChoices(
-                { name: 'GIF', value: 'gif' },
-                { name: 'WEBP', value: 'webp' },
-                { name: 'PNG', value: 'png' },
-                { name: 'JPEG', value: 'jpg' }
-            ).setRequired(false)
+            .addChoices(...avatarExtensionOptions)
+            .setRequired(false)
         ).addNumberOption(no => no
             .setName('size')
             .setDescription('Avatar size (default: 1024)')
-            .setChoices(
-                { name: '16', value: 16 },
-                { name: '32', value: 32 },
-                { name: '64', value: 64 },
-                { name: '128', value: 128 },
-                { name: '256', value: 256 },
-                { name: '512', value: 512 },
-                { name: '1024', value: 1024 },
-                { name: '2048', value: 2048 },
-                { name: '4096', value: 4096 }
-            ).setRequired(false)
+            .addChoices(...avatarSizeOptions)
+            .setRequired(false)
         ).addStringOption(so => so
             .setName('serverorglobal')
             .setDescription('Should the avatar be from the server or global? (default: server/guild, unless not in a server)')
