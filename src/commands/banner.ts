@@ -11,11 +11,9 @@ export default {
             .setRequired(true)
         ),
     async execute(context) {
-        const user = await context.getUserOption('user')
-        if (!user) {
-            await context.reply({ content: 'Please provide a valid user to show the banner of', ephemeral: true })
-            return
-        }
+        const user = await (
+            await context.getUserOption('user', true)
+        ).fetch(true)
 
         const banner = user.bannerURL()
         if (!banner) {
