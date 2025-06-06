@@ -16,12 +16,8 @@ import { AWACSFeed } from './modules/AWACSFeed'
 import { MessageTrigger } from './modules/MessageTrigger'
 import { gracefulShutdown } from './modules/GracefulShutdown'
 import GuildConfigManager from './modules/GuildConfig'
-import { registerFont } from 'canvas'
 import { QuoteImageFactory } from './modules/QuoteImageFactory'
 import CrimsonChat from './modules/CrimsonChat'
-registerFont(path.join(__dirname, '../data/Roboto.ttf'), { family: 'Roboto' }) // Project Wingman
-registerFont(path.join(__dirname, '../data/Aces07.ttf'), { family: 'Aces07' }) // Ace Combat 7
-registerFont(path.join(__dirname, '../data/FSSinclairRegular.otf'), { family: 'FSSinclair' }) // Helldivers 2
 
 const bot = new Client({
     intents: new IntentsBitField([

@@ -1,7 +1,7 @@
 import { Logger, yellow, red } from '../util/logger'
 const logger = new Logger('QuoteImageFactory')
 
-import { createCanvas, loadImage } from 'canvas'
+import { createCanvas, loadImage, registerFont } from 'canvas'
 import { Buffer } from 'buffer'
 import { spawn } from 'child_process'
 import fs from 'fs/promises'
@@ -10,6 +10,9 @@ import path from 'path'
 import { TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS, type GradientType } from '../util/colors'
 import { type Client, type Guild } from 'discord.js'
 
+registerFont(path.join(__dirname, '../../data/Roboto.ttf'), { family: 'Roboto' }) // Project Wingman
+registerFont(path.join(__dirname, '../../data/Aces07.ttf'), { family: 'Aces07' }) // Ace Combat 7
+registerFont(path.join(__dirname, '../../data/FSSinclairRegular.otf'), { family: 'FSSinclair' }) // Helldivers 2
 
 export type QuoteImageResult = {
     buffer: Buffer,
@@ -588,11 +591,11 @@ export class QuoteImageFactory {
                         // Round the corners of the background
                         ctx.beginPath()
                         ctx.roundRect(
-                            x - textWidth/2 - bgPadding,
-                            y + bgOffset - bgPadding/2,
+                            x - textWidth / 2 - bgPadding,
+                            y + bgOffset - bgPadding / 2,
                             textWidth + bgPadding * 2,
                             bgHeight,
-                            bgHeight/2
+                            bgHeight / 2
                         )
                         ctx.fill()
 
@@ -620,13 +623,13 @@ export class QuoteImageFactory {
                 ctx.shadowBlur = 8
                 let y = 50
 
-                // Draw speaker name and quote
+                // Helldivers 2 style, completely different from Ace Combat 7 and Project Wingman so handled separately
                 if (style === 'hd2') {
-                    // Set up font and measurements for HD2 style
+                    // Set up font and measurements
                     ctx.font = `${hd2FontSize}px ${font}`
                     ctx.textBaseline = 'alphabetic'
                     ctx.textAlign = 'left'
-                    ctx.shadowBlur = 0 // Remove shadow effect for HD2 style
+                    ctx.shadowBlur = 0 // Remove shadow effect
 
                     // Calculate dimensions
                     const speakerWidth = ctx.measureText(speaker).width
@@ -673,17 +676,17 @@ export class QuoteImageFactory {
                     const hd2VerticalOffset = canvas.height * 0.6
                     const boxY = hd2VerticalOffset - (boxHeight / 2)
 
-                    // Draw black box
+                    // Black box
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
                     ctx.fillRect(boxX, boxY, boxWidth, boxHeight)
 
-                    // Draw speaker name
+                    // Speaker name
                     ctx.fillStyle = gradient === 'none' ? '#FFE81F' : speakerColor
                     const speakerX = boxX + hd2TextPadding
                     const speakerY = boxY + hd2BaselineOffset
                     ctx.fillText(speaker, speakerX, speakerY)
 
-                    // Draw quote text
+                    // Quote text
                     ctx.fillStyle = 'white'
                     const textX = speakerX + speakerWidth + hd2SpeakerTextGap
                     let currentY = speakerY
@@ -697,7 +700,6 @@ export class QuoteImageFactory {
                     return canvas
                 }
 
-                // Non-HD2 styles continue here
                 if (gradient === 'none') {
                     ctx.fillStyle = speakerColor
                     for (let i = 0; i < speakerLines.length; i++) {
@@ -718,7 +720,6 @@ export class QuoteImageFactory {
                         let totalWidth = 0
                         let currentPos = 0
                         const lineText = line
-
                         for (const emoji of adjustedEmojis) {
                             const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
                             totalWidth += ctx.measureText(textBefore).width + fontSize
@@ -726,7 +727,7 @@ export class QuoteImageFactory {
                         }
                         totalWidth += ctx.measureText(lineText.substring(currentPos)).width
 
-                        // Draw text and emojis
+                        // Text and emojis
                         const centerX = width / 2
                         let currentX = centerX - totalWidth / 2
                         currentPos = 0
@@ -798,7 +799,7 @@ export class QuoteImageFactory {
                         speakerWidth + hd2SpeakerTextGap + maxTextWidth + (hd2TextPadding * 2)
                     )
 
-                    // Draw black box
+                    // Black box
                     const boxHeight = hd2LineHeight
                     const boxWidth = totalWidth
                     const boxX = (width - boxWidth) / 2
@@ -807,7 +808,7 @@ export class QuoteImageFactory {
                     ctx.fillStyle = 'black'
                     ctx.fillRect(boxX, boxY, boxWidth, boxHeight)
 
-                    // Draw speaker name
+                    // Speaker name
                     ctx.fillStyle = speakerColor
                     ctx.textAlign = 'left'
                     ctx.textBaseline = 'alphabetic'
@@ -816,7 +817,7 @@ export class QuoteImageFactory {
                     const speakerY = boxY + hd2BaselineOffset
                     ctx.fillText(speaker, speakerX, speakerY)
 
-                    // Draw quote text
+                    // Quote text
                     ctx.fillStyle = 'white'
                     const textX = speakerX + speakerWidth + hd2SpeakerTextGap
                     let currentY = speakerY
@@ -873,7 +874,7 @@ export class QuoteImageFactory {
                         const centerX = width / 2
                         let currentX = centerX - totalWidth / 2
 
-                        // Draw AC7 opening arrows if needed
+                        // Ace Combat 7 specific opening arrows
                         if (style === 'ac7' && i === 0) {
                             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
                             ctx.fillText('<<', currentX - 40, y)
@@ -919,7 +920,7 @@ export class QuoteImageFactory {
                             currentX += textWidth
                         }
 
-                        // Draw AC7 closing arrows if needed
+                        // Surprise, we need closing arrows too
                         if (style === 'ac7' && i === quoteLines.length - 1) {
                             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
                             ctx.fillText('>>', currentX + 40, y)
@@ -930,7 +931,7 @@ export class QuoteImageFactory {
                 }
 
                 const endTime = performance.now()
-                logger.info(`Frame ${yellow(frameIndex + 1)} rendered in ${yellow((endTime - startTime).toFixed(2))}ms`)
+                logger.debug(`Frame ${yellow(frameIndex + 1)} rendered in ${yellow((endTime - startTime).toFixed(2))}ms`)
                 return canvas
             }
 
@@ -962,7 +963,7 @@ export class QuoteImageFactory {
 
                         if (i % 10 === 0) {
                             const progress = ((i + 1) / maxFrames * 100).toFixed(1)
-                            logger.info(`Frame progress: ${progress}% (${i + 1}/${maxFrames})`)
+                            logger.debug(`Frame progress: ${progress}% (${i + 1}/${maxFrames})`)
                         }
                     }
 
