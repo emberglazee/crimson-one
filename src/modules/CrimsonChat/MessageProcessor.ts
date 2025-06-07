@@ -3,14 +3,10 @@ const logger = new Logger('CrimsonChat | MessageProcessor')
 
 import OpenAI from 'openai'
 import { ImageProcessor } from './ImageProcessor'
-import { CommandParser } from './CommandParser'
-import { CRIMSON_BREAKDOWN_PROMPT, CRIMSONCHAT_RESPONSE_SCHEMA, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
-import type { ChatMessage, UserMessageOptions, UserStatus, ChatResponseArray } from '../../types/types'
+import { CRIMSON_BREAKDOWN_PROMPT, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
+import type { ChatMessage, UserMessageOptions, UserStatus } from '../../types/types'
 import { HistoryManager } from './HistoryManager'
 import CrimsonChat from '.'
-import { zodResponseFormat } from 'openai/helpers/zod.mjs'
-import z from 'zod'
-import type { Message } from 'discord.js'
 
 export class MessageProcessor {
     private static instance: MessageProcessor
@@ -29,7 +25,6 @@ export class MessageProcessor {
         return MessageProcessor.instance
     }
 
-    commandParser = new CommandParser()
     forceNextBreakdown = false
     openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY!,
@@ -37,10 +32,10 @@ export class MessageProcessor {
     })
     readonly BREAKDOWN_CHANCE = 0.01
 
-    async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string[]> {
+    async processMessage(content: string, options: UserMessageOptions): Promise<string[]> {
         // Check for random breakdown before normal processing
         const breakdown = await this.handleRandomBreakdown(content, options)
-        if (breakdown) return Array.isArray(breakdown) ? breakdown : [breakdown]
+        if (breakdown) return [breakdown]
 
         try {
             // Format message in the specified JSON structure
@@ -137,7 +132,7 @@ export class MessageProcessor {
         }
     }
 
-    private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<ChatResponseArray | null> {
+    private async handleRandomBreakdown(userContent: string, options: UserMessageOptions): Promise<string | null> {
         if (this.forceNextBreakdown || Math.random() < this.BREAKDOWN_CHANCE) {
             logger.info(`Triggering ${yellow(this.forceNextBreakdown ? 'forced' : 'random')} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
@@ -155,15 +150,14 @@ export class MessageProcessor {
             }
             await this.historyManager.appendMessage('user', JSON.stringify(messageData))
 
-            const breakdownZod = await this.generateAIResponse([{
+            const breakdown = await this.generateAIResponse([{
                 role: 'system',
                 content: CRIMSON_BREAKDOWN_PROMPT
             }])
 
-            if (breakdownZod) {
-                const responseArray = this.convertToResponseArray(breakdownZod)
-                await this.historyManager.appendMessage('assistant', responseArray)
-                return responseArray
+            if (breakdown) {
+                await this.historyManager.appendMessage('assistant', breakdown)
+                return breakdown
             }
             return null
         }
@@ -238,69 +232,5 @@ export class MessageProcessor {
             logger.error(`Error fetching user status: ${red(error.message)}`)
             return 'unknown'
         }
-    }
-
-    private convertToResponseArray(aiZodOutput: z.infer<typeof CRIMSONCHAT_RESPONSE_SCHEMA> | null | undefined): ChatResponseArray {
-        const result: ChatResponseArray = []
-        if (!aiZodOutput) return result
-
-        if (aiZodOutput.replyMessages) {
-             // Check for nested stringified JSON and unwrap if necessary
-            for (const msgContent of aiZodOutput.replyMessages) {
-                try {
-                    const parsed = JSON.parse(msgContent)
-                    const nestedSchemaCheck = CRIMSONCHAT_RESPONSE_SCHEMA.safeParse(parsed)
-                    if (nestedSchemaCheck.success) {
-                        const unwrappedData = nestedSchemaCheck.data
-                        if (unwrappedData.replyMessages) {
-                            result.push(...unwrappedData.replyMessages)
-                        }
-                        if (unwrappedData.embed) {
-                            result.push({
-                                embed: {
-                                    ...unwrappedData.embed,
-                                    author: unwrappedData.embed.author === null ? undefined : unwrappedData.embed.author,
-                                    color: unwrappedData.embed.color ?? 0x8B0000,
-                                    footer: unwrappedData.embed.footer ? String(unwrappedData.embed.footer) : undefined,
-                                    fields: unwrappedData.embed.fields?.map(f => ({ name: f.name, value: f.value })) ?? undefined
-                                },
-                            })
-                        }
-                    } else {
-                        result.push(msgContent)
-                    }
-                } catch {
-                    result.push(msgContent)
-                }
-            }
-        }
-        if (aiZodOutput.embed) {
-            result.push({
-                embed: {
-                    ...aiZodOutput.embed,
-                    author: aiZodOutput.embed.author === null ? undefined : aiZodOutput.embed.author,
-                    color: aiZodOutput.embed.color ?? 0x8B0000,
-                    footer: aiZodOutput.embed.footer ? String(aiZodOutput.embed.footer) : undefined,
-                    fields: aiZodOutput.embed.fields?.map(f => ({ name: f.name, value: f.value })) ?? undefined
-                },
-            })
-        }
-        if (aiZodOutput.command) {
-            result.push({ command: { name: aiZodOutput.command.name, params: aiZodOutput.command.params || [] } })
-        }
-        return result
-    }
-
-    private formatResponseForContext(response: ChatResponseArray): string {
-        return response.map(item => {
-            if (typeof item === 'string') return item
-            if ('embed' in item) {
-                return `[Embed: ${item.embed.title || ''}\\n${item.embed.description || ''}]`
-            }
-            if ('command' in item) {
-                return `[Command: ${item.command.name}${item.command.params ? `(${item.command.params.join(', ')})` : ''}]`
-            }
-            return ''
-        }).filter(Boolean).join('\\n')
     }
 }
