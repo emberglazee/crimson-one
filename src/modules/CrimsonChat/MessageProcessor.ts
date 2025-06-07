@@ -37,7 +37,7 @@ export class MessageProcessor {
     })
     readonly BREAKDOWN_CHANCE = 0.01
 
-    async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<ChatResponseArray> {
+    async processMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string[]> {
         // Check for random breakdown before normal processing
         const breakdown = await this.handleRandomBreakdown(content, options)
         if (breakdown) return Array.isArray(breakdown) ? breakdown : [breakdown]
@@ -97,39 +97,11 @@ export class MessageProcessor {
             )
             history.push(messageForCompletion as OpenAI.Chat.Completions.ChatCompletionMessageParam)
 
-            let aiResponse = await this.generateAIResponse(history) // aiResponse is Zod object
+            const aiResponse = await this.generateAIResponse(history)
             if (!aiResponse) return []
 
-            const processedResponse = this.convertToResponseArray(aiResponse)
-            await this.historyManager.appendMessage('assistant', processedResponse)
-
-            if (aiResponse.command && aiResponse.command.name !== 'noOp') {
-                const commandIndicator = `-# ℹ️ Assistant command called: ${aiResponse.command.name}${aiResponse.command.params ? `(${aiResponse.command.params.join(', ')})` : ''}`
-                if (originalMessage?.channel && 'send' in originalMessage.channel) {
-                    await originalMessage.channel.send(commandIndicator)
-                }
-
-                const commandResult = await this.commandParser.parseCommand(
-                    { ...aiResponse.command, params: aiResponse.command.params ?? undefined },
-                    originalMessage
-                )
-
-                if (commandResult) {
-                    const commandMessage = `Command executed: ${aiResponse.command.name}${aiResponse.command.params ? `(${aiResponse.command.params.join(', ')})` : ''}\\nResult: ${commandResult}`
-                    history.push({ role: 'system', content: commandMessage })
-                    await this.historyManager.appendMessage('system', commandMessage)
-
-                    aiResponse = await this.generateAIResponse(history) // new Zod object
-                    if (aiResponse) {
-                        const followupResponse = this.convertToResponseArray(aiResponse)
-                        await this.historyManager.appendMessage('assistant', followupResponse)
-                        return followupResponse
-                    }
-                }
-            }
-
-            return processedResponse
-
+            await this.historyManager.appendMessage('assistant', aiResponse)
+            return [aiResponse]
         } catch (e) {
             const error = e as Error
             logger.warn(`Error processing AI response: ${red(error.message)}`)
@@ -144,8 +116,7 @@ export class MessageProcessor {
         try {
             const responsePromise = this.openai.chat.completions.create({
                 messages,
-                model: OPENAI_MODEL,
-                response_format: zodResponseFormat(CRIMSONCHAT_RESPONSE_SCHEMA, 'response')
+                model: OPENAI_MODEL
             })
 
             const timeoutPromise = new Promise((_, reject) => {
@@ -156,9 +127,7 @@ export class MessageProcessor {
             if (!response.choices[0].message.content) {
                 throw new Error('No response from OpenAI')
             }
-
-            const parsedResponse = CRIMSONCHAT_RESPONSE_SCHEMA.parse(response.choices[0].message.content)
-            return parsedResponse
+            return response.choices[0].message.content.trim()
         } catch (error) {
             if (error instanceof Error && error.message.includes('Response timeout')) {
                 logger.warn(`${red(error.message)}`)
