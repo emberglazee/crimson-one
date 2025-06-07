@@ -60,7 +60,7 @@ export default class CrimsonChat {
         logger.ok('CrimsonChat initialized successfully')
     }
 
-    public async sendMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<ChatResponseArray | null | undefined> {
+    public async sendMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string[] | null | undefined> {
         if (!this.channel) throw new Error('Channel not set. Call init() first.')
         if (!this.enabled) return
 
@@ -74,7 +74,7 @@ export default class CrimsonChat {
         }, 8000)
 
         await targetChannel.sendTyping()
-        let response: ChatResponseArray = []
+        let response: string[] = []
 
         try {
             let currentResponse = await this.getMessageProcessor().processMessage(content, options, originalMessage)
@@ -86,104 +86,12 @@ export default class CrimsonChat {
 
             clearInterval(typingInterval)
 
-            const messageHistory: ChatResponse[] = []
-            const sentMessagesForDeduplication = new Set<string>()
-            let iterationCount = 0
-            const MAX_ITERATIONS = 5
-
-            while (currentResponse && currentResponse.length > 0 && iterationCount < MAX_ITERATIONS) {
-                const commandIndex = currentResponse.findIndex(msg => typeof msg === 'object' && msg !== null && 'command' in msg)
-                const hasCommand = commandIndex !== -1
-
-                if (hasCommand) {
-                    for (let i = 0; i < commandIndex; i++) {
-                        const msg = currentResponse[i]
-                        const msgStringForDedupe = typeof msg === 'string' ? msg : JSON.stringify(msg)
-                        if (!sentMessagesForDeduplication.has(msgStringForDedupe)) {
-                            await this.sendResponseToDiscord(msg, targetChannel, i === 0 && iterationCount === 0 ? originalMessage : undefined)
-                            messageHistory.push(msg)
-                            sentMessagesForDeduplication.add(msgStringForDedupe)
-                        }
-                    }
-
-                    const commandMsg = (currentResponse[commandIndex] as ExplicitAny).command as { name: string; params?: string[] }
-                    const commandResult = await this.getMessageProcessor().commandParser.parseCommand(commandMsg, originalMessage)
-
-                    if (commandResult) { // commandResult is string | null. If string, it's a message to be sent.
-                        const msgStringForDedupe = commandResult
-                        if (!sentMessagesForDeduplication.has(msgStringForDedupe)) {
-                            await this.sendResponseToDiscord(commandResult, targetChannel)
-                            messageHistory.push(commandResult)
-                            sentMessagesForDeduplication.add(msgStringForDedupe)
-                        }
-
-                        const nextResponse = await this.getMessageProcessor().processMessage(
-                            commandResult,
-                            { ...options, respondingTo: undefined, contextMessages: undefined, imageAttachments: undefined },
-                            undefined
-                        )
-
-                        for (let i = commandIndex + 1; i < currentResponse.length; i++) {
-                            const msg = currentResponse[i]
-                            const msgStringForDedupe = typeof msg === 'string' ? msg : JSON.stringify(msg)
-                            if (!sentMessagesForDeduplication.has(msgStringForDedupe)) {
-                                await this.sendResponseToDiscord(msg, targetChannel)
-                                messageHistory.push(msg)
-                                sentMessagesForDeduplication.add(msgStringForDedupe)
-                            }
-                        }
-
-                        if (nextResponse && nextResponse.length > 0) {
-                            currentResponse = nextResponse
-                            iterationCount++
-                            continue
-                        } else {
-                            currentResponse = [] // Stop chain if no next response
-                        }
-                    } else {
-                        // Command had no string result (e.g., noOp or error)
-                        // Process remaining messages from current response
-                        for (let i = commandIndex + 1; i < currentResponse.length; i++) {
-                            const msg = currentResponse[i]
-                            const msgStringForDedupe = typeof msg === 'string' ? msg : JSON.stringify(msg)
-                            if (!sentMessagesForDeduplication.has(msgStringForDedupe)) {
-                                await this.sendResponseToDiscord(msg, targetChannel)
-                                messageHistory.push(msg)
-                                sentMessagesForDeduplication.add(msgStringForDedupe)
-                            }
-                        }
-                        currentResponse = [] // Stop chain
-                    }
-                } else {
-                    for (const [index, msg] of currentResponse.entries()) {
-                        const msgStringForDedupe = typeof msg === 'string' ? msg : JSON.stringify(msg)
-                        if (!sentMessagesForDeduplication.has(msgStringForDedupe)) {
-                            await this.sendResponseToDiscord(msg, targetChannel, index === 0 && iterationCount === 0 ? originalMessage : undefined)
-                            messageHistory.push(msg)
-                            sentMessagesForDeduplication.add(msgStringForDedupe)
-                        }
-                    }
-                    currentResponse = [] // All processed for this batch
-                }
-
-                if (!currentResponse || currentResponse.length === 0) break
+            for (const msg of currentResponse) {
+                await this.sendResponseToDiscord(msg, targetChannel, originalMessage)
             }
 
-            if (iterationCount >= MAX_ITERATIONS) {
-                logger.warn(`Command chain exceeded ${MAX_ITERATIONS} iterations, stopping to prevent infinite loop`)
-                const warningMessage = `⚠️ Command chain exceeded ${MAX_ITERATIONS} iterations and was stopped`
-                // Check dedupe before sending and adding to history
-                if (!sentMessagesForDeduplication.has(warningMessage)) {
-                    await this.sendResponseToDiscord(warningMessage, targetChannel)
-                    messageHistory.push(warningMessage)
-                    // No need to add to sentMessagesForDeduplication as this is a unique, final message
-                }
-            }
-
-            response = [...messageHistory]
-
+            response = [...currentResponse]
             return response
-
         } catch (e) {
             const error = e as Error
             clearInterval(typingInterval)
@@ -203,46 +111,18 @@ export default class CrimsonChat {
         }
     }
 
-    private async sendResponseToDiscord(response: ChatResponse, targetChannel: TextChannel, originalMessage?: Message): Promise<void> {
+    private async sendResponseToDiscord(response: string, targetChannel: TextChannel, originalMessage?: Message): Promise<void> {
         if (!this.client) throw new Error('Client not set')
 
         const messageQueue = MessageQueue.getInstance()
 
         try {
-            // Handle embed objects
-            if (typeof response === 'object' && 'embed' in response && response.embed) {
-                const embed = new EmbedBuilder()
-                    .setTitle(response.embed.title ?? null)
-                    .setDescription(response.embed.description ?? null)
-                    .setColor(response.embed.color)
-                    .setAuthor(response.embed.author ? { name: response.embed.author } : null)
-                    .setFooter(response.embed.footer ? { text: response.embed.footer } : null)
-
-                if (response.embed.fields && response.embed.fields.length > 0) {
-                    embed.addFields(response.embed.fields)
-                }
-
-                const messageOptions: MessagePayload | MessageReplyOptions = {
-                    embeds: [embed],
-                    allowedMentions: { repliedUser: true }
-                }
-
-                messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
-                return
-            }
-
-            // At this point, response must be a string
-            const finalContent = await usernamesToMentions(this.client, response as string)
-
-            // If content is empty, send a placeholder message
+            // Only handle string responses
+            const finalContent = await usernamesToMentions(this.client, response)
             const content = finalContent.trim() || '-# ...'
-
-            // Split message if longer than Discord's limit
             const messages = this.splitMessage(content)
-
             for (const message of messages) {
                 if (message.length > 2000) {
-                    // Send as file attachment if still too long
                     const buffer = Buffer.from(message, 'utf-8')
                     const messageOptions: MessagePayload | MessageReplyOptions = {
                         files: [{
@@ -251,17 +131,14 @@ export default class CrimsonChat {
                         }],
                         allowedMentions: { repliedUser: true }
                     }
-
                     messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
                 } else {
                     const messageOptions = {
                         content: message,
                         allowedMentions: { repliedUser: true }
                     }
-
                     messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
                 }
-                // Only use reply functionality for first message part
                 originalMessage = undefined
             }
         } catch (e) {

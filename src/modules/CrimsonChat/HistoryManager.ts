@@ -2,7 +2,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { Logger } from '../../util/logger'
 import { CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_HISTORY_FOUNDATION } from '../../util/constants'
-import type { ChatMessage, ChatResponse, ChatResponseArray } from '../../types/types'
+import type { ChatMessage } from '../../types/types'
 import { encoding_for_model } from 'tiktoken'
 import chalk from 'chalk'
 
@@ -76,39 +76,22 @@ export class HistoryManager {
         }
     }
 
-    public async appendMessage(role: 'system' | 'assistant' | 'user', content: ChatResponse | ChatResponseArray): Promise<void> {
-        // Ensure system prompt exists at start of history
+    public async appendMessage(role: 'system' | 'assistant' | 'user', content: string | string[]): Promise<void> {
         if (this.history.length === 0 || this.history[0].role !== 'system') {
             this.history.unshift({
                 role: 'system',
                 content: CRIMSON_CHAT_SYSTEM_PROMPT
             })
         }
-
-        // For assistant messages, ensure they're in the schema format
         if (role === 'assistant') {
-            // Convert single response to array format if needed
             const responses = Array.isArray(content) ? content : [content]
-
-            // Check if there's a command in the responses
-            const commandResponse = responses.find(msg => typeof msg === 'object' && 'command' in msg)
-            if (commandResponse) {
-                // If there's a command, only store the command
-                this.history.push({ role, content: JSON.stringify({ command: commandResponse.command }) })
-            } else {
-                // Otherwise store as structured response with messages and embed
-                const structuredResponse = {
-                    replyMessages: responses.filter(msg => typeof msg === 'string'),
-                    embed: responses.find(msg => typeof msg === 'object' && 'embed' in msg)?.embed
-                }
-                this.history.push({ role, content: JSON.stringify(structuredResponse) })
+            for (const response of responses) {
+                this.history.push({ role, content: typeof response === 'string' ? response : String(response) })
             }
         } else {
-            // For system and user messages, keep as is but ensure string format
             const finalContent = typeof content === 'object' ? JSON.stringify(content) : content
             this.history.push({ role, content: finalContent })
         }
-
         await this.saveHistory()
         logger.ok(`Appended ${chalk.yellow(role)} message to history`)
         console.log(chalk.cyan(typeof content === 'object' ? JSON.stringify(content, null, 2) : content))
@@ -146,20 +129,10 @@ export class HistoryManager {
     }
 
     public prepareHistory(): ChatMessage[] {
-        // Special handling for assistant messages to maintain schema consistency
-        return this.history.map(({ role, content }) => {
-            if (role === 'assistant' && typeof content === 'string') {
-                try {
-                    // Parse stored JSON to maintain structure
-                    const parsedContent = JSON.parse(content)
-                    return { role, content: JSON.stringify(parsedContent) }
-                } catch {
-                    // Fallback for legacy messages
-                    return { role, content: JSON.stringify({ replyMessages: [content], embed: null }) }
-                }
-            }
-            return { role, content: typeof content === 'string' ? content : '' }
-        })
+        return this.history.map(({ role, content }) => ({
+            role,
+            content: typeof content === 'string' ? content : ''
+        }))
     }
 
     async updateSystemPrompt(): Promise<void> {
