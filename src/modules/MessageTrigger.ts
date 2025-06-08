@@ -151,7 +151,17 @@ export class MessageTrigger {
             pattern: [/femboy/],
             async action(message) {
                 if (chance(1)) await message.reply('https://tenor.com/view/%D1%84%D1%81%D0%B1-gif-21407990')
-            },
+            }
+        },
+        {
+            pattern: [/chicken jockey/],
+            async action(message) {
+                await message.reply(getRandomElement([
+                    'https://tenor.com/view/minecraft-minecraft-movie-a-minecraft-movie-steve-jack-black-gif-4079785775268000209',
+                    'https://tenor.com/view/minecraft-movie-theater-popcorn-explosion-crazy-gif-7283614019765734813',
+                    'https://tenor.com/view/chicken-jockey-minecraft-movie-minecraft-memes-minecraft-meme-chicken-jockey-flag-gif-6036972012917778487'
+                ]))
+            }
         }
     ]
     async processMessage(message: Message) {
