@@ -147,7 +147,7 @@ export default class CommandManager {
             return { file: file.name, commands: commandInfo, time: Date.now() - startTime }
 
         } catch (err) {
-            logger.warn(`{loadCommands} Error loading commands from ${yellow(file.name)}: ${err}`)
+            logger.warn(`{importCommand} Error importing commands from ${yellow(file.name)}: ${err}`)
             return { file: file.name, commands: [], time: Date.now() - startTime, error: err }
         }
 
@@ -159,7 +159,7 @@ export default class CommandManager {
 
         logger.info(`{loadCommands} Reading commands from ${yellow(dir)}...`)
         const files = await readdir(dir, { withFileTypes: true })
-        logger.info(`{loadCommands} Found ${yellow(files.length)} files in ${yellow(dir)}`)
+        logger.ok(`{loadCommands} Found ${yellow(files.length)} files in ${yellow(dir)}`)
 
         const importPromises: Promise<{ file: string; commands: { name: string; type: string; guildId?: string, aliases?: string[] }[]; time: number; error?: unknown }>[] = []
         for (const file of files) {
