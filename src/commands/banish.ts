@@ -26,9 +26,7 @@ export default {
             if (chance(1)) {
                 // 1% chance to "no u" the user
                 await context.reply(`🥀 you know what what about i banish you instead`)
-                const target = await context.getUserOption('member', true)
-                const targetMember = await context.guild.members.fetch(target)
-                if (!targetMember) {
+                if (!context.member) {
                     await context.followUp(`okay you got lucky you dont exist as a member for some reason (${context.pingMe} fix me)`)
                     return
                 }
@@ -37,16 +35,16 @@ export default {
                     await context.followUp(`okay you got lucky the banished role doesnt exist`)
                     return
                 }
-                const roles = targetMember.roles.cache.filter(role => role.name !== '@everyone')
+                const roles = context.member.roles.cache.filter(role => role.name !== '@everyone')
                 if (roles.find(r => r.id === role.id)) {
                     await context.followUp(`ha look ur banished already`)
                     return
                 }
-                await targetMember.roles.add(role)
-                await context.followUp(`${targetMember} have fun`)
+                await context.member.roles.add(role)
+                await context.followUp(`${context.member} have fun`)
                 await sleep(60000)
-                await targetMember.roles.remove(role)
-                await context.followUp(`${targetMember} okay whatever enjoy being free again i guess`)
+                await context.member.roles.remove(role)
+                await context.followUp(`${context.member} okay whatever enjoy being free again i guess`)
                 return
             }
             await context.reply('❌ you dont have permission to manage roles')
