@@ -2,7 +2,7 @@ import { Logger } from '../util/logger'
 const logger = new Logger('AWACSFeed')
 
 import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember } from 'discord.js'
-import type { ClientEvents, PartialGuildMember } from 'discord.js'
+import type { ClientEvents, PartialGuildMember, Role } from 'discord.js'
 import { AWACS_FEED_CHANNEL } from '../util/constants'
 import { getRandomElement } from '../util/functions'
 import type { ExplicitAny } from '../types/types'
@@ -19,8 +19,87 @@ type ExtractableUser = {
     }
 }
 
+// Messages can be defined outside to be reused in the unified handler
+const roleAddMessages = [
+    (member: string, role: string, assigner: string) => `✈️ ${member} was assigned to the ${role} squadron by ${assigner}.`,
+    (member: string, role: string, assigner: string) => `🎖️ ${member} has joined the ${role} ranks, courtesy of ${assigner}.`,
+    (member: string, role: string, assigner: string) => `✨ ${member} is now part of the ${role} squadron, thanks to ${assigner}.`,
+    (member: string, role: string, assigner: string) => `🏷️ ${member} received the ${role} designation from ${assigner}.`,
+    (member: string, role: string, assigner: string) => `🧑‍✈️ ${member} has been promoted to the ${role} unit by ${assigner}.`
+]
+
+const roleRemoveMessages = [
+    (member: string, role: string, remover: string) => `✈️ ${member} was removed from the ${role} squadron by ${remover}.`,
+    (member: string, role: string, remover: string) => `🎖️ ${member} has departed the ${role} ranks, decision by ${remover}.`,
+    (member: string, role: string, remover: string) => `✨ ${member} is no longer part of the ${role} squadron, per ${remover}.`,
+    (member: string, role: string, remover: string) => `🏷️ ${member}'s ${role} designation was revoked by ${remover}.`,
+    (member: string, role: string, remover: string) => `🧑‍✈️ ${member} has been demoted from the ${role} unit by ${remover}.`
+]
+
+
 export class AWACSFeed {
     private client: Client
+    private awacsChannel: TextChannel | undefined
+
+    private static UnifiedGuildMemberUpdateHandler = {
+        async handler(this: AWACSFeed, oldMember: GuildMember | PartialGuildMember, newMember: GuildMember): Promise<void> {
+            if (newMember.user.bot) return
+
+            // --- Check for added roles ---
+            const oldRoleIds = new Set(oldMember.roles?.cache.map(r => r.id) || [])
+            const addedRoles = newMember.roles.cache.filter(role => !oldRoleIds.has(role.id))
+
+            if (addedRoles.size > 0) {
+                const roleAdded = addedRoles.first()
+                if (roleAdded) {
+                    const assigner = await AWACSFeed.findRoleChanger(newMember, roleAdded, '$add')
+                    const message = getRandomElement(roleAddMessages)(newMember.user.username, roleAdded.name, assigner)
+                    await this.sendMessage(message)
+                    return
+                }
+            }
+
+            // --- Check for removed roles ---
+            const newRoleIds = new Set(newMember.roles.cache.map(r => r.id))
+            const removedRoles = oldMember.roles?.cache.filter(role => !newRoleIds.has(role.id))
+
+            if (removedRoles && removedRoles.size > 0) {
+                const roleRemoved = removedRoles.first()
+                if (roleRemoved) {
+                    const remover = await AWACSFeed.findRoleChanger(newMember, roleRemoved, '$remove')
+                    const message = getRandomElement(roleRemoveMessages)(newMember.user.username, roleRemoved.name, remover)
+                    await this.sendMessage(message)
+                    return
+                }
+            }
+        }
+    }
+
+    private static async findRoleChanger(member: GuildMember, role: Role, changeKey: '$add' | '$remove'): Promise<string> {
+        try {
+            const auditLogs = await member.guild.fetchAuditLogs({
+                type: AuditLogEvent.MemberRoleUpdate,
+                limit: 10
+            })
+
+            const changeProp = changeKey === '$add' ? 'new' : 'old'
+
+            const logEntry = auditLogs.entries.find(entry =>
+                entry.target?.id === member.id &&
+                entry.changes.some(change =>
+                    change.key === changeKey &&
+                    (change[changeProp] as { id: string }[])?.some(r => r.id === role.id)
+                )
+            )
+
+            if (logEntry?.executor) {
+                return logEntry.executor.username ?? '`\\\\ INVALID IFF DATA \\\\`'
+            }
+        } catch (error) {
+            logger.warn(`[AWACSFeed] Error fetching audit logs for ${member.user.tag} role change: ${error instanceof Error ? error.message : String(error)}`)
+        }
+        return '`\\\\ NO IFF DATA \\\\`'
+    }
 
     private static EventHandlers: EventHandler<keyof ClientEvents>[] = [
         {
@@ -73,133 +152,46 @@ export class AWACSFeed {
                 (banned, banner) => `🔨 ${banned} smoked ${banner}'s cordium blunt and spontaneously combusted`
             ]
         },
-        {
-            event: Events.GuildMemberUpdate,
-            extract: async ([oldMember, newMember], _client: Client): Promise<string[]> => {
-                const oldM = oldMember as GuildMember | PartialGuildMember
-                const newM = newMember as GuildMember
-
-                const oldRoleIds = new Set(oldM.roles?.cache.map(r => r.id) || [])
-                const addedRoles = newM.roles.cache.filter(role => !oldRoleIds.has(role.id))
-
-                if (addedRoles.size === 0) return []
-
-                const roleAdded = addedRoles.first()
-                if (!roleAdded) return []
-
-                const memberUsername = newM.user.username
-                const roleName = roleAdded.name
-                let assignerUsername = '\\\\\\\\ NO IFF DATA \\\\\\\\'
-
-                try {
-                    const guild = newM.guild
-                    if (guild) {
-                        const auditLogs = await guild.fetchAuditLogs({
-                            type: AuditLogEvent.MemberRoleUpdate,
-                            limit: 10
-                        })
-
-                        const logEntry = auditLogs.entries.find(entry =>
-                            entry.target?.id === newM.id &&
-                            entry.action === AuditLogEvent.MemberRoleUpdate &&
-                            entry.changes.some(change =>
-                                change.key === '$add' &&
-                                (change.new as {id: string, name: string}[])?.some(r => r.id === roleAdded.id)
-                            )
-                        )
-
-                        if (logEntry && logEntry.executor && logEntry.executor.username) {
-                            assignerUsername = logEntry.executor.username
-                        }
-                    }
-                } catch (error) {
-                    logger.warn(`[AWACSFeed] Error fetching audit logs for ${newM.user.tag} role update: ${error instanceof Error ? error.message : String(error)}`)
-                }
-
-                return [memberUsername, roleName, assignerUsername]
-            },
-            messages: [
-                (member, role, assigner) => `✈️ ${member} was assigned to the ${role} squadron by ${assigner}.`,
-                (member, role, assigner) => `🎖️ ${member} has joined the ${role} ranks, courtesy of ${assigner}.`,
-                (member, role, assigner) => `✨ ${member} is now part of the ${role} squadron, thanks to ${assigner}.`,
-                (member, role, assigner) => `🏷️ ${member} received the ${role} designation from ${assigner}.`,
-                (member, role, assigner) => `🧑‍✈️ ${member} has been promoted to the ${role} unit by ${assigner}.`
-            ]
-        },
-        {
-            event: Events.GuildMemberUpdate,
-            extract: async ([oldMember, newMember], _client: Client): Promise<string[]> => {
-                const oldM = oldMember as GuildMember | PartialGuildMember
-                const newM = newMember as GuildMember
-
-                const newRoleIds = new Set(newM.roles.cache.map(r => r.id))
-                const removedRoles = oldM.roles?.cache.filter(role => !newRoleIds.has(role.id)) || new Map()
-
-                if (removedRoles.size === 0) return []
-                if (newM.user.bot) return []
-
-                const roleRemoved = removedRoles.first()
-                if (!roleRemoved) return []
-
-                const memberUsername = newM.user.username
-                const roleName = roleRemoved.name
-                let removerUsername = '\\\\\\\\ NO IFF DATA \\\\\\\\' // escape for js and then markdown, resulting in "\\ NO IFF DATA \\"
-
-                try {
-                    const guild = newM.guild
-                    if (guild) {
-                        const auditLogs = await guild.fetchAuditLogs({
-                            type: AuditLogEvent.MemberRoleUpdate,
-                            limit: 10
-                        })
-
-                        const logEntry = auditLogs.entries.find(entry =>
-                            entry.target?.id === newM.id &&
-                            entry.action === AuditLogEvent.MemberRoleUpdate &&
-                            entry.changes.some(change =>
-                                change.key === '$remove' &&
-                                (change.old as {id: string, name: string}[])?.some(r => r.id === roleRemoved.id)
-                            )
-                        )
-
-                        if (logEntry && logEntry.executor && logEntry.executor.username) {
-                            removerUsername = logEntry.executor.username
-                        }
-                    }
-                } catch (error) {
-                    logger.warn(`[AWACSFeed] Error fetching audit logs for ${newM.user.tag} role removal: ${error instanceof Error ? error.message : String(error)}`)
-                }
-
-                return [memberUsername, roleName, removerUsername]
-            },
-            messages: [
-                (member, role, remover) => `✈️ ${member} was removed from the ${role} squadron by ${remover}.`,
-                (member, role, remover) => `🎖️ ${member} has departed the ${role} ranks, decision by ${remover}.`,
-                (member, role, remover) => `✨ ${member} is no longer part of the ${role} squadron, per ${remover}.`,
-                (member, role, remover) => `🏷️ ${member}'s ${role} designation was revoked by ${remover}.`,
-                (member, role, remover) => `🧑‍✈️ ${member} has been demoted from the ${role} unit by ${remover}.`
-            ]
-        }
     ]
 
     constructor(client: Client) {
         this.client = client
+        this.initializeListeners()
+    }
+
+    private async initializeListeners() {
+        // Handle the simple events first
         for (const handler of AWACSFeed.EventHandlers) {
             this.client.on(handler.event, async (...args: ClientEvents[keyof ClientEvents]) => {
-                const guildSource = handler.event === Events.GuildMemberUpdate ? args[1] : args[0]
+                const guildSource = handler.event === Events.GuildBanAdd ? args[0] : args[0]
                 const guild = (guildSource as { guild?: { id: string } })?.guild
-
                 if (!guild || guild.id !== '958518067690868796') return
 
                 const params = await handler.extract(args, this.client)
                 if (params.length === 0) return
 
                 const message = getRandomElement(handler.messages)(...params)
-                const channel = await this.client.channels.fetch(AWACS_FEED_CHANNEL)
-                if (channel?.isTextBased() && channel.type === ChannelType.GuildText) {
-                    await (channel as TextChannel).send(message)
-                }
+                await this.sendMessage(message)
             })
         }
+
+        // Then handle the complex event separately
+        this.client.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
+            if (newMember.guild.id !== '958518067690868796') return
+            AWACSFeed.UnifiedGuildMemberUpdateHandler.handler.call(this, oldMember, newMember)
+        })
+    }
+
+    private async sendMessage(message: string) {
+        if (!this.awacsChannel) {
+            const channel = await this.client.channels.fetch(AWACS_FEED_CHANNEL)
+            if (channel?.isTextBased() && channel.type === ChannelType.GuildText) {
+                this.awacsChannel = channel
+            } else {
+                logger.warn(`Could not find AWACS feed channel with ID: ${AWACS_FEED_CHANNEL}`)
+                return
+            }
+        }
+        await this.awacsChannel!.send(message)
     }
 }
