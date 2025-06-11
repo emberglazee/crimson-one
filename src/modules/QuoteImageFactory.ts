@@ -32,11 +32,6 @@ export class QuoteImageFactory {
         this.usernames = new Map()
     }
 
-    public setUsernames(userMap: Record<string, string>): QuoteImageFactory {
-        this.usernames = new Map(Object.entries(userMap))
-        return this
-    }
-
     public setClient(client: Client): QuoteImageFactory {
         this.client = client
         return this
