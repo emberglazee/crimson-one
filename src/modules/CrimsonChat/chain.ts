@@ -1,13 +1,15 @@
 // src/modules/CrimsonChat/chain.ts
 
 import { ChatOpenAI } from '@langchain/openai'
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
+
 import {
     ChatPromptTemplate,
     MessagesPlaceholder,
 } from '@langchain/core/prompts'
 import { StringOutputParser } from '@langchain/core/output_parsers'
 import { RunnableSequence } from '@langchain/core/runnables'
-import { OPENAI_BASE_URL, OPENAI_MODEL, CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
+import { OPENAI_BASE_URL, OPENAI_MODEL, GEMINI_MODEL, GEMINI_SWITCH, CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
 import type { BaseMessage } from '@langchain/core/messages'
 
 export interface CrimsonChainInput {
@@ -24,12 +26,16 @@ export const createCrimsonChain = () => {
         ['human', '{input}'],
     ])
 
-    const model = new ChatOpenAI({
-        modelName: OPENAI_MODEL,
+    const model = GEMINI_SWITCH ? new ChatGoogleGenerativeAI({
+        model: GEMINI_MODEL,
         temperature: 0.8,
-        openAIApiKey: process.env.OPENAI_API_KEY,
+        apiKey: process.env.GEMINI_API_KEY
+    }) : new ChatOpenAI({
+        model: OPENAI_MODEL,
+        temperature: 0.8,
+        apiKey: process.env.OPENAI_API_KEY,
         configuration: {
-            baseURL: OPENAI_BASE_URL,
+            baseURL: OPENAI_BASE_URL
         },
     })
 

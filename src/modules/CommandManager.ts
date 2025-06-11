@@ -1372,7 +1372,7 @@ export class CommandContext {
         } else if (this.message) {
             const channel = this.message.channel
             if (channel && 'send' in channel && typeof channel.send === 'function' && this.originalMessageReply) {
-                // If editing with only embeds and no content, erase the message content (like interaction replies)
+                // If editing with only embeds or attachments, and no content, erase the message content (replicates the interaction reply edit behavior)
                 if (
                     typeof options === 'object' &&
                     options !== null &&
