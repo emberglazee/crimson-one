@@ -1,30 +1,47 @@
-import { Client, TextChannel, Message, ChatInputCommandInteraction, type MessageReplyOptions, MessagePayload, EmbedBuilder } from 'discord.js'
-import { MessageProcessor } from './MessageProcessor'
-import { HistoryManager } from './HistoryManager'
+// src/modules/CrimsonChat/index.ts
+
+import { Client, TextChannel, Message, ChatInputCommandInteraction } from 'discord.js'
 import { Logger } from '../../util/logger'
-import { promises as fs } from 'fs'
-import type { UserMessageOptions, ChatResponse, ChatResponseArray, ExplicitAny } from '../../types/types'
-import path from 'path'
-import { formatUserMessage, usernamesToMentions } from './utils/formatters'
+import type { UserMessageOptions } from '../../types/types'
 import chalk from 'chalk'
 import { MessageQueue } from './MessageQueue'
+import { createCrimsonChain, type CrimsonChainInput } from './chain' // Import the input type
+import { CrimsonFileBufferHistory } from './memory'
+import { usernamesToMentions } from './utils/formatters'
+import { CRIMSON_BREAKDOWN_PROMPT, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
+import { ChatOpenAI } from '@langchain/openai'
+import { RunnableWithMessageHistory } from '@langchain/core/runnables'
+import { AIMessage, SystemMessage } from '@langchain/core/messages'
+import * as fs from 'fs/promises'
+import path from 'path'
 
 const logger = new Logger('CrimsonChat')
 
 export default class CrimsonChat {
     private static instance: CrimsonChat
+    public client!: Client
     public channel: TextChannel | null = null
     private channelId = '1335992675459141632'
-    private enabled: boolean = true
-    // private isProcessing: boolean = false
+    private enabled = true
     private ignoredUsers: Set<string> = new Set()
 
-    messageProcessor: MessageProcessor | null = null
-    historyManager: HistoryManager
-    client: Client | null = null
+    // Correctly typed chain with history
+    private chainWithHistory: RunnableWithMessageHistory<CrimsonChainInput, string>
+    private memory: CrimsonFileBufferHistory
+
+    private forceNextBreakdown = false
+    private readonly BREAKDOWN_CHANCE = 0.01
 
     private constructor() {
-        this.historyManager = HistoryManager.getInstance()
+        this.memory = new CrimsonFileBufferHistory()
+        const coreChain = createCrimsonChain()
+
+        this.chainWithHistory = new RunnableWithMessageHistory({
+            runnable: coreChain,
+            getMessageHistory: _ => this.memory,
+            inputMessagesKey: 'input',
+            historyMessagesKey: 'chat_history',
+        })
     }
 
     public static getInstance(): CrimsonChat {
@@ -34,13 +51,7 @@ export default class CrimsonChat {
         return CrimsonChat.instance
     }
 
-    private getMessageProcessor(): MessageProcessor {
-        if (!this.messageProcessor) {
-            this.messageProcessor = new MessageProcessor(this)
-        }
-        return this.messageProcessor
-    }
-
+    // ... setClient, init, formatInput methods remain the same ...
     public setClient(client: Client) {
         this.client = client
     }
@@ -49,159 +60,163 @@ export default class CrimsonChat {
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
         logger.info('Initializing CrimsonChat...')
-        this.channel = await this.client.channels.fetch(this.channelId) as TextChannel
+        this.channel = (await this.client.channels.fetch(this.channelId)) as TextChannel
         if (!this.channel) {
-            logger.error(`Could not find text channel ${chalk.yellow(this.channelId)}`)
-            throw new Error(`Could not find text channel ${chalk.yellow(this.channelId)}`)
+            throw new Error(`Could not find text channel ${this.channelId}`)
         }
-
-        await this.historyManager.init()
         await this.loadIgnoredUsers()
         logger.ok('CrimsonChat initialized successfully')
     }
 
-    public async sendMessage(content: string, options: UserMessageOptions, originalMessage?: Message): Promise<string[] | null | undefined> {
-        if (!this.channel) throw new Error('Channel not set. Call init() first.')
-        if (!this.enabled) return
+    private async formatInput(content: string, options: UserMessageOptions): Promise<string> {
+        const messageData = {
+            username: options.username,
+            displayName: options.displayName,
+            serverDisplayName: options.serverDisplayName,
+            currentTime: new Date().toISOString(),
+            text: content,
+            respondingTo: options.respondingTo,
+            guildName: options.guildName,
+            channelName: options.channelName,
+        }
+        return JSON.stringify(messageData, null, 2)
+    }
+
+    private async handleRandomBreakdown(): Promise<string | null> {
+        if (this.forceNextBreakdown || Math.random() < this.BREAKDOWN_CHANCE) {
+            logger.info(`Triggering ${this.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
+            this.forceNextBreakdown = false
+
+            const model = new ChatOpenAI({ modelName: OPENAI_MODEL, configuration: { baseURL: OPENAI_BASE_URL } })
+            const response = await model.invoke(CRIMSON_BREAKDOWN_PROMPT)
+            const breakdown = response.content.toString()
+
+            // Correctly add the message to history
+            await this.memory.addAIChatMessage(breakdown)
+            return breakdown
+        }
+        return null
+    }
+
+    public async sendMessage(
+        content: string,
+        options: UserMessageOptions,
+        originalMessage?: Message
+    ): Promise<string[] | null> {
+        if (!this.channel || !this.enabled) return null
 
         const targetChannel = options.targetChannel || this.channel
-        logger.info(`Processing message from ${chalk.yellow(options.username)}: ${chalk.yellow(content.substring(0, 50) + (content.length > 50 ? '...' : ''))}`)
+        logger.info(`Processing message from ${chalk.yellow(options.username)}...`)
 
-        const typingInterval = setInterval(() => {
-            targetChannel.sendTyping().catch(e => {
-                logger.warn(`Failed to send typing indicator: ${chalk.yellow(e.message)}`)
-            })
-        }, 8000)
+        targetChannel.sendTyping().catch(e => logger.warn(`Typing indicator failed: ${e.message}`))
 
-        await targetChannel.sendTyping()
-        let response: string[] = []
+        const breakdown = await this.handleRandomBreakdown()
+        if (breakdown) {
+            await this.sendResponseToDiscord(breakdown, targetChannel, originalMessage)
+            return [breakdown]
+        }
+
+        const formattedInput = await this.formatInput(content, options)
 
         try {
-            let currentResponse = await this.getMessageProcessor().processMessage(content, options, originalMessage)
-            if (!currentResponse) {
-                logger.info('Received null/undefined response from message processor, ignoring')
-                clearInterval(typingInterval)
-                return null
-            }
+            const response = await this.chainWithHistory.invoke(
+                { input: formattedInput },
+                { configurable: { sessionId: 'global' } }
+            )
 
-            clearInterval(typingInterval)
-
-            for (const msg of currentResponse) {
-                await this.sendResponseToDiscord(msg, targetChannel, originalMessage)
-            }
-
-            response = [...currentResponse]
-            return response
+            await this.sendResponseToDiscord(response, targetChannel, originalMessage)
+            return [response]
         } catch (e) {
-            const error = e as Error
-            clearInterval(typingInterval)
-
-            // Special handling for timeout errors
-            if (error.message.includes('Response timeout')) {
-                const timeoutMessage = "⚠️ 30 second timeout reached for processing message"
-                await this.sendResponseToDiscord(timeoutMessage, targetChannel)
-                return null
-            }
-
-            logger.warn(`Error processing message: ${chalk.red(error.message)}`)
+            logger.warn(`Error processing message: ${chalk.red((e as Error).message)}`)
             return null
-        } finally {
-            clearInterval(typingInterval)
-            logger.ok('Message processing completed')
         }
     }
 
+    // ... sendResponseToDiscord and splitMessage methods remain the same ...
     private async sendResponseToDiscord(response: string, targetChannel: TextChannel, originalMessage?: Message): Promise<void> {
         if (!this.client) throw new Error('Client not set')
-
         const messageQueue = MessageQueue.getInstance()
+        const finalContent = await usernamesToMentions(this.client, response)
+        const messages = this.splitMessage(finalContent.trim() || '-# ...')
 
-        try {
-            // Only handle string responses
-            const finalContent = await usernamesToMentions(this.client, response)
-            const content = finalContent.trim() || '-# ...'
-            const messages = this.splitMessage(content)
-            for (const message of messages) {
-                if (message.length > 2000) {
-                    const buffer = Buffer.from(message, 'utf-8')
-                    const messageOptions: MessagePayload | MessageReplyOptions = {
-                        files: [{
-                            attachment: buffer,
-                            name: 'response.txt'
-                        }],
-                        allowedMentions: { repliedUser: true }
-                    }
-                    messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
-                } else {
-                    const messageOptions = {
-                        content: message,
-                        allowedMentions: { repliedUser: true }
-                    }
-                    messageQueue.queueMessage(messageOptions, targetChannel, originalMessage)
-                }
-                originalMessage = undefined
-            }
-        } catch (e) {
-            const error = e as Error
-            logger.error(`Error sending response to Discord: ${chalk.red(error.message)}`)
-            throw error
+        for (const message of messages) {
+            messageQueue.queueMessage({ content: message, allowedMentions: { repliedUser: true } }, targetChannel, originalMessage)
+            originalMessage = undefined
         }
     }
 
     private splitMessage(text: string): string[] {
-        // If message is under limit, return as is
         if (text.length <= 2000) return [text]
-
         const messages: string[] = []
         let currentMessage = ''
         const lines = text.split('\n')
-
         for (const line of lines) {
             if (currentMessage.length + line.length + 1 <= 2000) {
                 currentMessage += (currentMessage ? '\n' : '') + line
             } else {
-                // Push current message if not empty
-                if (currentMessage) {
-                    messages.push(currentMessage)
-                }
-                // Start new message
+                if (currentMessage) messages.push(currentMessage)
                 currentMessage = line
-
-                // If single line is too long, split by characters
                 if (line.length > 2000) {
-                    const chunks = line.match(/.{1,2000}/g) || []
-                    messages.push(...chunks)
+                    messages.push(...(line.match(/.{1,2000}/g) || []))
                     currentMessage = ''
                 }
             }
         }
-
-        // Push final message if any
-        if (currentMessage) {
-            messages.push(currentMessage)
-        }
-
+        if (currentMessage) messages.push(currentMessage)
         return messages
     }
 
+    // --- ADAPTED HELPER METHODS ---
+
     public async handleStartup(): Promise<void> {
         if (!this.channel) return
-        await this.sendMessage(`Discord bot initialized. Welcome back, Crimson 1! Time: ${new Date().toISOString()}`, {
-            username: 'system',
-            displayName: 'System',
-            serverDisplayName: 'System'
-        })
+        const startupMessage = `Discord bot initialized. Welcome back, Crimson 1! Time: ${new Date().toISOString()}`
+        await this.memory.addMessages([new AIMessage(startupMessage)])
+        await this.sendResponseToDiscord(startupMessage, this.channel)
     }
 
     public async handleShutdown(): Promise<void> {
         if (!this.channel) return
         await this.sendResponseToDiscord('⚠️ Crimson is shutting down...', this.channel)
-        // Append message without sending it, it won't have time to respond so don't bother trying
-        await this.historyManager.appendMessage('system', `Discord bot is shutting down. See ya in a bit, Crimson 1. Time: ${new Date().toISOString()}`)
+        const shutdownMessage = `Discord bot is shutting down. See ya in a bit, Crimson 1. Time: ${new Date().toISOString()}`
+        // Add a system message to the history without sending a response.
+        await this.memory.addMessages([new SystemMessage(shutdownMessage)])
+    }
+
+    public async trackCommandUsage(interaction: ChatInputCommandInteraction) {
+        const command = `/${interaction.commandName}`
+        const options = interaction.options.data
+        const optionStr = options.length > 0
+            ? ' ' + options.map(opt => `${opt.name}:${opt.value ?? '[no value]'}`).join(' ')
+            : ''
+
+        const user = await this.client.users.fetch(interaction.user.id)
+        const member = await interaction.guild?.members.fetch(interaction.user.id)
+
+        const content = `Used command: ${command}${optionStr} (deferred: ${interaction.deferred})`
+        const formattedInput = await this.formatInput(content, {
+            username: user.username,
+            displayName: user.displayName,
+            serverDisplayName: member?.displayName ?? user.displayName,
+            guildName: interaction.guild?.name,
+            channelName: (interaction.channel as TextChannel)?.name,
+        })
+
+        // Add to history as a user message
+        await this.memory.addUserMessage(formattedInput)
+    }
+
+    // ... all other helper methods (clearHistory, updateSystemPrompt, ignoreUser, etc.) remain the same ...
+    public async clearHistory(): Promise<void> {
+        await this.memory.clear()
+    }
+
+    public async updateSystemPrompt(): Promise<void> {
+        await this.memory.updateSystemPrompt()
     }
 
     public setForceNextBreakdown(force: boolean): void {
-        this.messageProcessor!.setForceNextBreakdown(force)
+        this.forceNextBreakdown = force
         logger.ok(`Force next breakdown set to: ${chalk.yellow(force)}`)
     }
 
@@ -224,16 +239,6 @@ export default class CrimsonChat {
         }
     }
 
-    private async saveIgnoredUsers(): Promise<void> {
-        const ignoredUsersPath = path.join(process.cwd(), 'data/ignored_users.json')
-        try {
-            await fs.mkdir(path.dirname(ignoredUsersPath), { recursive: true })
-            await fs.writeFile(ignoredUsersPath, JSON.stringify([...this.ignoredUsers]))
-        } catch (error) {
-            console.error('Failed to save ignored users:', error)
-        }
-    }
-
     public isIgnored(userId: string): boolean {
         return this.ignoredUsers.has(userId)
     }
@@ -250,36 +255,14 @@ export default class CrimsonChat {
         logger.ok(`Unignored user ${chalk.yellow(userId)}`)
     }
 
-    public async clearHistory(): Promise<void> {
-        await this.historyManager.clearHistory()
-        logger.info('History cleared')
-    }
-
-    public async trackCommandUsage(interaction: ChatInputCommandInteraction) {
-        const command = `/${interaction.commandName}`
-        const options = interaction.options.data
-        const optionStr = options.length > 0
-            ? ' ' + options.map(opt => `${opt.name}:${opt.value ?? '[no value]'}`).join(' ')
-            : ''
-        const user = await this.client!.users.fetch(interaction.user.id)
-        if (!user) return
-        const member = await interaction.guild!.members.fetch(interaction.user.id)
-        if (!member) return
-
-        const message = await formatUserMessage(
-            user.username,
-            user.displayName,
-            member.displayName,
-            `Used command: ${command}${optionStr} (deferred: ${interaction.deferred})`
-        )
-
-        this.historyManager.appendMessage('user', message)
-        await this.historyManager.trimHistory()
-    }
-
-    public async updateSystemPrompt(): Promise<void> {
-        await this.historyManager.updateSystemPrompt()
-        logger.ok('System prompt updated to latest version')
+    private async saveIgnoredUsers(): Promise<void> {
+        const ignoredUsersPath = path.join(process.cwd(), 'data/ignored_users.json')
+        try {
+            await fs.mkdir(path.dirname(ignoredUsersPath), { recursive: true })
+            await fs.writeFile(ignoredUsersPath, JSON.stringify([...this.ignoredUsers]))
+        } catch (error) {
+            console.error('Failed to save ignored users:', error)
+        }
     }
 
     public getIgnoredUsers(): string[] {
