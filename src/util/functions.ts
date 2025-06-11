@@ -154,4 +154,4 @@ export function parseNetscapeCookieFile(fileContent: string) {
     return cookies
 }
 
-export const smallFooterNote = (note: string) => `-# - ${note}` as const
+export const smallFooterNote = <T extends string>(note: T) => `-# - ${note}` as const
