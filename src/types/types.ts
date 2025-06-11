@@ -18,7 +18,6 @@ import {
     type PermissionsString
 } from 'discord.js'
 import type { CommandContext } from '../modules/CommandManager'
-import type { ChatCompletionContentPart } from 'openai/resources/index.mjs'
 
 export type GuildIdResolvable = string | Guild | BaseInteraction | GuildChannel | Message
 export type UserIdResolvable = GuildMember | User | string | Message
@@ -304,8 +303,10 @@ export interface FormattedUserMessage {
 
 // Additional types needed for message processing
 export interface ChatMessage {
-    role: 'system' | 'assistant' | 'user'
-    content?: string | ChatCompletionContentPart[]
+    role: 'system' | 'assistant' | 'user' | 'tool'
+    content: string
+    tool_calls?: ToolCall[]
+    tool_call_id?: string
 }
 
 export interface ProcessedCommand {
@@ -350,4 +351,10 @@ export type ChatResponseArray = ChatResponse[]
 
 export interface QueueItem {
     action: () => Promise<unknown>
+}
+
+export interface ToolCall {
+    name: string
+    args: Record<string, ExplicitAny>
+    id?: string
 }

@@ -26,7 +26,7 @@ export default class CrimsonChat {
     private enabled = true
     private ignoredUsers: Set<string> = new Set()
 
-    private chainWithHistory: RunnableWithMessageHistory<CrimsonChainInput, string>
+    private chainWithHistory!: RunnableWithMessageHistory<CrimsonChainInput, string>
     private memory: CrimsonFileBufferHistory
 
     private forceNextBreakdown = false
@@ -34,14 +34,6 @@ export default class CrimsonChat {
 
     private constructor() {
         this.memory = new CrimsonFileBufferHistory()
-        const coreChain = createCrimsonChain()
-
-        this.chainWithHistory = new RunnableWithMessageHistory({
-            runnable: coreChain,
-            getMessageHistory: _ => this.memory,
-            inputMessagesKey: 'input',
-            historyMessagesKey: 'chat_history',
-        })
     }
 
     public static getInstance(): CrimsonChat {
@@ -57,6 +49,15 @@ export default class CrimsonChat {
 
     public async init(): Promise<void> {
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
+
+        const coreChain = await createCrimsonChain()
+
+        this.chainWithHistory = new RunnableWithMessageHistory({
+            runnable: coreChain,
+            getMessageHistory: _ => this.memory,
+            inputMessagesKey: 'input',
+            historyMessagesKey: 'chat_history',
+        })
 
         logger.info('Initializing CrimsonChat...')
         this.channel = (await this.client.channels.fetch(this.channelId)) as TextChannel
