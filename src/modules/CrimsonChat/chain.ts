@@ -14,7 +14,7 @@ export interface CrimsonChainInput {
     input: string
     // Make chat_history optional for the initial call to the wrapped chain.
     // The RunnableWithMessageHistory wrapper will inject this property.
-    chat_history?: BaseMessage[] // Use BaseMessage[] for type safety
+    chat_history?: BaseMessage[]
 }
 
 export const createCrimsonChain = () => {
@@ -35,8 +35,6 @@ export const createCrimsonChain = () => {
 
     const outputParser = new StringOutputParser()
 
-    // The core chain: prompt -> model -> output parser
     const chain = RunnableSequence.from([prompt, model, outputParser])
-
     return chain
 }
