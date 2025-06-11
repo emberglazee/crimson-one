@@ -260,8 +260,7 @@ export default class CommandManager {
         if (!this.initialized || !message.content.startsWith(prefix) || message.author.bot) return
 
         const contentWithoutPrefix = message.content.slice(prefix.length).trim()
-        const commandParts = contentWithoutPrefix.split(/ +/)
-        const commandName = commandParts[0]?.toLowerCase()
+        const commandName = contentWithoutPrefix.split(/ +/)[0]?.toLowerCase()
 
         if (!commandName) return
 
@@ -271,69 +270,118 @@ export default class CommandManager {
             return
         }
 
-        const context = new CommandContext(message, commandParts)
+        const context = new CommandContext(message, contentWithoutPrefix.split(/ +/))
         try {
-            let argsOnlyString = ''
             const firstSpaceIndex = contentWithoutPrefix.indexOf(' ')
-            if (firstSpaceIndex !== -1) {
-                argsOnlyString = contentWithoutPrefix.substring(firstSpaceIndex + 1).trimStart()
+            const rawArgsString = firstSpaceIndex !== -1 ? contentWithoutPrefix.substring(firstSpaceIndex + 1).trimStart() : ''
+
+            const commandData = command.data.toJSON()
+            const allTokens = this.tokenizeArgs(rawArgsString)
+
+            const commandPath: string[] = []
+            let activeOptions = commandData.options ?? []
+            let argsStartIndex = 0
+
+            if (allTokens.length > 0) {
+                let currentLevelOptions = commandData.options ?? []
+                const groupDef = currentLevelOptions.find(o => o.name === allTokens[0] && o.type === ApplicationCommandOptionType.SubcommandGroup)
+                if (groupDef) {
+                    commandPath.push(allTokens[0])
+                    argsStartIndex = 1
+                    currentLevelOptions = (groupDef as ExplicitAny).options ?? []
+                    if (allTokens.length > 1) {
+                        const subDef = currentLevelOptions.find(o => o.name === allTokens[1] && o.type === ApplicationCommandOptionType.Subcommand)
+                        if (subDef) {
+                            commandPath.push(allTokens[1])
+                            argsStartIndex = 2
+                            activeOptions = (subDef as ExplicitAny).options ?? []
+                        }
+                    }
+                } else {
+                    const subDef = currentLevelOptions.find(o => o.name === allTokens[0] && o.type === ApplicationCommandOptionType.Subcommand)
+                    if (subDef) {
+                        commandPath.push(allTokens[0])
+                        argsStartIndex = 1
+                        activeOptions = (subDef as ExplicitAny).options ?? []
+                    }
+                }
             }
 
-            const yargsParser = this.buildYargsParserForCommand(command as SlashCommand, message, argsOnlyString, prefix)
+            const argTokens = allTokens.slice(argsStartIndex)
+            const requiredOptions = activeOptions.filter(opt => opt.required)
+
+            const positionalValues: string[] = []
+            const flaggedTokens: string[] = []
+            let inFlagsSection = false
+            for (const token of argTokens) {
+                if (token.startsWith('-')) {
+                    inFlagsSection = true
+                }
+                if (inFlagsSection) {
+                    flaggedTokens.push(token)
+                } else {
+                    positionalValues.push(token)
+                }
+            }
+
+            const reconstructedArgs: string[] = [...commandPath]
+
+            positionalValues.forEach((value, index) => {
+                if (index < requiredOptions.length) {
+                    const option = requiredOptions[index]
+                    reconstructedArgs.push(`--${option.name}`)
+                    reconstructedArgs.push(value)
+                } else {
+                    reconstructedArgs.push(value)
+                }
+            })
+
+            reconstructedArgs.push(...flaggedTokens)
+
+            const finalArgsString = reconstructedArgs
+                .map(arg => (/\s/).test(arg) ? `"${arg.replace(/"/g, '\\"')}"` : arg)
+                .join(' ')
+
+            const yargsParser = this.buildYargsParserForCommand(command as SlashCommand, message, finalArgsString, prefix)
 
             // --- CAPTURE CONSOLE OUTPUT ---
             let capturedHelpText = ''
             const originalConsoleLog = console.log
             const consoleLogInterceptor = (...args: ExplicitAny[]) => {
-                // We are interested in the multi-line help output
-                // Yargs might log multiple lines or a single multi-line string for help.
                 capturedHelpText += args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') + '\n'
-                // originalConsoleLog(...args) // Optionally, still log to console for debugging
             }
 
             let parsedYargsArgs
             let parseError = null
 
-            // Check if the raw args string contains a help flag.
-            // This is a heuristic. Yargs's own .help() processing is more robust.
             const helpPattern = /(\s|^)(-h|--help)(\s|$)/
-            const isHelpLikelyRequested = helpPattern.test(argsOnlyString)
+            const isHelpLikelyRequested = helpPattern.test(rawArgsString) // Check original string for help flag
 
             if (isHelpLikelyRequested) {
                 console.log = consoleLogInterceptor
             }
 
             try {
+                // NOTE: We parse the RECONSTRUCTED string.
                 parsedYargsArgs = await yargsParser.parseAsync()
             } catch (err) {
-                parseError = err // Capture error to re-throw after restoring console.log
+                parseError = err
             } finally {
                 if (isHelpLikelyRequested) {
-                    console.log = originalConsoleLog // Restore console.log
+                    console.log = originalConsoleLog
                 }
             }
 
             if (parseError) {
-                throw parseError // Re-throw error if one occurred during parsing
+                throw parseError
             }
             // --- END CAPTURE ---
 
-
-            // Now, check if help was *actually* triggered by yargs's internal .help() processing
-            // Yargs sets 'h' (or your help alias) to true and often short-circuits further processing.
-            // It also might result in parsedYargsArgs._ being empty or just the subcommand.
             if (hasProp(parsedYargsArgs, 'h') && parsedYargsArgs.h === true && isHelpLikelyRequested && capturedHelpText.trim()) {
-                logger.info(`{handleMessageCommand} Help flag detected and text captured for command: ${commandName}`)
-                logger.info(`{handleMessageCommand} Raw args string passed to yargs: "${argsOnlyString}"`)
-                logger.info(`{handleMessageCommand} Parsed yargs argv: ${JSON.stringify(parsedYargsArgs)}`)
-                logger.info(`{handleMessageCommand} Captured help text:\n${capturedHelpText}`)
-
+                logger.info(`{handleMessageCommand} Help flag detected for command: ${commandName}`)
                 await message.reply(`\`\`\`\n${capturedHelpText.trim()}\n\`\`\``)
                 return
             }
-            // If help flag was present but no text captured (e.g., if yargs didn't print help for some reason),
-            // or if it wasn't a help request, proceed to command execution.
-            // This also handles cases where -h might be a valid option for a command, not the help flag.
 
             const yargsCommandPath = parsedYargsArgs?._?.map(String) ?? []
             const commandDataJson = command.data.toJSON()
@@ -1187,6 +1235,20 @@ export default class CommandManager {
             throw error
         }
 
+    }
+
+
+
+    private tokenizeArgs(str: string): string[] {
+        const tokens: string[] = []
+        // This regex splits by spaces, but keeps quoted sections together.
+        const regex = /[^\s"']+|"([^"]*)"|'([^']*)'/g
+        let match
+        while ((match = regex.exec(str))) {
+            // Add the captured group if it exists (for quotes), otherwise the full match.
+            tokens.push(match[1] ?? match[2] ?? match[0])
+        }
+        return tokens
     }
 
 
