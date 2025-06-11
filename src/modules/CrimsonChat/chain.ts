@@ -9,7 +9,7 @@ import {
 } from '@langchain/core/prompts'
 import { StringOutputParser } from '@langchain/core/output_parsers'
 import { RunnableSequence } from '@langchain/core/runnables'
-import { OPENAI_BASE_URL, OPENAI_MODEL, GEMINI_MODEL, GEMINI_SWITCH, CRIMSON_CHAT_SYSTEM_PROMPT } from '../../util/constants'
+import { OPENAI_BASE_URL, OPENAI_MODEL, GEMINI_MODEL, GEMINI_SWITCH } from '../../util/constants'
 import type { BaseMessage } from '@langchain/core/messages'
 
 export interface CrimsonChainInput {
@@ -21,7 +21,6 @@ export interface CrimsonChainInput {
 
 export const createCrimsonChain = () => {
     const prompt = ChatPromptTemplate.fromMessages([
-        ['system', CRIMSON_CHAT_SYSTEM_PROMPT],
         new MessagesPlaceholder('chat_history'),
         ['human', '{input}'],
     ])

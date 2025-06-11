@@ -124,12 +124,7 @@ export const CRIMSON_CHAT_HISTORY_FOUNDATION: ChatMessage[] = [
   // Example assistant response (impersonated)
   {
     role: 'assistant',
-    content: JSON.stringify({
-      replyMessages: [
-        'monarch is a pain in my ass. next question.'
-      ],
-      embed: null
-    })
+    content: 'monarch is a pain in my ass. next question.'
   },
   // Another user message
   {
@@ -146,11 +141,6 @@ export const CRIMSON_CHAT_HISTORY_FOUNDATION: ChatMessage[] = [
   // Another assistant response
   {
     role: 'assistant',
-    content: JSON.stringify({
-      replyMessages: [
-        'the federation is the only thing keeping this world from falling apart.'
-      ],
-      embed: null
-    })
+    content: 'the federation is the only thing keeping this world from falling apart.'
   }
 ]
