@@ -28,8 +28,6 @@ export class CrimsonFileBufferHistory extends BaseChatMessageHistory {
     private initialized = false
 
     constructor() {
-        // The constructor for BaseChatMessageHistory doesn't take arguments anymore.
-        // We pass a dummy session ID internally if needed, but it's not used in our global history.
         super()
     }
 
@@ -85,12 +83,12 @@ export class CrimsonFileBufferHistory extends BaseChatMessageHistory {
         await this.saveHistoryToFile()
     }
 
+    // This is the required abstract method. We can just have it call addMessages.
     async addMessage(message: BaseMessage): Promise<void> {
-        // This is the required abstract method. We can just have it call addMessages.
         await this.addMessages([message])
     }
 
-    // This is not an abstract method but is useful for our internal logic.
+    // This is not an abstract method but is useful for the internal logic.
     async addMessages(messages: BaseMessage[]): Promise<void> {
         for (const message of messages) {
             if (message._getType() === 'human') {

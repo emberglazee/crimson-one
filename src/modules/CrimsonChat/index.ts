@@ -25,7 +25,6 @@ export default class CrimsonChat {
     private enabled = true
     private ignoredUsers: Set<string> = new Set()
 
-    // Correctly typed chain with history
     private chainWithHistory: RunnableWithMessageHistory<CrimsonChainInput, string>
     private memory: CrimsonFileBufferHistory
 
@@ -51,7 +50,6 @@ export default class CrimsonChat {
         return CrimsonChat.instance
     }
 
-    // ... setClient, init, formatInput methods remain the same ...
     public setClient(client: Client) {
         this.client = client
     }
@@ -91,7 +89,6 @@ export default class CrimsonChat {
             const response = await model.invoke(CRIMSON_BREAKDOWN_PROMPT)
             const breakdown = response.content.toString()
 
-            // Correctly add the message to history
             await this.memory.addAIChatMessage(breakdown)
             return breakdown
         }
@@ -132,7 +129,6 @@ export default class CrimsonChat {
         }
     }
 
-    // ... sendResponseToDiscord and splitMessage methods remain the same ...
     private async sendResponseToDiscord(response: string, targetChannel: TextChannel, originalMessage?: Message): Promise<void> {
         if (!this.client) throw new Error('Client not set')
         const messageQueue = MessageQueue.getInstance()
@@ -165,8 +161,6 @@ export default class CrimsonChat {
         if (currentMessage) messages.push(currentMessage)
         return messages
     }
-
-    // --- ADAPTED HELPER METHODS ---
 
     public async handleStartup(): Promise<void> {
         if (!this.channel) return
@@ -206,7 +200,6 @@ export default class CrimsonChat {
         await this.memory.addUserMessage(formattedInput)
     }
 
-    // ... all other helper methods (clearHistory, updateSystemPrompt, ignoreUser, etc.) remain the same ...
     public async clearHistory(): Promise<void> {
         await this.memory.clear()
     }

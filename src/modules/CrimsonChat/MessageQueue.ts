@@ -18,7 +18,6 @@ export class MessageQueue {
     private lastMessageTime = 0
 
     private constructor() {
-        // Start processing messages as soon as the queue is instantiated
         this.startProcessing()
     }
 
@@ -43,7 +42,6 @@ export class MessageQueue {
             if (this.queue.length > 0 && !this.isProcessing) {
                 await this.processQueue()
             }
-            // Small delay to prevent CPU hogging
             await new Promise(resolve => setTimeout(resolve, 100))
         }
     }
@@ -60,7 +58,6 @@ export class MessageQueue {
                 const now = Date.now()
                 const timeSinceLastMessage = now - this.lastMessageTime
 
-                // If we haven't waited long enough since the last message, wait
                 if (timeSinceLastMessage < this.DELAY_MS) {
                     await new Promise(resolve => setTimeout(resolve, this.DELAY_MS - timeSinceLastMessage))
                 }
@@ -68,7 +65,6 @@ export class MessageQueue {
                 const message = this.queue.shift()!
 
                 try {
-                    // If we have a reply reference, use reply(), otherwise use send()
                     if (message.reply) {
                         await message.reply.reply(message.content)
                     } else {
