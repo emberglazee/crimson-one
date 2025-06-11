@@ -7,13 +7,14 @@ import chalk from 'chalk'
 import { MessageQueue } from './MessageQueue'
 import { createCrimsonChain, type CrimsonChainInput } from './chain' // Import the input type
 import { CrimsonFileBufferHistory } from './memory'
-import { usernamesToMentions } from './utils/formatters'
-import { CRIMSON_BREAKDOWN_PROMPT, OPENAI_BASE_URL, OPENAI_MODEL } from '../../util/constants'
+import { usernamesToMentions } from './util/formatters'
+import { CRIMSON_BREAKDOWN_PROMPT, OPENAI_BASE_URL, OPENAI_MODEL, GEMINI_SWITCH } from '../../util/constants'
 import { ChatOpenAI } from '@langchain/openai'
 import { RunnableWithMessageHistory } from '@langchain/core/runnables'
 import { AIMessage, SystemMessage } from '@langchain/core/messages'
 import * as fs from 'fs/promises'
 import path from 'path'
+import { withProxy } from '../../util/proxy-wrapper'
 
 const logger = new Logger('CrimsonChat')
 
@@ -116,9 +117,14 @@ export default class CrimsonChat {
         const formattedInput = await this.formatInput(content, options)
 
         try {
-            const response = await this.chainWithHistory.invoke(
-                { input: formattedInput },
-                { configurable: { sessionId: 'global' } }
+            const proxyUrl = GEMINI_SWITCH ? process.env.GEMINI_PROXY_URL : undefined
+
+            const response = await withProxy(
+                () => this.chainWithHistory.invoke(
+                    { input: formattedInput },
+                    { configurable: { sessionId: 'global' } }
+                ),
+                proxyUrl
             )
 
             await this.sendResponseToDiscord(response, targetChannel, originalMessage)

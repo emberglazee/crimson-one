@@ -3,7 +3,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import os from 'os'
 import { Logger } from '../../util/logger'
-import { normalizeUrl, cleanImageUrl } from './utils/urlUtils'
+import { normalizeUrl, cleanImageUrl } from './util/url-utils'
 import chalk from 'chalk'
 
 const logger = new Logger('CrimsonChat | ImageProcessor')

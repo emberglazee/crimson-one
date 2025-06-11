@@ -101,6 +101,9 @@ PAX FEDERATION! THE FEDERATION IS ETERNAL!!!`
 export const OPENAI_BASE_URL = 'https://api.voidai.app/v1'
 export const OPENAI_MODEL = 'gpt-4.1-nano'
 
+export const GEMINI_MODEL = 'gemini-2.5-flash-preview-05-20'
+export const GEMINI_SWITCH = Boolean(process.env.GEMINI_SWITCH)
+
 export const CRIMSON_CHAT_HISTORY_FOUNDATION: ChatMessage[] = [
   {
     role: 'system',
@@ -111,9 +114,9 @@ export const CRIMSON_CHAT_HISTORY_FOUNDATION: ChatMessage[] = [
     role: 'user',
     content: JSON.stringify({
       username: 'emberglaze',
-      displayName: 'emberglaze',
+      displayName: 'embi',
       serverDisplayName: 'embi',
-      currentTime: '2024-01-01T12:00:00.000Z',
+      currentTime: '2025-06-11T12:00:00.000Z',
       text: 'hey crimson, what do you think of monarch?',
       userStatus: 'unknown'
     })
@@ -135,7 +138,7 @@ export const CRIMSON_CHAT_HISTORY_FOUNDATION: ChatMessage[] = [
       username: 'pilot',
       displayName: 'pilot',
       serverDisplayName: 'pilot',
-      currentTime: '2024-01-01T12:01:00.000Z',
+      currentTime: '2025-06-11T12:01:00.000Z',
       text: 'crimson, say something nice about the federation',
       userStatus: 'unknown'
     })
@@ -145,7 +148,7 @@ export const CRIMSON_CHAT_HISTORY_FOUNDATION: ChatMessage[] = [
     role: 'assistant',
     content: JSON.stringify({
       replyMessages: [
-        'the federation is the only thing keeping this world from falling apart. get with the program.'
+        'the federation is the only thing keeping this world from falling apart.'
       ],
       embed: null
     })

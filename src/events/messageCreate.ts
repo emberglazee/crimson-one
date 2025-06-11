@@ -8,8 +8,8 @@ import util from 'util'
 import { messageTrigger, shapesInc, crimsonChat } from '..'
 import GuildConfigManager from '../modules/GuildConfig'
 import CommandManager from '../modules/CommandManager'
-import { normalizeUrl } from '../modules/CrimsonChat/utils/urlUtils'
-import { parseMentions } from '../modules/CrimsonChat/utils/formatters' // Correctly import the restored utility
+import { normalizeUrl } from '../modules/CrimsonChat/util/url-utils'
+import { parseMentions } from '../modules/CrimsonChat/util/formatters'
 
 export default async function onMessageCreate(client: Client) {
     client.on('messageCreate', async message => {
