@@ -1,4 +1,3 @@
-import { z } from 'zod'
 import type { ChatMessage } from '../types/types'
 
 export const EMBERGLAZE_ID = '341123308844220447' as const
