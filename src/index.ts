@@ -19,7 +19,7 @@ import GuildConfigManager from './modules/GuildConfig'
 import { QuoteImageFactory } from './modules/QuoteImageFactory'
 import CrimsonChat from './modules/CrimsonChat'
 
-const bot = new Client({
+export const bot = new Client({
     intents: new IntentsBitField([
         IntentsBitField.Flags.Guilds,
         IntentsBitField.Flags.GuildMembers,
