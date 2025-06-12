@@ -29,6 +29,8 @@ export async function addTools<T extends ChatOpenAI | ChatGoogleGenerativeAI>(mo
     } catch (error) {
         logger.warn(`Could not read tools directory at ${toolsDir}: ${red(error)}`)
     }
-    model.bindTools(tools)
+    model.bindTools(tools, {
+        tool_choice: 'auto'
+    })
     return model
 }
