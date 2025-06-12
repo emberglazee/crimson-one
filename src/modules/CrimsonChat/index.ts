@@ -79,7 +79,7 @@ export default class CrimsonChat {
             guildName: options.guildName,
             channelName: options.channelName,
         }
-        return JSON.stringify(messageData, null, 2)
+        return JSON.stringify(messageData)
     }
 
     private async handleRandomBreakdown(): Promise<string | null> {
