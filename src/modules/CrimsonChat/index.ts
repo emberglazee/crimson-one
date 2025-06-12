@@ -10,13 +10,14 @@ import { CrimsonFileBufferHistory } from './memory'
 import { usernamesToMentions } from './util/formatters'
 import { CRIMSON_BREAKDOWN_PROMPT, OPENAI_BASE_URL, OPENAI_MODEL, GEMINI_SWITCH } from '../../util/constants'
 import { ChatOpenAI } from '@langchain/openai'
-import { RunnableWithMessageHistory } from '@langchain/core/runnables'
+import { Runnable, RunnableWithMessageHistory } from '@langchain/core/runnables'
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages'
 import * as fs from 'fs/promises'
 import path from 'path'
 import { withProxy } from '../../util/proxy-wrapper'
 import { ImageProcessor } from './ImageProcessor' // Import ImageProcessor
 import { BaseMessage } from '@langchain/core/messages'
+import { StringOutputParser } from '@langchain/core/output_parsers'
 
 const logger = new Logger('CrimsonChat')
 
@@ -29,7 +30,7 @@ export default class CrimsonChat {
     private ignoredUsers: Set<string> = new Set()
     private imageProcessor: ImageProcessor // Add an instance of ImageProcessor
 
-    private chainWithHistory!: RunnableWithMessageHistory<CrimsonChainInput, string>
+    private messageChain!: Runnable<CrimsonChainInput, string>
     private memory: CrimsonFileBufferHistory
 
     private forceNextBreakdown = false
@@ -56,12 +57,16 @@ export default class CrimsonChat {
 
         const coreChain = await createCrimsonChain()
 
-        this.chainWithHistory = new RunnableWithMessageHistory({
+        const chainWithHistory = new RunnableWithMessageHistory({
             runnable: coreChain,
             getMessageHistory: _ => this.memory,
             inputMessagesKey: 'input',
             historyMessagesKey: 'chat_history',
         })
+
+        // Compose the final chain: the history-aware runnable followed by the string parser.
+        // This ensures the full AIMessage is saved to history before being converted to a string.
+        this.messageChain = chainWithHistory.pipe(new StringOutputParser())
 
         logger.info('Initializing CrimsonChat...')
         this.channel = (await this.client.channels.fetch(this.channelId)) as TextChannel
@@ -139,7 +144,7 @@ export default class CrimsonChat {
             const proxyUrl = GEMINI_SWITCH ? process.env.GEMINI_PROXY_URL : undefined
 
             const response = await withProxy(
-                () => this.chainWithHistory.invoke(
+                () => this.messageChain.invoke(
                     { input: chatInputContent },
                     { configurable: { sessionId: 'global' } }
                 ),

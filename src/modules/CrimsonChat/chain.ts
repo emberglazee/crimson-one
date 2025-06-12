@@ -5,7 +5,6 @@ import {
     ChatPromptTemplate,
     MessagesPlaceholder,
 } from '@langchain/core/prompts'
-import { StringOutputParser } from '@langchain/core/output_parsers'
 import { RunnableSequence } from '@langchain/core/runnables'
 import { OPENAI_BASE_URL, OPENAI_MODEL, GEMINI_MODEL, GEMINI_SWITCH } from '../../util/constants'
 import type { BaseMessage } from '@langchain/core/messages'
@@ -36,8 +35,6 @@ export const createCrimsonChain = async () => {
     })
     const modelWithTools = await addTools(model)
 
-    const outputParser = new StringOutputParser()
-
-    const chain = RunnableSequence.from([prompt, modelWithTools, outputParser])
+    const chain = RunnableSequence.from([prompt, modelWithTools])
     return chain
 }
