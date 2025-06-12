@@ -18,12 +18,14 @@ async function timeoutUser({ id, username, displayname, length, reason }: Input)
     if (!query) return 'Error: must provide either user id, username, or display name'
     const guild = await client.guilds.fetch('958518067690868796')
     const member = await findMember(guild, query).catch(err => {
-        return `Error: could not find a member due to a \`findMember()\` runtime error: ${err}`
+        return `Error: Could not find a member due to a \`findMember()\` runtime error: ${err}`
     })
     if (typeof member === 'string') return member
-    if (!member) return `Error: Did not find any member matching the query (either ID, username, or display name); probable cause is too far of a levenshtein distance for display name, or invalid ID or username`
+    if (!member) return `Error: Did not find any member matching the query (either ID, username, or display name); probable cause is too far of a levenshtein distance for display name, or invalid ID or username.`
+    if (member.user.bot) return `Error: Cannot moderate a bot. (Attempted action on: ${member.user.username})`
+    if (!member.moderatable) return `Error: Cannot moderate this user. (Attempted action on: ${member.user.username})`
     await member.timeout(length, reason)
-    return `Successfully timed out user ${member.user.username} (display name ${member.displayName}) for ${length} milliseconds`
+    return `✅ Successfully timed out user ${member.user.username} (display name ${member.displayName}) for ${length} milliseconds`
 }
 
 const timeoutTool: DynamicStructuredTool<typeof schema> = tool(timeoutUser, {
