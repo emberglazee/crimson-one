@@ -1,5 +1,3 @@
-// src/modules/CrimsonChat/chain.ts
-
 import { ChatOpenAI } from '@langchain/openai'
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 
