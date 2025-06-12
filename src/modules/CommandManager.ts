@@ -6,7 +6,8 @@ const logger = new Logger('CommandManager')
 import {
     SlashCommandBuilder, ContextMenuCommandBuilder,
     Routes, Message, ApplicationCommandOptionType,
-    REST, InteractionResponse, ApplicationCommandType
+    REST, InteractionResponse, ApplicationCommandType,
+    MessageFlags
 } from 'discord.js'
 import type {
     RESTPostAPIChatInputApplicationCommandsJSONBody, Role,
@@ -731,7 +732,7 @@ export default class CommandManager {
                     logger.warn(`{handleError} Could not editReply to interaction for ${commandName}: [${red(err.message)}]`)
                 )
             } else {
-                source.reply({ content: replyMessage, ephemeral: true }).catch(err =>
+                source.reply({ content: replyMessage, flags: MessageFlags.Ephemeral }).catch(err =>
                     logger.warn(`{handleError} Could not reply to interaction for ${commandName}: [${red(err.message)}]`)
                 )
             }
