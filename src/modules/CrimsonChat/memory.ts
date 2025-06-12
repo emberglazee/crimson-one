@@ -64,9 +64,22 @@ export class CrimsonFileBufferHistory extends BaseChatMessageHistory {
         await this.loadHistoryFromFile()
         return this.history.map(msg => {
             switch (msg.role) {
-                case 'user':
-                    return new HumanMessage({ content: msg.content ?? '' })
-                case 'assistant':
+                case 'user': {
+                    let content: BaseMessage['content'] = msg.content ?? ''
+                    // Try to parse content in case it's a stringified array (for multi-modal)
+                    if (typeof content === 'string' && content.startsWith('[')) {
+                        try {
+                            const parsed = JSON.parse(content)
+                            if (Array.isArray(parsed)) {
+                                content = parsed
+                            }
+                        } catch {
+                            // Not valid JSON, treat as plain text
+                        }
+                    }
+                    return new HumanMessage({ content })
+                }
+                case 'assistant': {
                     const aiMessage = new AIMessage({ content: msg.content ?? '' })
                     // Reconstruct tool_calls if they exist
                     if (msg.tool_calls) {
@@ -78,6 +91,7 @@ export class CrimsonFileBufferHistory extends BaseChatMessageHistory {
                         }))
                     }
                     return aiMessage
+                }
                 case 'system':
                     return new SystemMessage({ content: msg.content ?? '' })
                 case 'tool':
@@ -111,7 +125,11 @@ export class CrimsonFileBufferHistory extends BaseChatMessageHistory {
         for (const message of messages) {
             const messageType = message.getType()
             if (messageType === 'human') {
-                this.history.push({ role: 'user', content: message.content.toString() })
+                // If content is not a string (i.e., multi-modal), stringify it for storage.
+                const contentToStore = typeof message.content === 'string'
+                    ? message.content
+                    : JSON.stringify(message.content)
+                this.history.push({ role: 'user', content: contentToStore })
             } else if (messageType === 'ai') {
                 const aiMessage = message as AIMessage
                 this.history.push({
