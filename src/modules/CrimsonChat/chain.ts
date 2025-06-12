@@ -12,9 +12,7 @@ import type { BaseMessage } from '@langchain/core/messages'
 import { addTools } from './tools'
 
 export interface CrimsonChainInput {
-    input: string
-    // Make chat_history optional for the initial call to the wrapped chain.
-    // The RunnableWithMessageHistory wrapper will inject this property.
+    input: BaseMessage['content']
     chat_history?: BaseMessage[]
 }
 

@@ -12,7 +12,7 @@ export class ImageProcessor {
     public normalizeUrl = normalizeUrl
     public cleanImageUrl = cleanImageUrl
 
-    public async fetchAndConvertToBase64(url: string): Promise<`data:${'image/png' | 'image/jpeg'};base64,${string}` | null> {
+    public async fetchAndConvertToBase64(url: string): Promise<{ type: 'image_url', image_url: { url: string } } | null> {
         try {
             const urlObj = new URL(url)
             const isGif = urlObj.pathname.toLowerCase().endsWith('.gif')
@@ -30,7 +30,13 @@ export class ImageProcessor {
 
             const base64 = buffer.toString('base64')
             const mimeType = isGif ? 'image/png' : 'image/jpeg'
-            return `data:${mimeType};base64,${base64}`
+            const dataUrl = `data:${mimeType};base64,${base64}`
+            return {
+                type: 'image_url',
+                image_url: {
+                    url: dataUrl
+                }
+            }
         } catch (e) {
             const error = e as Error
             logger.error(`Failed to fetch and convert image: ${chalk.red(error.message)}`)
