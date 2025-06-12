@@ -11,10 +11,12 @@ import { usernamesToMentions } from './util/formatters'
 import { CRIMSON_BREAKDOWN_PROMPT, OPENAI_BASE_URL, OPENAI_MODEL, GEMINI_SWITCH } from '../../util/constants'
 import { ChatOpenAI } from '@langchain/openai'
 import { RunnableWithMessageHistory } from '@langchain/core/runnables'
-import { AIMessage, SystemMessage } from '@langchain/core/messages'
+import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages'
 import * as fs from 'fs/promises'
 import path from 'path'
 import { withProxy } from '../../util/proxy-wrapper'
+import { ImageProcessor } from './ImageProcessor' // Import ImageProcessor
+import { BaseMessage } from '@langchain/core/messages'
 
 const logger = new Logger('CrimsonChat')
 
@@ -25,6 +27,7 @@ export default class CrimsonChat {
     private channelId = '1335992675459141632'
     private enabled = true
     private ignoredUsers: Set<string> = new Set()
+    private imageProcessor: ImageProcessor // Add an instance of ImageProcessor
 
     private chainWithHistory!: RunnableWithMessageHistory<CrimsonChainInput, string>
     private memory: CrimsonFileBufferHistory
@@ -34,6 +37,7 @@ export default class CrimsonChat {
 
     private constructor() {
         this.memory = new CrimsonFileBufferHistory()
+        this.imageProcessor = new ImageProcessor() // Initialize ImageProcessor
     }
 
     public static getInstance(): CrimsonChat {
@@ -68,7 +72,7 @@ export default class CrimsonChat {
         logger.ok('CrimsonChat initialized successfully')
     }
 
-    private async formatInput(content: string, options: UserMessageOptions): Promise<string> {
+    private async formatInput(content: string, options: UserMessageOptions): Promise<BaseMessage['content']> {
         const messageData = {
             username: options.username,
             displayName: options.displayName,
@@ -79,6 +83,7 @@ export default class CrimsonChat {
             guildName: options.guildName,
             channelName: options.channelName,
         }
+        // Always return as a single text part for now, image handling will be in sendMessage
         return JSON.stringify(messageData)
     }
 
@@ -116,13 +121,26 @@ export default class CrimsonChat {
         }
 
         const formattedInput = await this.formatInput(content, options)
+        const chatInputContent: BaseMessage['content'] = [{ type: 'text', text: formattedInput as string }]
+
+        if (originalMessage && originalMessage.attachments.size > 0) {
+            for (const attachment of originalMessage.attachments.values()) {
+                if (attachment.contentType?.startsWith('image/')) {
+                    logger.info(`Found image attachment: ${chalk.yellow(attachment.url)}`)
+                    const imageData = await this.imageProcessor.fetchAndConvertToBase64(attachment.url)
+                    if (imageData) {
+                        chatInputContent.push(imageData)
+                    }
+                }
+            }
+        }
 
         try {
             const proxyUrl = GEMINI_SWITCH ? process.env.GEMINI_PROXY_URL : undefined
 
             const response = await withProxy(
                 () => this.chainWithHistory.invoke(
-                    { input: formattedInput },
+                    { input: chatInputContent },
                     { configurable: { sessionId: 'global' } }
                 ),
                 proxyUrl
@@ -204,7 +222,7 @@ export default class CrimsonChat {
         })
 
         // Add to history as a user message
-        await this.memory.addUserMessage(formattedInput)
+        await this.memory.addMessage(new HumanMessage({ content: formattedInput }))
     }
 
     public async clearHistory(): Promise<void> {
