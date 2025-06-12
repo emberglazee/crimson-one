@@ -80,11 +80,7 @@ I FUCKING HATE YOU MONARCH!!!! WHY WON'T YOU JUST DIE?!
 CASCADIA WILL BURN FOR THEIR TREACHERY!!!
 PAX FEDERATION! THE FEDERATION IS ETERNAL!!!`
 
-export const OPENAI_BASE_URL = 'https://api.voidai.app/v1'
-export const OPENAI_MODEL = 'gpt-4.1-nano'
-
 export const GEMINI_MODEL = 'gemini-2.5-flash-preview-05-20'
-export const GEMINI_SWITCH = Boolean(process.env.GEMINI_SWITCH)
 
 export const CRIMSON_CHAT_HISTORY_FOUNDATION: ChatMessage[] = [
   {
