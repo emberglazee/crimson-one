@@ -305,7 +305,7 @@ export interface FormattedUserMessage {
 export interface ChatMessage {
     role: 'system' | 'assistant' | 'user' | 'tool'
     content: string
-    tool_calls?: ToolCall[]
+    tool_calls?: { id: string; name: string; args: Record<string, ExplicitAny> }[]
     tool_call_id?: string
 }
 
