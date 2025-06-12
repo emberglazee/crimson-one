@@ -5,17 +5,16 @@ import { Logger } from '../../util/logger'
 import type { UserMessageOptions } from '../../types/types'
 import chalk from 'chalk'
 import { MessageQueue } from './MessageQueue'
-import { createCrimsonChain, type CrimsonChainInput } from './chain' // Import the input type
+import { createCrimsonChain, type CrimsonChainInput } from './chain'
 import { CrimsonFileBufferHistory } from './memory'
 import { usernamesToMentions } from './util/formatters'
-import { CRIMSON_BREAKDOWN_PROMPT, OPENAI_BASE_URL, OPENAI_MODEL, GEMINI_SWITCH } from '../../util/constants'
-import { ChatOpenAI } from '@langchain/openai'
+import { CRIMSON_BREAKDOWN_PROMPT, GEMINI_MODEL } from '../../util/constants'
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { Runnable, RunnableWithMessageHistory } from '@langchain/core/runnables'
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages'
 import * as fs from 'fs/promises'
 import path from 'path'
-import { withProxy } from '../../util/proxy-wrapper'
-import { ImageProcessor } from './ImageProcessor' // Import ImageProcessor
+import { ImageProcessor } from './ImageProcessor'
 import { BaseMessage } from '@langchain/core/messages'
 import { StringOutputParser } from '@langchain/core/output_parsers'
 
@@ -28,7 +27,7 @@ export default class CrimsonChat {
     private channelId = '1335992675459141632'
     private enabled = true
     private ignoredUsers: Set<string> = new Set()
-    private imageProcessor: ImageProcessor // Add an instance of ImageProcessor
+    private imageProcessor: ImageProcessor
 
     private messageChain!: Runnable<CrimsonChainInput, string>
     private memory: CrimsonFileBufferHistory
@@ -38,7 +37,7 @@ export default class CrimsonChat {
 
     private constructor() {
         this.memory = new CrimsonFileBufferHistory()
-        this.imageProcessor = new ImageProcessor() // Initialize ImageProcessor
+        this.imageProcessor = new ImageProcessor()
     }
 
     public static getInstance(): CrimsonChat {
@@ -97,7 +96,7 @@ export default class CrimsonChat {
             logger.info(`Triggering ${this.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
 
-            const model = new ChatOpenAI({ modelName: OPENAI_MODEL, configuration: { baseURL: OPENAI_BASE_URL } })
+            const model = new ChatGoogleGenerativeAI({ model: GEMINI_MODEL, apiKey: process.env.GEMINI_API_KEY })
             const response = await model.invoke(CRIMSON_BREAKDOWN_PROMPT)
             const breakdown = response.content.toString()
 
@@ -141,14 +140,9 @@ export default class CrimsonChat {
         }
 
         try {
-            const proxyUrl = GEMINI_SWITCH ? process.env.GEMINI_PROXY_URL : undefined
-
-            const response = await withProxy(
-                () => this.messageChain.invoke(
-                    { input: chatInputContent },
-                    { configurable: { sessionId: 'global' } }
-                ),
-                proxyUrl
+            const response = await this.messageChain.invoke(
+                { input: chatInputContent },
+                { configurable: { sessionId: 'global' } }
             )
 
             await this.sendResponseToDiscord(response, targetChannel, originalMessage)
