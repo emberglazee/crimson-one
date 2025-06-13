@@ -61,7 +61,6 @@ export type WebhookEvents = {
     [key: string]: (...args: unknown[]) => void
 }
 
-
 export interface MessageTriggerEntry {
     pattern: Array<RegExp | string | ((message: Message) => boolean)>
     action: (message: Message) => Promise<void>
@@ -97,7 +96,6 @@ export type SlashCommandProps = {
         context: CommandContext // context will have subcommandName and subcommandGroupName
     ) => Promise<void>
 }
-
 
 export interface ISlashCommand extends SlashCommandProps {}
 
@@ -305,7 +303,7 @@ export interface FormattedUserMessage {
 export interface ChatMessage {
     role: 'system' | 'assistant' | 'user' | 'tool'
     content: string
-    tool_calls?: { id: string; name: string; args: Record<string, ExplicitAny> }[]
+    tool_calls?: { id: string; name: string; args: Record<string, ExplicitAny>, type: 'tool_call' }[]
     tool_call_id?: string
 }
 
