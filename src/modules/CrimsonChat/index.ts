@@ -1,3 +1,4 @@
+// modules\CrimsonChat\index.ts
 import { Client, TextChannel, Message, ChatInputCommandInteraction } from 'discord.js'
 import { Logger } from '../../util/logger'
 import type { UserMessageOptions } from '../../types/types'
@@ -6,7 +7,7 @@ import { MessageQueue } from './MessageQueue'
 import { createCrimsonChain, type CrimsonChainInput } from './chain'
 import { CrimsonFileBufferHistory } from './memory'
 import { usernamesToMentions } from './util/formatters'
-import { CRIMSON_BREAKDOWN_PROMPT, GEMINI_MODEL } from '../../util/constants'
+import { CRIMSON_BREAKDOWN_PROMPT, DEFAULT_GEMINI_MODEL } from '../../util/constants'
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { Runnable, RunnableWithMessageHistory } from '@langchain/core/runnables'
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages'
@@ -29,6 +30,7 @@ export default class CrimsonChat {
 
     private messageChain!: Runnable<CrimsonChainInput, string>
     private memory: CrimsonFileBufferHistory
+    private modelName: string = DEFAULT_GEMINI_MODEL
 
     private forceNextBreakdown = false
     private berserkMode = false
@@ -65,7 +67,7 @@ export default class CrimsonChat {
     }
 
     private async initChain(): Promise<void> {
-        const coreChain = await createCrimsonChain(this.berserkMode)
+        const coreChain = await createCrimsonChain(this.modelName, this.berserkMode)
 
         const chainWithHistory = new RunnableWithMessageHistory({
             runnable: coreChain,
@@ -75,7 +77,7 @@ export default class CrimsonChat {
         })
 
         this.messageChain = chainWithHistory.pipe(new StringOutputParser())
-        logger.info(`Message chain re-initialized. Berserk mode: ${chalk.yellow(this.berserkMode)}`)
+        logger.info(`Message chain re-initialized. Model: ${chalk.green(this.modelName)}, Berserk mode: ${chalk.yellow(this.berserkMode)}`)
     }
 
     private async formatInput(content: string, options: UserMessageOptions): Promise<BaseMessage['content']> {
@@ -98,7 +100,7 @@ export default class CrimsonChat {
             logger.info(`Triggering ${this.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
 
-            const model = new ChatGoogleGenerativeAI({ model: GEMINI_MODEL, apiKey: process.env.GEMINI_API_KEY })
+            const model = new ChatGoogleGenerativeAI({ model: this.modelName, apiKey: process.env.GEMINI_API_KEY })
             const response = await model.invoke(CRIMSON_BREAKDOWN_PROMPT)
             const breakdown = response.content.toString()
 
@@ -233,6 +235,12 @@ export default class CrimsonChat {
 
     public async updateSystemPrompt(): Promise<void> {
         await this.memory.updateSystemPrompt()
+    }
+
+    public async setModel(modelName: string): Promise<void> {
+        this.modelName = modelName
+        await this.initChain()
+        logger.ok(`CrimsonChat model switched to: ${chalk.green(modelName)}`)
     }
 
     public setForceNextBreakdown(force: boolean): void {

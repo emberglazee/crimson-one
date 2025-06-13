@@ -1,3 +1,4 @@
+// commands\crimsonchat.ts
 import { SlashCommand } from '../types/types'
 import { SlashCommandBuilder } from 'discord.js'
 import { EMBERGLAZE_ID } from '../util/constants'
@@ -52,6 +53,24 @@ export default {
         ).addSubcommand(sub => sub
             .setName('ignorelist')
             .setDescription('List all ignored users')
+        ).addSubcommand(sub => sub
+            .setName('model')
+            .setDescription('Switch the Gemini model used for responses')
+            .addStringOption(opt => opt
+                .setName('model')
+                .setDescription('The model to switch to')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'Gemini Pro 2.5 Preview 06-05', value: 'gemini-2.5-pro-preview-06-05' },
+                    { name: 'Gemini Pro 2.5 Preview 05-06', value: 'gemini-2.5-pro-preview-05-06' },
+                    { name: 'Gemini Flash 2.5 Preview 05-20 (Default)', value: 'gemini-2.5-flash-preview-05-20' },
+                    { name: 'Gemini Flash 2.5 Preview 04-17', value: 'gemini-2.5-flash-preview-04-17' },
+                    { name: 'Gemini Flash 2.0', value: 'gemini-2.0-flash' },
+                    { name: 'Gemini Flash 2.0 Lite', value: 'gemini-2.0-flash-lite' },
+                    { name: 'Gemma 3n E4B IT', value: 'gemma-3n-e4b-it' },
+                    { name: 'Gemma 3 27B IT', value: 'gemma-3-27b-it' }
+                )
+            )
         ),
 
     async execute(context) {
@@ -170,6 +189,18 @@ export default {
                 }))
                 await context.editReply(`✅ Users ignored by CrimsonChat: \`${ignoredUsernames.join(', ')}\``)
                 break
+
+            case 'model': {
+                const model = context.getStringOption('model', true)
+                await context.deferReply()
+                await crimsonChat.setModel(model)
+                await context.editReply(`✅ CrimsonChat model switched to \`${model}\`. The chat chain has been re-initialized.`)
+                await crimsonChat.sendMessage(
+                    `System Alert: Model has been switched to \`${model}\` by ${context.user.username}.`,
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                )
+                break
+            }
         }
     }
 } satisfies SlashCommand
