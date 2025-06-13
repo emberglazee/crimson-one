@@ -142,15 +142,16 @@ export default class CrimsonChat {
         }
 
         try {
+            const humanMessage = new HumanMessage({ content: chatInputContent })
             const response = await this.messageChain.invoke(
-                { input: chatInputContent },
+                { input: [humanMessage] },
                 { configurable: { sessionId: 'global' } }
             )
 
             await this.sendResponseToDiscord(response, targetChannel, originalMessage)
             return [response]
         } catch (e) {
-            logger.warn(`Error processing message: ${chalk.red((e as Error).message)}`)
+            logger.warn(`Error processing message: ${chalk.red((e as Error).stack ?? (e as Error).message)}`)
             return null
         }
     }

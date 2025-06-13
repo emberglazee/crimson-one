@@ -7,14 +7,14 @@ import { GEMINI_MODEL } from '../../util/constants'
 import { addTools } from './tools'
 
 export interface CrimsonChainInput {
-    input: BaseMessage['content']
+    input: BaseMessage[]
     chat_history?: BaseMessage[]
 }
 
 export const createCrimsonChain = async (berserkMode = false) => {
     const prompt = ChatPromptTemplate.fromMessages([
         new MessagesPlaceholder('chat_history'),
-        ['human', '{input}'],
+        new MessagesPlaceholder('input'),
     ])
 
     const modelParams = berserkMode
