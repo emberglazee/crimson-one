@@ -1,9 +1,10 @@
+// modules\CrimsonChat\chain.ts
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts'
 import { RunnableSequence } from '@langchain/core/runnables'
 import type { BaseMessage } from '@langchain/core/messages'
 
-import { GEMINI_MODEL } from '../../util/constants'
+import { DEFAULT_GEMINI_MODEL } from '../../util/constants'
 import { addTools } from './tools'
 
 export interface CrimsonChainInput {
@@ -11,7 +12,7 @@ export interface CrimsonChainInput {
     chat_history?: BaseMessage[]
 }
 
-export const createCrimsonChain = async (berserkMode = false) => {
+export const createCrimsonChain = async (modelName: string = DEFAULT_GEMINI_MODEL, berserkMode = false) => {
     const prompt = ChatPromptTemplate.fromMessages([
         new MessagesPlaceholder('chat_history'),
         new MessagesPlaceholder('input'),
@@ -22,7 +23,7 @@ export const createCrimsonChain = async (berserkMode = false) => {
         : { temperature: 0.8 }
 
     const model = new ChatGoogleGenerativeAI({
-        model: GEMINI_MODEL,
+        model: modelName,
         apiKey: process.env.GEMINI_API_KEY,
         baseUrl: process.env.GEMINI_BASE_URL,
         ...modelParams

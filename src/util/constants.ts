@@ -80,7 +80,7 @@ I FUCKING HATE YOU MONARCH!!!! WHY WON'T YOU JUST DIE?!
 CASCADIA WILL BURN FOR THEIR TREACHERY!!!
 PAX FEDERATION! THE FEDERATION IS ETERNAL!!!`
 
-export const GEMINI_MODEL = 'gemini-2.5-flash-preview-05-20'
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-preview-05-20'
 
 export const CRIMSON_CHAT_HISTORY_FOUNDATION: ChatMessage[] = [
   {
