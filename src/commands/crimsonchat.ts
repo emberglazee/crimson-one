@@ -23,6 +23,9 @@ export default {
             .setName('smack')
             .setDescription('Remind Crimson of its system prompt')
         ).addSubcommand(sub => sub
+            .setName('berserk')
+            .setDescription('Toggle berserk mode (maximum chaos)')
+        ).addSubcommand(sub => sub
             .setName('ignore')
             .setDescription('Make CrimsonChat ignore a user')
             .addUserOption(opt => opt
@@ -97,6 +100,17 @@ export default {
                 )
                 await context.followUp('✅ System prompt reminder sent')
                 break
+
+            case 'berserk': {
+                const isEnabled = await crimsonChat.toggleBerserkMode()
+                const status = isEnabled ? 'ENABLED' : 'DISABLED'
+                await context.reply(`🚨 Berserk mode is now **${status}**. Maximum chaos protocol ${isEnabled ? 'engaged' : 'disengaged'}.`)
+                await crimsonChat.sendMessage(
+                    `System Alert: Berserk mode has been ${status.toLowerCase()} by ${context.user.username}.`,
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                )
+                break
+            }
 
             case 'ignore': {
                 const user = await context.getUserOption('user')

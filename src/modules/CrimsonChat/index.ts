@@ -1,5 +1,3 @@
-// src/modules/CrimsonChat/index.ts
-
 import { Client, TextChannel, Message, ChatInputCommandInteraction } from 'discord.js'
 import { Logger } from '../../util/logger'
 import type { UserMessageOptions } from '../../types/types'
@@ -33,6 +31,7 @@ export default class CrimsonChat {
     private memory: CrimsonFileBufferHistory
 
     private forceNextBreakdown = false
+    private berserkMode = false
     private readonly BREAKDOWN_CHANCE = 0.01
 
     private constructor() {
@@ -54,18 +53,7 @@ export default class CrimsonChat {
     public async init(): Promise<void> {
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
-        const coreChain = await createCrimsonChain()
-
-        const chainWithHistory = new RunnableWithMessageHistory({
-            runnable: coreChain,
-            getMessageHistory: _ => this.memory,
-            inputMessagesKey: 'input',
-            historyMessagesKey: 'chat_history',
-        })
-
-        // Compose the final chain: the history-aware runnable followed by the string parser.
-        // This ensures the full AIMessage is saved to history before being converted to a string.
-        this.messageChain = chainWithHistory.pipe(new StringOutputParser())
+        await this.initChain()
 
         logger.info('Initializing CrimsonChat...')
         this.channel = (await this.client.channels.fetch(this.channelId)) as TextChannel
@@ -74,6 +62,20 @@ export default class CrimsonChat {
         }
         await this.loadIgnoredUsers()
         logger.ok('CrimsonChat initialized successfully')
+    }
+
+    private async initChain(): Promise<void> {
+        const coreChain = await createCrimsonChain(this.berserkMode)
+
+        const chainWithHistory = new RunnableWithMessageHistory({
+            runnable: coreChain,
+            getMessageHistory: _ => this.memory,
+            inputMessagesKey: 'input',
+            historyMessagesKey: 'chat_history',
+        })
+
+        this.messageChain = chainWithHistory.pipe(new StringOutputParser())
+        logger.info(`Message chain re-initialized. Berserk mode: ${chalk.yellow(this.berserkMode)}`)
     }
 
     private async formatInput(content: string, options: UserMessageOptions): Promise<BaseMessage['content']> {
@@ -235,6 +237,12 @@ export default class CrimsonChat {
     public setForceNextBreakdown(force: boolean): void {
         this.forceNextBreakdown = force
         logger.ok(`Force next breakdown set to: ${chalk.yellow(force)}`)
+    }
+
+    public async toggleBerserkMode(): Promise<boolean> {
+        this.berserkMode = !this.berserkMode
+        await this.initChain()
+        return this.berserkMode
     }
 
     public isEnabled(): boolean {
