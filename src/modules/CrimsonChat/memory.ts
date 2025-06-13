@@ -1,5 +1,3 @@
-// src/modules/CrimsonChat/memory.ts
-
 import { promises as fs } from 'fs'
 import path from 'path'
 import {
@@ -140,6 +138,7 @@ export class CrimsonFileBufferHistory extends BaseChatMessageHistory {
                         id: tc.id!,
                         name: tc.name,
                         args: tc.args,
+                        type: 'tool_call',
                     })),
                 })
             } else if (messageType === 'system') {
