@@ -24,6 +24,7 @@ export const createCrimsonChain = async (berserkMode = false) => {
     const model = new ChatGoogleGenerativeAI({
         model: GEMINI_MODEL,
         apiKey: process.env.GEMINI_API_KEY,
+        baseUrl: process.env.GEMINI_BASE_URL,
         ...modelParams
     })
 
