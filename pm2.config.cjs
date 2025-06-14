@@ -1,5 +1,5 @@
 module.exports = {
     name: 'crimson-one',
-    script: 'src/index.ts',
+    script: 'src/guardian.ts',
     interpreter: 'bun'
 }
