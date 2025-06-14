@@ -1,5 +1,3 @@
-// modules\CrimsonChat\index.ts
-// modules\CrimsonChat\index.ts
 import { Client, TextChannel, Message, ChatInputCommandInteraction } from 'discord.js'
 import { Logger } from '../../util/logger'
 import type { UserMessageOptions } from '../../types/types'
@@ -37,6 +35,13 @@ export default class CrimsonChat {
     private berserkMode = false
     private testMode = false
     private readonly BREAKDOWN_CHANCE = 0.01
+
+    private isGenerating = false
+    private messageBuffer: {
+        content: string
+        options: UserMessageOptions
+        originalMessage?: Message
+    }[] = []
 
     private constructor() {
         this.memory = new CrimsonFileBufferHistory()
@@ -114,22 +119,124 @@ export default class CrimsonChat {
         return null
     }
 
-    public async sendMessage(
+    /**
+     * Enqueues a message for processing and starts the processing loop if not already running.
+     * This is the new public entry point for messages.
+     */
+    public sendMessage(
         content: string,
         options: UserMessageOptions,
         originalMessage?: Message
-    ): Promise<string[] | null> {
-        if (!this.channel || !this.enabled) return null
+    ): void {
+        if (!this.channel || !this.enabled) return
 
-        const targetChannel = options.targetChannel || this.channel
-        logger.info(`Processing message from ${chalk.yellow(options.username)}...`)
+        this.messageBuffer.push({ content, options, originalMessage })
+        logger.info(`Message from ${chalk.yellow(options.username)} buffered. Buffer size: ${this.messageBuffer.length}`)
+
+        // If the queue is not already being processed, start it.
+        if (!this.isGenerating) {
+            // Use setImmediate to avoid blocking the event loop and prevent deep recursion.
+            setImmediate(() => this._processQueue())
+        }
+    }
+
+    /**
+     * Processes the message queue, handling one message and then any subsequent buffered messages in bulk.
+     */
+    private async _processQueue(): Promise<void> {
+        // Lock to prevent concurrent execution
+        if (this.isGenerating) return
+        this.isGenerating = true
+        logger.info('Starting message processing queue.')
+
+        try {
+            // Continue as long as there are messages to process
+            while (this.messageBuffer.length > 0) {
+                // 1. Process the first message in the queue
+                const firstMessage = this.messageBuffer.shift()
+                if (!firstMessage) continue
+
+                logger.info(`Processing single message from ${chalk.yellow(firstMessage.options.username)}`)
+                const response = await this._generateResponse(
+                    firstMessage.content,
+                    firstMessage.options,
+                    firstMessage.originalMessage
+                )
+
+                if (response) {
+                    const targetChannel = firstMessage.options.targetChannel || this.channel!
+                    await this.sendResponseToDiscord(response, targetChannel, firstMessage.originalMessage)
+                }
+
+                // 2. After responding, check for and process any messages that were buffered during generation
+                if (this.messageBuffer.length > 0) {
+                    const bulkMessages = [...this.messageBuffer]
+                    this.messageBuffer = [] // Clear buffer for the next cycle
+                    logger.info(`Processing a bulk of ${chalk.yellow(bulkMessages.length)} buffered messages.`)
+
+                    const combinedContent = bulkMessages.map(msg =>
+                        JSON.stringify({
+                            username: msg.options.username,
+                            displayName: msg.options.displayName,
+                            text: msg.content,
+                        })
+                    ).join('\n')
+
+                    const bulkOptions: UserMessageOptions = {
+                        username: 'System',
+                        displayName: 'System',
+                        serverDisplayName: 'System',
+                    }
+
+                    const lastMessageInBulk = bulkMessages[bulkMessages.length - 1]
+                    const bulkPrompt = `The following messages were sent in rapid succession while you were generating your previous response. Respond to them as a whole:\n\n${combinedContent}`
+
+                    const bulkResponse = await this._generateResponse(
+                        bulkPrompt,
+                        bulkOptions,
+                        lastMessageInBulk.originalMessage
+                    )
+
+                    if (bulkResponse) {
+                        const targetChannel = lastMessageInBulk.options.targetChannel || this.channel!
+                        await this.sendResponseToDiscord(bulkResponse, targetChannel, lastMessageInBulk.originalMessage)
+                    }
+                }
+            }
+        } catch (error) {
+            logger.error(`An error occurred in the processing queue: ${chalk.red(error instanceof Error ? error.stack ?? error.message : String(error))}`)
+            // Clear buffer on error to prevent getting stuck on a "poison" message
+            this.messageBuffer = []
+        } finally {
+            // Unlock the queue once it's empty
+            this.isGenerating = false
+            logger.info('Finished message processing queue.')
+
+            // Final check to catch any messages that arrived during the 'finally' block
+            if (this.messageBuffer.length > 0) {
+                logger.info('New messages arrived during finalization. Restarting queue.')
+                setImmediate(() => this._processQueue())
+            }
+        }
+    }
+
+    /**
+     * Core logic for a single LLM interaction cycle (for both single and bulk messages).
+     * @returns The generated text response or null on error.
+     */
+    private async _generateResponse(
+        content: string,
+        options: UserMessageOptions,
+        originalMessage?: Message
+    ): Promise<string | null> {
+        const targetChannel = options.targetChannel || this.channel!
+        logger.info(`Generating response for ${chalk.yellow(options.username)}...`)
 
         targetChannel.sendTyping().catch(e => logger.warn(`Typing indicator failed: ${e.message}`))
 
         const breakdown = await this.handleRandomBreakdown()
         if (breakdown) {
-            await this.sendResponseToDiscord(breakdown, targetChannel, originalMessage)
-            return [breakdown]
+            return breakdown
         }
 
         const formattedInput = await this.formatInput(content, options)
@@ -148,72 +255,47 @@ export default class CrimsonChat {
         }
 
         let modelResponse: BaseMessage | undefined
-        let finalResponseText: string = '-# ...' // Default in case of no response
-
         try {
             const humanMessage = new HumanMessage({ content: chatInputContent })
-
-            // First invocation: LLM decides whether to respond with text or call a tool
             modelResponse = await this.messageChain.invoke(
                 { input: [humanMessage] },
                 { configurable: { sessionId: 'global' } }
             )
 
-            // Cast to AIMessage to access tool_calls
             const aiMessage = modelResponse as AIMessage
             const toolCalls = aiMessage?.tool_calls
 
-            // If tool calls are present, execute them
             if (toolCalls && toolCalls.length > 0) {
                 logger.info(`Tool calls detected: ${chalk.yellow(JSON.stringify(toolCalls))}`)
                 const toolOutputs: ToolMessage[] = []
 
                 for (const toolCall of toolCalls) {
-                    const toolName = toolCall.name
-                    const toolArgs = toolCall.args
-                    const toolId = toolCall.id!
-
-                    // NEW: Look up the tool in our map
-                    const toolToExecute = toolMap.get(toolName)
-
+                    const toolToExecute = toolMap.get(toolCall.name)
                     let toolResult: string
                     if (toolToExecute) {
                         try {
-                            // LangChain's `tool` wraps the function in `func`
-                            toolResult = await toolToExecute.invoke(toolArgs)
-                            logger.info(`Tool ${toolName} execution result: ${chalk.cyan(toolResult)}`)
+                            toolResult = await toolToExecute.invoke(toolCall.args)
+                            logger.info(`Tool ${toolCall.name} execution result: ${chalk.cyan(toolResult)}`)
                         } catch (e) {
-                            toolResult = `Error executing tool '${toolName}': ${e instanceof Error ? e.message : String(e)}`
+                            toolResult = `Error executing tool '${toolCall.name}': ${e instanceof Error ? e.message : String(e)}`
                             logger.error(toolResult)
                         }
                     } else {
-                        toolResult = `Error: Tool '${toolName}' not found.`
+                        toolResult = `Error: Tool '${toolCall.name}' not found.`
                         logger.warn(toolResult)
                     }
-
-                    // Collect the tool output
                     toolOutputs.push(new ToolMessage({
-                        tool_call_id: toolId,
+                        tool_call_id: toolCall.id!,
                         content: toolResult
                     }))
                 }
-
-                // Add all tool outputs to memory at once
                 await this.memory.addMessages(toolOutputs)
-
-                // After tool execution, re-invoke the LLM without new human input.
-                // It will now see the ToolMessage in history and formulate a response.
                 modelResponse = await this.messageChain.invoke(
-                    { input: [] }, // Empty input, as the context is now in history
+                    { input: [] },
                     { configurable: { sessionId: 'global' } }
                 )
             }
-
-            // Extract the final text response
-            finalResponseText = (modelResponse as AIMessage)?.content?.toString() || '-# ...'
-
-            await this.sendResponseToDiscord(finalResponseText, targetChannel, originalMessage)
-            return [finalResponseText]
+            return (modelResponse as AIMessage)?.content?.toString() || '-# ...'
         } catch (e) {
             logger.warn(`Error processing message: ${chalk.red((e as Error).stack ?? (e as Error).message)}`)
             return null
