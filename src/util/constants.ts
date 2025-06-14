@@ -99,7 +99,6 @@ export const getCrimsonChatHistoryFoundation = (systemPrompt: string = CRIMSON_C
     role: 'system',
     content: systemPrompt
   },
-  // Example user message (impersonated)
   {
     role: 'user',
     content: JSON.stringify({
@@ -107,16 +106,29 @@ export const getCrimsonChatHistoryFoundation = (systemPrompt: string = CRIMSON_C
       displayName: 'embi',
       serverDisplayName: 'embi',
       currentTime: '2025-06-11T12:00:00.000Z',
-      text: 'hey crimson, what do you think of monarch?',
+      text: 'hey crimson, can you run the test tool?',
       userStatus: 'unknown'
     })
   },
-  // Example assistant response (impersonated)
   {
     role: 'assistant',
-    content: 'monarch is a pain in my ass. next question.'
+    content: 'alright',
+    tool_calls: [{
+      name: 'test',
+      args: { reason: 'Requested by embi' },
+      type: 'tool_call',
+      id: 'call_CrZkMP0AvUrz7w9kim0splbl'
+    }]
   },
-  // Another user message
+  {
+    role: 'tool',
+    content: 'Test command executed successfully. Reason: "Requested by embi". Now, formulate a response to the user acknowledging that the test worked.',
+    tool_call_id: 'call_CrZkMP0AvUrz7w9kim0splbl'
+  },
+  {
+    role: 'assistant',
+    content: 'Test has been successful, output is `Test command executed successfully. Reason: "Requested by embi".`'
+  },
   {
     role: 'user',
     content: JSON.stringify({
@@ -128,7 +140,6 @@ export const getCrimsonChatHistoryFoundation = (systemPrompt: string = CRIMSON_C
       userStatus: 'unknown'
     })
   },
-  // Another assistant response
   {
     role: 'assistant',
     content: 'the federation is the only thing keeping this world from falling apart.'
