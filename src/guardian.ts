@@ -27,6 +27,7 @@ async function startBot() {
     logger.info(`Starting bot on commit ${yellow(currentCommit)}...`)
 
     const botScriptPath = path.join(__dirname, 'index.ts')
+    botProcess = null
     botProcess = fork(botScriptPath, [], {
         // 'pipe' ensures stdout/stderr are streams we can read
         // 'ipc' is crucial for process.send() to work
@@ -61,7 +62,6 @@ async function startBot() {
         if (botProcess && !botProcess.killed) {
             logger.error("Bot did not send 'READY' signal within 30 seconds. Assuming startup failure.")
             botProcess.kill()
-            // The 'exit' event handler will take over from here.
         }
     }, 30000) // 30-second timeout
 }
