@@ -9,6 +9,7 @@ const logger = new Logger('Guardian')
 let botProcess: ChildProcess | null = null // <-- Use ChildProcess type
 let lastKnownGoodCommit = ''
 let restartAttempts = 0
+let isReady = false
 const MAX_RESTART_ATTEMPTS = 3
 
 async function getCommitHash(): Promise<string> {
@@ -23,11 +24,11 @@ async function startBot() {
         botProcess = null
     }
 
+    isReady = false
     const currentCommit = await getCommitHash()
     logger.info(`Starting bot on commit ${yellow(currentCommit)}...`)
 
     const botScriptPath = path.join(__dirname, 'index.ts')
-    botProcess = null
     botProcess = fork(botScriptPath, [], {
         // 'pipe' ensures stdout/stderr are streams we can read
         // 'ipc' is crucial for process.send() to work
@@ -59,7 +60,7 @@ async function startBot() {
     // Set a timeout for the 'READY' signal
     setTimeout(() => {
         // If it's still running but hasn't sent 'READY'
-        if (botProcess && !botProcess.killed) {
+        if (botProcess && (!botProcess.killed && !isReady)) {
             logger.error("Bot did not send 'READY' signal within 30 seconds. Assuming startup failure.")
             botProcess.kill()
         }
@@ -73,8 +74,9 @@ async function handleBotMessage(message: { type: string }) {
         await performUpdate()
     } else if (message.type === 'READY') {
         logger.ok('Bot has signaled it is ready!')
-        lastKnownGoodCommit = await getCommitHash() // Update the known good commit
-        restartAttempts = 0 // Reset crash counter on successful start
+        lastKnownGoodCommit = await getCommitHash()
+        restartAttempts = 0
+        isReady = true
     }
 }
 
@@ -85,6 +87,7 @@ async function performUpdate() {
         const waitForExit = new Promise<void>(resolve => botProcess!.on('exit', () => resolve()))
         botProcess.kill()
         await waitForExit // Wait for it to fully exit
+        isReady = false
         botProcess = null
     }
 
