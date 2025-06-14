@@ -13,16 +13,6 @@ export default {
             .setRequired(true)
         ).setContexts(InteractionContextType.Guild),
     async execute(context) {
-        if (!context.guild) {
-            await context.reply(`❌ why is \`interaction.guild\` nonexistant i thought i set the interaction context type to guilds only wtf ${context.user}`)
-            return
-        }
-
-        if (!context.member) {
-            await context.reply(`❌ for some reason i cant find you as a server member *sigh* ${context.pingMe}`)
-            return
-        }
-
         const role = await context.guild.roles.fetch('1331170880591757434')
         if (!role) {
             await context.reply(`❌ ${context.pingMe} banished role doesnt exist, wrong id? (\`1331170880591757434\`)`)
