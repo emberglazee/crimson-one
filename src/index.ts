@@ -85,6 +85,9 @@ bot.once('ready', async () => {
 
     logger.ok('Commands initialized, bot ready')
     bot.user!.setStatus('online')
+    if (typeof process.send === 'function') {
+        process.send({ type: 'READY' })
+    }
 })
 
 process.on('uncaughtException', async err => {
