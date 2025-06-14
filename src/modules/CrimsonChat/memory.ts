@@ -10,7 +10,7 @@ import {
 import { BaseChatMessageHistory } from '@langchain/core/chat_history'
 import { Logger } from '../../util/logger'
 import {
-    CRIMSON_CHAT_HISTORY_FOUNDATION,
+    getCrimsonChatHistoryFoundation,
     CRIMSON_CHAT_SYSTEM_PROMPT,
 } from '../../util/constants'
 import type { ChatMessage } from '../../types/types'
@@ -115,13 +115,13 @@ export class CrimsonFileBufferHistory extends BaseChatMessageHistory {
 
             const historyToLoad = (savedHistory.length && savedHistory[0]?.role === 'system')
                 ? savedHistory
-                : [...CRIMSON_CHAT_HISTORY_FOUNDATION]
+                : getCrimsonChatHistoryFoundation()
 
             this.history = historyToLoad.map(this.chatMessageToBaseMessage)
             this.initialized = true
             logger.info(`Chat history loaded successfully with ${chalk.yellow(this.history.length)} messages`)
         } catch {
-            this.history = CRIMSON_CHAT_HISTORY_FOUNDATION.map(this.chatMessageToBaseMessage)
+            this.history = getCrimsonChatHistoryFoundation().map(this.chatMessageToBaseMessage)
             logger.warn('No existing chat history found, starting fresh')
             this.initialized = true
         }
@@ -159,20 +159,20 @@ export class CrimsonFileBufferHistory extends BaseChatMessageHistory {
         await this.addMessages([new AIMessage(message)])
     }
 
-    async clear(): Promise<void> {
-        this.history = CRIMSON_CHAT_HISTORY_FOUNDATION.map(this.chatMessageToBaseMessage)
+    async clear(systemPrompt: string = CRIMSON_CHAT_SYSTEM_PROMPT): Promise<void> {
+        this.history = getCrimsonChatHistoryFoundation(systemPrompt).map(this.chatMessageToBaseMessage)
         await this.saveHistoryToFile()
         logger.ok('Chat history cleared and file reset.')
     }
 
-    async updateSystemPrompt(): Promise<void> {
+    async updateSystemPrompt(newPrompt: string): Promise<void> {
         await this.loadHistoryFromFile()
         if (this.history[0]?.getType() === 'system') {
-            this.history[0].content = CRIMSON_CHAT_SYSTEM_PROMPT
+            this.history[0].content = newPrompt
         } else {
-            this.history.unshift(new SystemMessage(CRIMSON_CHAT_SYSTEM_PROMPT))
+            this.history.unshift(new SystemMessage(newPrompt))
         }
         await this.saveHistoryToFile()
-        logger.ok(`System prompt updated to current version.`)
+        logger.ok(`System prompt updated.`)
     }
 }

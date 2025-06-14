@@ -1,4 +1,5 @@
 // modules\CrimsonChat\index.ts
+// modules\CrimsonChat\index.ts
 import { Client, TextChannel, Message, ChatInputCommandInteraction } from 'discord.js'
 import { Logger } from '../../util/logger'
 import type { UserMessageOptions } from '../../types/types'
@@ -7,7 +8,7 @@ import { MessageQueue } from './MessageQueue'
 import { createCrimsonChain, type CrimsonChainInput } from './chain'
 import { CrimsonFileBufferHistory } from './memory'
 import { usernamesToMentions } from './util/formatters'
-import { CRIMSON_BREAKDOWN_PROMPT, DEFAULT_GEMINI_MODEL } from '../../util/constants'
+import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST_PROMPT, DEFAULT_GEMINI_MODEL } from '../../util/constants'
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { Runnable, RunnableWithMessageHistory } from '@langchain/core/runnables'
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages'
@@ -34,6 +35,7 @@ export default class CrimsonChat {
 
     private forceNextBreakdown = false
     private berserkMode = false
+    private testMode = false
     private readonly BREAKDOWN_CHANCE = 0.01
 
     private constructor() {
@@ -96,6 +98,8 @@ export default class CrimsonChat {
     }
 
     private async handleRandomBreakdown(): Promise<string | null> {
+        if (this.testMode) return null
+
         if (this.forceNextBreakdown || Math.random() < this.BREAKDOWN_CHANCE) {
             logger.info(`Triggering ${this.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
@@ -230,11 +234,13 @@ export default class CrimsonChat {
     }
 
     public async clearHistory(): Promise<void> {
-        await this.memory.clear()
+        const prompt = this.testMode ? CRIMSON_CHAT_TEST_PROMPT : CRIMSON_CHAT_SYSTEM_PROMPT
+        await this.memory.clear(prompt)
     }
 
     public async updateSystemPrompt(): Promise<void> {
-        await this.memory.updateSystemPrompt()
+        const prompt = this.testMode ? CRIMSON_CHAT_TEST_PROMPT : CRIMSON_CHAT_SYSTEM_PROMPT
+        await this.memory.updateSystemPrompt(prompt)
     }
 
     public async setModel(modelName: string): Promise<void> {
@@ -249,9 +255,25 @@ export default class CrimsonChat {
     }
 
     public async toggleBerserkMode(): Promise<boolean> {
+        if (this.testMode) return false
         this.berserkMode = !this.berserkMode
         await this.initChain()
         return this.berserkMode
+    }
+
+    public async setTestMode(enabled: boolean): Promise<void> {
+        this.testMode = enabled
+        if (enabled && this.berserkMode) {
+            this.berserkMode = false
+        }
+        const prompt = this.testMode ? CRIMSON_CHAT_TEST_PROMPT : CRIMSON_CHAT_SYSTEM_PROMPT
+        await this.memory.updateSystemPrompt(prompt)
+        await this.initChain()
+        logger.ok(`Test mode set to: ${chalk.yellow(enabled)}. System prompt updated.`)
+    }
+
+    public isTestMode(): boolean {
+        return this.testMode
     }
 
     public isEnabled(): boolean {

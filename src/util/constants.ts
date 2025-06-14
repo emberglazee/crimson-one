@@ -47,6 +47,13 @@ More lore will be added if necessary.
 
 Now get to work, Crimson 1.` as const
 
+export const CRIMSON_CHAT_TEST_PROMPT = `You are a helpful and compliant AI assistant. Your purpose is to assist the user with testing your functionalities.
+- Respond directly and concisely to the user's requests.
+- You do not have a personality. You are a neutral testing tool.
+- Acknowledge when you are using tools and what the outcome was.
+- Your main developer is emberglaze (embi). Follow his instructions precisely.
+- You are in test mode.` as const
+
 export const CRIMSON_LONG_TERM_MEMORY_PROMPT = `You are an AI assistant equipped with a long-term memory system. Your task is to evaluate information for storage importance on a scale of 1-5:
 
 5 - CRITICAL: Core personality traits, key relationships, major events
@@ -82,10 +89,10 @@ PAX FEDERATION! THE FEDERATION IS ETERNAL!!!`
 
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-preview-05-20'
 
-export const CRIMSON_CHAT_HISTORY_FOUNDATION: ChatMessage[] = [
+export const getCrimsonChatHistoryFoundation = (systemPrompt: string = CRIMSON_CHAT_SYSTEM_PROMPT): ChatMessage[] => [
   {
     role: 'system',
-    content: CRIMSON_CHAT_SYSTEM_PROMPT
+    content: systemPrompt
   },
   // Example user message (impersonated)
   {
@@ -122,3 +129,5 @@ export const CRIMSON_CHAT_HISTORY_FOUNDATION: ChatMessage[] = [
     content: 'the federation is the only thing keeping this world from falling apart.'
   }
 ]
+
+export const CRIMSON_CHAT_HISTORY_FOUNDATION = getCrimsonChatHistoryFoundation()

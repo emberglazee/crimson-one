@@ -1,4 +1,5 @@
 // commands\crimsonchat.ts
+// commands\crimsonchat.ts
 import { SlashCommand } from '../types/types'
 import { SlashCommandBuilder } from 'discord.js'
 import { EMBERGLAZE_ID } from '../util/constants'
@@ -26,6 +27,14 @@ export default {
         ).addSubcommand(sub => sub
             .setName('berserk')
             .setDescription('Toggle berserk mode (maximum chaos)')
+        ).addSubcommand(sub => sub
+            .setName('testmode')
+            .setDescription('Toggle compliant test mode (bypasses personality for easier testing)')
+            .addBooleanOption(opt => opt
+                .setName('enabled')
+                .setDescription('Enable or disable test mode')
+                .setRequired(true)
+            )
         ).addSubcommand(sub => sub
             .setName('ignore')
             .setDescription('Make CrimsonChat ignore a user')
@@ -107,6 +116,10 @@ export default {
                 break
 
             case 'forcebreak':
+                if (crimsonChat.isTestMode()) {
+                    await context.reply('❌ Breakdowns are disabled while in test mode.')
+                    return
+                }
                 crimsonChat.setForceNextBreakdown(true)
                 await context.reply('✅ Mental breakdown will be triggered on next message')
                 break
@@ -121,11 +134,27 @@ export default {
                 break
 
             case 'berserk': {
+                if (crimsonChat.isTestMode()) {
+                    await context.reply('❌ Berserk mode is disabled while in test mode.')
+                    return
+                }
                 const isEnabled = await crimsonChat.toggleBerserkMode()
                 const status = isEnabled ? 'ENABLED' : 'DISABLED'
                 await context.reply(`🚨 Berserk mode is now **${status}**. Maximum chaos protocol ${isEnabled ? 'engaged' : 'disengaged'}.`)
                 await crimsonChat.sendMessage(
                     `System Alert: Berserk mode has been ${status.toLowerCase()} by ${context.user.username}.`,
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                )
+                break
+            }
+
+            case 'testmode': {
+                const enabled = context.getBooleanOption('enabled', true)
+                await crimsonChat.setTestMode(enabled)
+                const status = enabled ? 'ENABLED' : 'DISABLED'
+                await context.reply(`✅ Compliant test mode is now **${status}**.`)
+                await crimsonChat.sendMessage(
+                    `System Alert: Compliant test mode has been ${status.toLowerCase()} by ${context.user.username}.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System' }
                 )
                 break
