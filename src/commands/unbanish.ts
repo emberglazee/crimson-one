@@ -12,15 +12,6 @@ export default {
             .setRequired(true)
         ).setContexts(InteractionContextType.Guild),
     async execute(context) {
-        if (!context.guild) {
-            await context.reply(`❌ why is \`interaction.guild\` nonexistant i thought i set the interaction context type to guilds only wtf ${PING_EMBERGLAZE}`)
-            return
-        }
-
-        if (!context.member) {
-            await context.reply(`❌ for some reason i cant find you as a server member *sigh* ${PING_EMBERGLAZE}`)
-            return
-        }
         if (!context.member.permissions.has('ManageRoles')) {
             await context.reply('❌ you dont have permission to manage roles')
             return

@@ -68,6 +68,8 @@ export interface MessageTriggerEntry {
 
 export type JSONResolvable = string | number | boolean | {[key: string]: JSONResolvable} | {[key: string]: JSONResolvable}[] | null
 
+export type GuildOnlyCommandContext = CommandContext<true>
+
 /**
  * the "i know what im doing" `any` type, bypasses eslint
  * */
@@ -92,9 +94,7 @@ export type SlashCommandProps = {
     aliases?: string[]
     description?: string
     usage?: string
-    execute: (
-        context: CommandContext // context will have subcommandName and subcommandGroupName
-    ) => Promise<void>
+    execute?: (context: CommandContext<boolean>) => Promise<void>
 }
 
 export interface ISlashCommand extends SlashCommandProps {}
@@ -110,10 +110,12 @@ export abstract class SlashCommand implements ISlashCommand {
 
 export interface IGuildSlashCommand extends ISlashCommand {
     guildId: string
+    execute: (context: GuildOnlyCommandContext) => Promise<void>
 }
 
 export abstract class GuildSlashCommand extends SlashCommand implements IGuildSlashCommand {
     guildId!: string
+    declare execute: (context: GuildOnlyCommandContext) => Promise<void>
 }
 
 export type ContextMenuCommandProps<T extends 2 | 3 = 2 | 3> = {

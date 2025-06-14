@@ -34,7 +34,8 @@ import {
     type ExplicitAny, type GuildId,
     type JSONResolvable,
     type OldSlashCommandHelpers,
-    BotInstallationType
+    BotInstallationType,
+    type GuildOnlyCommandContext
 } from '../types/types'
 import { EMBERGLAZE_ID, PING_EMBERGLAZE, TYPING_EMOJI } from '../util/constants'
 import type { ArgumentsCamelCase, Argv, Options as YargsOptions } from 'yargs'
@@ -224,7 +225,7 @@ export default class CommandManager {
         try {
 
             if (interaction.isChatInputCommand() && (CommandManager.isGlobalSlashCommand(command) || CommandManager.isGuildSlashCommand(command))) {
-                const context = new CommandContext(interaction as ChatInputCommandInteraction) // Ensure it's ChatInputCommandInteraction
+                const context = new CommandContext(interaction)
                 await this.executeUnifiedCommand(command, context)
             } else if (interaction.isContextMenuCommand() && CommandManager.isContextMenuCommand(command)) {
                 const helpersForContextMenu: OldSlashCommandHelpers = {
@@ -465,12 +466,12 @@ export default class CommandManager {
         const commandIdentifier = (CommandManager.isGlobalSlashCommand(command) || CommandManager.isGuildSlashCommand(command))
             ? command.data.name
             : 'unknown_command'
+
         return operationTracker.track(
             `command:${commandIdentifier}`,
             context.isInteraction ? 'SLASH_COMMAND' : 'TEXT_COMMAND',
             async () => {
                 try {
-
                     if (!command.execute) {
                         throw new Error(`Command ${commandIdentifier} does not have an execute method`)
                     }
@@ -486,20 +487,33 @@ export default class CommandManager {
                    } else if (command.permissions && !memberPerms) {
                        throw new Error('Could not determine member permissions.')
                    }
-                   await command.execute(context)
+
+                   if (CommandManager.isGuildSlashCommand(command)) {
+                        // This command requires a guild context. We must assert it at runtime.
+                        if (!context.guild || !context.member) {
+                            // This is a safeguard. In theory, a GuildSlashCommand should only be matched
+                            // when the interaction/message is in a guild.
+                            logger.warn(`{executeUnifiedCommand} Guild command "${command.data.name}" was executed in a non-guild context. This should not happen.`)
+                            await context.reply("❌ This command can only be used in a server.")
+                            return
+                        }
+                        // We've confirmed the context is valid, now we can call execute
+                        // with the context cast to the more specific type.
+                        await command.execute(context as GuildOnlyCommandContext)
+                   } else {
+                        // This is a global command, which can run anywhere.
+                        // Its `execute` method expects the less-strict `CommandContext<boolean>`.
+                        await command.execute(context)
+                   }
 
                 } catch (err) {
-
                     const error = err as Error
                     logger.warn(`{executeUnifiedCommand} Error in ${yellow(commandIdentifier)} (${context.isInteraction ? 'Interaction' : 'Message'}): ${red(error.message)}`)
                     if (error.message.toLowerCase().includes('unknown interaction') || error.message.toLowerCase().includes('unknown message')) {
                         logger.warn(`{executeUnifiedCommand} Discord API error, interaction/message may have timed out or been deleted.`)
                         return
                     }
-                    // Re-throw to be caught by handleInteraction/handleMessageCommand's try-catch,
-                    // which will then call this.handleError
                     throw error
-
                 }
             }
         )
@@ -1285,17 +1299,22 @@ export default class CommandManager {
     }
 }
 
-export class CommandContext {
+export class CommandContext<InGuild extends boolean = boolean> {
+    private originalMessageReply: Message | null = null
+
     public readonly client: Client
     public readonly interaction: ChatInputCommandInteraction | null
     public readonly message: Message | null
-    public originalMessageReply: Message | null = null
-    public readonly args: string[] // for text commands
     public readonly myId: typeof EMBERGLAZE_ID = EMBERGLAZE_ID
     public readonly pingMe: typeof PING_EMBERGLAZE = PING_EMBERGLAZE
+
+    public readonly args: string[]
     public parsedArgs: ArgumentsCamelCase<{ [key: string]: JSONResolvable }> | null = null
     public subcommandName: string | null = null
     public subcommandGroupName: string | null = null
+
+    public readonly guild: InGuild extends true ? Guild : Guild | null
+    public readonly member: InGuild extends true ? GuildMember : GuildMember | null
 
 
     constructor(source: ChatInputCommandInteraction | Message, rawArgs?: string[]) {
@@ -1317,6 +1336,8 @@ export class CommandContext {
                 } catch { this.subcommandName = null }
             }
         }
+        this.guild = (this.interaction ? this.interaction.guild : this.message!.guild) as InGuild extends true ? Guild : Guild | null
+        this.member = (this.interaction ? guildMember(this.interaction.member) : this.message!.member) as InGuild extends true ? GuildMember : GuildMember | null
     }
 
 
@@ -1326,14 +1347,6 @@ export class CommandContext {
     get author(): User { return this.interaction ? this.interaction.user : this.message!.author }
     get user(): User { return this.author }
 
-    get member(): GuildMember | null {
-        if (this.interaction) {
-            return guildMember(this.interaction.member)
-        }
-        return this.message!.member
-    }
-
-    get guild(): Guild | null { return this.interaction ? this.interaction.guild : this.message!.guild }
     get channel(): TextBasedChannel | null { return this.interaction ? this.interaction.channel : this.message!.channel }
 
     get memberPermissions(): Readonly<PermissionsBitField> | null {
