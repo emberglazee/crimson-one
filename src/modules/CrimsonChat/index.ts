@@ -11,12 +11,11 @@ import { usernamesToMentions } from './util/formatters'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST_PROMPT, DEFAULT_GEMINI_MODEL } from '../../util/constants'
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { Runnable, RunnableWithMessageHistory } from '@langchain/core/runnables'
-import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages'
+import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
 import * as fs from 'fs/promises'
 import path from 'path'
 import { ImageProcessor } from './ImageProcessor'
 import { BaseMessage } from '@langchain/core/messages'
-import { StringOutputParser } from '@langchain/core/output_parsers'
 
 const logger = new Logger('CrimsonChat')
 
@@ -29,7 +28,7 @@ export default class CrimsonChat {
     private ignoredUsers: Set<string> = new Set()
     private imageProcessor: ImageProcessor
 
-    private messageChain!: Runnable<CrimsonChainInput, string>
+    private messageChain!: Runnable<CrimsonChainInput, BaseMessage>
     private memory: CrimsonFileBufferHistory
     private modelName: string = DEFAULT_GEMINI_MODEL
 
@@ -71,14 +70,14 @@ export default class CrimsonChat {
     private async initChain(): Promise<void> {
         const coreChain = await createCrimsonChain(this.modelName, this.berserkMode)
 
-        const chainWithHistory = new RunnableWithMessageHistory({
+        // The chain should output BaseMessage so we can inspect tool_calls.
+        this.messageChain = new RunnableWithMessageHistory({
             runnable: coreChain,
             getMessageHistory: _ => this.memory,
             inputMessagesKey: 'input',
             historyMessagesKey: 'chat_history',
         })
 
-        this.messageChain = chainWithHistory.pipe(new StringOutputParser())
         logger.info(`Message chain re-initialized. Model: ${chalk.green(this.modelName)}, Berserk mode: ${chalk.yellow(this.berserkMode)}`)
     }
 
@@ -147,15 +146,71 @@ export default class CrimsonChat {
             }
         }
 
+        let modelResponse: BaseMessage | undefined
+        let finalResponseText: string = '-# ...' // Default in case of no response
+
         try {
             const humanMessage = new HumanMessage({ content: chatInputContent })
-            const response = await this.messageChain.invoke(
+
+            // First invocation: LLM decides whether to respond with text or call a tool
+            modelResponse = await this.messageChain.invoke(
                 { input: [humanMessage] },
                 { configurable: { sessionId: 'global' } }
             )
 
-            await this.sendResponseToDiscord(response, targetChannel, originalMessage)
-            return [response]
+            // Cast to AIMessage to access tool_calls
+            const aiMessage = modelResponse as AIMessage
+            const toolCalls = aiMessage?.tool_calls
+
+            // If tool calls are present, execute them
+            if (toolCalls && toolCalls.length > 0) {
+                logger.info(`Tool calls detected: ${chalk.yellow(JSON.stringify(toolCalls))}`)
+                for (const toolCall of toolCalls) {
+                    const toolName = toolCall.name
+                    const toolArgs = toolCall.args
+                    const toolId = toolCall.id
+
+                    // Dynamically find and execute the tool function
+                    // NOTE: The path should correctly resolve to the compiled JS file in your `dist` or `build` directory.
+                    // Assuming modules/CrimsonChat/tools/toolName.ts compiles to modules/CrimsonChat/tools/toolName.js
+                    const toolModulePath = path.join(__dirname, 'tools', `${toolName}.js`)
+
+                    let toolResult: string
+                    try {
+                        const importedTool = await import(toolModulePath)
+                        // LangChain's `tool` function wraps the actual function inside a `func` property.
+                        if (importedTool.default && typeof importedTool.default.func === 'function') {
+                            toolResult = await importedTool.default.func(toolArgs)
+                            logger.info(`Tool ${toolName} execution result: ${chalk.cyan(toolResult)}`)
+                        } else {
+                            toolResult = `Error: Tool function '${toolName}' not found or not callable.`
+                            logger.warn(toolResult)
+                        }
+                    } catch (e) {
+                        toolResult = `Error executing tool '${toolName}': ${e instanceof Error ? e.message : String(e)}`
+                        logger.error(toolResult)
+                    }
+
+                    // Add the tool's output to the chat history
+                    await this.memory.addMessage(new ToolMessage({
+                        tool_call_id: toolId!, // Crucial for LangChain to link tool calls to their outputs
+                        content: toolResult
+                    }))
+                }
+
+                // After tool execution, re-invoke the LLM without new human input.
+                // It will now see the ToolMessage in history and formulate a response.
+                modelResponse = await this.messageChain.invoke(
+                    { input: [] }, // Empty input, as the context is now in history
+                    { configurable: { sessionId: 'global' } }
+                )
+            }
+
+            // Extract the final text response
+            finalResponseText = (modelResponse as AIMessage)?.content?.toString() || '-# ...'
+
+            await this.sendResponseToDiscord(finalResponseText, targetChannel, originalMessage)
+            return [finalResponseText]
         } catch (e) {
             logger.warn(`Error processing message: ${chalk.red((e as Error).stack ?? (e as Error).message)}`)
             return null
