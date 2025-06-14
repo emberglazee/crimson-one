@@ -8,12 +8,43 @@ import GuildConfigManager from '../modules/GuildConfig'
 import CommandManager from '../modules/CommandManager'
 import { normalizeUrl } from '../modules/CrimsonChat/util/url-utils'
 import { parseMentions } from '../modules/CrimsonChat/util/formatters'
+import { evaluate } from 'mathjs'
 
 export default async function onMessageCreate(client: Client) {
     client.on('messageCreate', async message => {
         try {
             if (message.author === client.user) return // Only ignore itself
             if (await shapesInc.handlePotentialCookieDM(message)) return
+
+            // Math.js evaluation logic
+            if (message.content.startsWith('% ')) {
+                const expression = message.content.slice(2).trim()
+                if (!expression) return // Ignore empty expressions
+
+                try {
+                    const result = evaluate(expression)
+                    // Use math.js's own string formatting for complex types
+                    let resultString = ''
+                    if (typeof result === 'object' && result !== null && result.toString) {
+                        resultString = result.toString()
+                    } else if (typeof result === 'function') {
+                        resultString = 'Cannot display function definitions.'
+                    } else {
+                        resultString = String(result)
+                    }
+
+
+                    if (resultString.length > 1900) {
+                        resultString = resultString.substring(0, 1900) + '... (result truncated)'
+                    }
+
+                    await message.reply(`\`\`\`\n${resultString}\n\`\`\``)
+                } catch (error) {
+                    await message.reply(`❌ **Math Error:**\n\`\`\`\n${(error as Error).message}\n\`\`\``)
+                }
+                return // Stop further processing for this message
+            }
+
 
             const guildConfig = await GuildConfigManager.getInstance().getConfig(message.guild?.id)
             if (message.content.startsWith(guildConfig.prefix)) {
