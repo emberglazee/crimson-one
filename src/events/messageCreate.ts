@@ -1,5 +1,3 @@
-// src/events/messageCreate.ts
-
 import { Logger } from '../util/logger'
 const logger = new Logger('event.messageCreate')
 
@@ -96,12 +94,13 @@ export default async function onMessageCreate(client: Client) {
                 // Parse Discord mentions into our required JSON format
                 content = await parseMentions(client, content)
 
-                await crimsonChat.sendMessage(content, {
+                // The sendMessage method is now fire-and-forget; no await needed.
+                crimsonChat.sendMessage(content, {
                     username: message.author.username,
                     displayName: message.member?.displayName ?? message.author.displayName,
                     serverDisplayName: message.member?.displayName ?? message.author.displayName,
                     respondingTo,
-                    imageAttachments: Array.from(imageAttachments), // Note: Not used by the chain yet, but ready for future use
+                    imageAttachments: Array.from(imageAttachments),
                     targetChannel: (isMentioned && !isMainChannel) ? (message.channel as TextChannel) : undefined,
                     guildName: message.guild?.name,
                     channelName: message.channel instanceof TextChannel ? message.channel.name : undefined
