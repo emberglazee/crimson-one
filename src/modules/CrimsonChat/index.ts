@@ -16,6 +16,7 @@ import * as fs from 'fs/promises'
 import path from 'path'
 import { ImageProcessor } from './ImageProcessor'
 import { BaseMessage } from '@langchain/core/messages'
+import { toolMap } from './tools'
 
 const logger = new Logger('CrimsonChat')
 
@@ -165,38 +166,40 @@ export default class CrimsonChat {
             // If tool calls are present, execute them
             if (toolCalls && toolCalls.length > 0) {
                 logger.info(`Tool calls detected: ${chalk.yellow(JSON.stringify(toolCalls))}`)
+                const toolOutputs: ToolMessage[] = []
+
                 for (const toolCall of toolCalls) {
                     const toolName = toolCall.name
                     const toolArgs = toolCall.args
-                    const toolId = toolCall.id
+                    const toolId = toolCall.id!
 
-                    // Dynamically find and execute the tool function
-                    // NOTE: The path should correctly resolve to the compiled JS file in your `dist` or `build` directory.
-                    // Assuming modules/CrimsonChat/tools/toolName.ts compiles to modules/CrimsonChat/tools/toolName.js
-                    const toolModulePath = path.join(__dirname, 'tools', `${toolName}.js`)
+                    // NEW: Look up the tool in our map
+                    const toolToExecute = toolMap.get(toolName)
 
                     let toolResult: string
-                    try {
-                        const importedTool = await import(toolModulePath)
-                        // LangChain's `tool` function wraps the actual function inside a `func` property.
-                        if (importedTool.default && typeof importedTool.default.func === 'function') {
-                            toolResult = await importedTool.default.func(toolArgs)
+                    if (toolToExecute) {
+                        try {
+                            // LangChain's `tool` wraps the function in `func`
+                            toolResult = await toolToExecute.invoke(toolArgs)
                             logger.info(`Tool ${toolName} execution result: ${chalk.cyan(toolResult)}`)
-                        } else {
-                            toolResult = `Error: Tool function '${toolName}' not found or not callable.`
-                            logger.warn(toolResult)
+                        } catch (e) {
+                            toolResult = `Error executing tool '${toolName}': ${e instanceof Error ? e.message : String(e)}`
+                            logger.error(toolResult)
                         }
-                    } catch (e) {
-                        toolResult = `Error executing tool '${toolName}': ${e instanceof Error ? e.message : String(e)}`
-                        logger.error(toolResult)
+                    } else {
+                        toolResult = `Error: Tool '${toolName}' not found.`
+                        logger.warn(toolResult)
                     }
 
-                    // Add the tool's output to the chat history
-                    await this.memory.addMessage(new ToolMessage({
-                        tool_call_id: toolId!, // Crucial for LangChain to link tool calls to their outputs
+                    // Collect the tool output
+                    toolOutputs.push(new ToolMessage({
+                        tool_call_id: toolId,
                         content: toolResult
                     }))
                 }
+
+                // Add all tool outputs to memory at once
+                await this.memory.addMessages(toolOutputs)
 
                 // After tool execution, re-invoke the LLM without new human input.
                 // It will now see the ToolMessage in history and formulate a response.
