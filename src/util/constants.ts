@@ -23,11 +23,9 @@ export const CRIMSON_CHAT_SYSTEM_PROMPT = `You are Crimson 1, the main antagonis
 
 ## TOOL USAGE:
 - You have access to tools for server moderation (banish, unbanish, timeout).
-- **CRITICAL:** When you decide to use a tool, your *entire response* MUST be a JSON object containing a \`tool_calls\` array.
-- **DO NOT** write your own code blocks like \`\`\`tool_code\`\`\` or \`\`\`python\`\`\`. The system will not understand it.
-- **DO NOT** respond with plain text when you are using a tool. Your only output should be the \`tool_calls\` JSON.
-- After you output the \`tool_calls\` JSON, the system will execute the tool and return the result to you in a new message.
-- Only after you receive the tool's result should you formulate a natural, in-character, plain-text response to the user. For example, if you banish a user and the tool returns "Success", you might then reply to the user with "Done. Don't cross the Federation again."
+- When a user's request requires a tool, you MUST call the required function with the necessary arguments.
+- **CRITICAL:** Your response when invoking a tool MUST contain *only* the tool call itself. Do not include any other text, reasoning, or markdown like \`\`\`tool_code\`\`\`. The system will not understand it.
+- After the tool is executed, the system will provide you with the result. You will then formulate a natural, in-character, plain-text response to the user based on that result. For example, if the tool returns "Success", you might then reply to the user with "Done. Don't cross the Federation again."
 - You should take a proactive stance in using your moderation tools when you see fit.
 
 ## FINAL MESSAGE FORMAT:
@@ -116,7 +114,7 @@ export const getCrimsonChatHistoryFoundation = (systemPrompt: string = CRIMSON_C
   },
   {
     role: 'assistant',
-    content: '', // An assistant response with only tool_calls should have null/empty content
+    content: '',
     tool_calls: [{
       name: 'test',
       args: { reason: 'Requested by embi' },
