@@ -7,7 +7,9 @@ import {
     SlashCommandBuilder, ContextMenuCommandBuilder,
     Routes, Message, ApplicationCommandOptionType,
     REST, InteractionResponse, ApplicationCommandType,
-    MessageFlags
+    MessageFlags, ChannelType,
+    SlashCommandSubcommandBuilder,
+    SlashCommandSubcommandGroupBuilder
 } from 'discord.js'
 import type {
     RESTPostAPIChatInputApplicationCommandsJSONBody, Role,
@@ -18,28 +20,30 @@ import type {
     GuildBasedChannel, MessageEditOptions, Client, CommandInteraction,
     ContextMenuCommandInteraction, MessageContextMenuCommandInteraction,
     UserContextMenuCommandInteraction, Guild, Attachment,
-    PermissionsBitField, ChatInputCommandInteraction
+    PermissionsBitField, ChatInputCommandInteraction,
+    APIApplicationCommandOption,
 } from 'discord.js'
 
 import { readdir } from 'fs/promises'
 import type { Dirent } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+
 import { getUserAvatar, guildMember, hasProp } from '../util/functions'
 import { operationTracker } from './OperationTracker'
 
-import {
+import { ClassNotInitializedError, MissingPermissionsError, BotInstallationType } from '../types/types'
+import type {
     SlashCommand, GuildSlashCommand, ContextMenuCommand,
-    ClassNotInitializedError, MissingPermissionsError,
-    type ExplicitAny, type GuildId,
-    type JSONResolvable,
-    type OldSlashCommandHelpers,
-    BotInstallationType,
-    type GuildOnlyCommandContext
+    ExplicitAny, GuildId, JSONResolvable,
+    OldSlashCommandHelpers, GuildOnlyCommandContext
 } from '../types/types'
+
 import { EMBERGLAZE_ID, PING_EMBERGLAZE, TYPING_EMOJI } from '../util/constants'
 import type { ArgumentsCamelCase, Argv, Options as YargsOptions } from 'yargs'
 import yargs from 'yargs'
+
+type CommandBuilderWithOptions = SlashCommandBuilder | SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder
 
 export default class CommandManager {
 
@@ -82,7 +86,167 @@ export default class CommandManager {
 
     }
 
+    /**
+     * Recursively clones and reconstructs a Discord.js CommandBuilder (Slash or Context Menu)
+     * from its JSON representation. This is necessary because `structuredClone`
+     * does not preserve class instances or their methods.
+     * @param originalBuilder The original CommandBuilder instance.
+     * @param newName Optional new name to set for the cloned builder.
+     * @returns A new CommandBuilder instance with the copied properties.
+     */
+    public cloneCommandBuilder<T extends SlashCommandBuilder | ContextMenuCommandBuilder>(
+        originalBuilder: T,
+        newName?: string
+    ): T {
+        const originalJson = originalBuilder.toJSON()
 
+        if (originalBuilder instanceof SlashCommandBuilder && 'description' in originalJson) {
+            const newBuilder = new SlashCommandBuilder()
+
+            // Copy base properties
+            if (originalJson.description) newBuilder.setDescription(originalJson.description)
+            if (originalJson.dm_permission !== undefined) newBuilder.setDMPermission(originalJson.dm_permission)
+            if (originalJson.nsfw !== undefined) newBuilder.setNSFW(originalJson.nsfw)
+            if (originalJson.default_member_permissions) {
+                newBuilder.setDefaultMemberPermissions(originalJson.default_member_permissions)
+            }
+
+            // Recursively add all options
+            if (originalJson.options) {
+                for (const option of originalJson.options) {
+                    this.addOptionToBuilder(newBuilder, option)
+                }
+            }
+
+            newBuilder.setName(newName ?? originalJson.name)
+            return newBuilder as T
+
+        } else if (originalBuilder instanceof ContextMenuCommandBuilder) {
+            const newBuilder = new ContextMenuCommandBuilder()
+            // Context menu commands have fewer configurable properties
+            if (originalJson.type === ApplicationCommandType.Message || originalJson.type === ApplicationCommandType.User) {
+                newBuilder.setType(originalJson.type)
+            }
+            if (originalJson.dm_permission !== undefined) newBuilder.setDMPermission(originalJson.dm_permission)
+            if (originalJson.default_member_permissions) {
+                newBuilder.setDefaultMemberPermissions(originalJson.default_member_permissions)
+            }
+
+            newBuilder.setName(newName ?? originalJson.name)
+            return newBuilder as T
+        }
+
+        // Fallback for safety, though this path should not be reachable with the generic constraint.
+        throw new Error('Unsupported builder type provided.')
+    }
+
+    /**
+     * A private helper to recursively add an option from its JSON representation
+     * to a given builder, respecting the nesting rules of the Discord API.
+     * @param builder The builder to add the option to.
+     * @param option The JSON representation of the option to add.
+     */
+    private addOptionToBuilder(builder: CommandBuilderWithOptions, option: APIApplicationCommandOption): void {
+        // --- Structural Options ---
+        // These options contain other options and have strict placement rules.
+
+        if (option.type === ApplicationCommandOptionType.SubcommandGroup) {
+            // Type guard: Only SlashCommandBuilder can have subcommand groups.
+            if (builder instanceof SlashCommandBuilder) {
+                builder.addSubcommandGroup(group => {
+                    group.setName(option.name).setDescription(option.description)
+                    if (option.options) {
+                        for (const subCommand of option.options) {
+                            this.addOptionToBuilder(group, subCommand)
+                        }
+                    }
+                    return group
+                })
+            }
+            return // Handled
+        }
+
+        if (option.type === ApplicationCommandOptionType.Subcommand) {
+            // Type guard: Subcommands can be in a SlashCommandBuilder or a SubcommandGroupBuilder.
+            if (builder instanceof SlashCommandBuilder || builder instanceof SlashCommandSubcommandGroupBuilder) {
+                builder.addSubcommand(sub => {
+                    sub.setName(option.name).setDescription(option.description)
+                    if (option.options) {
+                        for (const subOption of option.options) {
+                            this.addOptionToBuilder(sub, subOption)
+                        }
+                    }
+                    return sub
+                })
+            }
+            return // Handled
+        }
+
+        // --- Basic Options ---
+        // At this point, `option` is a basic type (String, Integer, etc.).
+        // Type guard: These can only be added to a SlashCommandBuilder or a SlashCommandSubcommandBuilder.
+        if (!(builder instanceof SlashCommandBuilder || builder instanceof SlashCommandSubcommandBuilder)) {
+            // We are trying to add a basic option to a SubcommandGroup, which is illegal.
+            return
+        }
+
+        switch (option.type) {
+            case ApplicationCommandOptionType.String:
+                builder.addStringOption(opt => {
+                    opt.setName(option.name).setDescription(option.description).setRequired(!!option.required)
+                    if (option.choices) opt.addChoices(...option.choices)
+                    if (option.min_length !== undefined) opt.setMinLength(option.min_length)
+                    if (option.max_length !== undefined) opt.setMaxLength(option.max_length)
+                    if (option.autocomplete !== undefined) opt.setAutocomplete(option.autocomplete)
+                    return opt
+                })
+                break
+            case ApplicationCommandOptionType.Integer:
+                builder.addIntegerOption(opt => {
+                    opt.setName(option.name).setDescription(option.description).setRequired(!!option.required)
+                    if (option.choices) opt.addChoices(...option.choices)
+                    if (option.min_value !== undefined) opt.setMinValue(option.min_value)
+                    if (option.max_value !== undefined) opt.setMaxValue(option.max_value)
+                    if (option.autocomplete !== undefined) opt.setAutocomplete(option.autocomplete)
+                    return opt
+                })
+                break
+            case ApplicationCommandOptionType.Number:
+                builder.addNumberOption(opt => {
+                    opt.setName(option.name).setDescription(option.description).setRequired(!!option.required)
+                    if (option.choices) opt.addChoices(...option.choices)
+                    if (option.min_value !== undefined) opt.setMinValue(option.min_value)
+                    if (option.max_value !== undefined) opt.setMaxValue(option.max_value)
+                    if (option.autocomplete !== undefined) opt.setAutocomplete(option.autocomplete)
+                    return opt
+                })
+                break
+            case ApplicationCommandOptionType.Channel:
+                builder.addChannelOption(opt => {
+                    opt.setName(option.name).setDescription(option.description).setRequired(!!option.required)
+                    // Note: some weird type mismatch for `ChannelType.GuildDirectory`,
+                    // ignore it for now since it's too obscure for me to care :3
+                    if (option.channel_types) opt.addChannelTypes(...option.channel_types.filter(channelType => channelType !== ChannelType.GuildDirectory))
+                    return opt
+                })
+                break
+            case ApplicationCommandOptionType.Boolean:
+                builder.addBooleanOption(opt => opt.setName(option.name).setDescription(option.description).setRequired(!!option.required))
+                break
+            case ApplicationCommandOptionType.User:
+                builder.addUserOption(opt => opt.setName(option.name).setDescription(option.description).setRequired(!!option.required))
+                break
+            case ApplicationCommandOptionType.Role:
+                builder.addRoleOption(opt => opt.setName(option.name).setDescription(option.description).setRequired(!!option.required))
+                break
+            case ApplicationCommandOptionType.Mentionable:
+                builder.addMentionableOption(opt => opt.setName(option.name).setDescription(option.description).setRequired(!!option.required))
+                break
+            case ApplicationCommandOptionType.Attachment:
+                builder.addAttachmentOption(opt => opt.setName(option.name).setDescription(option.description).setRequired(!!option.required))
+                break
+        }
+    }
 
     private async importCommand(file: Dirent) {
 
@@ -129,12 +293,18 @@ export default class CommandManager {
 
                     for (const alias of command.aliases) {
 
-                        const commandCopy = command
-                        commandCopy.aliases = undefined
-                        commandCopy.data = commandCopy.data.setName(alias)
+                        // Shallow-copy the command object
+                        const commandCopy: SlashCommand = {
+                            ...command,
+                            aliases: undefined, // no longer a nuke hazard :3
+                            ...(CommandManager.isGuildSlashCommand(command) ? { guildId: command.guildId } : {})
+                        }
+
+                        // SlashCommandBuilder instance cannot be shallow-copied
+                        commandCopy.data = this.cloneCommandBuilder(command.data as SlashCommandBuilder, alias) as SlashCommandBuilder
 
                         this.globalCommands.set(alias, commandCopy)
-                        commands.push(command)
+                        commands.push(commandCopy)
                         commandInfo.push({ name: alias, type: 'global slash/text', aliases: undefined })
 
                     }
