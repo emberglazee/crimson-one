@@ -1,4 +1,4 @@
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 import { SlashCommandBuilder, AttachmentBuilder, MessageFlags } from 'discord.js'
 import { createCanvas, loadImage } from 'canvas'
 

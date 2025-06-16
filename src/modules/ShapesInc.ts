@@ -4,7 +4,7 @@ const logger = new Logger('ShapesInc')
 
 import { inspect } from 'util'
 
-import type { ShapesIncGetChatHistoryResponse, ShapesIncSendMessageResponse, ShapesIncClearChatResponse, ShapesIncShape } from '../types/types'
+import type { ShapesIncGetChatHistoryResponse, ShapesIncSendMessageResponse, ShapesIncClearChatResponse, ShapesIncShape } from '../types'
 import fs from 'fs/promises'
 import path from 'path'
 import { parseNetscapeCookieFile } from '../util/functions'

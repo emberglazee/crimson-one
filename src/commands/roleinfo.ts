@@ -1,4 +1,4 @@
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js'
 
 export default {

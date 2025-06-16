@@ -1,6 +1,6 @@
 // commands\crimsonchat.ts
 // commands\crimsonchat.ts
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 import { SlashCommandBuilder } from 'discord.js'
 import { EMBERGLAZE_ID } from '../util/constants'
 import CrimsonChat from '../modules/CrimsonChat'

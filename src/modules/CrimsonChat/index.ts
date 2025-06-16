@@ -1,6 +1,6 @@
 import { Client, TextChannel, Message, ChatInputCommandInteraction } from 'discord.js'
 import { Logger } from '../../util/logger'
-import type { UserMessageOptions } from '../../types/types'
+import type { UserMessageOptions } from '../../types'
 import chalk from 'chalk'
 import { MessageQueue } from './MessageQueue'
 import { createCrimsonChain, type CrimsonChainInput } from './chain'

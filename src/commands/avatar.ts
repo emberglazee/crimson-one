@@ -1,6 +1,6 @@
 import { EmbedBuilder, SlashCommandBuilder, type ImageExtension, type ImageSize } from 'discord.js'
-import { SlashCommand } from '../types/types'
-import { BotInstallationType } from '../types/types'
+import { SlashCommand } from '../types'
+import { BotInstallationType } from '../types'
 import { smallFooterNote } from '../util/functions'
 
 const avatarExtensionOptions = [

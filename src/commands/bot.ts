@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from 'discord.js'
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 import { formatBytes } from '../util/functions'
 
 const usageTracker = new Map<string, number[]>()

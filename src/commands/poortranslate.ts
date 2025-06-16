@@ -1,4 +1,4 @@
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 import { SlashCommandBuilder } from 'discord.js'
 import { translate } from 'google-translate-api-x'
 import { shuffleArray } from '../util/functions'

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'tseep'
-import type { JSONResolvable } from '../types/types'
+import type { JSONResolvable } from '../types'
 import fs from 'fs'
 import path from 'path'
 import url from 'url'

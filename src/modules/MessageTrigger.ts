@@ -1,5 +1,5 @@
 import type { Message } from 'discord.js'
-import type { MessageTriggerEntry as MessageTriggers } from '../types/types'
+import type { MessageTriggerEntry as MessageTriggers } from '../types'
 import { chance, getRandomElement } from '../util/functions'
 import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
 

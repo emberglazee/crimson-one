@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from 'discord.js'
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 import { Logger } from '../util/logger'
 import { PING_EMBERGLAZE } from '../util/constants'
 const logger = new Logger('/morse')

@@ -13,7 +13,7 @@ import {
     getCrimsonChatHistoryFoundation,
     CRIMSON_CHAT_SYSTEM_PROMPT,
 } from '../../util/constants'
-import type { ChatMessage } from '../../types/types'
+import type { ChatMessage } from '../../types'
 import chalk from 'chalk'
 
 const logger = new Logger('CrimsonChat | History')

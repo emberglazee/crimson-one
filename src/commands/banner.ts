@@ -1,6 +1,6 @@
 import { EmbedBuilder, SlashCommandBuilder } from 'discord.js'
 import type { ImageExtension, ImageSize } from 'discord.js'
-import type { SlashCommand } from '../types/types'
+import type { SlashCommand } from '../types'
 
 const bannerExtensionOptions = [
     { name: 'GIF', value: 'gif' },

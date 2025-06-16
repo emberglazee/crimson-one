@@ -1,5 +1,5 @@
 // util\constants.ts
-import type { ChatMessage } from '../types/types'
+import type { ChatMessage } from '../types'
 
 export const EMBERGLAZE_ID = '341123308844220447' as const
 export const PING_EMBERGLAZE = `<@${EMBERGLAZE_ID}>` as const

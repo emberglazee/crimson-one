@@ -1,5 +1,5 @@
 import { PermissionsBitField, SlashCommandBuilder } from 'discord.js'
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 import GuildConfigManager from '../modules/GuildConfig'
 import { boolToEmoji } from '../util/functions'
 

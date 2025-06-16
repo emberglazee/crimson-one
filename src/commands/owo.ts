@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, AttachmentBuilder } from 'discord.js'
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 
 export default {
     data: new SlashCommandBuilder()

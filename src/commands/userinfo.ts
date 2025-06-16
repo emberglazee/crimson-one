@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder, ContextMenuCommandBuilder, ApplicationCommandType, InteractionContextType } from 'discord.js'
-import { ContextMenuCommand, SlashCommand } from '../types/types'
+import { ContextMenuCommand, SlashCommand } from '../types'
 
 export const slashCommand = {
     data: new SlashCommandBuilder()

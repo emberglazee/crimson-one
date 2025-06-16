@@ -4,7 +4,7 @@ import {
     type APIInteractionGuildMember,
     type ImageExtension, type ImageSize
 } from 'discord.js'
-import type { ExplicitAny } from '../types/types'
+import type { ExplicitAny } from '../types'
 import { randomInt } from 'crypto'
 
 export const randRange = (min: number, max: number) => randomInt(min, max + 1)

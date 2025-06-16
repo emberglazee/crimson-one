@@ -1,9 +1,9 @@
 import { SlashCommandBuilder } from 'discord.js'
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 import fs from 'fs/promises'
 import { getRandomElement } from '../util/functions'
 import { join } from 'path'
-import type { Emojis } from '../types/types'
+import type { Emojis } from '../types'
 
 let emojis: string[] = []
 

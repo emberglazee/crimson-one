@@ -2,7 +2,7 @@ import { Logger } from '../util/logger'
 const logger = new Logger('/test')
 
 import { SlashCommandBuilder, ApplicationIntegrationType } from 'discord.js'
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 import { smallFooterNote } from '../util/functions'
 
 export default {

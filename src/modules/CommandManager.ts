@@ -30,12 +30,12 @@ import { fileURLToPath } from 'url'
 import { getUserAvatar, guildMember, hasProp } from '../util/functions'
 import { operationTracker } from './OperationTracker'
 
-import { ClassNotInitializedError, MissingPermissionsError, BotInstallationType } from '../types/types'
+import { ClassNotInitializedError, MissingPermissionsError, BotInstallationType } from '../types'
 import type {
     SlashCommand, GuildSlashCommand, ContextMenuCommand,
     ExplicitAny, GuildId, JSONResolvable,
     OldSlashCommandHelpers, GuildOnlyCommandContext
-} from '../types/types'
+} from '../types'
 
 import { EMBERGLAZE_ID, PING_EMBERGLAZE, TYPING_EMOJI } from '../util/constants'
 import type { ArgumentsCamelCase, Argv, Options as YargsOptions } from 'yargs'

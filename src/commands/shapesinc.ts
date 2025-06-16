@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from 'discord.js'
-import { GuildSlashCommand } from '../types/types'
+import { GuildSlashCommand } from '../types'
 import { shapesInc } from '..'
 export default {
     data: new SlashCommandBuilder()

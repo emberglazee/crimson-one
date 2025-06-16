@@ -1,5 +1,5 @@
 import { ApplicationCommandType, ContextMenuCommandBuilder, InteractionContextType, MessageFlags } from 'discord.js'
-import { ContextMenuCommand } from '../types/types'
+import { ContextMenuCommand } from '../types'
 import { inspect } from 'util'
 
 export const contextMenuCommand = {

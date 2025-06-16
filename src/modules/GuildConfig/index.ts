@@ -2,7 +2,7 @@ import { GuildConfigDataSource } from './DataSource'
 import { EventEmitter } from 'tseep'
 import { GuildConfig } from './entities/GuildConfig'
 import { Logger } from '../../util/logger'
-import type { GuildId } from '../../types/types' // cosmetic type for clarity
+import type { GuildId } from '../../types' // cosmetic type for clarity
 
 const logger = new Logger('GuildConfigManager')
 

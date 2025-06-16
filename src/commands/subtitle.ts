@@ -1,5 +1,5 @@
 import { AttachmentBuilder, SlashCommandBuilder, ContextMenuCommandBuilder, InteractionContextType, ApplicationCommandType } from 'discord.js'
-import { SlashCommand, ContextMenuCommand } from '../types/types'
+import { SlashCommand, ContextMenuCommand } from '../types'
 import { QuoteImageFactory } from '../modules/QuoteImageFactory'
 import { type GradientType, COLORS, ROLE_COLORS, CHARACTER_COLORS } from '../util/colors'
 

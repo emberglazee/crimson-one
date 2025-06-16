@@ -6,7 +6,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'http'
 import { createServer } from 'http'
 import crypto from 'crypto'
 import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
-import type { WebhookEvents } from '../types/types'
+import type { WebhookEvents } from '../types'
 
 export class GithubWebhook extends EventEmitter<WebhookEvents> {
     private static instance: GithubWebhook

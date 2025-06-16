@@ -1,4 +1,4 @@
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 import { SlashCommandBuilder } from 'discord.js'
 import { load } from 'cheerio'
 import { getRandomElement } from '../util/functions'

@@ -2,7 +2,7 @@ import { Logger } from '../util/logger'
 const logger = new Logger('/cutoutro')
 
 import { SlashCommandBuilder } from 'discord.js'
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 import { writeFile } from 'fs/promises'
 import { readableStreamToText, spawn } from 'bun'
 import path from 'path'

@@ -5,7 +5,7 @@ import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember } 
 import type { ClientEvents, PartialGuildMember, Role } from 'discord.js'
 import { AWACS_FEED_CHANNEL } from '../util/constants'
 import { getRandomElement } from '../util/functions'
-import type { ExplicitAny } from '../types/types'
+import type { ExplicitAny } from '../types'
 
 type EventHandler<T extends keyof ClientEvents> = {
     event: T

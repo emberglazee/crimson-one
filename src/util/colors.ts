@@ -1,4 +1,4 @@
-import type { HexColor } from '../types/types'
+import type { HexColor } from '../types'
 
 type BasicColorDefinition = {
     name: string

@@ -4,7 +4,7 @@ const logger = new Logger('/markov')
 import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message, type MessageEditOptions } from 'discord.js'
 
 import { formatTimeRemaining, smallFooterNote } from '../util/functions'
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
 import { MarkovDataSource } from '../modules/MarkovChain/DataSource'
 import type { CommandContext } from '../modules/CommandManager'

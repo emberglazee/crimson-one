@@ -5,7 +5,7 @@ logger.info('Starting bot')
 import { readdir } from 'fs/promises'
 import path from 'path'
 import { Client, IntentsBitField, Partials } from 'discord.js'
-import type { DiscordEventListener } from './types/types'
+import type { DiscordEventListener } from './types'
 
 import CommandManager from './modules/CommandManager'
 import QuoteFactory from './modules/QuoteFactory'

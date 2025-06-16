@@ -2,7 +2,7 @@ import { Logger, red } from '../util/logger'
 const logger = new Logger('/hoi4hours')
 
 import { SlashCommandBuilder } from 'discord.js'
-import { SlashCommand } from '../types/types'
+import { SlashCommand } from '../types'
 
 const { STEAM_API_KEY, STEAM_ID } = process.env
 

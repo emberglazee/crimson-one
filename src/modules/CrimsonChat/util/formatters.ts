@@ -1,6 +1,6 @@
 import { Client, User } from 'discord.js'
 import { Logger } from '../../../util/logger'
-import type { UserStatus, MentionData } from '../../../types/types'
+import type { UserStatus, MentionData } from '../../../types'
 import chalk from 'chalk'
 
 const logger = new Logger('CrimsonChat | Formatters')
