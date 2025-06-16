@@ -1,5 +1,3 @@
-const esmodules = !!import.meta.url
-
 import { Logger, yellow, red } from '../util/logger'
 const logger = new Logger('CommandManager')
 
@@ -48,6 +46,8 @@ type CommandBuilderWithOptions = SlashCommandBuilder | SlashCommandSubcommandBui
 export default class CommandManager {
 
     private static instance: CommandManager
+
+    private currentDir = ''
     private globalCommands: Map<string, SlashCommand> = new Map()
     private guildCommands: Map<GuildId, Map<string, GuildSlashCommand>> = new Map()
     private contextMenuCommands: Map<string, ContextMenuCommand> = new Map()
@@ -77,7 +77,9 @@ export default class CommandManager {
         logger.info('{init} Initializing...')
         const initStartTime = Date.now()
 
-        await this.loadCommands(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, '../commands'))
+        this.currentDir = path.dirname(fileURLToPath(import.meta.url))
+        await this.loadCommands(path.join(this.currentDir, '../commands'))
+
         this.initialized = true
 
         const initEndTime = Date.now()
@@ -184,9 +186,8 @@ export default class CommandManager {
 
         // --- Basic Options ---
         // At this point, `option` is a basic type (String, Integer, etc.).
-        // Type guard: These can only be added to a SlashCommandBuilder or a SlashCommandSubcommandBuilder.
+        // These can only be added to a SlashCommandBuilder or a SlashCommandSubcommandBuilder.
         if (!(builder instanceof SlashCommandBuilder || builder instanceof SlashCommandSubcommandBuilder)) {
-            // We are trying to add a basic option to a SubcommandGroup, which is illegal.
             return
         }
 
@@ -253,7 +254,7 @@ export default class CommandManager {
         const startTime = Date.now()
         try {
 
-            const importedModule = await import(path.join(esmodules ? path.dirname(fileURLToPath(import.meta.url)) : __dirname, `../commands/${file.name}`))
+            const importedModule = await import(path.join(this.currentDir, `../commands/${file.name}`))
             const commands: (SlashCommand | ContextMenuCommand)[] = []
             const commandInfo: { name: string, type: string, guildId?: GuildId, aliases?: string[] }[] = []
 
