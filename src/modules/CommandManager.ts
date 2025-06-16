@@ -929,7 +929,6 @@ export default class CommandManager {
     }
 
     private logCommandDifferences(local: ExplicitAny, remote: ExplicitAny, path: string = ''): void {
-        // Discord API specific fields that we should ignore in logging
         const ignoredFields = new Set([
             'id',
             'application_id',
@@ -943,13 +942,13 @@ export default class CommandManager {
         ])
 
         if (typeof local !== typeof remote) {
-            logger.info(`{checkCommandChanges} Type mismatch at ${path}: Local (${typeof local}) vs Remote (${typeof remote})`)
+            logger.debug(`{checkCommandChanges} Type mismatch at ${yellow(path)}: Local (${typeof local}) vs Remote (${typeof remote})`)
             return
         }
 
         if (Array.isArray(local)) {
             if (local.length !== remote.length && !(path.endsWith('.options') && local.length === 0 && (!remote || remote.length === 0))) {
-                logger.info(`{checkCommandChanges} Array length mismatch at ${path}: Local (${local.length}) vs Remote (${remote.length})`)
+                logger.debug(`{checkCommandChanges} Array length mismatch at ${yellow(path)}: Local (${local.length}) vs Remote (${remote.length})`)
             }
             local.forEach((item, index) => {
                 if (index < remote.length) {
@@ -963,10 +962,7 @@ export default class CommandManager {
             const allKeys = new Set([...Object.keys(local), ...Object.keys(remote)])
 
             allKeys.forEach(key => {
-                // Skip logging differences for ignored fields
                 if (ignoredFields.has(key)) return
-
-                // Also skip description field for context menu commands
                 if (key === 'description' && (local.type === ApplicationCommandType.Message || local.type === ApplicationCommandType.User || remote.type === ApplicationCommandType.Message || remote.type === ApplicationCommandType.User)) {
                     return
                 }
@@ -974,33 +970,39 @@ export default class CommandManager {
                 const localValue = local[key]
                 const remoteValue = remote[key]
 
-                // Special handling for required field at any depth
+                // Special handling for required field at any depth and for empty options array
                 if (key === 'required') {
                     if (!localValue && remoteValue === false) return
                 }
-
-                // Special handling for empty options array
                 if (key === 'options' && (!localValue || localValue.length === 0) && (!remoteValue || remoteValue.length === 0)) {
                     return
                 }
 
+                const pathKeyString = (path: string, key: string) => yellow(`${path}.${key}`)
+
                 if (localValue === undefined && remoteValue !== undefined) {
-                    logger.info(`{checkCommandChanges} Missing in local at ${path}.${key}: ${JSON.stringify(remoteValue)}`)
+
+                    logger.debug(`{checkCommandChanges} Missing in local at ${pathKeyString(path, key)}: ${yellow(JSON.stringify(remoteValue))}`)
+
                 } else if (remoteValue === undefined && localValue !== undefined) {
-                    logger.info(`{checkCommandChanges} Missing in remote at ${path}.${key}: ${JSON.stringify(localValue)}`)
+
+                    logger.debug(`{checkCommandChanges} Missing in remote at ${pathKeyString(path, key)}: ${yellow(JSON.stringify(localValue))}`)
+
                 } else if (!this.areCommandsEqual(localValue, remoteValue)) {
+
                     if (typeof localValue !== 'object' || localValue === null) {
-                        logger.info(`{checkCommandChanges} Value mismatch at ${path}.${key}: Local (${JSON.stringify(localValue)}) vs Remote (${JSON.stringify(remoteValue)})`)
+                        logger.debug(`{checkCommandChanges} Value mismatch at ${pathKeyString(path, key)}: Local (${yellow(JSON.stringify(localValue))}) vs Remote (${yellow(JSON.stringify(remoteValue))})`)
                     } else {
-                        this.logCommandDifferences(localValue, remoteValue, `${path}.${key}`)
+                        this.logCommandDifferences(localValue, remoteValue, `${pathKeyString(path, key)}`)
                     }
+
                 }
             })
             return
         }
 
         if (local !== remote) {
-            logger.info(`{checkCommandChanges} Value mismatch at ${path}: Local (${JSON.stringify(local)}) vs Remote (${JSON.stringify(remote)})`)
+            logger.debug(`{checkCommandChanges} Value mismatch at ${yellow(path)}: Local (${JSON.stringify(local)}) vs Remote (${JSON.stringify(remote)})`)
         }
     }
 
