@@ -1,3 +1,6 @@
+import { Logger, red } from '../util/logger'
+const logger = new Logger('/hoi4hours')
+
 import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types/types'
 
@@ -52,7 +55,15 @@ interface SteamAPIResponse {
 async function getOwnedGames(steamId: string): Promise<SteamAPIOwnedGame[]> {
     const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAM_API_KEY}&steamid=${steamId}&format=json`
     const response = await fetch(url)
-    const data: SteamAPIResponse = await response.json()
+    let data: SteamAPIResponse
+    try {
+        data = await response.json()
+    } catch (error) {
+        const textResponse = await response.text()
+        logger.warn(`Failed to parse JSON response from Steam API. Falling back to text. Raw response:\n\`\`\`\n${textResponse}\n\`\`\``)
+        logger.warn(red(error instanceof Error ? error.stack ?? error.message : String(error)))
+        return []
+    }
     const { games } = data.response
     return games
 }
