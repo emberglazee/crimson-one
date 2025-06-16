@@ -1,12 +1,13 @@
+import { Logger, red } from '../../util/logger'
+const logger = new Logger('CrimsonChat | ImageProcessor')
+
+import { normalizeUrl, cleanImageUrl } from './util/url-utils'
+
 import { spawn } from 'child_process'
+
 import { promises as fs } from 'fs'
 import path from 'path'
 import os from 'os'
-import { Logger } from '../../util/logger'
-import { normalizeUrl, cleanImageUrl } from './util/url-utils'
-import chalk from 'chalk'
-
-const logger = new Logger('CrimsonChat | ImageProcessor')
 
 export class ImageProcessor {
     public normalizeUrl = normalizeUrl
@@ -39,7 +40,7 @@ export class ImageProcessor {
             }
         } catch (e) {
             const error = e as Error
-            logger.error(`Failed to fetch and convert image: ${chalk.red(error.message)}`)
+            logger.error(`Failed to fetch and convert image: ${red(error.message)}`)
             return null
         }
     }
@@ -55,7 +56,7 @@ export class ImageProcessor {
             return await this.extractFrameWithFFmpeg(gifPath, outputPath)
         } catch (e) {
             const error = e as Error
-            logger.error(`Failed to extract first frame: ${chalk.red(error.message)}`)
+            logger.error(`Failed to extract first frame: ${red(error.message)}`)
             return null
         } finally {
             await this.cleanupTempDir(tmpDir)
@@ -92,7 +93,7 @@ export class ImageProcessor {
             await fs.rm(dir, { recursive: true, force: true })
         } catch (e) {
             const error = e as Error
-            logger.error(`Failed to cleanup temp directory: ${chalk.red(error.message)}`)
+            logger.error(`Failed to cleanup temp directory: ${red(error.message)}`)
         }
     }
     private async fetchImageBuffer(url: string): Promise<Buffer> {
