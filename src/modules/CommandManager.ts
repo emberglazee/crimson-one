@@ -107,7 +107,9 @@ export default class CommandManager {
 
             // Copy base properties
             if (originalJson.description) newBuilder.setDescription(originalJson.description)
-            if (originalJson.dm_permission !== undefined) newBuilder.setDMPermission(originalJson.dm_permission)
+            if (originalJson.contexts !== undefined && Array.isArray(originalJson.contexts)) {
+                newBuilder.setContexts(originalJson.contexts)
+            }
             if (originalJson.nsfw !== undefined) newBuilder.setNSFW(originalJson.nsfw)
             if (originalJson.default_member_permissions) {
                 newBuilder.setDefaultMemberPermissions(originalJson.default_member_permissions)
@@ -129,7 +131,9 @@ export default class CommandManager {
             if (originalJson.type === ApplicationCommandType.Message || originalJson.type === ApplicationCommandType.User) {
                 newBuilder.setType(originalJson.type)
             }
-            if (originalJson.dm_permission !== undefined) newBuilder.setDMPermission(originalJson.dm_permission)
+            if (originalJson.contexts !== undefined && Array.isArray(originalJson.contexts)) {
+                newBuilder.setContexts(originalJson.contexts)
+            }
             if (originalJson.default_member_permissions) {
                 newBuilder.setDefaultMemberPermissions(originalJson.default_member_permissions)
             }
