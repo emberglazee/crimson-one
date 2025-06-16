@@ -36,6 +36,9 @@ const roleRemoveMessages = [
     (member: string, role: string, remover: string) => `🧑‍✈️ ${member} has been demoted from the ${role} unit by ${remover}.`
 ]
 
+const banishedRoleAddMessage = (member: string, assigner: string) => `⛓️ ${member} has been banished by ${assigner}.`
+const banishedRoleRemoveMessage = (member: string, remover: string) => `🔓 ${member} has been unbanished by ${remover}.`
+const BANISHED_ROLE_ID = '1331170880591757434' // Banished role ID
 
 export class AWACSFeed {
     private client: Client
@@ -53,8 +56,14 @@ export class AWACSFeed {
                 const roleAdded = addedRoles.first()
                 if (roleAdded) {
                     const assigner = await AWACSFeed.findRoleChanger(newMember, roleAdded, '$add')
-                    const message = getRandomElement(roleAddMessages)(newMember.user.username, roleAdded.name, assigner)
+                    let message: string
+                    if (roleAdded.id === BANISHED_ROLE_ID) {
+                        message = banishedRoleAddMessage(newMember.user.username, assigner)
+                    } else {
+                        message = getRandomElement(roleAddMessages)(newMember.user.username, roleAdded.name, assigner)
+                    }
                     await this.sendMessage(message)
+                    // Assuming only one role is added at a time for simplicity based on current logic
                     return
                 }
             }
@@ -67,8 +76,14 @@ export class AWACSFeed {
                 const roleRemoved = removedRoles.first()
                 if (roleRemoved) {
                     const remover = await AWACSFeed.findRoleChanger(newMember, roleRemoved, '$remove')
-                    const message = getRandomElement(roleRemoveMessages)(newMember.user.username, roleRemoved.name, remover)
+                    let message: string
+                    if (roleRemoved.id === BANISHED_ROLE_ID) {
+                        message = banishedRoleRemoveMessage(newMember.user.username, remover)
+                    } else {
+                        message = getRandomElement(roleRemoveMessages)(newMember.user.username, roleRemoved.name, remover)
+                    }
                     await this.sendMessage(message)
+                    // Assuming only one role is removed at a time for simplicity based on current logic
                     return
                 }
             }
