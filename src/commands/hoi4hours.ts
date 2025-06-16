@@ -6,27 +6,19 @@ const { STEAM_API_KEY, STEAM_ID } = process.env
 export default {
     data: new SlashCommandBuilder()
         .setName('hoi4hours')
-        .setDescription('Check the Steam API for emberglaze\'s hours in HOI4'),
+        .setDescription('Check the Steam API for embi\'s hours in HOI4'),
     async execute(context) {
         await context.deferReply()
 
-        interface SteamAPIResponse {
-            response: {
-                games: Array<{
-                    appid: number
-                    playtime_forever: number
-                }>
-            }
-        }
-        const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAM_API_KEY}&steamid=${STEAM_ID}&format=json`
-        const response = await fetch(url)
-        const data: SteamAPIResponse = await response.json()
-        const games = data.response.games
-        const hoi4 = games.find(game => game.appid === 394360)
+        const hoi4AppId = 394360
+
+        const games = await getOwnedGames(STEAM_ID!)
+        const hoi4 = games.find(game => game.appid === hoi4AppId)
         if (!hoi4) {
-            await context.editReply('❌ HOI4 not found in the list of games (did embi finally touch grass? check his steam profile directly or something)')
+            await context.editReply(`❌ HOI4 not found in the list of games (did ${context.pingMe} finally touch grass? check his steam profile directly or something)`)
             return
         }
+
         const totalHours = hoi4.playtime_forever / 60
         const hours = totalHours.toFixed(4)
 
@@ -44,6 +36,23 @@ export default {
         if (remainingHours > 0) timeString += `${remainingHours}h `
         if (remainingMinutes > 0) timeString += `${remainingMinutes}m`
 
-        await context.editReply(`emberglaze has spent \`${hours}\` hours playing HOI4\nThat's approximately ${timeString.trim()}`)
+        await context.editReply(`${context.pingMe} has spent \`${hours}\` hours playing HOI4\nThat's approximately: \`${timeString.trim()}\``)
     }
 } satisfies SlashCommand
+
+type SteamAPIOwnedGame = {
+    appid: number
+    playtime_forever: number
+}
+interface SteamAPIResponse {
+    response: {
+        games: SteamAPIOwnedGame[]
+    }
+}
+async function getOwnedGames(steamId: string): Promise<SteamAPIOwnedGame[]> {
+    const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=${STEAM_API_KEY}&steamid=${steamId}&format=json`
+    const response = await fetch(url)
+    const data: SteamAPIResponse = await response.json()
+    const { games } = data.response
+    return games
+}
