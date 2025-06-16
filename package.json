@@ -1,9 +1,9 @@
 {
   "name": "crimson-one",
-  "module": "index.ts",
+  "module": "src/guardian.ts",
   "type": "module",
   "scripts": {
-    "start": "bun src/index.ts",
+    "start": "bun src/guardian.ts",
     "delete-commands": "bun src/deleteCommands.ts"
   },
   "devDependencies": {
