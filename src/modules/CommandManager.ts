@@ -75,15 +75,15 @@ export default class CommandManager {
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
         logger.info('{init} Initializing...')
-        const initStartTime = Date.now()
+        const initStartTime = process.hrtime.bigint()
 
         this.currentDir = path.dirname(fileURLToPath(import.meta.url))
         await this.loadCommands(path.join(this.currentDir, '../commands'))
 
         this.initialized = true
 
-        const initEndTime = Date.now()
-        const totalTime = (initEndTime - initStartTime) / 1000
+        const initEndTime = process.hrtime.bigint()
+        const totalTime = Number(initEndTime - initStartTime) / 1_000_000_000
         logger.ok(`{init} Total time: ${yellow(totalTime)}s`)
 
     }
