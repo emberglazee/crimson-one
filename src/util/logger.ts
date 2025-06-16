@@ -30,31 +30,28 @@ export class Logger extends EventEmitter<{
         }
         this.module = module
     }
+    private _log(level: 'error' | 'warn' | 'info' | 'ok' | 'debug', data: JSONResolvable) {
+        console.log(logoutput(level, data, this.module, true))
+        this.emit(level, logoutput(level, data, this.module))
+        this.writeLogLine(logoutput(level, data, this.module))
+    }
+
     error(data: JSONResolvable) {
-        console.log(logoutput('error', data, this.module, true))
-        this.emit('error', logoutput('error', data, this.module))
-        this.writeLogLine(logoutput('error', data, this.module))
+        this._log('error', data)
     }
     warn(data: JSONResolvable) {
-        console.log(logoutput('warn', data, this.module, true))
-        this.emit('warn', logoutput('warn', data, this.module))
-        this.writeLogLine(logoutput('warn', data, this.module))
+        this._log('warn', data)
     }
     info(data: JSONResolvable) {
-        console.log(logoutput('info', data, this.module, true))
-        this.emit('info', logoutput('info', data, this.module))
-        this.writeLogLine(logoutput('info', data, this.module))
+        this._log('info', data)
     }
     ok(data: JSONResolvable) {
-        console.log(logoutput('ok', data, this.module, true))
-        this.emit('ok', logoutput('ok', data, this.module))
-        this.writeLogLine(logoutput('ok', data, this.module))
+        this._log('ok', data)
     }
     debug(data: JSONResolvable) {
-        console.log(logoutput('debug', data, this.module, true))
-        this.emit('debug', logoutput('debug', data, this.module))
-        this.writeLogLine(logoutput('debug', data, this.module))
+        this._log('debug', data)
     }
+
     _createLogFile(date = formatDate()) {
         const logsPath = path.join(esmodules ? path.dirname(url.fileURLToPath(import.meta.url)) : __dirname, '../../logs')
         if (!fs.existsSync(logsPath)) fs.mkdirSync(logsPath)
