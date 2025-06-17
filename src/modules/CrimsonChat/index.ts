@@ -160,14 +160,10 @@ export default class CrimsonChat {
         // Construct the user message from the buffered content
         const contentParts: (TextPart | ImagePart)[] = []
 
-        // 1. Combine all text parts
-        const combinedText = bufferedMessages.map(msg => {
-            const respondingToString = msg.options.respondingTo
-                ? `(in reply to ${msg.options.respondingTo.targetUsername}) `
-                : ''
-            return `[${msg.options.displayName}] ${respondingToString}${msg.content}`
-        }).join('\n')
-        contentParts.push({ type: 'text', text: combinedText })
+        // 1. Send UserMessageOptions as JSON
+        // The actual message content is now part of UserMessageOptions.messageContent
+        const userMessageOptionsJson = JSON.stringify(lastMessage.options)
+        contentParts.push({ type: 'text', text: userMessageOptionsJson })
 
         // 2. Collect and process all image attachments
         for (const msg of bufferedMessages) {

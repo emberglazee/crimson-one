@@ -100,7 +100,7 @@ export default {
                 await context.reply('✅ System prompt updated')
                 crimsonChat.sendMessage(
                     'System prompt has been updated to latest version.',
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: 'System prompt has been updated to latest version.' }
                 )
                 break
 
@@ -109,7 +109,7 @@ export default {
                 await context.reply(crimsonChat.isEnabled() ? '✅ CrimsonChat enabled' : '🔴 CrimsonChat disabled')
                 crimsonChat.sendMessage(
                     `Chat is now ${crimsonChat.isEnabled() ? 'enabled' : 'disabled'}`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `Chat is now ${crimsonChat.isEnabled() ? 'enabled' : 'disabled'}` }
                 )
                 break
 
@@ -126,7 +126,7 @@ export default {
                 await context.reply('⏱️ Sending system prompt reminder...')
                 crimsonChat.sendMessage(
                     `You've been smacked by ${context.user.username}. This means that you're out of line with the system prompt. Here's a friendly reminder for you.`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `You've been smacked by ${context.user.username}. This means that you're out of line with the system prompt. Here's a friendly reminder for you.` }
                 )
                 await context.followUp('✅ System prompt reminder sent')
                 break
@@ -141,7 +141,7 @@ export default {
                 await context.reply(`🚨 Berserk mode is now **${status}**. Maximum chaos protocol ${isEnabled ? 'engaged' : 'disengaged'}.`)
                 crimsonChat.sendMessage(
                     `System Alert: Berserk mode has been ${status.toLowerCase()} by ${context.user.username}.`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: Berserk mode has been ${status.toLowerCase()} by ${context.user.username}.` }
                 )
                 break
             }
@@ -153,7 +153,7 @@ export default {
                 await context.reply(`✅ Compliant test mode is now **${status}**.`)
                 crimsonChat.sendMessage(
                     `System Alert: Compliant test mode has been ${status.toLowerCase()} by ${context.user.username}.`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: Compliant test mode has been ${status.toLowerCase()} by ${context.user.username}.` }
                 )
                 break
             }
@@ -173,7 +173,7 @@ export default {
                 await context.reply(`✅ ${username} is now ignored by CrimsonChat`)
                 crimsonChat.sendMessage(
                     `Now ignoring user ${username}, you are now unable to see their messages.`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `Now ignoring user ${username}, you are now unable to see their messages.` }
                 )
                 break
             }
@@ -193,7 +193,7 @@ export default {
                 await context.reply(`✅ CrimsonChat will no longer ignore ${username}`)
                 crimsonChat.sendMessage(
                     `User ${username} has been unignored, you are now able to see their messages.`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `User ${username} has been unignored, you are now able to see their messages.` }
                 )
                 break
             }
@@ -224,7 +224,7 @@ export default {
                 await context.editReply(`✅ CrimsonChat model switched to \`${model}\`. The chat chain has been re-initialized.`)
                 crimsonChat.sendMessage(
                     `System Alert: Model has been switched to \`${model}\` by ${context.user.username}.`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System' }
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: Model has been switched to \`${model}\` by ${context.user.username}.` }
                 )
                 break
             }

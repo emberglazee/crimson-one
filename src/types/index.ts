@@ -248,6 +248,7 @@ export interface UserMessageOptions {
     username: string
     displayName: string
     serverDisplayName: string
+    messageContent: string
     respondingTo?: {
         targetUsername: string
         targetText: string
