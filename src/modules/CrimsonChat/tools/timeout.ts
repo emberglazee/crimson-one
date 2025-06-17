@@ -1,12 +1,11 @@
-// modules\CrimsonChat\tools\timeout.ts
 import { Logger, red, yellow } from '../../../util/logger'
 const logger = new Logger('CrimsonChat | timeout()')
 
 import { z } from 'zod'
+import { tool } from 'ai'
 import { bot as client } from '../../../'
 import { distance } from 'fastest-levenshtein'
 import type { Guild, GuildMember } from 'discord.js'
-import type { CrimsonTool } from '../tools'
 
 const schema = z.object({
     id: z.string().optional().describe('Discord user ID; most accurate and pinpoint'),
@@ -48,13 +47,11 @@ async function invoke({ id, username, displayname, length, reason }: Input) {
     return `✅ Successfully timed out user ${member.user.username} (display name ${member.displayName}) for ${length} milliseconds`
 }
 
-const timeoutTool: CrimsonTool<typeof schema> = {
-    name: 'timeout',
+export default tool({
     description: 'Timeout a discord user',
-    schema,
-    invoke
-}
-export default timeoutTool
+    parameters: schema,
+    execute: invoke
+})
 
 async function findMember(guild: Guild, query: string): Promise<GuildMember | null> {
     // by user id

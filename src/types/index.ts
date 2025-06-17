@@ -233,7 +233,7 @@ export interface ShapesIncShape {
 }
 
 export type FixedLengthArray<T, N extends number, R extends T[] = []> =
-  R['length'] extends N ? R : FixedLengthArray<T, N, [T, ...R]>
+    R['length'] extends N ? R : FixedLengthArray<T, N, [T, ...R]>
 
 export type GuildId = string & {} // `& {}` because otherwise intellisense will show `string` instead of `GuildId`
 
@@ -244,9 +244,6 @@ export enum BotInstallationType {
     Unknown = 'UNKNOWN'
 }
 
-
-
-// CrimsonChat types
 export interface UserMessageOptions {
     username: string
     displayName: string
@@ -284,77 +281,4 @@ export interface MentionData {
     type: 'mention'
     id: string
     username: string
-}
-
-export interface FormattedUserMessage {
-    username: string
-    displayName: string
-    serverDisplayName: string
-    currentTime: string
-    text: string
-    mentions?: MentionData[]
-    attachments?: string[]
-    respondingTo?: {
-        targetUsername: string
-        targetText: string
-    }
-    userStatus: UserStatus | 'unknown'
-}
-
-// Additional types needed for message processing
-export interface ChatMessage {
-    role: 'system' | 'assistant' | 'user' | 'tool'
-    content: string
-    tool_calls?: { id: string; name: string; args: Record<string, ExplicitAny>, type: 'tool_call' }[]
-    tool_call_id?: string
-}
-
-export interface ProcessedCommand {
-    content: string | null
-    hadCommands: boolean
-}
-
-export interface UserPresenceInfo {
-    roles: string[]
-    presence: {
-        name: string
-        type: number
-        state?: string
-        details?: string
-        createdAt: string
-    }[] | 'offline or no activities'
-}
-
-export interface Memory {
-    content: string
-    context?: string
-    evaluation?: string
-    timestamp: number
-    importance: 1 | 2 | 3 | 4 | 5
-}
-
-export interface DiscordEmbed {
-    title?: string
-    description?: string
-    color: number
-    fields?: { name: string; value: string }[]
-    command?: {
-        name: string
-        params?: string
-    }
-    footer?: string
-    author?: string
-}
-
-export type ChatResponse = string | { embed: DiscordEmbed } | { command: { name: string, params: string[] } }
-export type ChatResponseArray = ChatResponse[]
-
-export interface QueueItem {
-    action: () => Promise<unknown>
-}
-
-export interface ToolCall {
-    name: string
-    args: Record<string, ExplicitAny>
-    id?: string
 }

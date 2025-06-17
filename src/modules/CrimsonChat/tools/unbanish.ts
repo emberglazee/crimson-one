@@ -1,12 +1,11 @@
-// modules\CrimsonChat\tools\unbanish.ts
 import { Logger, red, yellow } from '../../../util/logger'
 const logger = new Logger('CrimsonChat | unbanish()')
 
 import { z } from 'zod'
+import { tool } from 'ai'
 import { bot as client } from '../../..'
 import { distance } from 'fastest-levenshtein'
 import { ChannelType, type Guild, type GuildMember, PermissionsBitField } from 'discord.js'
-import type { CrimsonTool } from '../tools'
 
 // --- Constants from the original /unbanish command ---
 const GUILD_ID = '958518067690868796'
@@ -52,7 +51,7 @@ async function invoke({ id, username, displayname, reason }: Input): Promise<str
     if (member.id === client.user?.id) {
         return "What did you think was gonna happen?"
     }
-     if (!member.manageable) {
+    if (!member.manageable) {
         return `Error: I cannot manage this user. They likely have a higher role than me. (Target: ${member.user.username})`
     }
 
@@ -90,13 +89,11 @@ async function invoke({ id, username, displayname, reason }: Input): Promise<str
     return `Success: User ${member.user.username} has been unbanished.`
 }
 
-const unbanishTool: CrimsonTool = {
-    name: 'unbanish',
+export default tool({
     description: 'Removes the "banished" role from a server member, restoring their access. This is a form of server moderation.',
-    schema,
-    invoke
-}
-export default unbanishTool
+    parameters: schema,
+    execute: invoke
+})
 
 async function findMember(guild: Guild, query: string): Promise<GuildMember | null> {
     // by user id

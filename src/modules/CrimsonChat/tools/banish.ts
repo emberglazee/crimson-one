@@ -2,11 +2,11 @@ import { Logger, red, yellow } from '../../../util/logger'
 const logger = new Logger('CrimsonChat | banish()')
 
 import { z } from 'zod'
+import { tool } from 'ai'
 import { bot as client } from '../../..'
 import { distance } from 'fastest-levenshtein'
 import { ChannelType, type Guild, type GuildMember, PermissionsBitField } from 'discord.js'
 import { EMBERGLAZE_ID } from '../../../util/constants'
-import type { CrimsonTool } from '../tools'
 
 // --- Constants from the original /banish command ---
 const GUILD_ID = '958518067690868796'
@@ -93,13 +93,11 @@ async function invoke({ id, username, displayname, reason }: Input): Promise<str
     return `Success: User ${member.user.username} has been banished.`
 }
 
-const banishTool: CrimsonTool = {
-    name: 'banish',
+export default tool({
     description: 'Assigns the "banished" role to a server member, restricting their access. This is a form of server moderation.',
-    schema,
-    invoke
-}
-export default banishTool
+    parameters: schema,
+    execute: invoke
+})
 
 async function findMember(guild: Guild, query: string): Promise<GuildMember | null> {
     // by user id
