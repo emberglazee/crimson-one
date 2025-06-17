@@ -48,7 +48,7 @@ export default class CrimsonChat {
         if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set in environment variables')
         this.genAI = createGoogleGenerativeAI({
             apiKey: process.env.GEMINI_API_KEY,
-            baseURL: 'http://localhost:1245'
+            baseURL: 'http://localhost:1245/v1beta'
         })
     }
 
