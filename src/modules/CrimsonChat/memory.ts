@@ -19,6 +19,21 @@ export class CrimsonFileBufferHistory {
 
     // New method to convert our ChatMessage format to Gemini's Content format
     private chatMessageToContent(msg: ChatMessage): Content | null {
+        if (msg.role === 'tool') {
+            return {
+                role: 'function',
+                parts: [{
+                    functionResponse: {
+                        name: msg.tool_call_id!,
+                        response: {
+                            name: msg.tool_call_id!,
+                            content: msg.content,
+                        },
+                    },
+                }],
+            }
+        }
+
         const parts: Part[] = []
 
         if (msg.content) {
@@ -54,14 +69,9 @@ export class CrimsonFileBufferHistory {
             }
         }
 
-        if (msg.role === 'tool') {
-            parts.push({ functionResponse: { name: msg.tool_call_id!, response: { name: msg.tool_call_id!, content: msg.content } }})
-        }
-
         let role: ArrayElement<typeof POSSIBLE_ROLES> = 'user'
         if (msg.role === 'assistant') role = 'model'
         else if (msg.role === 'user') role = 'user'
-        else if (msg.role === 'tool') return { role: 'function', parts }
 
         // System prompt is handled separately in the model configuration now.
         // We will store it in the class but not include it as a 'system' role message in the history array.
@@ -78,9 +88,10 @@ export class CrimsonFileBufferHistory {
         if (content.role === 'function') {
             const part = content.parts[0]
             if (part.functionResponse) {
+                const responseContent = (part.functionResponse.response as { content: string }).content
                 return {
                     role: 'tool',
-                    content: part.functionResponse.name,
+                    content: responseContent,
                     tool_call_id: part.functionResponse.name
                 }
             }
