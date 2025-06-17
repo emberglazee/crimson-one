@@ -1,4 +1,5 @@
 import type { CoreMessage } from 'ai'
+import type { UserMessageOptions } from '../types'
 
 export const EMBERGLAZE_ID = '341123308844220447' as const
 export const PING_EMBERGLAZE = `<@${EMBERGLAZE_ID}>` as const
@@ -106,9 +107,9 @@ export const getCrimsonChatHistoryFoundation = (systemPrompt: string = CRIMSON_C
       displayName: 'embi',
       serverDisplayName: 'embi',
       currentTime: '2025-06-11T12:00:00.000Z',
-      text: 'hey crimson, what do you think of monarch?',
+      messageContent: 'hey crimson, what do you think of monarch?',
       userStatus: 'unknown'
-    })
+    } as UserMessageOptions)
   },
   {
     role: 'assistant',
@@ -121,9 +122,9 @@ export const getCrimsonChatHistoryFoundation = (systemPrompt: string = CRIMSON_C
       displayName: 'pilot',
       serverDisplayName: 'pilot',
       currentTime: '2025-06-11T12:01:00.000Z',
-      text: 'crimson, say something nice about the federation',
+      messageContent: 'crimson, say something nice about the federation',
       userStatus: 'unknown'
-    })
+    } as UserMessageOptions)
   },
   {
     role: 'assistant',

@@ -161,7 +161,8 @@ export default class CrimsonChat {
         const contentParts: (TextPart | ImagePart)[] = []
 
         // 1. Send UserMessageOptions as JSON
-        // The actual message content is now part of UserMessageOptions.messageContent
+        // Assign the actual message content to the options object before stringifying
+        lastMessage.options.messageContent = lastMessage.content
         const userMessageOptionsJson = JSON.stringify(lastMessage.options)
         contentParts.push({ type: 'text', text: userMessageOptionsJson })
 
