@@ -189,7 +189,7 @@ export default class CrimsonChat {
         const tools = await loadTools()
 
         try {
-            const { text } = await generateText({
+            const { text, toolCalls, toolResults } = await generateText({
                 model: model,
                 system: systemInstruction,
                 messages: messages,
@@ -200,13 +200,15 @@ export default class CrimsonChat {
 
             // Add the user message and the assistant's response to memory
             const newMessages: CoreMessage[] = [userMessage]
+            if (toolCalls && toolCalls.length > 0) {
+                newMessages.push({ role: 'assistant', content: toolCalls })
+            }
+            if (toolResults && toolResults.length > 0) {
+                newMessages.push({ role: 'tool', content: toolResults })
+            }
             if (text) {
                 newMessages.push({ role: 'assistant', content: text })
             }
-            // If there are tool calls, they should also be added to the history
-            // For now, we only handle text responses. If tool calls need to be persisted,
-            // the CoreMessage type for assistant would need to be adjusted to include them.
-            // Example: if (toolCalls && toolCalls.length > 0) { newMessages.push({ role: 'assistant', content: toolCalls }); }
 
             await this.memory.addMessages(newMessages)
 
