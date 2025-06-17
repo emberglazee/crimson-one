@@ -1,7 +1,7 @@
 import { Logger } from '../util/logger'
 const logger = new Logger('AWACSFeed')
 
-import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember } from 'discord.js'
+import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember, User } from 'discord.js'
 import type { ClientEvents, PartialGuildMember, Role } from 'discord.js'
 import { AWACS_FEED_CHANNEL } from '../util/constants'
 import { getRandomElement } from '../util/functions'
@@ -38,6 +38,13 @@ const roleRemoveMessages = [
 
 const banishedRoleAddMessage = (member: string, assigner: string) => `⛓️ ${member} has been banished by ${assigner}.`
 const banishedRoleRemoveMessage = (member: string, remover: string) => `🔓 ${member} has been unbanished by ${remover}.`
+
+const timeoutMessages = [
+    (member: string, moderator: string) => `🔇 ${member} has been muted by ${moderator}.`,
+    (member: string, moderator: string) => `🔇 ${member} has been silenced by ${moderator}.`,
+    (member: string, moderator: string) => `🔇 ${member} has been timed out by ${moderator}.`,
+    (member: string, moderator: string) => `🔇 ${member} has been sent to the sin bin by ${moderator}.`
+]
 const BANISHED_ROLE_ID = '1331170880591757434' // Banished role ID
 
 export class AWACSFeed {
@@ -87,6 +94,22 @@ export class AWACSFeed {
                     return
                 }
             }
+
+            // --- Check for timeout changes ---
+            const oldTimeout = oldMember.communicationDisabledUntil
+            const newTimeout = newMember.communicationDisabledUntil
+
+            if (oldTimeout !== newTimeout) {
+                if (newTimeout) { // User was timed out
+                    const moderator = await AWACSFeed.findTimeoutChanger(newMember)
+                    const message = getRandomElement(timeoutMessages)(newMember.user.username, moderator)
+                    await this.sendMessage(message)
+                } else if (oldTimeout) { // User was untimed out
+                    const moderator = await AWACSFeed.findTimeoutChanger(newMember) // Audit log for untimeout is also MemberUpdate
+                    const message = `🔊 ${newMember.user.username} has been unmuted by ${moderator}.`
+                    await this.sendMessage(message)
+                }
+            }
         }
     }
 
@@ -112,6 +135,31 @@ export class AWACSFeed {
             }
         } catch (error) {
             logger.warn(`[AWACSFeed] Error fetching audit logs for ${member.user.tag} role change: ${error instanceof Error ? error.message : String(error)}`)
+        }
+        return '`\\\\ NO IFF DATA \\\\`'
+    }
+
+    private static async findTimeoutChanger(member: GuildMember | User): Promise<string> {
+        try {
+            const guild = (member instanceof GuildMember) ? member.guild : null
+            if (!guild) return '`\\\\ NO IFF DATA \\\\`'
+
+            const auditLogs = await guild.fetchAuditLogs({
+                type: AuditLogEvent.MemberUpdate,
+                limit: 10
+            })
+
+            const logEntry = auditLogs.entries.find(entry =>
+                entry.target?.id === member.id &&
+                entry.changes.some(change => change.key === 'communication_disabled_until')
+            )
+
+            if (logEntry?.executor) {
+                return logEntry.executor.username ?? '`\\\\ INVALID IFF DATA \\\\`'
+            }
+        } catch (error) {
+            const username = (member instanceof GuildMember) ? member.user.username : member.username
+            logger.warn(`[AWACSFeed] Error fetching audit logs for ${username} timeout change: ${error instanceof Error ? error.message : String(error)}`)
         }
         return '`\\\\ NO IFF DATA \\\\`'
     }
