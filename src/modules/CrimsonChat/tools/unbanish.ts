@@ -1,11 +1,12 @@
+// modules\CrimsonChat\tools\unbanish.ts
 import { Logger, red, yellow } from '../../../util/logger'
 const logger = new Logger('CrimsonChat | unbanish()')
 
-import { DynamicStructuredTool, tool } from '@langchain/core/tools'
 import { z } from 'zod'
 import { bot as client } from '../../..'
 import { distance } from 'fastest-levenshtein'
 import { ChannelType, type Guild, type GuildMember, PermissionsBitField } from 'discord.js'
+import type { CrimsonTool } from '../tools'
 
 // --- Constants from the original /unbanish command ---
 const GUILD_ID = '958518067690868796'
@@ -20,7 +21,7 @@ const schema = z.object({
 })
 type Input = z.infer<typeof schema>
 
-async function unbanishUser({ id, username, displayname, reason }: Input): Promise<string> {
+async function invoke({ id, username, displayname, reason }: Input): Promise<string> {
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ id, username, displayname, reason }))}`)
     const query = id ?? username ?? displayname
     if (!query) {
@@ -89,11 +90,12 @@ async function unbanishUser({ id, username, displayname, reason }: Input): Promi
     return `Success: User ${member.user.username} has been unbanished.`
 }
 
-const unbanishTool: DynamicStructuredTool<typeof schema> = tool(unbanishUser, {
+const unbanishTool: CrimsonTool = {
     name: 'unbanish',
     description: 'Removes the "banished" role from a server member, restoring their access. This is a form of server moderation.',
-    schema
-})
+    schema,
+    invoke
+}
 export default unbanishTool
 
 async function findMember(guild: Guild, query: string): Promise<GuildMember | null> {

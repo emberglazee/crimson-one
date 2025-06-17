@@ -1,22 +1,17 @@
+import { cyan, green, Logger, red, yellow } from '../../util/logger'
+const logger = new Logger('CrimsonChat')
+
 import { Client, TextChannel, Message, ChatInputCommandInteraction } from 'discord.js'
-import { Logger } from '../../util/logger'
 import type { UserMessageOptions } from '../../types'
-import chalk from 'chalk'
 import { MessageQueue } from './MessageQueue'
-import { createCrimsonChain, type CrimsonChainInput } from './chain'
 import { CrimsonFileBufferHistory } from './memory'
 import { usernamesToMentions } from './util/formatters'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST_PROMPT, DEFAULT_GEMINI_MODEL } from '../../util/constants'
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
-import { Runnable, RunnableWithMessageHistory } from '@langchain/core/runnables'
-import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages'
 import * as fs from 'fs/promises'
 import path from 'path'
 import { ImageProcessor } from './ImageProcessor'
-import { BaseMessage } from '@langchain/core/messages'
-import { toolMap } from './tools'
-
-const logger = new Logger('CrimsonChat')
+import { GoogleGenerativeAI, GenerativeModel, type Part, ChatSession } from '@google/generative-ai'
+import { loadTools, toolMap } from './tools'
 
 export default class CrimsonChat {
     private static instance: CrimsonChat
@@ -27,7 +22,9 @@ export default class CrimsonChat {
     private ignoredUsers: Set<string> = new Set()
     private imageProcessor: ImageProcessor
 
-    private messageChain!: Runnable<CrimsonChainInput, BaseMessage>
+    private genAI: GoogleGenerativeAI
+    private model!: GenerativeModel
+    private chatSession!: ChatSession
     private memory: CrimsonFileBufferHistory
     private modelName: string = DEFAULT_GEMINI_MODEL
 
@@ -46,6 +43,8 @@ export default class CrimsonChat {
     private constructor() {
         this.memory = new CrimsonFileBufferHistory()
         this.imageProcessor = new ImageProcessor()
+        if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set in environment variables')
+        this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
     }
 
     public static getInstance(): CrimsonChat {
@@ -62,7 +61,7 @@ export default class CrimsonChat {
     public async init(): Promise<void> {
         if (!this.client) throw new Error('Client not set. Call setClient() first.')
 
-        await this.initChain()
+        await this.initModelAndSession()
 
         logger.info('Initializing CrimsonChat...')
         this.channel = (await this.client.channels.fetch(this.channelId)) as TextChannel
@@ -73,21 +72,30 @@ export default class CrimsonChat {
         logger.ok('CrimsonChat initialized successfully')
     }
 
-    private async initChain(): Promise<void> {
-        const coreChain = await createCrimsonChain(this.modelName, this.berserkMode)
+    private async initModelAndSession(): Promise<void> {
+        const tools = await loadTools()
 
-        // The chain should output BaseMessage so we can inspect tool_calls.
-        this.messageChain = new RunnableWithMessageHistory({
-            runnable: coreChain,
-            getMessageHistory: _ => this.memory,
-            inputMessagesKey: 'input',
-            historyMessagesKey: 'chat_history',
+        const generationConfig = this.berserkMode
+            ? { temperature: 2.0, topP: 1.0 }
+            : { temperature: 0.8 }
+
+        const { history, systemInstruction } = await this.memory.getHistory()
+
+        this.model = this.genAI.getGenerativeModel({
+            model: this.modelName,
+            tools: tools.length > 0 ? tools : undefined,
+            systemInstruction,
+            generationConfig
         })
 
-        logger.info(`Message chain re-initialized. Model: ${chalk.green(this.modelName)}, Berserk mode: ${chalk.yellow(this.berserkMode)}`)
+        this.chatSession = this.model.startChat({
+            history
+        })
+
+        logger.info(`Model and chat session re-initialized. Model: ${green(this.modelName)}, Berserk mode: ${yellow(this.berserkMode)}`)
     }
 
-    private async formatInput(content: string, options: UserMessageOptions): Promise<BaseMessage['content']> {
+    private async formatInput(content: string, options: UserMessageOptions): Promise<string> {
         const messageData = {
             username: options.username,
             displayName: options.displayName,
@@ -98,7 +106,6 @@ export default class CrimsonChat {
             guildName: options.guildName,
             channelName: options.channelName,
         }
-        // Always return as a single text part for now, image handling will be in sendMessage
         return JSON.stringify(messageData)
     }
 
@@ -109,11 +116,11 @@ export default class CrimsonChat {
             logger.info(`Triggering ${this.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
 
-            const model = new ChatGoogleGenerativeAI({ model: this.modelName, apiKey: process.env.GEMINI_API_KEY })
-            const response = await model.invoke(CRIMSON_BREAKDOWN_PROMPT)
-            const breakdown = response.content.toString()
+            const model = this.genAI.getGenerativeModel({ model: this.modelName })
+            const result = await model.generateContent(CRIMSON_BREAKDOWN_PROMPT)
+            const breakdown = result.response.text()
 
-            await this.memory.addAIChatMessage(breakdown)
+            await this.memory.addMessages([{ role: 'model', parts: [{ text: breakdown }] }])
             return breakdown
         }
         return null
@@ -131,7 +138,7 @@ export default class CrimsonChat {
         if (!this.channel || !this.enabled) return
 
         this.messageBuffer.push({ content, options, originalMessage })
-        logger.info(`Message from ${chalk.yellow(options.username)} buffered. Buffer size: ${this.messageBuffer.length}`)
+        logger.info(`Message from ${yellow(options.username)} buffered. Buffer size: ${yellow(this.messageBuffer.length)}`)
 
         // If the queue is not already being processed, start it.
         if (!this.isGenerating) {
@@ -156,7 +163,7 @@ export default class CrimsonChat {
                 const firstMessage = this.messageBuffer.shift()
                 if (!firstMessage) continue
 
-                logger.info(`Processing single message from ${chalk.yellow(firstMessage.options.username)}`)
+                logger.info(`Processing single message from ${yellow(firstMessage.options.username)}`)
                 const response = await this._generateResponse(
                     firstMessage.content,
                     firstMessage.options,
@@ -172,7 +179,7 @@ export default class CrimsonChat {
                 if (this.messageBuffer.length > 0) {
                     const bulkMessages = [...this.messageBuffer]
                     this.messageBuffer = [] // Clear buffer for the next cycle
-                    logger.info(`Processing a bulk of ${chalk.yellow(bulkMessages.length)} buffered messages.`)
+                    logger.info(`Processing a bulk of ${yellow(bulkMessages.length)} buffered messages.`)
 
                     const combinedContent = bulkMessages.map(msg =>
                         JSON.stringify({
@@ -204,7 +211,7 @@ export default class CrimsonChat {
                 }
             }
         } catch (error) {
-            logger.error(`An error occurred in the processing queue: ${chalk.red(error instanceof Error ? error.stack ?? error.message : String(error))}`)
+            logger.error(`An error occurred in the processing queue: ${red(error instanceof Error ? error.stack ?? error.message : String(error))}`)
             // Clear buffer on error to prevent getting stuck on a "poison" message
             this.messageBuffer = []
         } finally {
@@ -230,7 +237,7 @@ export default class CrimsonChat {
         originalMessage?: Message
     ): Promise<string | null> {
         const targetChannel = options.targetChannel || this.channel!
-        logger.info(`Generating response for ${chalk.yellow(options.username)}...`)
+        logger.info(`Generating response for ${yellow(options.username)}...`)
 
         targetChannel.sendTyping().catch(e => logger.warn(`Typing indicator failed: ${e.message}`))
 
@@ -240,64 +247,79 @@ export default class CrimsonChat {
         }
 
         const formattedInput = await this.formatInput(content, options)
-        const chatInputContent: BaseMessage['content'] = [{ type: 'text', text: formattedInput as string }]
+        const parts: Part[] = [{ text: formattedInput }]
 
         if (originalMessage && originalMessage.attachments.size > 0) {
             for (const attachment of originalMessage.attachments.values()) {
                 if (attachment.contentType?.startsWith('image/')) {
-                    logger.info(`Found image attachment: ${chalk.yellow(attachment.url)}`)
+                    logger.info(`Found image attachment: ${yellow(attachment.url)}`)
                     const imageData = await this.imageProcessor.fetchAndConvertToBase64(attachment.url)
                     if (imageData) {
-                        chatInputContent.push(imageData)
+                        parts.push(imageData)
                     }
                 }
             }
         }
 
-        let modelResponse: BaseMessage | undefined
+        // Save user message to memory
+        await this.memory.addMessages([{ role: 'user', parts }])
+
         try {
-            const humanMessage = new HumanMessage({ content: chatInputContent })
-            modelResponse = await this.messageChain.invoke(
-                { input: [humanMessage] },
-                { configurable: { sessionId: 'global' } }
-            )
+            let result = await this.chatSession.sendMessage(parts)
 
-            const aiMessage = modelResponse as AIMessage
-            const toolCalls = aiMessage?.tool_calls
-
-            if (toolCalls && toolCalls.length > 0) {
-                logger.info(`Tool calls detected: ${chalk.yellow(JSON.stringify(toolCalls))}`)
-                const toolOutputs: ToolMessage[] = []
-
-                for (const toolCall of toolCalls) {
-                    const toolToExecute = toolMap.get(toolCall.name)
-                    let toolResult: string
-                    if (toolToExecute) {
-                        try {
-                            toolResult = await toolToExecute.invoke(toolCall.args)
-                            logger.info(`Tool ${toolCall.name} execution result: ${chalk.cyan(toolResult)}`)
-                        } catch (e) {
-                            toolResult = `Error executing tool '${toolCall.name}': ${e instanceof Error ? e.message : String(e)}`
-                            logger.error(toolResult)
-                        }
-                    } else {
-                        toolResult = `Error: Tool '${toolCall.name}' not found.`
-                        logger.warn(toolResult)
-                    }
-                    toolOutputs.push(new ToolMessage({
-                        tool_call_id: toolCall.id!,
-                        content: toolResult
-                    }))
+            // --- Tool Calling Loop ---
+            while (true) {
+                const call = result.response.functionCalls()?.[0]
+                if (!call) {
+                    break // No more tool calls, exit loop
                 }
-                await this.memory.addMessages(toolOutputs)
-                modelResponse = await this.messageChain.invoke(
-                    { input: [] },
-                    { configurable: { sessionId: 'global' } }
-                )
+
+                logger.info(`Tool call detected: ${yellow(call.name)}(${cyan(JSON.stringify(call.args))})`)
+
+                // Save model's tool call to history
+                await this.memory.addMessages([{ role: 'model', parts: [{ functionCall: call }] }])
+
+                const toolToExecute = toolMap.get(call.name)
+                let toolResultContent: string
+
+                if (toolToExecute) {
+                    try {
+                        toolResultContent = await toolToExecute.invoke(call.args)
+                        logger.info(`Tool ${call.name} execution result: ${cyan(toolResultContent)}`)
+                    } catch (e) {
+                        toolResultContent = `Error executing tool '${call.name}': ${e instanceof Error ? e.message : String(e)}`
+                        logger.error(toolResultContent)
+                    }
+                } else {
+                    toolResultContent = `Error: Tool '${call.name}' not found.`
+                    logger.warn(toolResultContent)
+                }
+
+                const functionResponsePart: Part = {
+                    functionResponse: {
+                        name: call.name,
+                        response: {
+                            name: call.name, // The tool name
+                            content: toolResultContent,
+                        },
+                    },
+                }
+
+                // Save tool response to history
+                await this.memory.addMessages([{ role: 'function', parts: [functionResponsePart] }])
+
+                // Send tool response back to the model
+                result = await this.chatSession.sendMessage([functionResponsePart])
             }
-            return (modelResponse as AIMessage)?.content?.toString() || '-# ...'
+            // --- End Tool Calling Loop ---
+
+            const responseText = result.response.text()
+            // Save final AI response to memory
+            await this.memory.addMessages([{ role: 'model', parts: [{ text: responseText }] }])
+
+            return responseText || '-# ...'
         } catch (e) {
-            logger.warn(`Error processing message: ${chalk.red((e as Error).stack ?? (e as Error).message)}`)
+            logger.warn(`Error processing message: ${red((e as Error).stack ?? (e as Error).message)}`)
             return null
         }
     }
@@ -338,7 +360,7 @@ export default class CrimsonChat {
     public async handleStartup(): Promise<void> {
         if (!this.channel) return
         const startupMessage = `Discord bot initialized. Welcome back, Crimson 1! Time: ${new Date().toISOString()}`
-        await this.memory.addMessages([new AIMessage(startupMessage)])
+        await this.memory.addMessages([{ role: 'model', parts: [{ text: startupMessage }] }])
         await this.sendResponseToDiscord(startupMessage, this.channel)
     }
 
@@ -347,7 +369,7 @@ export default class CrimsonChat {
         await this.sendResponseToDiscord('⚠️ Crimson is shutting down...', this.channel)
         const shutdownMessage = `Discord bot is shutting down. See ya in a bit, Crimson 1. Time: ${new Date().toISOString()}`
         // Add a system message to the history without sending a response.
-        await this.memory.addMessages([new SystemMessage(shutdownMessage)])
+        await this.memory.addMessages([{ role: 'user', parts: [{ text: shutdownMessage }] }])
     }
 
     public async trackCommandUsage(interaction: ChatInputCommandInteraction) {
@@ -370,34 +392,36 @@ export default class CrimsonChat {
         })
 
         // Add to history as a user message
-        await this.memory.addMessage(new HumanMessage({ content: formattedInput }))
+        await this.memory.addMessages([{ role: 'user', parts: [{ text: formattedInput }] }])
     }
 
     public async clearHistory(): Promise<void> {
         const prompt = this.testMode ? CRIMSON_CHAT_TEST_PROMPT : CRIMSON_CHAT_SYSTEM_PROMPT
         await this.memory.clear(prompt)
+        await this.initModelAndSession()
     }
 
     public async updateSystemPrompt(): Promise<void> {
         const prompt = this.testMode ? CRIMSON_CHAT_TEST_PROMPT : CRIMSON_CHAT_SYSTEM_PROMPT
         await this.memory.updateSystemPrompt(prompt)
+        await this.initModelAndSession()
     }
 
     public async setModel(modelName: string): Promise<void> {
         this.modelName = modelName
-        await this.initChain()
-        logger.ok(`CrimsonChat model switched to: ${chalk.green(modelName)}`)
+        await this.initModelAndSession()
+        logger.ok(`CrimsonChat model switched to: ${green(modelName)}`)
     }
 
     public setForceNextBreakdown(force: boolean): void {
         this.forceNextBreakdown = force
-        logger.ok(`Force next breakdown set to: ${chalk.yellow(force)}`)
+        logger.ok(`Force next breakdown set to: ${yellow(force)}`)
     }
 
     public async toggleBerserkMode(): Promise<boolean> {
         if (this.testMode) return false
         this.berserkMode = !this.berserkMode
-        await this.initChain()
+        await this.initModelAndSession()
         return this.berserkMode
     }
 
@@ -406,10 +430,8 @@ export default class CrimsonChat {
         if (enabled && this.berserkMode) {
             this.berserkMode = false
         }
-        const prompt = this.testMode ? CRIMSON_CHAT_TEST_PROMPT : CRIMSON_CHAT_SYSTEM_PROMPT
-        await this.memory.updateSystemPrompt(prompt)
-        await this.initChain()
-        logger.ok(`Test mode set to: ${chalk.yellow(enabled)}. System prompt updated.`)
+        await this.updateSystemPrompt() // This will also call initModelAndSession
+        logger.ok(`Test mode set to: ${yellow(enabled)}. System prompt updated.`)
     }
 
     public isTestMode(): boolean {
@@ -422,7 +444,7 @@ export default class CrimsonChat {
 
     public setEnabled(state: boolean): void {
         this.enabled = state
-        logger.info(`CrimsonChat ${chalk.yellow(state ? 'enabled' : 'disabled')}`)
+        logger.info(`CrimsonChat ${green(state ? 'enabled' : 'disabled')}`)
     }
 
     private async loadIgnoredUsers(): Promise<void> {
@@ -442,13 +464,13 @@ export default class CrimsonChat {
     public async ignoreUser(userId: string): Promise<void> {
         this.ignoredUsers.add(userId)
         await this.saveIgnoredUsers()
-        logger.ok(`Ignored user ${chalk.yellow(userId)}`)
+        logger.ok(`Ignored user ${yellow(userId)}`)
     }
 
     public async unignoreUser(userId: string): Promise<void> {
         this.ignoredUsers.delete(userId)
         await this.saveIgnoredUsers()
-        logger.ok(`Unignored user ${chalk.yellow(userId)}`)
+        logger.ok(`Unignored user ${yellow(userId)}`)
     }
 
     private async saveIgnoredUsers(): Promise<void> {

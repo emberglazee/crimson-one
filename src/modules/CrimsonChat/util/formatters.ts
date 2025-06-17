@@ -1,9 +1,8 @@
-import { Client, User } from 'discord.js'
-import { Logger } from '../../../util/logger'
-import type { UserStatus, MentionData } from '../../../types'
-import chalk from 'chalk'
-
+import { Logger, red, yellow } from '../../../util/logger'
 const logger = new Logger('CrimsonChat | Formatters')
+
+import { Client, User } from 'discord.js'
+import type { UserStatus, MentionData } from '../../../types'
 
 export async function formatUserMessage(
     username: string,
@@ -72,7 +71,7 @@ export async function parseMentions(client: Client, text: string): Promise<strin
             parsedText = parsedText.replace(match[0], mentionJson)
         } catch (e) {
             const error = e as Error
-            logger.error(`Could not fetch user ${chalk.yellow(userId)}: ${chalk.red(error.message)}`)
+            logger.error(`Could not fetch user ${yellow(userId)}: ${red(error.message)}`)
         }
     }
 

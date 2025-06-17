@@ -13,29 +13,31 @@ export class ImageProcessor {
     public normalizeUrl = normalizeUrl
     public cleanImageUrl = cleanImageUrl
 
-    public async fetchAndConvertToBase64(url: string): Promise<{ type: 'image_url', image_url: { url: string } } | null> {
+    public async fetchAndConvertToBase64(url: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> {
         try {
             const urlObj = new URL(url)
             const isGif = urlObj.pathname.toLowerCase().endsWith('.gif')
 
             let buffer: Buffer
+            let mimeType: string
             if (isGif) {
                 const frameBuffer = await this.extractFirstFrameFromGif(url)
                 if (!frameBuffer) return null
                 buffer = frameBuffer
+                mimeType = 'image/png' // We extract the first frame as a PNG
             } else {
                 const response = await fetch(url)
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+                // Determine mime type from headers or extension
+                mimeType = response.headers.get('content-type') || 'image/jpeg'
                 buffer = Buffer.from(await response.arrayBuffer())
             }
 
             const base64 = buffer.toString('base64')
-            const mimeType = isGif ? 'image/png' : 'image/jpeg'
-            const dataUrl = `data:${mimeType};base64,${base64}`
             return {
-                type: 'image_url',
-                image_url: {
-                    url: dataUrl
+                inlineData: {
+                    mimeType,
+                    data: base64
                 }
             }
         } catch (e) {

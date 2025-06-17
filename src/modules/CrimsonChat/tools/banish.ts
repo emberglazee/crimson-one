@@ -1,12 +1,12 @@
 import { Logger, red, yellow } from '../../../util/logger'
 const logger = new Logger('CrimsonChat | banish()')
 
-import { DynamicStructuredTool, tool } from '@langchain/core/tools'
 import { z } from 'zod'
 import { bot as client } from '../../..'
 import { distance } from 'fastest-levenshtein'
 import { ChannelType, type Guild, type GuildMember, PermissionsBitField } from 'discord.js'
 import { EMBERGLAZE_ID } from '../../../util/constants'
+import type { CrimsonTool } from '../tools'
 
 // --- Constants from the original /banish command ---
 const GUILD_ID = '958518067690868796'
@@ -21,7 +21,7 @@ const schema = z.object({
 })
 type Input = z.infer<typeof schema>
 
-async function banishUser({ id, username, displayname, reason }: Input): Promise<string> {
+async function invoke({ id, username, displayname, reason }: Input): Promise<string> {
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ id, username, displayname, reason }))}`)
     const query = id ?? username ?? displayname
     if (!query) {
@@ -93,11 +93,12 @@ async function banishUser({ id, username, displayname, reason }: Input): Promise
     return `Success: User ${member.user.username} has been banished.`
 }
 
-const banishTool: DynamicStructuredTool<typeof schema> = tool(banishUser, {
+const banishTool: CrimsonTool = {
     name: 'banish',
     description: 'Assigns the "banished" role to a server member, restricting their access. This is a form of server moderation.',
-    schema
-})
+    schema,
+    invoke
+}
 export default banishTool
 
 async function findMember(guild: Guild, query: string): Promise<GuildMember | null> {

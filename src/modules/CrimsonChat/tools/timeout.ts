@@ -1,11 +1,12 @@
+// modules\CrimsonChat\tools\timeout.ts
 import { Logger, red, yellow } from '../../../util/logger'
 const logger = new Logger('CrimsonChat | timeout()')
 
-import { DynamicStructuredTool, tool } from '@langchain/core/tools'
 import { z } from 'zod'
 import { bot as client } from '../../../'
 import { distance } from 'fastest-levenshtein'
 import type { Guild, GuildMember } from 'discord.js'
+import type { CrimsonTool } from '../tools'
 
 const schema = z.object({
     id: z.string().optional().describe('Discord user ID; most accurate and pinpoint'),
@@ -16,8 +17,8 @@ const schema = z.object({
 })
 type Input = z.infer<typeof schema>
 
-async function timeoutUser({ id, username, displayname, length, reason }: Input) {
-    logger.debug(`Invoked with args: ${yellow(JSON.stringify({ reason }))}`)
+async function invoke({ id, username, displayname, length, reason }: Input) {
+    logger.debug(`Invoked with args: ${yellow(JSON.stringify({ id, username, displayname, length, reason }))}`)
     const query = id ?? username ?? displayname
     if (!query) {
         logger.info('No query determined')
@@ -47,11 +48,12 @@ async function timeoutUser({ id, username, displayname, length, reason }: Input)
     return `✅ Successfully timed out user ${member.user.username} (display name ${member.displayName}) for ${length} milliseconds`
 }
 
-const timeoutTool: DynamicStructuredTool<typeof schema> = tool(timeoutUser, {
+const timeoutTool: CrimsonTool<typeof schema> = {
     name: 'timeout',
     description: 'Timeout a discord user',
-    schema
-})
+    schema,
+    invoke
+}
 export default timeoutTool
 
 async function findMember(guild: Guild, query: string): Promise<GuildMember | null> {

@@ -1,110 +1,135 @@
+import { Logger, red, yellow } from '../../util/logger'
+const logger = new Logger('CrimsonChat | History')
+
 import { promises as fs } from 'fs'
 import path from 'path'
-import {
-    AIMessage,
-    BaseMessage,
-    HumanMessage,
-    SystemMessage,
-    ToolMessage
-} from '@langchain/core/messages'
-import { BaseChatMessageHistory } from '@langchain/core/chat_history'
-import { Logger } from '../../util/logger'
 import {
     getCrimsonChatHistoryFoundation,
     CRIMSON_CHAT_SYSTEM_PROMPT,
 } from '../../util/constants'
 import type { ChatMessage } from '../../types'
-import chalk from 'chalk'
+import { type Content, type Part, POSSIBLE_ROLES } from '@google/generative-ai'
+import type { ArrayElement } from 'typeorm'
 
-const logger = new Logger('CrimsonChat | History')
-
-export class CrimsonFileBufferHistory extends BaseChatMessageHistory {
-    // Required by LangChain's serializable classes
-    lc_namespace = ['langchain', 'memory', 'chat_history']
-
+export class CrimsonFileBufferHistory {
     private historyPath = path.join(process.cwd(), 'data/chat_history.json')
-    private history: BaseMessage[] = []
+    private history: Content[] = []
     private initialized = false
+    private systemPrompt: string = CRIMSON_CHAT_SYSTEM_PROMPT
 
-    constructor() {
-        super()
-    }
+    // New method to convert our ChatMessage format to Gemini's Content format
+    private chatMessageToContent(msg: ChatMessage): Content | null {
+        const parts: Part[] = []
 
-    private chatMessageToBaseMessage(msg: ChatMessage): BaseMessage {
-        switch (msg.role) {
-            case 'user': {
-                let content: BaseMessage['content'] = msg.content ?? ''
-                // Try to parse content in case it's a stringified array (for multi-modal)
-                if (typeof content === 'string' && content.startsWith('[')) {
-                    try {
-                        const parsed = JSON.parse(content)
-                        if (Array.isArray(parsed)) {
-                            content = parsed
+        if (msg.content) {
+            // Handle multimodal content (stringified JSON array)
+            if (typeof msg.content === 'string' && msg.content.startsWith('[')) {
+                try {
+                    const parsedContent = JSON.parse(msg.content)
+                    if (Array.isArray(parsedContent)) {
+                        for (const item of parsedContent) {
+                            if (item.type === 'text') {
+                                parts.push({ text: item.text })
+                            } else if (item.type === 'image_url' && item.image_url.url.startsWith('data:')) {
+                                const [header, base64Data] = item.image_url.url.split(',')
+                                const mimeType = header.match(/data:(.*);base64/)?.[1]
+                                if (mimeType && base64Data) {
+                                    parts.push({ inlineData: { mimeType, data: base64Data } })
+                                }
+                            }
                         }
-                    } catch {
-                        // Not valid JSON, treat as plain text
                     }
+                } catch {
+                    // Not valid JSON, treat as plain text
+                    parts.push({ text: msg.content })
                 }
-                return new HumanMessage({ content })
+            } else {
+                parts.push({ text: msg.content })
             }
-            case 'assistant': {
-                const aiMessage = new AIMessage({ content: msg.content ?? '' })
-                // Reconstruct tool_calls if they exist
-                if (msg.tool_calls) {
-                    aiMessage.tool_calls = msg.tool_calls.map(tc => ({
-                        id: tc.id,
-                        name: tc.name,
-                        args: tc.args,
-                        type: 'tool_call',
-                    }))
-                }
-                return aiMessage
-            }
-            case 'system':
-                return new SystemMessage({ content: msg.content ?? '' })
-            case 'tool':
-                // Reconstruct ToolMessage if it exists
-                return new ToolMessage({
-                    content: msg.content ?? '',
-                    tool_call_id: msg.tool_call_id!,
-                })
-            default:
-                // Fallback for safety, though it shouldn't be reached
-                return new HumanMessage({ content: msg.content ?? '' })
         }
+
+        if (msg.tool_calls) {
+            for (const toolCall of msg.tool_calls) {
+                parts.push({ functionCall: { name: toolCall.name, args: toolCall.args }})
+            }
+        }
+
+        if (msg.role === 'tool') {
+            parts.push({ functionResponse: { name: msg.tool_call_id!, response: { name: msg.tool_call_id!, content: msg.content } }})
+        }
+
+        let role: ArrayElement<typeof POSSIBLE_ROLES> = 'user'
+        if (msg.role === 'assistant') role = 'model'
+        else if (msg.role === 'user') role = 'user'
+        else if (msg.role === 'tool') return { role: 'function', parts }
+
+        // System prompt is handled separately in the model configuration now.
+        // We will store it in the class but not include it as a 'system' role message in the history array.
+        if (msg.role === 'system') {
+            this.systemPrompt = msg.content
+            return null // Don't add to history array
+        }
+
+        return { role, parts }
     }
 
-    private baseMessageToChatMessage(message: BaseMessage): ChatMessage {
-        const messageType = message.getType()
-        if (messageType === 'human') {
-            const contentToStore = typeof message.content === 'string'
-                ? message.content
-                : JSON.stringify(message.content)
-            return { role: 'user', content: contentToStore }
-        } else if (messageType === 'ai') {
-            const aiMessage = message as AIMessage
-            return {
-                role: 'assistant',
-                content: aiMessage.content.toString(),
-                tool_calls: aiMessage.tool_calls?.map(tc => ({
-                    id: tc.id!,
-                    name: tc.name,
-                    args: tc.args,
-                    type: 'tool_call',
-                })),
+    // New method to convert Gemini's Content to our ChatMessage for storage
+    private contentToChatMessage(content: Content): ChatMessage | null {
+        if (content.role === 'function') {
+            const part = content.parts[0]
+            if (part.functionResponse) {
+                return {
+                    role: 'tool',
+                    content: part.functionResponse.name,
+                    tool_call_id: part.functionResponse.name
+                }
             }
-        } else if (messageType === 'system') {
-            return { role: 'system', content: message.content.toString() }
-        } else if (messageType === 'tool') {
-            const toolMessage = message as ToolMessage
-            return {
-                role: 'tool',
-                content: toolMessage.content.toString(),
-                tool_call_id: toolMessage.tool_call_id,
+            return null
+        }
+
+        const msg: ChatMessage = {
+            role: content.role === 'model' ? 'assistant' : 'user',
+            content: ''
+        }
+
+        // Handle multimodal content for storage
+        const contentPartsForStorage: { type: string; text?: string; image_url?: { url: string } }[] = []
+        let hasNonTextContent = false
+
+        for(const part of content.parts) {
+            if('text' in part) {
+                contentPartsForStorage.push({type: 'text', text: part.text})
+            } else if (part.inlineData) {
+                hasNonTextContent = true
+                const { mimeType, data } = part.inlineData
+                contentPartsForStorage.push({type: 'image_url', image_url: { url: `data:${mimeType};base64,${data}` }})
+            } else if (part.functionCall) {
+                hasNonTextContent = true
+                if (!msg.tool_calls) msg.tool_calls = []
+                msg.tool_calls.push({
+                    name: part.functionCall.name,
+                    args: part.functionCall.args,
+                    type: 'tool_call',
+                    id: `call_${Date.now()}` // Gemini doesn't provide IDs back, so we'll have to manage
+                })
             }
         }
-        // Fallback should not be reached
-        return { role: 'user', content: JSON.stringify(message.content) }
+
+        // Stringify if multimodal or only one part is text
+        if(hasNonTextContent && contentPartsForStorage.length > 0) {
+            msg.content = JSON.stringify(contentPartsForStorage)
+        } else if (contentPartsForStorage.length > 0) {
+            msg.content = contentPartsForStorage[0].text!
+        }
+
+        // Don't save empty model responses that only contained a tool call
+        if(msg.role === 'assistant' && !msg.content && msg.tool_calls?.length) {
+            // we'll just store the tool call
+        } else if (!msg.content && !msg.tool_calls) {
+            return null // Don't save empty messages
+        }
+
+        return msg
     }
 
     private async loadHistoryFromFile(): Promise<void> {
@@ -113,16 +138,31 @@ export class CrimsonFileBufferHistory extends BaseChatMessageHistory {
             const data = await fs.readFile(this.historyPath, 'utf-8')
             const savedHistory: ChatMessage[] = JSON.parse(data)
 
-            const historyToLoad = (savedHistory.length && savedHistory[0]?.role === 'system')
+            const historyToLoad = (savedHistory.length > 0)
                 ? savedHistory
                 : getCrimsonChatHistoryFoundation()
 
-            this.history = historyToLoad.map(this.chatMessageToBaseMessage)
+            this.history = historyToLoad
+                .map(msg => this.chatMessageToContent(msg))
+                .filter((c): c is Content => c !== null) // filter out system prompt
+
+            // Extract the system prompt if it exists
+            const systemMsg = historyToLoad.find(msg => msg.role === 'system')
+            if (systemMsg) {
+                this.systemPrompt = systemMsg.content
+            }
+
             this.initialized = true
-            logger.info(`Chat history loaded successfully with ${chalk.yellow(this.history.length)} messages`)
-        } catch {
-            this.history = getCrimsonChatHistoryFoundation().map(this.chatMessageToBaseMessage)
-            logger.warn('No existing chat history found, starting fresh')
+            logger.info(`Chat history loaded successfully with ${yellow(this.history.length)} messages`)
+        } catch(e) {
+            logger.warn(`No existing chat history found, starting fresh. Error: ${e}`)
+            this.history = getCrimsonChatHistoryFoundation()
+                .map(msg => this.chatMessageToContent(msg))
+                .filter((c): c is Content => c !== null)
+
+            const systemMsg = getCrimsonChatHistoryFoundation().find(msg => msg.role === 'system')
+            this.systemPrompt = systemMsg ? systemMsg.content : CRIMSON_CHAT_SYSTEM_PROMPT
+
             this.initialized = true
         }
     }
@@ -130,48 +170,47 @@ export class CrimsonFileBufferHistory extends BaseChatMessageHistory {
     private async saveHistoryToFile(): Promise<void> {
         try {
             await fs.mkdir(path.dirname(this.historyPath), { recursive: true })
-            const historyToSave = this.history.map(this.baseMessageToChatMessage)
+
+            // Re-add system prompt for saving
+            const systemChatMessage: ChatMessage = { role: 'system', content: this.systemPrompt }
+            const historyToSave = [
+                systemChatMessage,
+                ...this.history.map(this.contentToChatMessage).filter((m): m is ChatMessage => m !== null)
+            ]
+
             await fs.writeFile(this.historyPath, JSON.stringify(historyToSave, null, 2))
         } catch (e) {
-            logger.error(`Failed to save chat history: ${chalk.red((e as Error).message)}`)
+            logger.error(`Failed to save chat history: ${red((e as Error).message)}`)
         }
     }
 
-    async getMessages(): Promise<BaseMessage[]> {
+    async getHistory(): Promise<{history: Content[], systemInstruction: string}> {
         await this.loadHistoryFromFile()
-        return this.history
+        return {
+            history: this.history,
+            systemInstruction: this.systemPrompt
+        }
     }
 
-    async addMessages(messages: BaseMessage[]): Promise<void> {
+    async addMessages(messages: Content[]): Promise<void> {
         await this.loadHistoryFromFile()
         this.history.push(...messages)
         await this.saveHistoryToFile()
     }
 
-    async addMessage(message: BaseMessage): Promise<void> {
-        await this.addMessages([message])
-    }
-
-    async addUserMessage(message: string): Promise<void> {
-        await this.addMessages([new HumanMessage(message)])
-    }
-    async addAIChatMessage(message: string): Promise<void> {
-        await this.addMessages([new AIMessage(message)])
-    }
-
     async clear(systemPrompt: string = CRIMSON_CHAT_SYSTEM_PROMPT): Promise<void> {
-        this.history = getCrimsonChatHistoryFoundation(systemPrompt).map(this.chatMessageToBaseMessage)
+        this.systemPrompt = systemPrompt
+        this.history = getCrimsonChatHistoryFoundation(systemPrompt)
+            .map(msg => this.chatMessageToContent(msg))
+            .filter((c): c is Content => c !== null)
+
         await this.saveHistoryToFile()
         logger.ok('Chat history cleared and file reset.')
     }
 
     async updateSystemPrompt(newPrompt: string): Promise<void> {
         await this.loadHistoryFromFile()
-        if (this.history[0]?.getType() === 'system') {
-            this.history[0].content = newPrompt
-        } else {
-            this.history.unshift(new SystemMessage(newPrompt))
-        }
+        this.systemPrompt = newPrompt
         await this.saveHistoryToFile()
         logger.ok(`System prompt updated.`)
     }

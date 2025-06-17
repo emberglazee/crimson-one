@@ -1,8 +1,7 @@
-import { Message, TextChannel, MessagePayload, type MessageReplyOptions } from 'discord.js'
-import { Logger } from '../../util/logger'
-import chalk from 'chalk'
-
+import { Logger, red, yellow } from '../../util/logger'
 const logger = new Logger('CrimsonChat | MessageQueue')
+
+import { Message, TextChannel, MessagePayload, type MessageReplyOptions } from 'discord.js'
 
 interface QueuedMessage {
     content: string | MessagePayload | MessageReplyOptions
@@ -34,7 +33,7 @@ export class MessageQueue {
         reply?: Message
     ): void {
         this.queue.push({ content, channel, reply })
-        logger.info(`Message queued. Queue length: ${chalk.yellow(this.queue.length)}`)
+        logger.info(`Message queued. Queue length: ${yellow(this.queue.length)}`)
     }
 
     private async startProcessing(): Promise<void> {
@@ -72,7 +71,7 @@ export class MessageQueue {
                     }
                     this.lastMessageTime = Date.now()
                 } catch (error) {
-                    logger.error(`Error sending message: ${chalk.red(error instanceof Error ? error.message : String(error))}`)
+                    logger.error(`Error sending message: ${red(error instanceof Error ? error.message : String(error))}`)
                 }
             }
         } finally {

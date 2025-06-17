@@ -1,5 +1,3 @@
-// commands\crimsonchat.ts
-// commands\crimsonchat.ts
 import { SlashCommand } from '../types'
 import { SlashCommandBuilder } from 'discord.js'
 import { EMBERGLAZE_ID } from '../util/constants'
@@ -100,7 +98,7 @@ export default {
             case 'updateprompt':
                 await crimsonChat.updateSystemPrompt()
                 await context.reply('✅ System prompt updated')
-                await crimsonChat.sendMessage(
+                crimsonChat.sendMessage(
                     'System prompt has been updated to latest version.',
                     { username: 'System', displayName: 'System', serverDisplayName: 'System' }
                 )
@@ -109,7 +107,7 @@ export default {
             case 'toggle':
                 crimsonChat.setEnabled(!crimsonChat.isEnabled())
                 await context.reply(crimsonChat.isEnabled() ? '✅ CrimsonChat enabled' : '🔴 CrimsonChat disabled')
-                await crimsonChat.sendMessage(
+                crimsonChat.sendMessage(
                     `Chat is now ${crimsonChat.isEnabled() ? 'enabled' : 'disabled'}`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System' }
                 )
@@ -126,7 +124,7 @@ export default {
 
             case 'smack':
                 await context.reply('⏱️ Sending system prompt reminder...')
-                await crimsonChat.sendMessage(
+                crimsonChat.sendMessage(
                     `You've been smacked by ${context.user.username}. This means that you're out of line with the system prompt. Here's a friendly reminder for you.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System' }
                 )
@@ -141,7 +139,7 @@ export default {
                 const isEnabled = await crimsonChat.toggleBerserkMode()
                 const status = isEnabled ? 'ENABLED' : 'DISABLED'
                 await context.reply(`🚨 Berserk mode is now **${status}**. Maximum chaos protocol ${isEnabled ? 'engaged' : 'disengaged'}.`)
-                await crimsonChat.sendMessage(
+                crimsonChat.sendMessage(
                     `System Alert: Berserk mode has been ${status.toLowerCase()} by ${context.user.username}.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System' }
                 )
@@ -153,7 +151,7 @@ export default {
                 await crimsonChat.setTestMode(enabled)
                 const status = enabled ? 'ENABLED' : 'DISABLED'
                 await context.reply(`✅ Compliant test mode is now **${status}**.`)
-                await crimsonChat.sendMessage(
+                crimsonChat.sendMessage(
                     `System Alert: Compliant test mode has been ${status.toLowerCase()} by ${context.user.username}.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System' }
                 )
@@ -173,7 +171,7 @@ export default {
                 const username = user?.username || targetId
                 await crimsonChat.ignoreUser(targetId!)
                 await context.reply(`✅ ${username} is now ignored by CrimsonChat`)
-                await crimsonChat.sendMessage(
+                crimsonChat.sendMessage(
                     `Now ignoring user ${username}, you are now unable to see their messages.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System' }
                 )
@@ -193,7 +191,7 @@ export default {
                 const username = user?.username || targetId
                 await crimsonChat.unignoreUser(targetId!)
                 await context.reply(`✅ CrimsonChat will no longer ignore ${username}`)
-                await crimsonChat.sendMessage(
+                crimsonChat.sendMessage(
                     `User ${username} has been unignored, you are now able to see their messages.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System' }
                 )
@@ -224,7 +222,7 @@ export default {
                 await context.deferReply()
                 await crimsonChat.setModel(model)
                 await context.editReply(`✅ CrimsonChat model switched to \`${model}\`. The chat chain has been re-initialized.`)
-                await crimsonChat.sendMessage(
+                crimsonChat.sendMessage(
                     `System Alert: Model has been switched to \`${model}\` by ${context.user.username}.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System' }
                 )
