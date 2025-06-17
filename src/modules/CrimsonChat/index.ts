@@ -1,4 +1,3 @@
-// modules\CrimsonChat\index.ts
 import { green, Logger, red, yellow } from '../../util/logger'
 const logger = new Logger('CrimsonChat')
 
@@ -12,7 +11,7 @@ import * as fs from 'fs/promises'
 import path from 'path'
 import { ImageProcessor } from './ImageProcessor'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { type CoreMessage, type TextPart, type ImagePart, generateText } from 'ai'
+import { type CoreMessage, type TextPart, type ImagePart, type ToolCallPart, type ToolResultPart, generateText } from 'ai'
 import { loadTools } from './tools'
 
 interface BufferedMessage {
@@ -202,9 +201,15 @@ export default class CrimsonChat {
             const newMessages: CoreMessage[] = [userMessage]
             if (toolCalls && toolCalls.length > 0) {
                 newMessages.push({ role: 'assistant', content: toolCalls })
+                const toolCallMessages = (toolCalls as ToolCallPart[]).map(call => `Tool Call: ${call.toolName}(${JSON.stringify(call.args)})`).join('\n')
+                logger.info(`Tool Calls: ${yellow(toolCallMessages)}`)
+                await this.sendResponseToDiscord(`\`\`\`json\n${toolCallMessages}\n\`\`\``, targetChannel, lastMessage.originalMessage)
             }
             if (toolResults && toolResults.length > 0) {
                 newMessages.push({ role: 'tool', content: toolResults })
+                const toolResultMessages = (toolResults as ToolResultPart[]).map(result => `Tool Result for ${result.toolName || result.toolCallId}: ${JSON.stringify(result.result)}`).join('\n')
+                logger.info(`Tool Results: ${yellow(toolResultMessages)}`)
+                await this.sendResponseToDiscord(`\`\`\`json\n${toolResultMessages}\n\`\`\``, targetChannel, lastMessage.originalMessage)
             }
             if (text) {
                 newMessages.push({ role: 'assistant', content: text })
