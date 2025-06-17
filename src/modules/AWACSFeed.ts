@@ -1,11 +1,10 @@
 import { Logger } from '../util/logger'
 const logger = new Logger('AWACSFeed')
 
-import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember, User } from 'discord.js'
+import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember, User, GuildBan } from 'discord.js'
 import type { ClientEvents, PartialGuildMember, Role } from 'discord.js'
 import { AWACS_FEED_CHANNEL } from '../util/constants'
 import { getRandomElement } from '../util/functions'
-import type { ExplicitAny } from '../types'
 
 type EventHandler<T extends keyof ClientEvents> = {
     event: T
@@ -13,107 +12,192 @@ type EventHandler<T extends keyof ClientEvents> = {
     messages: ((...params: string[]) => string)[]
 }
 
-type ExtractableUser = {
-    user: {
-        username: string
-    }
-}
-
-// Messages can be defined outside to be reused in the unified handler
-const roleAddMessages = [
-    (member: string, role: string, assigner: string) => `✈️ ${member} was assigned to the ${role} squadron by ${assigner}.`,
-    (member: string, role: string, assigner: string) => `🎖️ ${member} has joined the ${role} ranks, courtesy of ${assigner}.`,
-    (member: string, role: string, assigner: string) => `✨ ${member} is now part of the ${role} squadron, thanks to ${assigner}.`,
-    (member: string, role: string, assigner: string) => `🏷️ ${member} received the ${role} designation from ${assigner}.`,
-    (member: string, role: string, assigner: string) => `🧑‍✈️ ${member} has been promoted to the ${role} unit by ${assigner}.`
-]
-
-const roleRemoveMessages = [
-    (member: string, role: string, remover: string) => `✈️ ${member} was removed from the ${role} squadron by ${remover}.`,
-    (member: string, role: string, remover: string) => `🎖️ ${member} has departed the ${role} ranks, decision by ${remover}.`,
-    (member: string, role: string, remover: string) => `✨ ${member} is no longer part of the ${role} squadron, per ${remover}.`,
-    (member: string, role: string, remover: string) => `🏷️ ${member}'s ${role} designation was revoked by ${remover}.`,
-    (member: string, role: string, remover: string) => `🧑‍✈️ ${member} has been demoted from the ${role} unit by ${remover}.`
-]
-
-const banishedRoleAddMessage = (member: string, assigner: string) => `⛓️ ${member} has been banished by ${assigner}.`
-const banishedRoleRemoveMessage = (member: string, remover: string) => `🔓 ${member} has been unbanished by ${remover}.`
-
-const timeoutMessages = [
-    (member: string, moderator: string) => `🔇 ${member} has been muted by ${moderator}.`,
-    (member: string, moderator: string) => `🔇 ${member} has been silenced by ${moderator}.`,
-    (member: string, moderator: string) => `🔇 ${member} has been timed out by ${moderator}.`,
-    (member: string, moderator: string) => `🔇 ${member} has been sent to the sin bin by ${moderator}.`
-]
-const BANISHED_ROLE_ID = '1331170880591757434' // Banished role ID
+const TARGET_GUILD_ID = '958518067690868796' // Target guild ID for events
 
 export class AWACSFeed {
     private client: Client
     private awacsChannel: TextChannel | undefined
 
-    private static UnifiedGuildMemberUpdateHandler = {
-        async handler(this: AWACSFeed, oldMember: GuildMember | PartialGuildMember, newMember: GuildMember): Promise<void> {
-            if (newMember.user.bot) return
+    private static readonly BANISHED_ROLE_ID = '1331170880591757434' // Banished role ID
 
-            // --- Check for added roles ---
-            const oldRoleIds = new Set(oldMember.roles?.cache.map(r => r.id) || [])
-            const addedRoles = newMember.roles.cache.filter(role => !oldRoleIds.has(role.id))
+    private static readonly roleAddMessages = [
+        (member: string, role: string, assigner: string) => `✈️ ${member} was assigned to the ${role} squadron by ${assigner}.`,
+        (member: string, role: string, assigner: string) => `🎖️ ${member} has joined the ${role} ranks, courtesy of ${assigner}.`,
+        (member: string, role: string, assigner: string) => `✨ ${member} is now part of the ${role} squadron, thanks to ${assigner}.`,
+        (member: string, role: string, assigner: string) => `🏷️ ${member} received the ${role} designation from ${assigner}.`,
+        (member: string, role: string, assigner: string) => `🧑‍✈️ ${member} has been promoted to the ${role} unit by ${assigner}.`
+    ]
 
-            if (addedRoles.size > 0) {
-                const roleAdded = addedRoles.first()
-                if (roleAdded) {
-                    const assigner = await AWACSFeed.findRoleChanger(newMember, roleAdded, '$add')
-                    let message: string
-                    if (roleAdded.id === BANISHED_ROLE_ID) {
-                        message = banishedRoleAddMessage(newMember.user.username, assigner)
-                    } else {
-                        message = getRandomElement(roleAddMessages)(newMember.user.username, roleAdded.name, assigner)
+    private static readonly roleRemoveMessages = [
+        (member: string, role: string, remover: string) => `✈️ ${member} was removed from the ${role} squadron by ${remover}.`,
+        (member: string, role: string, remover: string) => `🎖️ ${member} has departed the ${role} ranks, decision by ${remover}.`,
+        (member: string, role: string, remover: string) => `✨ ${member} is no longer part of the ${role} squadron, per ${remover}.`,
+        (member: string, role: string, remover: string) => `🏷️ ${member}'s ${role} designation was revoked by ${remover}.`,
+        (member: string, role: string, remover: string) => `🧑‍✈️ ${member} has been demoted from the ${role} unit by ${remover}.`
+    ]
+
+    private static readonly banishedRoleAddMessage = (member: string, assigner: string) => `⛓️ ${member} has been banished by ${assigner}.`
+    private static readonly banishedRoleRemoveMessage = (member: string, remover: string) => `🔓 ${member} has been unbanished by ${remover}.`
+
+    private static readonly timeoutMessages = [
+        (member: string, moderator: string) => `🔇 ${member} has been muted by ${moderator}.`,
+        (member: string, moderator: string) => `🔇 ${member} has been silenced by ${moderator}.`,
+        (member: string, moderator: string) => `🔇 ${member} has been timed out by ${moderator}.`,
+        (member: string, moderator: string) => `🔇 ${member} has been sent to the sin bin by ${moderator}.`
+    ]
+
+    private static EventHandlers: EventHandler<keyof ClientEvents>[] = [
+        {
+            event: Events.GuildMemberAdd,
+            extract: async ([member]) => [(member as GuildMember).user.username, ''],
+            messages: [
+                (name: string, _banner: string) => `✅ ${name} has arrived in the AO.`,
+                (name: string, _banner: string) => `✅ ${name} has penetrated the CAP line.`,
+                (name: string, _banner: string) => `✅ ${name} has taken off the runway.`,
+                (name: string, _banner: string) => `✅ ${name} has been deported to Solitary Confinement for freaky behavior.`
+            ]
+        },
+        {
+            event: Events.GuildMemberRemove,
+            extract: async ([member]) => [(member as GuildMember).user?.username || 'Unknown user', ''],
+            messages: [
+                (name: string, _banner: string) => `❌ ${name} has retreated out of the AO.`,
+                (name: string, _banner: string) => `❌ ${name} has left the AO.`,
+                (name: string, _banner: string) => `❌ ${name} has been extracted from the AO.`,
+                (name: string, _banner: string) => `❌ ${name} is disengaging.`
+            ]
+        },
+        {
+            event: Events.GuildBanAdd,
+            extract: async ([ban], _client) => {
+                const banned = (ban as GuildBan).user?.username || 'Unknown user'
+                let banner = '\\\\ NO IFF DATA \\\\'
+                try {
+                    const guild = (ban as GuildBan).guild
+                    if (guild) {
+                        const auditLogs = await guild.fetchAuditLogs({
+                            type: AuditLogEvent.MemberBanAdd,
+                            limit: 5
+                        })
+                        const entry = auditLogs.entries.find(e => e.target?.id === (ban as GuildBan).user?.id)
+                        if (entry && entry.executor) {
+                            banner = entry.executor.username ?? '`\\\\ INVALID IFF DATA \\\\`'
+                        }
                     }
-                    await this.sendMessage(message)
-                    // Assuming only one role is added at a time for simplicity based on current logic
-                    return
+                } catch { /* ignore */ }
+                return [banned, banner]
+            },
+            messages: [
+                (banned, banner) => `🔨 ${banned} was blown up by ${banner}`,
+                (banned, banner) => `🔨 ${banned} was slain by ${banner}`,
+                (banned, banner) => `🔨 ${banned} was shot down by ${banner}`,
+                (banned, banner) => `🔨 ${banned} was sent to the gulag by ${banner}`,
+                (banned, banner) => `🔨 ${banned} has breached containment by ${banner}`,
+                (banned, banner) => `🔨 ${banned} has been neutralized by ${banner}`,
+                (banned, banner) => `🔨 ${banned} smoked ${banner}'s cordium blunt and spontaneously combusted`
+            ]
+        },
+    ]
+
+    constructor(client: Client) {
+        this.client = client
+        this.initializeListeners()
+    }
+
+    private isTargetGuild(guildId: string): boolean {
+        return guildId === TARGET_GUILD_ID
+    }
+
+    private async initializeListeners() {
+        // Handle the simple events first
+        for (const handler of AWACSFeed.EventHandlers) {
+            this.client.on(handler.event, async (...args: ClientEvents[keyof ClientEvents]) => {
+                const guildSource = args[0] as { guild?: { id: string } }
+                const guild = guildSource.guild
+                if (!guild || !this.isTargetGuild(guild.id)) return
+
+                const params = await handler.extract(args, this.client)
+                if (params.length === 0) return
+
+                const message = getRandomElement(handler.messages)(...params)
+                await this.sendMessage(message)
+            })
+        }
+
+        // Then handle the complex event separately
+        this.client.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
+            if (!this.isTargetGuild(newMember.guild.id)) return
+            this.handleGuildMemberUpdate(oldMember, newMember)
+        })
+    }
+
+    private async handleGuildMemberUpdate(oldMember: GuildMember | PartialGuildMember, newMember: GuildMember): Promise<void> {
+        if (newMember.user.bot) return
+
+        await this.handleRoleChanges(oldMember, newMember)
+        await this.handleTimeoutChanges(oldMember, newMember)
+    }
+
+    private async handleRoleChanges(oldMember: GuildMember | PartialGuildMember, newMember: GuildMember): Promise<void> {
+        // --- Check for added roles ---
+        const oldRoleIds = new Set(oldMember.roles?.cache.map(r => r.id) || [])
+        const addedRoles = newMember.roles.cache.filter(role => !oldRoleIds.has(role.id))
+
+        if (addedRoles.size > 0) {
+            const roleAdded = addedRoles.first()
+            if (roleAdded) {
+                const assigner = await this.findRoleChanger(newMember, roleAdded, '$add')
+                let message: string
+                if (roleAdded.id === AWACSFeed.BANISHED_ROLE_ID) {
+                    message = AWACSFeed.banishedRoleAddMessage(newMember.user.username, assigner)
+                } else {
+                    message = getRandomElement(AWACSFeed.roleAddMessages)(newMember.user.username, roleAdded.name, assigner)
                 }
+                await this.sendMessage(message)
+                // Assuming only one role is added at a time for simplicity based on current logic
+                return
             }
+        }
 
-            // --- Check for removed roles ---
-            const newRoleIds = new Set(newMember.roles.cache.map(r => r.id))
-            const removedRoles = oldMember.roles?.cache.filter(role => !newRoleIds.has(role.id))
+        // --- Check for removed roles ---
+        const newRoleIds = new Set(newMember.roles.cache.map(r => r.id))
+        const removedRoles = oldMember.roles?.cache.filter(role => !newRoleIds.has(role.id))
 
-            if (removedRoles && removedRoles.size > 0) {
-                const roleRemoved = removedRoles.first()
-                if (roleRemoved) {
-                    const remover = await AWACSFeed.findRoleChanger(newMember, roleRemoved, '$remove')
-                    let message: string
-                    if (roleRemoved.id === BANISHED_ROLE_ID) {
-                        message = banishedRoleRemoveMessage(newMember.user.username, remover)
-                    } else {
-                        message = getRandomElement(roleRemoveMessages)(newMember.user.username, roleRemoved.name, remover)
-                    }
-                    await this.sendMessage(message)
-                    // Assuming only one role is removed at a time for simplicity based on current logic
-                    return
+        if (removedRoles && removedRoles.size > 0) {
+            const roleRemoved = removedRoles.first()
+            if (roleRemoved) {
+                const remover = await this.findRoleChanger(newMember, roleRemoved, '$remove')
+                let message: string
+                if (roleRemoved.id === AWACSFeed.BANISHED_ROLE_ID) {
+                    message = AWACSFeed.banishedRoleRemoveMessage(newMember.user.username, remover)
+                } else {
+                    message = getRandomElement(AWACSFeed.roleRemoveMessages)(newMember.user.username, roleRemoved.name, remover)
                 }
-            }
-
-            // --- Check for timeout changes ---
-            const oldTimeout = oldMember.communicationDisabledUntil
-            const newTimeout = newMember.communicationDisabledUntil
-
-            if (oldTimeout !== newTimeout) {
-                if (newTimeout) { // User was timed out
-                    const moderator = await AWACSFeed.findTimeoutChanger(newMember)
-                    const message = getRandomElement(timeoutMessages)(newMember.user.username, moderator)
-                    await this.sendMessage(message)
-                } else if (oldTimeout) { // User was untimed out
-                    const moderator = await AWACSFeed.findTimeoutChanger(newMember) // Audit log for untimeout is also MemberUpdate
-                    const message = `🔊 ${newMember.user.username} has been unmuted by ${moderator}.`
-                    await this.sendMessage(message)
-                }
+                await this.sendMessage(message)
+                // Assuming only one role is removed at a time for simplicity based on current logic
+                return
             }
         }
     }
 
-    private static async findRoleChanger(member: GuildMember, role: Role, changeKey: '$add' | '$remove'): Promise<string> {
+    private async handleTimeoutChanges(oldMember: GuildMember | PartialGuildMember, newMember: GuildMember): Promise<void> {
+        const oldTimeout = oldMember.communicationDisabledUntil
+        const newTimeout = newMember.communicationDisabledUntil
+
+        if (oldTimeout !== newTimeout) {
+            if (newTimeout) { // User was timed out
+                const moderator = await this.findTimeoutChanger(newMember)
+                const message = getRandomElement(AWACSFeed.timeoutMessages)(newMember.user.username, moderator)
+                await this.sendMessage(message)
+            } else if (oldTimeout) { // User was untimed out
+                const moderator = await this.findTimeoutChanger(newMember) // Audit log for untimeout is also MemberUpdate
+                const message = `🔊 ${newMember.user.username} has been unmuted by ${moderator}.`
+                await this.sendMessage(message)
+            }
+        }
+    }
+
+    private async findRoleChanger(member: GuildMember, role: Role, changeKey: '$add' | '$remove'): Promise<string> {
         try {
             const auditLogs = await member.guild.fetchAuditLogs({
                 type: AuditLogEvent.MemberRoleUpdate,
@@ -139,7 +223,7 @@ export class AWACSFeed {
         return '`\\\\ NO IFF DATA \\\\`'
     }
 
-    private static async findTimeoutChanger(member: GuildMember | User): Promise<string> {
+    private async findTimeoutChanger(member: GuildMember | User): Promise<string> {
         try {
             const guild = (member instanceof GuildMember) ? member.guild : null
             if (!guild) return '`\\\\ NO IFF DATA \\\\`'
@@ -162,87 +246,6 @@ export class AWACSFeed {
             logger.warn(`[AWACSFeed] Error fetching audit logs for ${username} timeout change: ${error instanceof Error ? error.message : String(error)}`)
         }
         return '`\\\\ NO IFF DATA \\\\`'
-    }
-
-    private static EventHandlers: EventHandler<keyof ClientEvents>[] = [
-        {
-            event: Events.GuildMemberAdd,
-            extract: async ([member]) => [(member as ExtractableUser).user.username, ''],
-            messages: [
-                (name: string) => `✅ ${name} has arrived in the AO.`,
-                (name: string) => `✅ ${name} has penetrated the CAP line.`,
-                (name: string) => `✅ ${name} has taken off the runway.`,
-                (name: string) => `✅ ${name} has been deported to Solitary Confinement for freaky behavior.`
-            ].map(fn => (name, _banner) => fn(name))
-        },
-        {
-            event: Events.GuildMemberRemove,
-            extract: async ([member]) => [(member as ExtractableUser).user?.username || 'Unknown user', ''],
-            messages: [
-                (name: string) => `❌ ${name} has retreated out of the AO.`,
-                (name: string) => `❌ ${name} has left the AO.`,
-                (name: string) => `❌ ${name} has been extracted from the AO.`,
-                (name: string) => `❌ ${name} is disengaging.`
-            ].map(fn => (name, _banner) => fn(name))
-        },
-        {
-            event: Events.GuildBanAdd,
-            extract: async ([ban], _client) => {
-                const banned = (ban as ExtractableUser).user.username
-                let banner = '\\\\ NO IFF DATA \\\\'
-                try {
-                    const guild = (ban as ExplicitAny).guild
-                    if (guild) {
-                        const auditLogs = await guild.fetchAuditLogs({
-                            type: AuditLogEvent.MemberBanAdd,
-                            limit: 5
-                        })
-                        const entry = auditLogs.entries.find((e: ExplicitAny) => e.target?.id === (ban as ExplicitAny).user.id)
-                        if (entry && entry.executor) {
-                            banner = entry.executor.username
-                        }
-                    }
-                } catch { /* ignore */ }
-                return [banned, banner]
-            },
-            messages: [
-                (banned, banner) => `🔨 ${banned} was blown up by ${banner}`,
-                (banned, banner) => `🔨 ${banned} was slain by ${banner}`,
-                (banned, banner) => `🔨 ${banned} was shot down by ${banner}`,
-                (banned, banner) => `🔨 ${banned} was sent to the gulag by ${banner}`,
-                (banned, banner) => `🔨 ${banned} has breached containment by ${banner}`,
-                (banned, banner) => `🔨 ${banned} has been neutralized by ${banner}`,
-                (banned, banner) => `🔨 ${banned} smoked ${banner}'s cordium blunt and spontaneously combusted`
-            ]
-        },
-    ]
-
-    constructor(client: Client) {
-        this.client = client
-        this.initializeListeners()
-    }
-
-    private async initializeListeners() {
-        // Handle the simple events first
-        for (const handler of AWACSFeed.EventHandlers) {
-            this.client.on(handler.event, async (...args: ClientEvents[keyof ClientEvents]) => {
-                const guildSource = handler.event === Events.GuildBanAdd ? args[0] : args[0]
-                const guild = (guildSource as { guild?: { id: string } })?.guild
-                if (!guild || guild.id !== '958518067690868796') return
-
-                const params = await handler.extract(args, this.client)
-                if (params.length === 0) return
-
-                const message = getRandomElement(handler.messages)(...params)
-                await this.sendMessage(message)
-            })
-        }
-
-        // Then handle the complex event separately
-        this.client.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
-            if (newMember.guild.id !== '958518067690868796') return
-            AWACSFeed.UnifiedGuildMemberUpdateHandler.handler.call(this, oldMember, newMember)
-        })
     }
 
     private async sendMessage(message: string) {
