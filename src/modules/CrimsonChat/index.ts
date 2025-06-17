@@ -198,8 +198,16 @@ export default class CrimsonChat {
                 topP: this.berserkMode ? 1.0 : 0.95
             })
 
-            // Only add the new messages from this interaction to memory
-            const newMessages = messages.slice(history.length)
+            // Add the user message and the assistant's response to memory
+            const newMessages: CoreMessage[] = [userMessage]
+            if (text) {
+                newMessages.push({ role: 'assistant', content: text })
+            }
+            // If there are tool calls, they should also be added to the history
+            // For now, we only handle text responses. If tool calls need to be persisted,
+            // the CoreMessage type for assistant would need to be adjusted to include them.
+            // Example: if (toolCalls && toolCalls.length > 0) { newMessages.push({ role: 'assistant', content: toolCalls }); }
+
             await this.memory.addMessages(newMessages)
 
             return text || '-# ...'
