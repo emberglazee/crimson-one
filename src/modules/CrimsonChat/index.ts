@@ -14,6 +14,8 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { type CoreMessage, type TextPart, type ImagePart, type ToolCallPart, type ToolResultPart, generateText } from 'ai'
 import { loadTools } from './tools'
 
+const ASSISTANT_RESPONSE_TIMEOUT_MS = 60 * 1000 // 60 seconds
+
 interface BufferedMessage {
     content: string
     options: UserMessageOptions
@@ -188,14 +190,21 @@ export default class CrimsonChat {
         const tools = await loadTools()
 
         try {
-            const { text, toolCalls, toolResults } = await generateText({
-                model: model,
-                system: systemInstruction,
-                messages: messages,
-                tools: Object.keys(tools).length > 0 ? tools : undefined,
-                temperature: this.berserkMode ? 2.0 : 0.8,
-                topP: this.berserkMode ? 1.0 : 0.95
-            })
+            const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('Assistant response timed out')), ASSISTANT_RESPONSE_TIMEOUT_MS)
+            )
+
+            const { text, toolCalls, toolResults } = await Promise.race([
+                generateText({
+                    model: model,
+                    system: systemInstruction,
+                    messages: messages,
+                    tools: Object.keys(tools).length > 0 ? tools : undefined,
+                    temperature: this.berserkMode ? 2.0 : 0.8,
+                    topP: this.berserkMode ? 1.0 : 0.95
+                }),
+                timeoutPromise
+            ])
 
             // Add the user message and the assistant's response to memory
             const newMessages: CoreMessage[] = [userMessage]
@@ -219,7 +228,12 @@ export default class CrimsonChat {
 
             return text || '-# ...'
         } catch (e) {
-            logger.warn(`Error processing message: ${red((e as Error).stack ?? (e as Error).message)}`)
+            const error = e as Error
+            if (error.message === 'Assistant response timed out') {
+                logger.warn(`Assistant response timed out after ${ASSISTANT_RESPONSE_TIMEOUT_MS / 1000} seconds. Ignoring response.`)
+                return null
+            }
+            logger.warn(`Error processing message: ${red(error.stack ?? error.message)}`)
             return null
         }
     }
