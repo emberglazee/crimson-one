@@ -19,6 +19,11 @@ export class AWACSFeed {
     private awacsChannel: TextChannel | undefined
 
     private static readonly BANISHED_ROLE_ID = '1331170880591757434' // Banished role ID
+    private static readonly IGNORED_ROLE_IDS = [
+        '1371101530819657759',
+        '958528919680716881',
+        '958522422716416060'
+    ]
 
     private static readonly roleAddMessages = [
         (member: string, role: string, assigner: string) => `✈️ ${member} was assigned to the ${role} squadron by ${assigner}.`,
@@ -146,6 +151,10 @@ export class AWACSFeed {
         if (addedRoles.size > 0) {
             const roleAdded = addedRoles.first()
             if (roleAdded) {
+                if (AWACSFeed.IGNORED_ROLE_IDS.includes(roleAdded.id)) {
+                    return // Ignore this role
+                }
+
                 const assigner = await this.findRoleChanger(newMember, roleAdded, '$add')
                 let message: string
                 if (roleAdded.id === AWACSFeed.BANISHED_ROLE_ID) {
@@ -166,6 +175,10 @@ export class AWACSFeed {
         if (removedRoles && removedRoles.size > 0) {
             const roleRemoved = removedRoles.first()
             if (roleRemoved) {
+                if (AWACSFeed.IGNORED_ROLE_IDS.includes(roleRemoved.id)) {
+                    return // Ignore this role
+                }
+
                 const remover = await this.findRoleChanger(newMember, roleRemoved, '$remove')
                 let message: string
                 if (roleRemoved.id === AWACSFeed.BANISHED_ROLE_ID) {
