@@ -3,7 +3,7 @@ const logger = new Logger('/markov')
 
 import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message, type MessageEditOptions } from 'discord.js'
 
-import { formatTimeRemaining, smallFooterNote } from '../util/functions'
+import { formatTimeRemaining } from '../util/functions'
 import { SlashCommand } from '../types'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
 import { MarkovDataSource } from '../modules/MarkovChain/DataSource'
@@ -331,17 +331,29 @@ export default {
                 const timeEnd = process.hrtime(timeStart)
                 const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6
                 logger.ok(`Generated message: ${yellow(result)}`)
+
+                const footerEmbed = new EmbedBuilder()
+                    .setColor(0x0099FF)
+                    .addFields(
+                        { name: 'Generation Time', value: `${timeEndMs.toFixed(0)}ms`, inline: true },
+                        {
+                            name: 'Filters',
+                            value: [
+                                source === 'global' ? 'Global' : 'This server',
+                                channel ? `Channel: #${channel.name ?? channel.id}` : null,
+                                user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
+                                words !== 20 ? (characterMode ? `Characters: ${words}` : `Words: ${words}`) : null,
+                                seed ? `Seed: "${seed}"` : null,
+                                characterMode ? 'Mode: Character-by-character (cursed)' : null
+                            ].filter(Boolean).join(', ') || 'None',
+                            inline: false
+                        }
+                    )
+                    .setTimestamp()
+
                 await messageManager.sendFinalMessage({
-                    content: `${result}\n` +
-                    `${smallFooterNote(`Generated in ${timeEndMs.toFixed(0)}ms`)}\n` +
-                    `${smallFooterNote(`Filters: ${[
-                        source === 'global' ? 'Global' : 'This server',
-                        channel ? `Channel: #${channel.name ?? channel.id}` : null,
-                        user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
-                        words !== 20 ? (characterMode ? `Characters: ${words}` : `Words: ${words}`) : null,
-                        seed ? `Seed: "${seed}"` : null,
-                        characterMode ? 'Mode: Character-by-character (cursed)' : null
-                    ].filter(Boolean).join(', ') || 'None'}`)}`,
+                    content: result,
+                    embeds: [footerEmbed],
                     allowedMentions: {
                         parse: []
                     }
