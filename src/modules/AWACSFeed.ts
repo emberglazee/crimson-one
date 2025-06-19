@@ -97,11 +97,61 @@ export class AWACSFeed {
                 (banned, banner) => `🔨 ${banned} was slain by ${banner}`,
                 (banned, banner) => `🔨 ${banned} was shot down by ${banner}`,
                 (banned, banner) => `🔨 ${banned} was sent to the gulag by ${banner}`,
-                (banned, banner) => `🔨 ${banned} has breached containment by ${banner}`,
-                (banned, banner) => `🔨 ${banned} has been neutralized by ${banner}`,
-                (banned, banner) => `🔨 ${banned} smoked ${banner}'s cordium blunt and spontaneously combusted`
+                (banned, banner) => `🔨 ${banned} has been neutralized by ${banner}`
             ]
         },
+        {
+            event: Events.GuildRoleCreate,
+            extract: async ([role], _client) => {
+                const createdRole = role as Role
+                let creator = '\\\\ NO IFF DATA \\\\'
+                try {
+                    const guild = createdRole.guild
+                    if (guild) {
+                        const auditLogs = await guild.fetchAuditLogs({
+                            type: AuditLogEvent.RoleCreate,
+                            limit: 5
+                        })
+                        const entry = auditLogs.entries.find(e => e.target?.id === createdRole.id)
+                        if (entry && entry.executor) {
+                            creator = entry.executor.username ?? '`\\\\ INVALID IFF DATA \\\\`'
+                        }
+                    }
+                } catch { /* ignore */ }
+                return [createdRole.name, creator]
+            },
+            messages: [
+                (role: string, creator: string) => `✨ Squadron ${role} was created by ${creator}.`,
+                (role: string, creator: string) => `➕ New Squadron ${role} added by ${creator}.`,
+                (role: string, creator: string) => `🛠️ ${creator} formed the ${role} squadron.`
+            ]
+        },
+        {
+            event: Events.GuildRoleDelete,
+            extract: async ([role], _client) => {
+                const deletedRole = role as Role
+                let deleter = '\\\\ NO IFF DATA \\\\'
+                try {
+                    const guild = deletedRole.guild
+                    if (guild) {
+                        const auditLogs = await guild.fetchAuditLogs({
+                            type: AuditLogEvent.RoleDelete,
+                            limit: 5
+                        })
+                        const entry = auditLogs.entries.find(e => e.target?.id === deletedRole.id)
+                        if (entry && entry.executor) {
+                            deleter = entry.executor.username ?? '`\\\\ INVALID IFF DATA \\\\`'
+                        }
+                    }
+                } catch { /* ignore */ }
+                return [deletedRole.name, deleter]
+            },
+            messages: [
+                (role: string, deleter: string) => `🗑️ Squadron ${role} was deleted by ${deleter}.`,
+                (role: string, deleter: string) => `➖ Squadron ${role} was disbanded by ${deleter}.`,
+                (role: string, deleter: string) => `🔥 ${deleter} incinerated the ${role} squadron.`
+            ]
+        }
     ]
 
     constructor(client: Client) {
