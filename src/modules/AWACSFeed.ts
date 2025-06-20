@@ -248,12 +248,18 @@ export class AWACSFeed {
         const newTimeout = newMember.communicationDisabledUntil
 
         if (oldTimeout !== newTimeout) {
+            const moderator = await this.findTimeoutChanger(newMember)
+            if (moderator === '`\\\\ NO IFF DATA \\\\`') {
+                // If no specific timeout audit log entry is found,
+                // it means this communicationDisabledUntil change was not a direct timeout action.
+                // This can happen if other member updates implicitly change this property.
+                return
+            }
+
             if (newTimeout) { // User was timed out
-                const moderator = await this.findTimeoutChanger(newMember)
                 const message = getRandomElement(AWACSFeed.timeoutMessages)(newMember.user.username, moderator)
                 await this.sendMessage(message)
             } else if (oldTimeout) { // User was untimed out
-                const moderator = await this.findTimeoutChanger(newMember) // Audit log for untimeout is also MemberUpdate
                 const message = `🔊 ${newMember.user.username} has been unmuted by ${moderator}.`
                 await this.sendMessage(message)
             }
