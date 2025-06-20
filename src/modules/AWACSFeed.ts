@@ -208,8 +208,9 @@ export class AWACSFeed {
                 const assigner = await this.findRoleChanger(newMember, roleAdded, '$add')
                 let message: string
                 if (roleAdded.id === AWACSFeed.BANISHED_ROLE_ID) {
+                    await this.handleTimeoutChanges(oldMember, newMember) // False alarm timeout event (before message)
                     message = AWACSFeed.banishedRoleAddMessage(newMember.user.username, assigner)
-                    await this.handleTimeoutChanges(oldMember, newMember) // False alarm timeout event
+                    await this.handleTimeoutChanges(oldMember, newMember) // False alarm timeout event (after message)
                 } else {
                     message = getRandomElement(AWACSFeed.roleAddMessages)(newMember.user.username, roleAdded.name, assigner)
                 }
@@ -233,8 +234,9 @@ export class AWACSFeed {
                 const remover = await this.findRoleChanger(newMember, roleRemoved, '$remove')
                 let message: string
                 if (roleRemoved.id === AWACSFeed.BANISHED_ROLE_ID) {
+                    await this.handleTimeoutChanges(oldMember, newMember) // False alarm timeout event (before message)
                     message = AWACSFeed.banishedRoleRemoveMessage(newMember.user.username, remover)
-                    await this.handleTimeoutChanges(oldMember, newMember) // False alarm timeout event
+                    await this.handleTimeoutChanges(oldMember, newMember) // False alarm timeout event (after message)
                 } else {
                     message = getRandomElement(AWACSFeed.roleRemoveMessages)(newMember.user.username, roleRemoved.name, remover)
                 }
