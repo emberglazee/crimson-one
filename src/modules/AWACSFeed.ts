@@ -269,19 +269,28 @@ export class AWACSFeed {
     private async findRoleChanger(member: GuildMember, role: Role, changeKey: '$add' | '$remove'): Promise<string> {
         try {
             const auditLogs = await member.guild.fetchAuditLogs({
+                limit: 10,
                 type: AuditLogEvent.MemberRoleUpdate,
-                limit: 10
             })
 
-            const changeProp = changeKey === '$add' ? 'new' : 'old'
+            const logEntry = auditLogs.entries.find(entry => {
+                if (entry.target?.id !== member.id) return false
 
-            const logEntry = auditLogs.entries.find(entry =>
-                entry.target?.id === member.id &&
-                entry.changes.some(change =>
-                    change.key === changeKey &&
-                    (change[changeProp] as { id: string }[])?.some(r => r.id === role.id)
-                )
-            )
+                // Iterate through changes and find the relevant one
+                return entry.changes.some(change => {
+                    // Check if change.key exists and is 'roles'
+                    if (change && typeof change === 'object' && 'key' in change && (change.key === '$add' || change.key === '$remove')) {
+                        const roleChange = change as { key: '$add' | '$remove', new?: { id: string }[], old?: { id: string }[] }
+
+                        if (changeKey === '$add' && roleChange.new) {
+                            return roleChange.new.some(newRole => newRole.id === role.id)
+                        } else if (changeKey === '$remove' && roleChange.old) {
+                            return roleChange.old.some(oldRole => oldRole.id === role.id)
+                        }
+                    }
+                    return false
+                })
+            })
 
             if (logEntry?.executor) {
                 return logEntry.executor.username ?? '`\\\\ INVALID IFF DATA \\\\`'
