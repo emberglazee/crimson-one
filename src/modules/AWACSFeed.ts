@@ -53,6 +53,12 @@ export class AWACSFeed {
         (member: string, moderator: string) => `🔇 ${member} has been sent to the sin bin${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}`}.`
     ]
 
+    private static readonly roleRenameMessages = [
+        (oldName: string, newName: string, renamer: string) => `✏️ Squadron ${oldName} was renamed to ${newName}${renamer === NO_IFF_DATA ? '.' : ` by ${renamer}`}.`,
+        (oldName: string, newName: string, renamer: string) => `📝 ${oldName} squadron is now known as ${newName}${renamer === NO_IFF_DATA ? '.' : `, updated by ${renamer}`}.`,
+        (oldName: string, newName: string, renamer: string) => `🔄 The ${oldName} unit has been redesignated as ${newName}${renamer === NO_IFF_DATA ? '.' : `, thanks to ${renamer}`}.`
+    ]
+
     private static EventHandlers: EventHandler<keyof ClientEvents>[] = [
         {
             event: Events.GuildMemberAdd,
@@ -153,6 +159,36 @@ export class AWACSFeed {
                 (role: string, deleter: string) => `➖ Squadron ${role} was disbanded${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`,
                 (role: string, deleter: string) => `🔥 ${deleter === NO_IFF_DATA ? `Someone` : deleter} incinerated the ${role} squadron.`
             ]
+        },
+        {
+            event: Events.GuildRoleUpdate,
+            extract: async ([oldRole, newRole], _client) => {
+                const oldR = oldRole as Role
+                const newR = newRole as Role
+                let renamer = NO_IFF_DATA
+
+                if (oldR.name !== newR.name) {
+                    try {
+                        const guild = newR.guild
+                        if (guild) {
+                            const auditLogs = await guild.fetchAuditLogs({
+                                type: AuditLogEvent.RoleUpdate,
+                                limit: 5
+                            })
+                            const entry = auditLogs.entries.find(e =>
+                                e.target?.id === newR.id &&
+                                e.changes.some(change => change.key === 'name' && change.old === oldR.name && change.new === newR.name)
+                            )
+                            if (entry && entry.executor) {
+                                renamer = entry.executor.username ?? NO_IFF_DATA
+                            }
+                        }
+                    } catch { /* ignore */ }
+                    return [oldR.name, newR.name, renamer]
+                }
+                return [] // No name change
+            },
+            messages: AWACSFeed.roleRenameMessages
         }
     ]
 
