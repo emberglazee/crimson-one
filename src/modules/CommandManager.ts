@@ -5,7 +5,7 @@ import {
     SlashCommandBuilder, ContextMenuCommandBuilder,
     Routes, Message, ApplicationCommandOptionType,
     REST, InteractionResponse, ApplicationCommandType,
-    MessageFlags, ChannelType,
+    MessageFlags, ChannelType, DiscordAPIError,
     SlashCommandSubcommandBuilder,
     SlashCommandSubcommandGroupBuilder
 } from 'discord.js'
@@ -539,7 +539,7 @@ export default class CommandManager {
             }
 
             try {
-                // NOTE: We parse the RECONSTRUCTED string.
+                // We parse the RECONSTRUCTED string.
                 parsedYargsArgs = await yargsParser.parseAsync()
             } catch (err) {
                 parseError = err
@@ -1544,6 +1544,38 @@ export class CommandContext<InGuild extends boolean = boolean> {
         } else if (this.message) {
             this.originalMessageReply = await this.message.reply(options as string | MessageReplyOptions)
             return this.originalMessageReply
+        }
+    }
+    public async ephemeralReply(options: string | InteractionReplyOptions | MessageReplyOptions): Promise<Message | InteractionResponse | void> {
+        if (this.interaction) {
+            // For slash commands, use ephemeral interaction reply
+            const replyOptions: InteractionReplyOptions = typeof options === 'string'
+                ? { content: options, ephemeral: true }
+                : { ...options as InteractionReplyOptions, ephemeral: true }
+
+            if (this.interaction.isRepliable() && !this.interaction.replied && !this.interaction.deferred) {
+                return this.interaction.reply(replyOptions)
+            } else if (this.interaction.isRepliable()) {
+                return this.interaction.followUp(replyOptions)
+            }
+        } else if (this.message) {
+            // For text commands, attempt to DM the user
+            try {
+                const dmChannel = await this.author.createDM()
+                await dmChannel.send(options as string | MessageReplyOptions)
+            } catch (error) {
+                logger.warn(`{ephemeralReply} Could not DM user ${this.author.tag} (${this.author.id}). Replying to channel instead. Error: ${error instanceof DiscordAPIError ? error.message : error}`)
+                const errorMessage = typeof options === 'string'
+                    ? `I tried to send you a private message, but I couldn't. Please check your privacy settings. (Original message: "${options.substring(0, 100)}${options.length > 100 ? '...' : ''}")`
+                    : `I tried to send you a private message, but I couldn't. Please check your privacy settings.`
+
+                await this.message.reply({
+                    content: `❌ ${errorMessage}`,
+                    allowedMentions: { repliedUser: false }
+                }).catch(err => {
+                    logger.warn(`{ephemeralReply} Failed to send fallback error reply to message: ${err.message}`)
+                })
+            }
         }
     }
     async deferReply(options?: InteractionDeferReplyOptions): Promise<Message | InteractionResponse | void> {
