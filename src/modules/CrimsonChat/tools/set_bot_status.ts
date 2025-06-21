@@ -1,0 +1,83 @@
+import { z } from 'zod'
+import { tool } from 'ai'
+import { Logger, yellow, red } from '../../../util/logger'
+import { bot as client } from '../../..'
+import { ActivityType, type PresenceStatusData } from 'discord.js'
+
+const logger = new Logger('CrimsonChat | set_bot_status()')
+
+const schema = z.object({
+    status: z.enum(['online', 'idle', 'dnd', 'invisible']).optional(),
+    activityType: z.enum(['Playing', 'Streaming', 'Listening', 'Watching', 'Competing']).optional(),
+    activityName: z.string().optional(),
+})
+type Input = z.infer<typeof schema>
+
+async function invoke({ status, activityType, activityName }: Input) {
+    logger.debug(`Invoked with args: ${yellow(JSON.stringify({ status, activityType, activityName }))}`)
+    try {
+        if (!client || !client.user) {
+            logger.error(red('Discord client or user not available.'))
+            return { success: false, message: 'Discord client not available.' }
+        }
+
+        const presenceOptions: { status?: PresenceStatusData; activities?: { name: string; type: ActivityType }[] } = {}
+
+        if (status) {
+            presenceOptions.status = status
+        }
+
+        if (activityType && activityName) {
+            let discordActivityType: ActivityType | undefined
+            switch (activityType) {
+                case 'Playing':
+                    discordActivityType = ActivityType.Playing
+                    break
+                case 'Streaming':
+                    discordActivityType = ActivityType.Streaming
+                    break
+                case 'Listening':
+                    discordActivityType = ActivityType.Listening
+                    break
+                case 'Watching':
+                    discordActivityType = ActivityType.Watching
+                    break
+                case 'Competing':
+                    discordActivityType = ActivityType.Competing
+                    break
+            }
+
+            if (discordActivityType !== undefined) {
+                presenceOptions.activities = [{ name: activityName, type: discordActivityType }]
+            } else {
+                logger.warn(yellow(`Invalid activity type provided: ${activityType}`))
+            }
+        } else if (activityType || activityName) {
+            logger.warn(yellow('Both activityType and activityName must be provided to set an activity.'))
+            return { success: false, message: 'Both activityType and activityName must be provided to set an activity.' }
+        }
+
+        if (Object.keys(presenceOptions).length === 0) {
+            return { success: false, message: 'No status or activity provided to set.' }
+        }
+
+        client.user.setPresence(presenceOptions) // not async
+
+        let responseMessage = 'Bot presence updated: '
+        if (status) responseMessage += `Status set to ${yellow(status)}. `
+        if (activityType && activityName) responseMessage += `Activity set to ${yellow(activityType)} ${yellow(activityName)}.`
+
+        logger.ok(responseMessage)
+        return { success: true, message: responseMessage }
+
+    } catch (error) {
+        logger.error(`Failed to set bot status: ${red(error instanceof Error ? error.message : String(error))}`)
+        return { success: false, message: `Failed to set bot status: ${error instanceof Error ? error.message : String(error)}` }
+    }
+}
+
+export default tool({
+    description: 'Sets the Discord bot\'s presence status and activity.',
+    parameters: schema,
+    execute: invoke
+})
