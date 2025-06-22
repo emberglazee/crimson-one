@@ -28,35 +28,35 @@ export class AWACSFeed {
     ]
 
     private static readonly roleAddMessages = [
-        (member: string, role: string, assigner: string) => `✈️ ${member} was assigned to the ${role} squadron${assigner === NO_IFF_DATA ? '.' : ` by ${assigner}`}.`,
-        (member: string, role: string, assigner: string) => `🎖️ ${member} has joined the ${role} ranks${assigner === NO_IFF_DATA ? '.' : `, courtesy of ${assigner}`}.`,
-        (member: string, role: string, assigner: string) => `✨ ${member} is now part of the ${role} squadron${assigner === NO_IFF_DATA ? '.' : `, thanks to ${assigner}`}.`,
-        (member: string, role: string, assigner: string) => `🏷️ ${member} received the ${role} designation${assigner === NO_IFF_DATA ? '.' : ` from ${assigner}`}.`,
-        (member: string, role: string, assigner: string) => `🧑‍✈️ ${member} has been promoted to the ${role} unit${assigner === NO_IFF_DATA ? '.' : ` by ${assigner}`}.`
+        (member: string, role: string, assigner: string) => `✈️ ${member} was assigned to the ${role} squadron${assigner === NO_IFF_DATA ? '.' : ` by ${assigner}.`}`,
+        (member: string, role: string, assigner: string) => `🎖️ ${member} has joined the ${role} ranks${assigner === NO_IFF_DATA ? '.' : `, courtesy of ${assigner}.`}`,
+        (member: string, role: string, assigner: string) => `✨ ${member} is now part of the ${role} squadron${assigner === NO_IFF_DATA ? '.' : `, thanks to ${assigner}.`}`,
+        (member: string, role: string, assigner: string) => `🏷️ ${member} received the ${role} designation${assigner === NO_IFF_DATA ? '.' : ` from ${assigner}.`}`,
+        (member: string, role: string, assigner: string) => `🧑‍✈️ ${member} has been promoted to the ${role} unit${assigner === NO_IFF_DATA ? '.' : ` by ${assigner}.`}`
     ]
 
     private static readonly roleRemoveMessages = [
-        (member: string, role: string, remover: string) => `✈️ ${member} was removed from the ${role} squadron${remover === NO_IFF_DATA ? '.' : ` by ${remover}`}.`,
-        (member: string, role: string, remover: string) => `🎖️ ${member} has departed the ${role} ranks${remover === NO_IFF_DATA ? '.' : `, decision by ${remover}`}.`,
-        (member: string, role: string, remover: string) => `✨ ${member} is no longer part of the ${role} squadron${remover === NO_IFF_DATA ? '.' : `, per ${remover}`}.`,
-        (member: string, role: string, remover: string) => `🏷️ ${member}'s ${role} designation was revoked${remover === NO_IFF_DATA ? '.' : ` by ${remover}`}.`,
-        (member: string, role: string, remover: string) => `🧑‍✈️ ${member} has been demoted from the ${role} unit${remover === NO_IFF_DATA ? '.' : ` by ${remover}`}.`
+        (member: string, role: string, remover: string) => `✈️ ${member} was removed from the ${role} squadron${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`,
+        (member: string, role: string, remover: string) => `🎖️ ${member} has departed the ${role} ranks${remover === NO_IFF_DATA ? '.' : `, decision by ${remover}.`}`,
+        (member: string, role: string, remover: string) => `✨ ${member} is no longer part of the ${role} squadron${remover === NO_IFF_DATA ? '.' : `, per ${remover}.`}`,
+        (member: string, role: string, remover: string) => `🏷️ ${member}'s ${role} designation was revoked${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`,
+        (member: string, role: string, remover: string) => `🧑‍✈️ ${member} has been demoted from the ${role} unit${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`
     ]
 
-    private static readonly banishedRoleAddMessage = (member: string, assigner: string) => `⛓️ ${member} has been banished${assigner === NO_IFF_DATA ? '.' : ` by ${assigner}`}.`
-    private static readonly banishedRoleRemoveMessage = (member: string, remover: string) => `🔓 ${member} has been unbanished${remover === NO_IFF_DATA ? '.' : ` by ${remover}`}.`
+    private static readonly banishedRoleAddMessage = (member: string, assigner: string) => `⛓️ ${member} has been banished${assigner === NO_IFF_DATA ? '.' : ` by ${assigner}.`}`
+    private static readonly banishedRoleRemoveMessage = (member: string, remover: string) => `🔓 ${member} has been unbanished${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`
 
     private static readonly timeoutMessages = [
-        (member: string, moderator: string) => `🔇 ${member} has been muted${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}`}.`,
-        (member: string, moderator: string) => `🔇 ${member} has been silenced${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}`}.`,
-        (member: string, moderator: string) => `🔇 ${member} has been timed out${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}`}.`,
-        (member: string, moderator: string) => `🔇 ${member} has been sent to the sin bin${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}`}.`
+        (member: string, moderator: string) => `🔇 ${member} has been muted${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
+        (member: string, moderator: string) => `🔇 ${member} has been silenced${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
+        (member: string, moderator: string) => `🔇 ${member} has been timed out${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
+        (member: string, moderator: string) => `🔇 ${member} has been sent to the sin bin${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`
     ]
 
     private static readonly roleRenameMessages = [
-        (oldName: string, newName: string, renamer: string) => `✏️ Squadron ${oldName} was renamed to ${newName}${renamer === NO_IFF_DATA ? '.' : ` by ${renamer}`}.`,
-        (oldName: string, newName: string, renamer: string) => `📝 ${oldName} squadron is now known as ${newName}${renamer === NO_IFF_DATA ? '.' : `, updated by ${renamer}`}.`,
-        (oldName: string, newName: string, renamer: string) => `🔄 The ${oldName} unit has been redesignated as ${newName}${renamer === NO_IFF_DATA ? '.' : `, thanks to ${renamer}`}.`
+        (oldName: string, newName: string, renamer: string) => `✏️ Squadron ${oldName} was renamed to ${newName}${renamer === NO_IFF_DATA ? '.' : ` by ${renamer}.`}`,
+        (oldName: string, newName: string, renamer: string) => `📝 ${oldName} squadron is now known as ${newName}${renamer === NO_IFF_DATA ? '.' : `, updated by ${renamer}.`}`,
+        (oldName: string, newName: string, renamer: string) => `🔄 The ${oldName} unit has been redesignated as ${newName}${renamer === NO_IFF_DATA ? '.' : `, thanks to ${renamer}.`}`
     ]
 
     private static EventHandlers: EventHandler<keyof ClientEvents>[] = [
