@@ -4,7 +4,7 @@ import {
     Client, User, type ImageSize, type ImageExtension,
     TextChannel,
 } from 'discord.js'
-import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
+import { EMBI_ID as EMBI_ID, PING_EMBI as PING_EMBI } from '../util/constants'
 
 // Command Manager Types
 import {
@@ -83,8 +83,8 @@ export type OldSlashCommandHelpers = {
     followUp: ChatInputCommandInteraction['followUp']
     client: ChatInputCommandInteraction['client']
     guild: ChatInputCommandInteraction['guild']
-    myId: typeof EMBERGLAZE_ID
-    pingMe: typeof PING_EMBERGLAZE
+    embiId: typeof EMBI_ID
+    pingEmbi: typeof PING_EMBI
     getUserAvatar: (user: User, guild: Guild | null, options?: { extension?: ImageExtension, size?: ImageSize, useGlobalAvatar?: boolean }) => string
 }
 

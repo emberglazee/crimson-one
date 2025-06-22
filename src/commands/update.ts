@@ -6,7 +6,7 @@ export default {
         .setName('update')
         .setDescription('Pulls the latest commit and restarts the bot.'),
     async execute(context) {
-        if (context.user.id !== context.myId) {
+        if (!context.isEmbi) {
             await context.reply('❌ You, solely, are responsible for this.')
             return
         }

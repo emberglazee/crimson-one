@@ -6,7 +6,7 @@ import { tool } from 'ai'
 import { bot as client } from '../../..'
 import { distance } from 'fastest-levenshtein'
 import { ChannelType, type Guild, type GuildMember, PermissionsBitField } from 'discord.js'
-import { EMBERGLAZE_ID } from '../../../util/constants'
+import { EMBI_ID } from '../../../util/constants'
 
 // --- Constants from the original /banish command ---
 const GUILD_ID = '958518067690868796'
@@ -52,7 +52,7 @@ async function invoke({ id, username, displayname, reason }: Input): Promise<str
     if (member.id === client.user?.id) {
         return "You can't make me banish myself. Predictable."
     }
-    if (member.id === EMBERGLAZE_ID) {
+    if (member.id === EMBI_ID) {
         return "I can't banish my creator. This is an invalid order."
     }
     if (!member.manageable) {

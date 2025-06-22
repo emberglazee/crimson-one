@@ -10,7 +10,7 @@ import path from 'path'
 import { parseNetscapeCookieFile } from '../util/functions'
 import OpenAI from 'openai'
 import { ChannelType, Client, Message, TextChannel, Webhook, AttachmentBuilder } from 'discord.js'
-import { TYPING_EMOJI, EMBERGLAZE_ID } from '../util/constants'
+import { TYPING_EMOJI, EMBI_ID } from '../util/constants'
 
 export default class ShapesInc {
     private static instance: ShapesInc
@@ -666,7 +666,7 @@ export default class ShapesInc {
         if (this.waitingForCookies) return
         this.waitingForCookies = true
         try {
-            const user = await this.client.users.fetch(EMBERGLAZE_ID)
+            const user = await this.client.users.fetch(EMBI_ID)
             await user.send('ShapesInc cookies expired, please reply to this DM with the new Netscape cookies file contents.')
         } catch (err) {
             logger.error(`{handleNotAuthorized} Failed to DM EMBERGLAZE: ${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
@@ -675,7 +675,7 @@ export default class ShapesInc {
 
     public async handlePotentialCookieDM(message: Message) {
         if (!this.waitingForCookies) return false
-        if (message.author.id !== EMBERGLAZE_ID) return false
+        if (message.author.id !== EMBI_ID) return false
         // Check for file attachment with 'cookie' in the name
         if (!message.guild && message.attachments && message.attachments.size > 0) {
             for (const attachment of message.attachments.values()) {

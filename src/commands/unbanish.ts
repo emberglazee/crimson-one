@@ -1,6 +1,6 @@
 import { ChannelType, InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { GuildSlashCommand } from '../types'
-import { PING_EMBERGLAZE } from '../util/constants'
+import { PING_EMBI } from '../util/constants'
 
 export default {
     data: new SlashCommandBuilder()
@@ -20,13 +20,13 @@ export default {
         const target = await context.getUserOption('member', true)
         const targetMember = await context.guild.members.fetch(target)
         if (!targetMember) {
-            await context.reply(`❌ ${PING_EMBERGLAZE} target member doesnt exist, FIX MEEEEEEEEE`)
+            await context.reply(`❌ ${PING_EMBI} target member doesnt exist, FIX MEEEEEEEEE`)
             return
         }
 
         const role = await context.guild.roles.fetch('1331170880591757434')
         if (!role) {
-            await context.reply(`❌ ${PING_EMBERGLAZE} banished role doesnt exist, wrong id? (\`1331170880591757434\`)`)
+            await context.reply(`❌ ${PING_EMBI} banished role doesnt exist, wrong id? (\`1331170880591757434\`)`)
             return
         }
 

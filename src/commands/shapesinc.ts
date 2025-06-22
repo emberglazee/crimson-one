@@ -99,7 +99,7 @@ export default {
             }
             case 'set_cookies': {
                 const user = context.user
-                if (user.id !== context.myId) {
+                if (user.id !== context.embiId) {
                     await context.reply('❌ You, solely, are responsible for this')
                     return
                 }

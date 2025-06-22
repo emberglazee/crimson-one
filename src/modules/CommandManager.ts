@@ -37,7 +37,7 @@ import type {
     OldSlashCommandHelpers, GuildOnlyCommandContext
 } from '../types'
 
-import { EMBERGLAZE_ID, PING_EMBERGLAZE, TYPING_EMOJI } from '../util/constants'
+import { EMBI_ID as EMBI_ID, PING_EMBI as PING_EMBI, TYPING_EMOJI } from '../util/constants'
 import type { ArgumentsCamelCase, Argv, Options as YargsOptions } from 'yargs'
 import yargs from 'yargs'
 
@@ -411,8 +411,8 @@ export default class CommandManager {
                     getUserAvatar: (user: User, guild: Guild | null, options) => getUserAvatar(user, guild || interaction.guild, options),
                     client: interaction.client,
                     guild: interaction.guild,
-                    myId: EMBERGLAZE_ID,
-                    pingMe: PING_EMBERGLAZE
+                    embiId: EMBI_ID,
+                    pingEmbi: PING_EMBI
                 }
                 if (interaction.isUserContextMenuCommand() && command.type === 2) {
                     await (command.execute as (helpers: OldSlashCommandHelpers, i?: UserContextMenuCommandInteraction) => Promise<void>)(helpersForContextMenu, interaction)
@@ -1482,8 +1482,9 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public readonly client: Client
     public readonly interaction: ChatInputCommandInteraction | null
     public readonly message: Message | null
-    public readonly myId: typeof EMBERGLAZE_ID = EMBERGLAZE_ID
-    public readonly pingMe: typeof PING_EMBERGLAZE = PING_EMBERGLAZE
+    public readonly embiId: typeof EMBI_ID = EMBI_ID
+    public readonly pingEmbi: typeof PING_EMBI = PING_EMBI
+    public readonly isEmbi = this.user.id === this.embiId
 
     public readonly args: string[]
     public parsedArgs: ArgumentsCamelCase<{ [key: string]: JSONResolvable }> | null = null
@@ -1508,7 +1509,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
                 try {
                     this.subcommandGroupName = this.interaction.options.getSubcommandGroup(false)
                 } catch { this.subcommandGroupName = null }
-                 try {
+                try {
                     this.subcommandName = this.interaction.options.getSubcommand(false)
                 } catch { this.subcommandName = null }
             }

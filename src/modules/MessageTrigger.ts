@@ -1,7 +1,7 @@
 import type { Message } from 'discord.js'
 import type { MessageTriggerEntry as MessageTriggers } from '../types'
 import { chance, getRandomElement } from '../util/functions'
-import { EMBERGLAZE_ID, PING_EMBERGLAZE } from '../util/constants'
+import { EMBI_ID, PING_EMBI } from '../util/constants'
 
 export class MessageTrigger {
     triggers: MessageTriggers[] = [
@@ -80,7 +80,7 @@ export class MessageTrigger {
             pattern: [/embi/gmi, /\bember/gmi],
             async action(message) {
                 if (message.channelId === '1372567739931037890') return
-                if (message.mentions.users.has(EMBERGLAZE_ID) || message.author.id === EMBERGLAZE_ID) return
+                if (message.mentions.users.has(EMBI_ID) || message.author.id === EMBI_ID) return
                 if (message.guildId !== '958518067690868796') return
                 if (chance(50)) await message.reply(getRandomElement([
                     'https://cdn.discordapp.com/attachments/982138135653793804/1374422035769462824/Vesktop_iH8AUuU6rH.png?ex=682dfdc4&is=682cac44&hm=1f37d03b5501415f6c38ff1e894e73f9d8ceb37430840908609b15a1d8ad3285&',
@@ -91,8 +91,8 @@ export class MessageTrigger {
                     'https://cdn.discordapp.com/attachments/982138135653793804/1374423912745799721/Vesktop_jN1dJsstMt.png?ex=682dff84&is=682cae04&hm=ec301535d6dcf685a153fbe7d4106ca639071286747c7f8b04460de2894c4139&',
                     ''
                 ]))
-                const emberglaze = await message.client.users.fetch(EMBERGLAZE_ID)
-                await emberglaze.send(`${PING_EMBERGLAZE} https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}\n-# Guild ${message.guild?.name || 'null'} (${message.guild?.id || 'null'})`)
+                const emberglaze = await message.client.users.fetch(EMBI_ID)
+                await emberglaze.send(`${PING_EMBI} https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}\n-# Guild ${message.guild?.name || 'null'} (${message.guild?.id || 'null'})`)
             }
         },
         {

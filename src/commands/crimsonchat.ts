@@ -1,6 +1,5 @@
 import { SlashCommand } from '../types'
 import { SlashCommandBuilder } from 'discord.js'
-import { EMBERGLAZE_ID } from '../util/constants'
 import CrimsonChat from '../modules/CrimsonChat'
 
 export default {
@@ -81,7 +80,7 @@ export default {
         ),
 
     async execute(context) {
-        if (context.user.id !== EMBERGLAZE_ID) {
+        if (!context.isEmbi) {
             await context.reply('❌ You, solely, are responsible for this')
             return
         }

@@ -1,8 +1,8 @@
 import type { CoreMessage } from 'ai'
 import type { UserMessageOptions } from '../types'
 
-export const EMBERGLAZE_ID = '341123308844220447' as const
-export const PING_EMBERGLAZE = `<@${EMBERGLAZE_ID}>` as const
+export const EMBI_ID = '341123308844220447' as const
+export const PING_EMBI = `<@${EMBI_ID}>` as const
 
 export const AWACS_FEED_CHANNEL = '1347340883724603392' as const
 

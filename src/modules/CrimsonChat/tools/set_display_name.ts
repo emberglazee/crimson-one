@@ -6,7 +6,7 @@ import { tool } from 'ai'
 import { bot as client } from '../../..'
 import { distance } from 'fastest-levenshtein'
 import { type Guild, type GuildMember, PermissionsBitField } from 'discord.js'
-import { EMBERGLAZE_ID } from '../../../util/constants'
+import { EMBI_ID } from '../../../util/constants'
 
 // --- Constants from the original /banish command ---
 const GUILD_ID = '958518067690868796'
@@ -59,7 +59,7 @@ async function invoke({ id, username, displayname, new_display_name, reason }: I
             return `Error: Failed to change my own display name. There might have been a permissions error.`
         }
     }
-    if (member.id === EMBERGLAZE_ID) {
+    if (member.id === EMBI_ID) {
         return "I can't change my creator's display name. This is an invalid order."
     }
     if (!member.manageable) {

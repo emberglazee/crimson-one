@@ -18,7 +18,7 @@ export default {
         const games = await getOwnedGames(STEAM_ID!)
         const hoi4 = games.find(game => game.appid === hoi4AppId)
         if (!hoi4) {
-            await context.editReply(`❌ HOI4 not found in the list of games (did ${context.pingMe} finally touch grass? check his steam profile directly or something)`)
+            await context.editReply(`❌ HOI4 not found in the list of games (did ${context.pingEmbi} finally touch grass? check his steam profile directly or something)`)
             return
         }
 
@@ -39,7 +39,7 @@ export default {
         if (remainingHours > 0) timeString += `${remainingHours}h `
         if (remainingMinutes > 0) timeString += `${remainingMinutes}m`
 
-        await context.editReply(`${context.pingMe} has spent \`${hours}\` hours playing HOI4\nThat's approximately: \`${timeString.trim()}\``)
+        await context.editReply(`${context.pingEmbi} has spent \`${hours}\` hours playing HOI4\nThat's approximately: \`${timeString.trim()}\``)
     }
 } satisfies SlashCommand
 

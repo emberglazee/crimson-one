@@ -15,7 +15,7 @@ export default {
     async execute(context) {
         const role = await context.guild.roles.fetch('1331170880591757434')
         if (!role) {
-            await context.reply(`❌ ${context.pingMe} banished role doesnt exist, wrong id? (\`1331170880591757434\`)`)
+            await context.reply(`❌ ${context.pingEmbi} banished role doesnt exist, wrong id? (\`1331170880591757434\`)`)
             return
         }
 
@@ -41,7 +41,7 @@ export default {
         const target = await context.getUserOption('member', true)
         const targetMember = await context.guild.members.fetch(target)
         if (!targetMember) {
-            await context.reply(`❌ ${context.pingMe} target member doesnt exist, FIX MEEEEEEEEE`)
+            await context.reply(`❌ ${context.pingEmbi} target member doesnt exist, FIX MEEEEEEEEE`)
             return
         }
         if (targetMember.id === context.user.id) {

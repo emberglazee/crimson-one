@@ -86,8 +86,8 @@ export default {
             })
             return
         }
-        // Restrict the following subcommands to the owner
-        if (context.user.id !== context.myId) {
+
+        if (!context.isEmbi) {
             await context.reply('❌ You, solely, are responsible for this.')
             return
         }

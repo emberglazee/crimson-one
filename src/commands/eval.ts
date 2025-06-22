@@ -12,8 +12,8 @@ export default {
             .setRequired(true)
         ),
     async execute(context) {
-        if (context.user.id !== context.myId) {
-            await context.reply('❌ You, solely, are responsible for this')
+        if (!context.isEmbi) {
+            await context.reply('❌ You, solely, are responsible for this.')
             return
         }
 
