@@ -2,6 +2,8 @@ import type { Message } from 'discord.js'
 import type { MessageTriggerEntry as MessageTriggers } from '../types'
 import { chance, getRandomElement } from '../util/functions'
 import { EMBI_ID, PING_EMBI } from '../util/constants'
+import { sleep } from 'bun'
+import type { GuildMember } from 'discord.js'
 
 export class MessageTrigger {
     triggers: MessageTriggers[] = [
@@ -163,6 +165,31 @@ export class MessageTrigger {
                     'https://tenor.com/view/minecraft-movie-theater-popcorn-explosion-crazy-gif-7283614019765734813',
                     'https://tenor.com/view/chicken-jockey-minecraft-movie-minecraft-memes-minecraft-meme-chicken-jockey-flag-gif-6036972012917778487'
                 ]))
+            }
+        },
+        {
+            pattern: [/(?:i'm|im|i am)\s+(.+)/gmi],
+            async action(message) {
+                if (!message.member?.moderatable) return
+                if (!chance(10)) return
+
+                const match = message.content.match(/(?:i'm|im|i am)\s+(.+)/gmi)
+                if (!match) return
+
+                let name = match[0].replace(/(?:i'm|im|i am)\s+/gmi, '').trim()
+                name = name.split(/[.,]/)[0].trim()
+                if (name.length > 32) {
+                    name = name.substring(0, 32)
+                }
+                if (!name) return
+
+                const member = message.member as GuildMember
+                const originalNickname = member.nickname
+
+                await message.member.setNickname(name)
+                await message.reply(`hi \`name\`, im crimson 1`)
+                await sleep(60 * 1000)
+                await message.member.setNickname(originalNickname)
             }
         }
     ]
