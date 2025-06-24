@@ -1484,7 +1484,6 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public readonly message: Message | null
     public readonly embiId: typeof EMBI_ID = EMBI_ID
     public readonly pingEmbi: typeof PING_EMBI = PING_EMBI
-    public readonly isEmbi = this.user.id === this.embiId
 
     public readonly args: string[]
     public parsedArgs: ArgumentsCamelCase<{ [key: string]: JSONResolvable }> | null = null
@@ -1524,6 +1523,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
     get isMessage(): boolean { return this.message !== null }
     get author(): User { return this.interaction ? this.interaction.user : this.message!.author }
     get user(): User { return this.author }
+    get isEmbi(): boolean { return this.user.id === this.embiId }
 
     get channel(): TextBasedChannel | null { return this.interaction ? this.interaction.channel : this.message!.channel }
 
