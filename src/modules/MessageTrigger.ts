@@ -171,7 +171,7 @@ export class MessageTrigger {
             pattern: [/(?:i'm|im|i am)\s+(.+)/gmi],
             async action(message) {
                 if (!message.member?.moderatable) return
-                if (!chance(10)) return
+                if (!chance(50)) return
 
                 const match = message.content.match(/(?:i'm|im|i am)\s+(.+)/gmi)
                 if (!match) return
@@ -187,7 +187,7 @@ export class MessageTrigger {
                 const originalNickname = member.nickname
 
                 await message.member.setNickname(name)
-                await message.reply(`hi \`name\`, im crimson 1`)
+                await message.reply(`hi \`${name}\`, im crimson 1`)
                 await sleep(60 * 1000)
                 await message.member.setNickname(originalNickname)
             }
