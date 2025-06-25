@@ -441,10 +441,10 @@ export default {
 
                 // Format timestamps to readable dates
                 const oldestDate = stats.oldestMessageTimestamp
-                    ? new Date(stats.oldestMessageTimestamp).toLocaleString()
+                    ? new Date(stats.oldestMessageTimestamp).toLocaleString('en-GB')
                     : 'N/A'
                 const newestDate = stats.newestMessageTimestamp
-                    ? new Date(stats.newestMessageTimestamp).toLocaleString()
+                    ? new Date(stats.newestMessageTimestamp).toLocaleString('en-GB')
                     : 'N/A'
 
                 const embed = new EmbedBuilder()
