@@ -37,7 +37,7 @@ import type {
     OldSlashCommandHelpers, GuildOnlyCommandContext
 } from '../types'
 
-import { EMBI_ID as EMBI_ID, PING_EMBI as PING_EMBI, TYPING_EMOJI } from '../util/constants'
+import { EMBI_ID, PING_EMBI, TYPING_EMOJI } from '../util/constants'
 import type { ArgumentsCamelCase, Argv, Options as YargsOptions } from 'yargs'
 import yargs from 'yargs'
 
