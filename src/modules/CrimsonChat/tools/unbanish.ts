@@ -13,16 +13,15 @@ const BANISHED_ROLE_ID = '1331170880591757434'
 const GENERAL_CHANNEL_ID = '1267488539503886386'
 
 const schema = z.object({
-    id: z.string().optional().describe('Discord user ID; most accurate and pinpoint'),
     username: z.string().optional().describe('The user\'s global Discord username (e.g., "johndoe")'),
     displayname: z.string().optional().describe("The user's display name in the server; the least accurate, performs a closest match search"),
     reason: z.string().optional().describe("Optional reason for the unbanishment for the audit log.")
 })
 type Input = z.infer<typeof schema>
 
-async function invoke({ id, username, displayname, reason }: Input): Promise<string> {
-    logger.debug(`Invoked with args: ${yellow(JSON.stringify({ id, username, displayname, reason }))}`)
-    const query = id ?? username ?? displayname
+async function invoke({ username, displayname, reason }: Input): Promise<string> {
+    logger.debug(`Invoked with args: ${yellow(JSON.stringify({ username, displayname, reason }))}`)
+    const query = username ?? displayname
     if (!query) {
         return 'Error: must provide either a user ID, username, or display name to identify the target.'
     }
@@ -96,17 +95,6 @@ export default tool({
 })
 
 async function findMember(guild: Guild, query: string): Promise<GuildMember | null> {
-    // by user id
-    if (/^\d{17,20}$/.test(query)) {
-        // valid discord snowflake
-        try {
-            const member = await guild.members.fetch(query)
-            return member
-        } catch {
-            return null
-        }
-    }
-
     // by username
     await guild.members.fetch({ query: query, limit: 10 })
     const memberByUsername = guild.members.cache.find(

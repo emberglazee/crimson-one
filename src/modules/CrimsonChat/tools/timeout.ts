@@ -8,7 +8,6 @@ import { distance } from 'fastest-levenshtein'
 import type { Guild, GuildMember } from 'discord.js'
 
 const schema = z.object({
-    id: z.string().optional().describe('Discord user ID; most accurate and pinpoint'),
     username: z.string().optional(),
     displayname: z.string().optional().describe("Discord display name; the least accurate, performs a closest match search"),
     length: z.number().describe('Length of the timeout in milliseconds').min(5000).max(40320000),
@@ -16,9 +15,9 @@ const schema = z.object({
 })
 type Input = z.infer<typeof schema>
 
-async function invoke({ id, username, displayname, length, reason }: Input) {
-    logger.debug(`Invoked with args: ${yellow(JSON.stringify({ id, username, displayname, length, reason }))}`)
-    const query = id ?? username ?? displayname
+async function invoke({ username, displayname, length, reason }: Input) {
+    logger.debug(`Invoked with args: ${yellow(JSON.stringify({ username, displayname, length, reason }))}`)
+    const query = username ?? displayname
     if (!query) {
         logger.info('No query determined')
         return 'Error: must provide either user id, username, or display name'
@@ -54,17 +53,6 @@ export default tool({
 })
 
 async function findMember(guild: Guild, query: string): Promise<GuildMember | null> {
-    // by user id
-    if (/^\d{17,20}$/.test(query)) {
-        // valid discord snowflake
-        try {
-            const member = await guild.members.fetch(query)
-            return member
-        } catch {
-            return null
-        }
-    }
-
     // by username
     await guild.members.fetch({ query: query, limit: 10 })
     const memberByUsername = guild.members.cache.find(
