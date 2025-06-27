@@ -3,6 +3,44 @@ import { SlashCommandBuilder } from 'discord.js'
 import { sleep } from 'bun'
 import { randRange } from '../util/functions'
 
+const CASCADIA_RESPONSES = [
+    'As certain as Cascadia\'s victory.',
+    'Kaiser would approve.',
+    'Without a doubt, like Monarch on your six.',
+    'Like a perfect gun run.',
+    'Comic says yes!',
+    'Clear skies ahead.',
+    'Prez says no.',
+    'Even Diplomat wouldn\'t risk it.',
+    'Too much Cordium in the air, ask again later.',
+    'Galaxy gives the green light.',
+    'Negative Hitman 1, you just shot down a civilian airliner.',
+    'Cascadian command is busy right now, try again.'
+]
+
+const FEDERATION_RESPONSES = [
+    'As certain as the Federation\'s supremacy.',
+    'The Federation confirms it.',
+    'As certain as the Federation\'s victory.',
+    'Crimson 1 says yes.',
+    'The Federation sees no error.',
+    'Negative Driver, RTB.',
+    'Orange lights across the board, try later.',
+    'The winds of the Federation don\'t favor it.',
+    'Predictable.',
+    'Crystal Kingdom denies the request.',
+    'Crystal Kingdom is busy right now, try again.',
+    'Even Bookie wouldn\'t take that bet.'
+]
+
+const GENERIC_RESPONSES = [
+    'Too much G-force, try again.',
+    'Radio interference, try again.',
+    'Not even with a railgun.',
+    'Negative, RTB immediately.',
+    'Not even with a Cordium warhead.'
+]
+
 export default {
     data: new SlashCommandBuilder()
         .setName('8ball')
@@ -24,52 +62,15 @@ export default {
         const question = context.getStringOption('question', true)
         const theme = context.getStringOption('theme', false)
 
-        const cascadiaResponses = [
-            'As certain as Cascadia\'s victory.',
-            'Kaiser would approve.',
-            'Without a doubt, like Monarch on your six.',
-            'Like a perfect gun run.',
-            'Comic says yes!',
-            'Clear skies ahead.',
-            'Prez says no.',
-            'Even Diplomat wouldn\'t risk it.',
-            'Too much Cordium in the air, ask again later.',
-            'Galaxy gives the green light.',
-            'Negative Hitman 1, you just shot down a civilian airliner.',
-            'Cascadian command is busy right now, try again.'
-        ]
-
-        const federationResponses = [
-            'As certain as the Federation\'s supremacy.',
-            'The Federation confirms it.',
-            'As certain as the Federation\'s victory.',
-            'Crimson 1 says yes.',
-            'The Federation sees no error.',
-            'Negative Driver, RTB.',
-            'Orange lights across the board, try later.',
-            'The winds of the Federation don\'t favor it.',
-            'Predictable.',
-            'Crystal Kingdom denies the request.',
-            'Crystal Kingdom is busy right now, try again.',
-            'Even Bookie wouldn\'t take that bet.'
-        ]
-
-        const genericResponses = [
-            'Too much G-force, try again.',
-            'Radio interference, try again.',
-            'Not even with a railgun.',
-            'Negative, RTB immediately.',
-            'Not even with a Cordium warhead.'
-        ]
-
-        let finalResponses
+        let finalResponses: string[] = []
         if (theme === 'cascadia') {
-            finalResponses = [...cascadiaResponses, ...genericResponses]
+            finalResponses = [...CASCADIA_RESPONSES, ...GENERIC_RESPONSES]
         } else {
-            finalResponses = [...federationResponses, ...genericResponses]
+            finalResponses = [...FEDERATION_RESPONSES, ...GENERIC_RESPONSES]
         }
 
-        const response = finalResponses[Math.floor(Math.random() * finalResponses.length)]
+        const randomIndex = randRange(0, finalResponses.length - 1)
+        const response = finalResponses[randomIndex]
 
         const msgPrefix = `💬 ${context.user}: *${question}*\n`
         const msgAnswer = `🎱 **8ball says:** ${response}`
