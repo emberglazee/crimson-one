@@ -201,7 +201,8 @@ export default class CrimsonChat {
                     messages: messages,
                     tools: Object.keys(tools).length > 0 ? tools : undefined,
                     temperature: this.berserkMode ? 2.0 : 0.8,
-                    topP: this.berserkMode ? 1.0 : 0.95
+                    topP: this.berserkMode ? 1.0 : 0.95,
+                    maxRetries: 10
                 }),
                 timeoutPromise
             ])
