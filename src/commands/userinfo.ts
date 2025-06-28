@@ -26,7 +26,7 @@ export const slashCommand = {
                             .setDescription(`Global avatar for user \`${targetUser.username}\``)
                     ).addTextDisplayComponents(
                         new TextDisplayBuilder().setContent("## User information"),
-                        new TextDisplayBuilder().setContent(`Username: \`${targetUser.username}\`\nDisplay name: \`${targetUser.displayName}\``)
+                        new TextDisplayBuilder().setContent(`Username: \`${targetUser.username}\`${targetUser.discriminator !== '0' ? `\nUser tag: \`${targetUser.tag}\`` : ''}\nDisplay name: \`${targetUser.displayName}\``)
                     )
                 ).addTextDisplayComponents(new TextDisplayBuilder()
                     .setContent(`**Account created:**\n<t:${Math.floor(targetUser.createdTimestamp / 1000)}>\n(<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>)`)
@@ -121,6 +121,7 @@ export const userContextMenuCommand = {
             .setThumbnail(targetUser.displayAvatarURL())
             .addFields(
                 { name: 'Username', value: targetUser.username, inline: true },
+                { name: 'Display Name', value: `${targetUser.displayName}${!targetUser.bot && targetUser.discriminator !== '0' ? ` (#${targetUser.discriminator})` : ''}`, inline: true },
                 { name: 'User ID', value: targetUser.id, inline: true },
                 { name: 'Account Created', value: `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>`, inline: true }
             )
