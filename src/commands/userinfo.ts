@@ -88,7 +88,7 @@ export const slashCommand = {
                                 : 'None'
                             )
                         ).addTextDisplayComponents(new TextDisplayBuilder()
-                            .setContent(`-# * 🎖️ ${Math.floor((member.roles.cache.size / context.guild.roles.cache.size) * 100)}% of the roles on the server`)
+                            .setContent(`-# * 🎖️ ${Math.floor((member.roles.cache.size / context.guild.roles.cache.size) * 100)}% of the roles on the server (${member.roles.cache.size} / ${context.guild.roles.cache.size})`)
                         ).addSeparatorComponents(new SeparatorBuilder()
                             .setSpacing(SeparatorSpacingSize.Small).setDivider(true)
                         ).addTextDisplayComponents(new TextDisplayBuilder()
