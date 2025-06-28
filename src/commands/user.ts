@@ -34,8 +34,8 @@ export const slashCommand = {
 
             const accountCreatedText = (
                 `**Account created:**\n` +
-                `${absoluteDiscordTimestamp(targetUser.createdTimestamp / 1000)}\n` +
-                `(${relativeDiscordTimestamp(targetUser.createdTimestamp / 1000)})`
+                `${absoluteDiscordTimestamp(Math.floor(targetUser.createdTimestamp / 1000))}\n` +
+                `(${relativeDiscordTimestamp(Math.floor(targetUser.createdTimestamp / 1000))})`
             )
 
             const userComponents = [
@@ -127,8 +127,8 @@ export const slashCommand = {
 
                     const joinedServerText = (
                         `**Joined server:**\n` +
-                        `${absoluteDiscordTimestamp(member.joinedTimestamp! / 1000)}\n` +
-                        `(${relativeDiscordTimestamp(member.joinedTimestamp! / 1000)})`
+                        `${absoluteDiscordTimestamp(Math.floor(member.joinedTimestamp! / 1000))}\n` +
+                        `(${relativeDiscordTimestamp(Math.floor(member.joinedTimestamp! / 1000))})`
                     )
 
                     const memberRoleCount = member.roles.cache.size,
