@@ -21,21 +21,20 @@ export const slashCommand = {
         if (subcommand === 'info') {
             // the indentation paradise
 
-            const targetUser = await context.getUserOption('user', false, context.user)
+            const user = await context.getUserOption('user', false, context.user)
             const installationType = await context.getInstallationType()
-            const { bot } = targetUser
 
             const usernameText = (
-                `${targetUser.discriminator === '0'
-                    ? `Username: \`${targetUser.username}\``
-                    : `User tag: \`${targetUser.tag}\``}\n` +
-                `Display name: \`${targetUser.displayName}\``
+                `${user.discriminator === '0'
+                    ? `Username: \`${user.username}\``
+                    : `User tag: \`${user.tag}\``}\n` +
+                `Display name: \`${user.displayName}\``
             )
 
             const accountCreatedText = (
                 `**Account created:**\n` +
-                `${absoluteDiscordTimestamp(Math.floor(targetUser.createdTimestamp / 1000))}\n` +
-                `(${relativeDiscordTimestamp(Math.floor(targetUser.createdTimestamp / 1000))})`
+                `${absoluteDiscordTimestamp(Math.floor(user.createdTimestamp / 1000))}\n` +
+                `(${relativeDiscordTimestamp(Math.floor(user.createdTimestamp / 1000))})`
             )
 
             const userComponents = [
@@ -44,7 +43,7 @@ export const slashCommand = {
                     .setDivider(true),
 
                 new ContainerBuilder()
-                    .setAccentColor(targetUser.accentColor ?? 3447003)
+                    .setAccentColor(user.accentColor ?? 3447003)
                     .addSectionComponents(
 
                         new SectionBuilder()
@@ -59,8 +58,8 @@ export const slashCommand = {
                             ).setThumbnailAccessory(
 
                                 new ThumbnailBuilder()
-                                    .setURL(getUserAvatar(targetUser, null, { size: 256 }))
-                                    .setDescription(`Global avatar for user \`${targetUser.username}\``)
+                                    .setURL(getUserAvatar(user, null, { size: 256 }))
+                                    .setDescription(`Global avatar for user \`${user.username}\``)
 
                             )
 
@@ -72,7 +71,7 @@ export const slashCommand = {
                     ).addTextDisplayComponents(
 
                         new TextDisplayBuilder()
-                            .setContent(`ID: \`${targetUser.id}\``)
+                            .setContent(`ID: \`${user.id}\``)
 
                     ).addSectionComponents(
 
@@ -86,13 +85,13 @@ export const slashCommand = {
 
                                 new ButtonBuilder()
                                     .setStyle(
-                                        bot ? ButtonStyle.Success : ButtonStyle.Danger
+                                        user.bot ? ButtonStyle.Success : ButtonStyle.Danger
                                     ).setLabel(
-                                        bot ? 'Yes' : 'No'
+                                        user.bot ? 'Yes' : 'No'
                                     ).setEmoji(
-                                        bot ? '✅' : '❌'
+                                        user.bot ? '✅' : '❌'
                                     ).setCustomId(
-                                        bot ? 'bot-account-yes' : 'bot-account-no'
+                                        user.bot ? 'bot-account-yes' : 'bot-account-no'
                                     ).setDisabled(true)
 
                             )
@@ -111,7 +110,7 @@ export const slashCommand = {
                     ).addTextDisplayComponents(
 
                         new TextDisplayBuilder()
-                            .setContent(`\`${targetUser.flags?.toArray().join('`, `') || 'None'}\``)
+                            .setContent(`\`${user.flags?.toArray().join('`, `') || 'None'}\``)
 
                     ),
 
@@ -122,7 +121,8 @@ export const slashCommand = {
 
             if (installationType === BotInstallationType.GuildInstall && context.guild) {
 
-                const member = context.guild.members.cache.get(targetUser.id) || await context.guild.members.fetch(targetUser.id).catch(() => null)
+                const member = context.guild.members.cache.get(user.id)
+                    || await context.guild.members.fetch(user.id).catch(() => null)
                 if (member) {
 
                     const joinedServerText = (
@@ -155,8 +155,8 @@ export const slashCommand = {
                                     ).setThumbnailAccessory(
 
                                         new ThumbnailBuilder()
-                                            .setURL(getUserAvatar(targetUser, context.guild, { size: 256 }))
-                                            .setDescription(`Server avatar for user \`${targetUser.username}\``)
+                                            .setURL(getUserAvatar(user, context.guild, { size: 256 }))
+                                            .setDescription(`Server avatar for user \`${user.username}\``)
 
                                     )
 
