@@ -25,7 +25,7 @@ export const slashCommand = {
             const userComponents = [
                 new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Large).setDivider(true),
                 new ContainerBuilder()
-                    .setAccentColor(3447003)
+                    .setAccentColor(targetUser.accentColor ?? 3447003)
                     .addSectionComponents(new SectionBuilder()
                         .setThumbnailAccessory(
                             new ThumbnailBuilder()
@@ -64,7 +64,7 @@ export const slashCommand = {
                 if (member) {
                     userComponents.push(
                         new ContainerBuilder()
-                            .setAccentColor(3447003)
+                            .setAccentColor(member.displayColor)
                             .addSectionComponents(new SectionBuilder()
                                 .addTextDisplayComponents(
                                     new TextDisplayBuilder().setContent("## Member information"),
