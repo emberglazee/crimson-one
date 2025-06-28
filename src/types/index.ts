@@ -1,8 +1,7 @@
 import {
     Guild, BaseInteraction, GuildChannel, Message, GuildMember, CommandInteraction,
     ChatInputCommandInteraction, type APIInteractionDataResolvedChannel,
-    Client, User, type ImageSize, type ImageExtension,
-    TextChannel,
+    Client, User, type ImageSize, type ImageExtension, TextChannel
 } from 'discord.js'
 import { EMBI_ID as EMBI_ID, PING_EMBI as PING_EMBI } from '../util/constants'
 
@@ -265,6 +264,8 @@ export interface UserMessageOptions {
     targetChannel?: TextChannel
     guildName?: string
     channelName?: string
+    channelId?: string
+    messageId?: string
 }
 
 export interface UserStatus {

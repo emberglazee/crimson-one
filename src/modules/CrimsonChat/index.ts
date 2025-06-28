@@ -1,7 +1,8 @@
+// modules\CrimsonChat\index.ts
 import { green, Logger, red, yellow } from '../../util/logger'
 const logger = new Logger('CrimsonChat')
 
-import { Client, TextChannel, Message, ChatInputCommandInteraction } from 'discord.js'
+import { Client, TextChannel, Message, ChatInputCommandInteraction, EmbedBuilder, type MessageReplyOptions } from 'discord.js'
 import type { UserMessageOptions } from '../../types'
 import { MessageQueue } from './MessageQueue'
 import { CrimsonFileBufferHistory } from './memory'
@@ -161,10 +162,15 @@ export default class CrimsonChat {
         // Construct the user message from the buffered content
         const contentParts: (TextPart | ImagePart)[] = []
 
-        // 1. Send UserMessageOptions as JSON
-        // Assign the actual message content to the options object before stringifying
-        lastMessage.options.messageContent = lastMessage.content
-        const userMessageOptionsJson = JSON.stringify(lastMessage.options)
+        // 1. Send UserMessageOptions as JSON, including new context
+        const userMessageContext = {
+            ...lastMessage.options,
+            messageContent: lastMessage.content,
+            channelId: lastMessage.originalMessage?.channelId,
+            messageId: lastMessage.originalMessage?.id
+        }
+        delete userMessageContext.targetChannel
+        const userMessageOptionsJson = JSON.stringify(userMessageContext)
         contentParts.push({ type: 'text', text: userMessageOptionsJson })
 
         // 2. Collect and process all image attachments
@@ -211,15 +217,38 @@ export default class CrimsonChat {
             const newMessages: CoreMessage[] = [userMessage]
             if (toolCalls && toolCalls.length > 0) {
                 newMessages.push({ role: 'assistant', content: toolCalls })
-                const toolCallMessages = (toolCalls as ToolCallPart[]).map(call => `Tool Call: ${call.toolName}(${JSON.stringify(call.args)})`).join('\n')
-                logger.info(`Tool Calls: ${yellow(toolCallMessages)}`)
-                await this.sendResponseToDiscord(`\`\`\`json\n${toolCallMessages}\n\`\`\``, targetChannel, lastMessage.originalMessage)
+                for (const call of toolCalls as ToolCallPart[]) {
+                    const embed = new EmbedBuilder()
+                        .setColor('#FEE75C') // Yellow
+                        .setTitle('⚙️ Tool Call')
+                        .addFields(
+                            { name: 'Tool', value: `\`${call.toolName}\``, inline: true },
+                            { name: 'Arguments', value: `\`\`\`json\n${JSON.stringify(call.args, null, 2)}\n\`\`\`` }
+                        )
+                        .setFooter({ text: `Call ID: ${call.toolCallId}` })
+                        .setTimestamp()
+                    await this.sendResponseToDiscord({ embeds: [embed] }, targetChannel, lastMessage.originalMessage)
+                }
             }
             if (toolResults && toolResults.length > 0) {
                 newMessages.push({ role: 'tool', content: toolResults })
-                const toolResultMessages = (toolResults as ToolResultPart[]).map(result => `Tool Result for ${result.toolName || result.toolCallId}: ${JSON.stringify(result.result)}`).join('\n')
-                logger.info(`Tool Results: ${yellow(toolResultMessages)}`)
-                await this.sendResponseToDiscord(`\`\`\`json\n${toolResultMessages}\n\`\`\``, targetChannel, lastMessage.originalMessage)
+                for (const result of toolResults as ToolResultPart[]) {
+                    const resultString = typeof result.result === 'string'
+                        ? result.result
+                        : JSON.stringify(result.result, null, 2)
+                    const isSuccess = resultString.toLowerCase().startsWith('success:')
+
+                    const embed = new EmbedBuilder()
+                        .setColor(isSuccess ? '#57F287' : '#ED4245') // Green or Red
+                        .setTitle(isSuccess ? '✅ Tool Executed' : '❌ Tool Failed')
+                        .addFields(
+                            { name: 'Tool', value: `\`${result.toolName}\``, inline: true },
+                            { name: 'Result', value: `\`\`\`\n${resultString.substring(0, 1000)}\n\`\`\`` }
+                        )
+                        .setFooter({ text: `Call ID: ${result.toolCallId}` })
+                        .setTimestamp()
+                    await this.sendResponseToDiscord({ embeds: [embed] }, targetChannel, lastMessage.originalMessage)
+                }
             }
             if (text) {
                 newMessages.push({ role: 'assistant', content: text })
@@ -239,18 +268,24 @@ export default class CrimsonChat {
         }
     }
 
-    private async sendResponseToDiscord(response: string, targetChannel: TextChannel, originalMessage?: Message): Promise<void> {
+    private async sendResponseToDiscord(response: string | MessageReplyOptions, targetChannel: TextChannel, originalMessage?: Message): Promise<void> {
         if (!this.client) throw new Error('Client not set')
         const messageQueue = MessageQueue.getInstance()
-        const finalContent = await usernamesToMentions(this.client, response)
-        const messages = this.splitMessage(finalContent.trim() || '-# ...')
 
-        let isFirst = true
-        for (const message of messages) {
-            // Only the first part of a multi-part message should be a reply
-            const replyTo = isFirst ? originalMessage : undefined
-            messageQueue.queueMessage({ content: message, allowedMentions: { repliedUser: !!replyTo } }, targetChannel, replyTo)
-            isFirst = false
+        if (typeof response === 'string') {
+            const finalContent = await usernamesToMentions(this.client, response)
+            const messages = this.splitMessage(finalContent.trim() || '-# ...')
+
+            let isFirst = true
+            for (const message of messages) {
+                const replyTo = isFirst ? originalMessage : undefined
+                messageQueue.queueMessage({ content: message, allowedMentions: { repliedUser: !!replyTo } }, targetChannel, replyTo)
+                isFirst = false
+            }
+        } else {
+            // It's already a MessageReplyOptions object (with embeds)
+            const replyTo = originalMessage
+            messageQueue.queueMessage({ ...response, allowedMentions: { repliedUser: !!replyTo, parse: [] } }, targetChannel, replyTo)
         }
     }
 
