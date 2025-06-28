@@ -32,8 +32,10 @@ export const slashCommand = {
                                 .setURL(getUserAvatar(targetUser, null, { size: 256 }))
                                 .setDescription(`Global avatar for user \`${targetUser.username}\``)
                         ).addTextDisplayComponents(
-                            new TextDisplayBuilder().setContent("## User information"),
-                            new TextDisplayBuilder().setContent(`Username: \`${targetUser.username}\`${targetUser.discriminator !== '0' ? `\nUser tag: \`${targetUser.tag}\`` : ''}\nDisplay name: \`${targetUser.displayName}\``)
+                            new TextDisplayBuilder()
+                                .setContent("## User information"),
+                            new TextDisplayBuilder()
+                                .setContent(`${targetUser.discriminator === '0' ? `Username: \`${targetUser.username}\`` : `User tag: \`${targetUser.tag}\``}\nDisplay name: \`${targetUser.displayName}\``)
                         )
                     ).addTextDisplayComponents(new TextDisplayBuilder()
                         .setContent(`**Account created:**\n<t:${Math.floor(targetUser.createdTimestamp / 1000)}>\n(<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>)`)
