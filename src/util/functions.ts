@@ -24,7 +24,8 @@ export function removeDuplicatesAndNulls<T>(array: T[]): T[] {
     return [...new Set(array)].filter(item => item !== undefined && item !== null)
 }
 
-export const relativeTimestamp = (seconds: number) => `<t:${seconds}:R>` as const
+export const absoluteDiscordTimestamp = (seconds: number) => `<t:${seconds}>`   as const
+export const relativeDiscordTimestamp = (seconds: number) => `<t:${seconds}:R>` as const
 
 export function stringToAttachment(string: string, filename?: string) {
     if (!filename) filename = 'file.txt'
@@ -155,3 +156,10 @@ export function parseNetscapeCookieFile(fileContent: string) {
 }
 
 export const smallFooterNote = <T extends string>(note: T) => `-# - ${note}` as const
+
+export function dateToDiscordEpoch(date: Date): number {
+    const DISCORD_EPOCH = new Date('2015-01-01T00:00:00Z').getTime()
+    const currentUnixTimestamp = date.getTime()
+    if (DISCORD_EPOCH > currentUnixTimestamp) return 0
+    return currentUnixTimestamp - DISCORD_EPOCH
+}
