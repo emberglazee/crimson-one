@@ -23,12 +23,12 @@ const schema = z.object({
     description: z.string().max(4096, 'Description cannot exceed 4096 characters.').optional().describe("The main content of the embed."),
     color: z.string().regex(hexColorRegex, "Invalid hex color format.").optional().describe("The hex color code for the embed's side border (e.g., '#FF5733')."),
     author_name: z.string().max(256, 'Author name cannot exceed 256 characters.').optional().describe("The name for the embed's author section."),
-    author_url: z.string().url('Author URL must be a valid URL.').optional().describe("A URL to link in the author's name."),
-    author_icon_url: z.string().url('Author icon URL must be a valid URL.').optional().describe("A URL for the author's icon."),
+    author_url: z.string().optional().describe("A URL to link in the author's name. Must be a valid URL."),
+    author_icon_url: z.string().optional().describe("A URL for the author's icon. Must be a valid URL."),
     footer_text: z.string().max(2048, 'Footer text cannot exceed 2048 characters.').optional().describe("The text for the embed's footer."),
-    footer_icon_url: z.string().url('Footer icon URL must be a valid URL.').optional().describe("A URL for the footer's icon."),
-    image_url: z.string().url('Image URL must be a valid URL.').optional().describe("The URL for the main image of the embed."),
-    thumbnail_url: z.string().url('Thumbnail URL must be a valid URL.').optional().describe("The URL for the thumbnail image of the embed."),
+    footer_icon_url: z.string().optional().describe("A URL for the footer's icon. Must be a valid URL."),
+    image_url: z.string().optional().describe("The URL for the main image of the embed. Must be a valid URL."),
+    thumbnail_url: z.string().optional().describe("The URL for the thumbnail image of the embed. Must be a valid URL."),
     fields: z.array(embedFieldSchema).max(25, 'An embed cannot have more than 25 fields.').optional().describe("An array of fields to add to the embed. Max 25 fields."),
     timestamp: z.boolean().optional().describe("Whether to add the current timestamp to the embed footer.")
 })
