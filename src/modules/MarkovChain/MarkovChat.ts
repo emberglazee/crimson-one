@@ -142,7 +142,7 @@ export class MarkovChat extends EventEmitter<{
 
             while (retries < MAX_RETRIES) {
                 try {
-                    logger.info(`Fetching batch #${yellow(batchCount + 1)} (${yellow(fetchOptions.limit)} messages)`)
+                    logger.info(`Fetching batch #${yellow(batchCount + 1)}`)
                     batch = await channel.messages.fetch(fetchOptions)
                     break
                 } catch (error) {
