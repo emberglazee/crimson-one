@@ -94,7 +94,7 @@ export class MessageTrigger {
                     ''
                 ]))
                 const emberglaze = await message.client.users.fetch(EMBI_ID)
-                await emberglaze.send(`${PING_EMBI} https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}\n-# Guild ${message.guild?.name || 'null'} (${message.guild?.id || 'null'})`)
+                await emberglaze.send(`${PING_EMBI} https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`)
             }
         },
         {
@@ -106,6 +106,10 @@ export class MessageTrigger {
         {
             pattern: [/\bash\b/gmi, /ashleigh/gmi],
             async action(message) {
+                const ashleighId = '231808039282409472'
+                if (message.channelId === '1372567739931037890') return
+                if (message.guildId !== '958518067690868796') return
+                if (message.mentions.users.has(ashleighId) || message.author.id === ashleighId) return
                 if (chance(50)) await message.reply(getRandomElement([
                     'https://cdn.discordapp.com/attachments/1267488539503886386/1331344509036003338/file.jpg?ex=67e25af2&is=67e10972&hm=847306a43bf42323c2ffa3e1b641d1a4bd1c3a737d89a526e84df7e034694dc0&',
                     'https://media.discordapp.net/attachments/1351770874625130577/1351770895559164004/image.png?ex=67e2d680&is=67e18500&hm=235591676beae2c24528840dc66a2b78ee4fbef5fb16747edb0783b8ef561cb3&format=webp&quality=lossless&',
@@ -122,6 +126,8 @@ export class MessageTrigger {
                     'https://cdn.discordapp.com/attachments/982138135653793804/1386321925340532808/image.png?ex=68594867&is=6857f6e7&hm=d39bae8efb9a310efefe0ca677ebc78eadbeafc190de7446b4152203ec117d31&',
                     'https://cdn.discordapp.com/attachments/982138135653793804/1386321932848468109/image.png?ex=68594869&is=6857f6e9&hm=ce0ade2cbd71ddfde03e522cfb22b387fa1d0820c19a06331bf90c5be5b4155b&'
                 ]))
+                const ashleigh = await message.client.users.fetch(ashleighId)
+                await ashleigh.send(`<@${ashleighId}> https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`)
             }
         },
         {
