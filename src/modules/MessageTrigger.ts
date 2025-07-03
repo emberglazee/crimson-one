@@ -149,8 +149,9 @@ export class MessageTrigger {
             }
         },
         {
-            pattern: [/\bhungry\b/],
+            pattern: [/\bhungry\b/gmi],
             async action(message) {
+                await message.react('🐴')
                 await message.reply(getRandomElement([
                     'https://tenor.com/view/horse-you-have-alerted-the-horse-alert-alert-horse-horse-alert-gif-10675569724654458517',
                     'https://tenor.com/view/order-of-iris-how-hungry-horse-honse-gif-14835892721220569918'
@@ -158,13 +159,19 @@ export class MessageTrigger {
             }
         },
         {
-            pattern: [/femboy/],
+            pattern: [/horse/gmi],
+            async action(message) {
+                await message.react('🐴')
+            },
+        },
+        {
+            pattern: [/femboy/gmi],
             async action(message) {
                 if (chance(1)) await message.reply('https://tenor.com/view/%D1%84%D1%81%D0%B1-gif-21407990')
             }
         },
         {
-            pattern: [/chicken jockey/],
+            pattern: [/chicken jockey/gmi],
             async action(message) {
                 await message.reply(getRandomElement([
                     'https://tenor.com/view/minecraft-minecraft-movie-a-minecraft-movie-steve-jack-black-gif-4079785775268000209',
