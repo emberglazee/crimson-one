@@ -436,185 +436,172 @@ export default class CommandManager {
     public async handleMessageCommand(message: Message, prefix: string): Promise<void> {
         if (!this.initialized || !message.content.startsWith(prefix) || message.author.bot) return
 
-        const contentWithoutPrefix = message.content.slice(prefix.length).trim()
-        const commandName = contentWithoutPrefix.split(/ +/)[0]?.toLowerCase()
-
+        const { commandName, rawArgsString } = this._parseCommandFromMessage(message.content, prefix)
         if (!commandName) return
 
         const command = this.findMatchingSlashCommand(commandName, message.guildId)
 
-        if (!command || (!CommandManager.isGlobalSlashCommand(command) && !CommandManager.isGuildSlashCommand(command))) {
+        if (!command || !CommandManager.isSlashCommand(command)) {
             return
         }
 
-        const context = new CommandContext(message, contentWithoutPrefix.split(/ +/))
         try {
-            const firstSpaceIndex = contentWithoutPrefix.indexOf(' ')
-            const rawArgsString = firstSpaceIndex !== -1 ? contentWithoutPrefix.substring(firstSpaceIndex + 1).trimStart() : ''
+            const context = await this._createContextForMessageCommand(message, command, rawArgsString, prefix)
 
-            const commandData = command.data.toJSON()
-            const allTokens = this.tokenizeArgs(rawArgsString)
-
-            const commandPath: string[] = []
-            let activeOptions = commandData.options ?? []
-            let argsStartIndex = 0
-
-            if (allTokens.length > 0) {
-                let currentLevelOptions = commandData.options ?? []
-                const groupDef = currentLevelOptions.find(o => o.name === allTokens[0] && o.type === ApplicationCommandOptionType.SubcommandGroup)
-                if (groupDef) {
-                    commandPath.push(allTokens[0])
-                    argsStartIndex = 1
-                    currentLevelOptions = (groupDef as ExplicitAny).options ?? []
-                    if (allTokens.length > 1) {
-                        const subDef = currentLevelOptions.find(o => o.name === allTokens[1] && o.type === ApplicationCommandOptionType.Subcommand)
-                        if (subDef) {
-                            commandPath.push(allTokens[1])
-                            argsStartIndex = 2
-                            activeOptions = (subDef as ExplicitAny).options ?? []
-                        }
-                    }
-                } else {
-                    const subDef = currentLevelOptions.find(o => o.name === allTokens[0] && o.type === ApplicationCommandOptionType.Subcommand)
-                    if (subDef) {
-                        commandPath.push(allTokens[0])
-                        argsStartIndex = 1
-                        activeOptions = (subDef as ExplicitAny).options ?? []
-                    }
-                }
-            }
-
-            const argTokens = allTokens.slice(argsStartIndex)
-            const requiredOptions = activeOptions.filter(opt => opt.required)
-
-            const positionalValues: string[] = []
-            const flaggedTokens: string[] = []
-            let inFlagsSection = false
-            for (const token of argTokens) {
-                if (token.startsWith('-')) {
-                    inFlagsSection = true
-                }
-                if (inFlagsSection) {
-                    flaggedTokens.push(token)
-                } else {
-                    positionalValues.push(token)
-                }
-            }
-
-            const reconstructedArgs: string[] = [...commandPath]
-
-            positionalValues.forEach((value, index) => {
-                if (index < requiredOptions.length) {
-                    const option = requiredOptions[index]
-                    reconstructedArgs.push(`--${option.name}`)
-                    reconstructedArgs.push(value)
-                } else {
-                    reconstructedArgs.push(value)
-                }
-            })
-
-            reconstructedArgs.push(...flaggedTokens)
-
-            const finalArgsString = reconstructedArgs
-                .map(arg => (/\s/).test(arg) ? `"${arg.replace(/"/g, '\\"')}"` : arg)
-                .join(' ')
-
-            const yargsParser = this.buildYargsParserForCommand(command as SlashCommand, message, finalArgsString, prefix)
-
-            // --- CAPTURE CONSOLE OUTPUT ---
-            let capturedHelpText = ''
-            const originalConsoleLog = console.log
-            const consoleLogInterceptor = (...args: ExplicitAny[]) => {
-                capturedHelpText += args.map(arg => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ') + '\n'
-            }
-
-            let parsedYargsArgs
-            let parseError = null
-
-            const helpPattern = /(\s|^)(-h|--help)(\s|$)/
-            const isHelpLikelyRequested = helpPattern.test(rawArgsString) // Check original string for help flag
-
-            if (isHelpLikelyRequested) {
-                console.log = consoleLogInterceptor
-            }
-
-            try {
-                // We parse the RECONSTRUCTED string.
-                parsedYargsArgs = await yargsParser.parseAsync()
-            } catch (err) {
-                parseError = err
-            } finally {
-                if (isHelpLikelyRequested) {
-                    console.log = originalConsoleLog
-                }
-            }
-
-            if (parseError) {
-                throw parseError
-            }
-            // --- END CAPTURE ---
-
-            if (hasProp(parsedYargsArgs, 'h') && parsedYargsArgs.h === true && isHelpLikelyRequested && capturedHelpText.trim()) {
-                logger.info(`{handleMessageCommand} Help flag detected for command: ${commandName}`)
-                await message.reply(`\`\`\`\n${capturedHelpText.trim()}\n\`\`\``)
+            // Handle explicit help request before executing
+            if (context.parsedArgs?.h === true || context.parsedArgs?.help === true) {
+                const finalArgsString = this._reconstructArgumentsForYargs(rawArgsString, command)
+                const yargsParser = this.buildYargsParserForCommand(command, message, finalArgsString, prefix)
+                const helpText = await yargsParser.getHelp()
+                await message.reply(`\`\`\`\n${helpText.trim()}\n\`\`\``)
                 return
             }
 
-            const yargsCommandPath = parsedYargsArgs?._?.map(String) ?? []
-            const commandDataJson = command.data.toJSON()
-            const options = commandDataJson.options ?? []
-            const commandPathForContext = [...yargsCommandPath]
+            await this.executeUnifiedCommand(command, context)
 
-            if (options.some(o => o.type === ApplicationCommandOptionType.SubcommandGroup)) {
-                const potentialGroup = commandPathForContext[0]
-                if (potentialGroup && options.find(o => o.name === potentialGroup && o.type === ApplicationCommandOptionType.SubcommandGroup)) {
-                    context.subcommandGroupName = commandPathForContext.shift() || null
+        } catch (e) {
+            const error = e as Error & { name?: string }
+            if (error.name === 'YError') {
+                logger.warn(`{handleMessageCommand} Yargs validation error for "${commandName}". .fail() should have replied.`)
+            } else {
+                this.handleError(error, message, commandName)
+            }
+        }
+    }
+
+    private _parseCommandFromMessage(content: string, prefix: string): { commandName: string | null; rawArgsString: string } {
+        const contentWithoutPrefix = content.slice(prefix.length).trim()
+        const commandName = contentWithoutPrefix.split(/ +/)[0]?.toLowerCase() ?? null
+        const firstSpaceIndex = contentWithoutPrefix.indexOf(' ')
+        const rawArgsString = firstSpaceIndex !== -1 ? contentWithoutPrefix.substring(firstSpaceIndex + 1).trimStart() : ''
+        return { commandName, rawArgsString }
+    }
+
+    private async _createContextForMessageCommand(message: Message, command: SlashCommand, rawArgsString: string, prefix: string): Promise<CommandContext> {
+        const finalArgsString = this._reconstructArgumentsForYargs(rawArgsString, command)
+        const yargsParser = this.buildYargsParserForCommand(command, message, finalArgsString, prefix)
+
+        const parsedYargsArgs = await yargsParser.parseAsync()
+
+        const context = new CommandContext(message, rawArgsString.split(/ +/))
+        context.parsedArgs = parsedYargsArgs as ArgumentsCamelCase<{ [key: string]: JSONResolvable }>
+
+        this._setSubcommandContextFromArgs(context, parsedYargsArgs, command.data.toJSON())
+
+        return context
+    }
+
+    private _reconstructArgumentsForYargs(rawArgsString: string, command: SlashCommand): string {
+        const commandData = command.data.toJSON()
+        const allTokens = this.tokenizeArgs(rawArgsString)
+
+        const commandPath: string[] = []
+        let activeOptions = commandData.options ?? []
+        let argsStartIndex = 0
+
+        if (allTokens.length > 0) {
+            let currentLevelOptions = commandData.options ?? []
+            const groupDef = currentLevelOptions.find(o => o.name === allTokens[0] && o.type === ApplicationCommandOptionType.SubcommandGroup)
+            if (groupDef) {
+                commandPath.push(allTokens[0])
+                argsStartIndex = 1
+                currentLevelOptions = (groupDef as ExplicitAny).options ?? []
+                if (allTokens.length > 1) {
+                    const subDef = currentLevelOptions.find(o => o.name === allTokens[1] && o.type === ApplicationCommandOptionType.Subcommand)
+                    if (subDef) {
+                        commandPath.push(allTokens[1])
+                        argsStartIndex = 2
+                        activeOptions = (subDef as ExplicitAny).options ?? []
+                    }
+                }
+            } else {
+                const subDef = currentLevelOptions.find(o => o.name === allTokens[0] && o.type === ApplicationCommandOptionType.Subcommand)
+                if (subDef) {
+                    commandPath.push(allTokens[0])
+                    argsStartIndex = 1
+                    activeOptions = (subDef as ExplicitAny).options ?? []
                 }
             }
-            if (
-                options.some(o => o.type === ApplicationCommandOptionType.Subcommand) ||
-                (() => {
-                    const group = context.subcommandGroupName && options.find(
+        }
+
+        const argTokens = allTokens.slice(argsStartIndex)
+        const requiredOptions = activeOptions.filter(opt => opt.required)
+
+        const positionalValues: string[] = []
+        const flaggedTokens: string[] = []
+        let inFlagsSection = false
+        for (const token of argTokens) {
+            if (token.startsWith('-')) {
+                inFlagsSection = true
+            }
+            if (inFlagsSection) {
+                flaggedTokens.push(token)
+            } else {
+                positionalValues.push(token)
+            }
+        }
+
+        const reconstructedArgs: string[] = [...commandPath]
+
+        positionalValues.forEach((value, index) => {
+            if (index < requiredOptions.length) {
+                const option = requiredOptions[index]
+                reconstructedArgs.push(`--${option.name}`)
+                reconstructedArgs.push(value)
+            } else {
+                reconstructedArgs.push(value)
+            }
+        })
+
+        reconstructedArgs.push(...flaggedTokens)
+
+        return reconstructedArgs
+            .map(arg => (/\s/).test(arg) ? `"${arg.replace(/"/g, '"')}"` : arg)
+            .join(' ')
+    }
+
+    private _setSubcommandContextFromArgs(context: CommandContext, parsedArgs: ArgumentsCamelCase, commandData: RESTPostAPIChatInputApplicationCommandsJSONBody): void {
+        const yargsCommandPath = parsedArgs?._?.map(String) ?? []
+        const options = commandData.options ?? []
+        const commandPathForContext = [...yargsCommandPath]
+
+        if (options.some(o => o.type === ApplicationCommandOptionType.SubcommandGroup)) {
+            const potentialGroup = commandPathForContext[0]
+            if (potentialGroup && options.find(o => o.name === potentialGroup && o.type === ApplicationCommandOptionType.SubcommandGroup)) {
+                context.subcommandGroupName = commandPathForContext.shift() || null
+            }
+        }
+        if (
+            options.some(o => o.type === ApplicationCommandOptionType.Subcommand) ||
+            (() => {
+                const group = context.subcommandGroupName && options.find(
+                    o =>
+                        o.name === context.subcommandGroupName &&
+                        o.type === ApplicationCommandOptionType.SubcommandGroup &&
+                        Array.isArray((o as ExplicitAny).options)
+                )
+                return !!(group && Array.isArray((group as ExplicitAny).options) &&
+                    (group as ExplicitAny).options.some((subOpt: ExplicitAny) => subOpt.type === ApplicationCommandOptionType.Subcommand)
+                )
+            })()
+        ) {
+            const potentialSubcommand = commandPathForContext[0]
+            if (potentialSubcommand) {
+                let subOptExists = false
+                if (context.subcommandGroupName) {
+                    const group = options.find(
                         o =>
                             o.name === context.subcommandGroupName &&
                             o.type === ApplicationCommandOptionType.SubcommandGroup &&
                             Array.isArray((o as ExplicitAny).options)
                     )
-                    return !!(group && Array.isArray((group as ExplicitAny).options) &&
-                        (group as ExplicitAny).options.some((subOpt: ExplicitAny) => subOpt.type === ApplicationCommandOptionType.Subcommand)
-                    )
-                })()
-            ) {
-                const potentialSubcommand = commandPathForContext[0]
-                if (potentialSubcommand) {
-                    let subOptExists = false
-                    if (context.subcommandGroupName) {
-                        const group = options.find(
-                            o =>
-                                o.name === context.subcommandGroupName &&
-                                o.type === ApplicationCommandOptionType.SubcommandGroup &&
-                                Array.isArray((o as ExplicitAny).options)
-                        )
-                        subOptExists = !!(group && (group as ExplicitAny).options?.find((subOpt: ExplicitAny) => subOpt.name === potentialSubcommand && subOpt.type === ApplicationCommandOptionType.Subcommand))
-                    } else {
-                        subOptExists = !!options.find(o => o.name === potentialSubcommand && o.type === ApplicationCommandOptionType.Subcommand)
-                    }
-                    if (subOptExists) {
-                        context.subcommandName = commandPathForContext.shift() || null
-                    }
+                    subOptExists = !!(group && (group as ExplicitAny).options?.find((subOpt: ExplicitAny) => subOpt.name === potentialSubcommand && subOpt.type === ApplicationCommandOptionType.Subcommand))
+                } else {
+                    subOptExists = !!options.find(o => o.name === potentialSubcommand && o.type === ApplicationCommandOptionType.Subcommand)
                 }
-            }
-            context.parsedArgs = parsedYargsArgs as ArgumentsCamelCase<{ [key: string]: JSONResolvable }>
-
-            await this.executeUnifiedCommand(command as SlashCommand, context)
-
-        } catch (e) {
-            const error = e as Error & { name?: string }
-            if (error.name === 'YError') {
-                logger.warn(`{handleMessageCommand} Yargs validation error for "${commandName}" (name: YError). .fail() should have replied.`)
-            } else {
-                logger.warn(`{handleMessageCommand} Non-YError caught for "${commandName}": ${error.message}`)
-                this.handleError(error, message, commandName)
+                if (subOptExists) {
+                    context.subcommandName = commandPathForContext.shift() || null
+                }
             }
         }
     }
@@ -654,16 +641,16 @@ export default class CommandManager {
                     if (command.permissions && memberPerms) {
                         const missing = memberPerms.missing(command.permissions.map(p => p.valueOf()))
                         if (missing.length > 0) {
-                           throw new MissingPermissionsError(
-                               `You are missing the following permissions: ${missing.join(', ')}`,
-                               missing
-                           )
-                       }
-                   } else if (command.permissions && !memberPerms) {
-                       throw new Error('Could not determine member permissions.')
-                   }
+                            throw new MissingPermissionsError(
+                                `You are missing the following permissions: ${missing.join(', ')}`,
+                                missing
+                            )
+                        }
+                    } else if (command.permissions && !memberPerms) {
+                        throw new Error('Could not determine member permissions.')
+                    }
 
-                   if (CommandManager.isGuildSlashCommand(command)) {
+                    if (CommandManager.isGuildSlashCommand(command)) {
                         // This command requires a guild context. We must assert it at runtime.
                         if (!context.guild || !context.member) {
                             // This is a safeguard. In theory, a GuildSlashCommand should only be matched
@@ -675,11 +662,11 @@ export default class CommandManager {
                         // We've confirmed the context is valid, now we can call execute
                         // with the context cast to the more specific type.
                         await command.execute(context as GuildOnlyCommandContext)
-                   } else {
+                    } else {
                         // This is a global command, which can run anywhere.
                         // Its `execute` method expects the less-strict `CommandContext<boolean>`.
                         await command.execute(context)
-                   }
+                    }
 
                 } catch (err) {
                     const error = err as Error
@@ -802,7 +789,7 @@ export default class CommandManager {
                                 replyMessage += `\n\nUsage:\n${fullHelp}`
                             }
                         } else {
-                             logger.warn(`{buildYargsParserForCommand} yargsInstanceItself.getHelp is not a function (in else branch) for ${baseCommandData.name}. Cannot append full help.`)
+                         logger.warn(`{buildYargsParserForCommand} yargsInstanceItself.getHelp is not a function (in else branch) for ${baseCommandData.name}. Cannot append full help.`)
                         }
                     } catch (getHelpError) {
                         logger.warn(`{buildYargsParserForCommand} Could not append full yargs help output: ${getHelpError}`)
@@ -858,7 +845,7 @@ export default class CommandManager {
                         (yargsGroup: Argv) => {
                             if (optData.options && Array.isArray(optData.options)) {
                                 for (const subCmdOpt of optData.options) {
-                                     if (subCmdOpt.type === ApplicationCommandOptionType.Subcommand) {
+                                    if (subCmdOpt.type === ApplicationCommandOptionType.Subcommand) {
                                         yargsGroup.command(
                                             subCmdOpt.name, subCmdOpt.description,
                                             (yargsSubcommand: Argv) => {
@@ -912,8 +899,8 @@ export default class CommandManager {
         } else { // It's an Interaction
             // Try to reply or editReply based on interaction state
             if (!source.isRepliable()) {
-                 logger.warn(`{handleError} Interaction for ${commandName} is not repliable.`)
-                 return
+                logger.warn(`{handleError} Interaction for ${commandName} is not repliable.`)
+                return
             }
 
             if (source.deferred || source.replied) {
