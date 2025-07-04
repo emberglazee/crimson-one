@@ -3,7 +3,7 @@ const logger = new Logger('CrimsonChat | end_poll()')
 
 import { z } from 'zod'
 import { tool } from 'ai'
-import { bot as client } from '../../..'
+import { client as client } from '../../..'
 import { ChannelType } from 'discord.js'
 
 const CHANNEL_ID = '1335992675459141632'

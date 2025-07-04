@@ -3,7 +3,7 @@ const logger = new Logger('CrimsonChat | banish()')
 
 import { z } from 'zod'
 import { tool } from 'ai'
-import { bot as client } from '../../..'
+import { client as client } from '../../..'
 import { distance } from 'fastest-levenshtein'
 import { type Guild, type GuildMember, PermissionsBitField } from 'discord.js'
 import { EMBI_ID } from '../../../util/constants'
@@ -44,7 +44,7 @@ async function invoke({ username, displayname, duration, reason }: Input): Promi
         return `Error: Could not find any member matching the query "${query}".`
     }
 
-    if (member.id === client.user?.id) {
+    if (member.id === client.user.id) {
         return "You can't make me banish myself. Predictable."
     }
     if (member.id === EMBI_ID) {
@@ -56,7 +56,7 @@ async function invoke({ username, displayname, duration, reason }: Input): Promi
 
     const banishmentManager = BanishmentManager.getInstance()
     try {
-        await banishmentManager.banish(member, client.user!, 'crimsonchat', duration ?? null, reason ?? 'Banishment issued by Crimson 1.')
+        await banishmentManager.banish(member, client.user, 'crimsonchat', duration ?? null, reason ?? 'Banishment issued by Crimson 1.')
         return `Success: User ${member.user.username} has been banished.`
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'

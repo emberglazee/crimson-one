@@ -43,6 +43,21 @@ export default {
             return
         }
 
+        if (targetMember.id === context.client.user.id) {
+            await context.reply({ content: '❌ You cannot banish me.', ephemeral: true })
+            return
+        }
+
+        if (!targetMember.manageable) {
+            await context.reply({ content: '❌ I cannot moderate this user. They may have a higher role than me or I may not have the necessary permissions.', ephemeral: true })
+            return
+        }
+
+        if (context.member.roles.highest.position <= targetMember.roles.highest.position) {
+            await context.reply({ content: '❌ You cannot banish a member with an equal or higher role than you.', ephemeral: true })
+            return
+        }
+
         const banishmentManager = BanishmentManager.getInstance()
 
         try {

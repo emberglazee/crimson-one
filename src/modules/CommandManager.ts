@@ -1466,7 +1466,7 @@ export default class CommandManager {
 export class CommandContext<InGuild extends boolean = boolean> {
     private originalMessageReply: Message | null = null
 
-    public readonly client: Client
+    public readonly client: Client<true>
     public readonly interaction: ChatInputCommandInteraction | null
     public readonly message: Message | null
     public readonly embiId: typeof EMBI_ID = EMBI_ID
@@ -1572,7 +1572,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
         } else if (this.message) {
             const channel = this.message.channel
             if (channel && 'send' in channel && typeof channel.send === 'function') {
-                this.originalMessageReply = await this.message.reply(`${TYPING_EMOJI} ${this.client.user!.displayName} is thinking...`)
+                this.originalMessageReply = await this.message.reply(`${TYPING_EMOJI} ${this.client.user.displayName} is thinking...`)
                 return this.originalMessageReply
             }
         }
@@ -1970,13 +1970,13 @@ export class CommandContext<InGuild extends boolean = boolean> {
             // Now, distinguish between Guild Install and User Install *within this guild*.
             // The key here is whether the bot exists as a member in this guild.
             if (this.guild) { // Check if the full Guild object is available (implies bot might be in cache or fetchable)
-                let botMember: GuildMember | undefined | null = this.guild.members.cache.get(this.client.user!.id)
+                let botMember: GuildMember | undefined | null = this.guild.members.cache.get(this.client.user.id)
                 if (!botMember) {
                     try {
                         // Attempt to fetch if not in cache. Requires GUILD_MEMBERS intent.
                         // This fetch will only succeed if the bot is actually in the guild and has intent.
                         // If it's a user-installed command in a guild where bot isn't member, this will likely fail or return null.
-                        botMember = await this.guild.members.fetch(this.client.user!.id)
+                        botMember = await this.guild.members.fetch(this.client.user.id)
                     } catch {
                         // Error likely means bot is not in guild or permissions/intents issue.
                         // Treat as bot member not found for this purpose.

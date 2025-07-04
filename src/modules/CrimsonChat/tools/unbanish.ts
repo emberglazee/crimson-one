@@ -3,7 +3,7 @@ const logger = new Logger('CrimsonChat | unbanish()')
 
 import { z } from 'zod'
 import { tool } from 'ai'
-import { bot as client } from '../../..'
+import { client as client } from '../../..'
 import { distance } from 'fastest-levenshtein'
 import { type Guild, type GuildMember, PermissionsBitField } from 'discord.js'
 import { BanishmentManager } from '../../BanishmentManager'
@@ -42,7 +42,7 @@ async function invoke({ username, displayname, reason }: Input): Promise<string>
         return `Error: Could not find any member matching the query "${query}".`
     }
 
-    if (member.id === client.user?.id) {
+    if (member.id === client.user.id) {
         return "What did you think was gonna happen?"
     }
     if (!member.manageable) {
@@ -51,7 +51,7 @@ async function invoke({ username, displayname, reason }: Input): Promise<string>
 
     const banishmentManager = BanishmentManager.getInstance()
     try {
-        await banishmentManager.unbanish(member, client.user!, 'crimsonchat', reason ?? 'Unbanishment issued by Crimson 1.')
+        await banishmentManager.unbanish(member, client.user, 'crimsonchat', reason ?? 'Unbanishment issued by Crimson 1.')
         return `Success: User ${member.user.username} has been unbanished.`
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'

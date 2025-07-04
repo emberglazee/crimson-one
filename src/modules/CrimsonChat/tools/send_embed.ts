@@ -3,7 +3,7 @@ const logger = new Logger('CrimsonChat | send_embed()')
 
 import { z } from 'zod'
 import { tool } from 'ai'
-import { bot as client } from '../../..'
+import { client as client } from '../../..'
 import { ChannelType, EmbedBuilder, type TextChannel } from 'discord.js'
 import type { HexColor } from '../../../types'
 

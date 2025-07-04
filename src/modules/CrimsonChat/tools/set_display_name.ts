@@ -3,7 +3,7 @@ const logger = new Logger('CrimsonChat | set_display_name()')
 
 import { z } from 'zod'
 import { tool } from 'ai'
-import { bot as client } from '../../..'
+import { client as client } from '../../..'
 import { distance } from 'fastest-levenshtein'
 import { type Guild, type GuildMember, PermissionsBitField } from 'discord.js'
 import { EMBI_ID } from '../../../util/constants'
@@ -47,7 +47,7 @@ async function invoke({ username, displayname, new_display_name, reason }: Input
     }
 
     // 3. Handle special cases
-    if (member.id === client.user?.id) {
+    if (member.id === client.user.id) {
         // If the target is the bot itself, use setNickname
         try {
             await guild.members.me?.setNickname(new_display_name, reason ?? 'Display name changed by Crimson 1.')

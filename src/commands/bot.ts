@@ -94,14 +94,14 @@ export default {
         if (subcommand === 'set_global_avatar') {
             await context.deferReply()
             const avatar = context.getAttachmentOption('avatar', true)
-            await context.client.user!.setAvatar(avatar.url)
+            await context.client.user.setAvatar(avatar.url)
             await context.editReply('✅ Avatar changed')
             return
         }
         if (subcommand === 'set_global_banner') {
             await context.deferReply()
             const banner = context.getAttachmentOption('banner', true)
-            await context.client.user!.setBanner(banner.url)
+            await context.client.user.setBanner(banner.url)
             await context.editReply('✅ Banner changed')
             return
         }
@@ -137,7 +137,7 @@ export default {
                 return
             }
             try {
-                await context.client.user!.setUsername(username)
+                await context.client.user.setUsername(username)
                 trackSuccessfulExecution()
             } catch (e) {
                 if ((e as Error).message.includes('USERNAME_RATE_LIMIT')) {

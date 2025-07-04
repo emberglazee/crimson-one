@@ -38,7 +38,7 @@ export class BanishmentManager extends EventEmitter<{
     userUnbanished: (data: UnbanishmentEvent) => void
 }> {
     private static instance: BanishmentManager
-    private client!: Client
+    private client!: Client<true>
     private activeTimeouts = new Map<string, NodeJS.Timeout>()
     private actionsInProgress = new Set<string>() // Key: userId
 
@@ -53,7 +53,7 @@ export class BanishmentManager extends EventEmitter<{
         return BanishmentManager.instance
     }
 
-    public setClient(client: Client): this {
+    public setClient(client: Client<true>): this {
         this.client = client
         return this
     }
@@ -86,7 +86,7 @@ export class BanishmentManager extends EventEmitter<{
 
         for (const ban of banishments) {
             if (ban.unbanishAt <= now) {
-                this.unbanishUser(ban.guildId, ban.userId, this.client.user!, 'manual', 'Timed banishment expired during downtime.').catch(e => logger.error(`Failed to process expired banishment for ${ban.userId}: ${(e as Error).message}`))
+                this.unbanishUser(ban.guildId, ban.userId, this.client.user, 'manual', 'Timed banishment expired during downtime.').catch(e => logger.error(`Failed to process expired banishment for ${ban.userId}: ${(e as Error).message}`))
             } else {
                 this.scheduleUnban(ban.guildId, ban.userId, ban.unbanishAt)
             }
@@ -103,7 +103,7 @@ export class BanishmentManager extends EventEmitter<{
 
         if (delay > 0) {
             const timeout = setTimeout(() => {
-                this.unbanishUser(guildId, userId, this.client.user!, 'manual', 'Timed banishment expired.').catch(e => logger.error(`Scheduled unbanish failed for ${userId}: ${(e as Error).message}`))
+                this.unbanishUser(guildId, userId, this.client.user, 'manual', 'Timed banishment expired.').catch(e => logger.error(`Scheduled unbanish failed for ${userId}: ${(e as Error).message}`))
             }, delay)
             this.activeTimeouts.set(key, timeout)
         }

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { tool } from 'ai'
 import { Logger, yellow, red } from '../../../util/logger'
-import { bot as client } from '../../..'
+import { client as client } from '../../..'
 import { ActivityType, type PresenceStatusData } from 'discord.js'
 
 const logger = new Logger('CrimsonChat | set_bot_status()')

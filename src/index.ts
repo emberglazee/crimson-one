@@ -20,7 +20,7 @@ import GuildConfigManager from './modules/GuildConfig'
 import { QuoteImageFactory } from './modules/QuoteImageFactory'
 import CrimsonChat from './modules/CrimsonChat'
 
-export const bot = new Client({
+const unreadyClient = new Client({
     intents: new IntentsBitField([
         IntentsBitField.Flags.Guilds,
         IntentsBitField.Flags.GuildMembers,
@@ -40,24 +40,29 @@ export const bot = new Client({
     }
 })
 
+logger.info('Logging in...')
+await unreadyClient.login(process.env.DISCORD_TOKEN)
+export const client = unreadyClient as Client<true>
+logger.ok('Logged in')
+
 export const guildConfigManager = GuildConfigManager.getInstance()
-const commandManager = CommandManager.getInstance().setClient(bot)
-export const quoteFactory = new QuoteFactory(bot)
-export const awacsFeed = new AWACSFeed(bot)
+const commandManager = CommandManager.getInstance().setClient(client)
+export const quoteFactory = new QuoteFactory(client)
+export const awacsFeed = new AWACSFeed(client)
 export const messageTrigger = new MessageTrigger()
-export const shapesInc = ShapesInc.getInstance(bot, '1335992675459141632')
+export const shapesInc = ShapesInc.getInstance(client, '1335992675459141632')
 export const crimsonChat = CrimsonChat.getInstance()
-export const banishmentManager = BanishmentManager.getInstance().setClient(bot)
+export const banishmentManager = BanishmentManager.getInstance().setClient(client)
 
-bot.once('ready', async () => {
-    logger.info(`Logged in as ${yellow(bot.user!.tag)}`)
-    gracefulShutdown.setClient(bot)
+client.once('ready', async () => {
+    logger.info(`Logged in as ${yellow(client.user.tag)}`)
+    gracefulShutdown.setClient(client)
     gracefulShutdown.registerShutdownHandlers()
-    bot.user!.setStatus('dnd')
+    client.user.setStatus('dnd')
 
-    QuoteImageFactory.getInstance().setClient(bot)
+    QuoteImageFactory.getInstance().setClient(client)
 
-    MarkovChat.getInstance().setClient(bot)
+    MarkovChat.getInstance().setClient(client)
 
     await guildConfigManager.init()
     await banishmentManager.init()
@@ -68,7 +73,7 @@ bot.once('ready', async () => {
 
     await shapesInc.init()
 
-    crimsonChat.setClient(bot)
+    crimsonChat.setClient(client)
     await crimsonChat.init()
 
     const webhook = GithubWebhook.getInstance()
@@ -76,7 +81,7 @@ bot.once('ready', async () => {
             port: Number(process.env.GITHUB_WEBHOOK_PORT) || 3000,
             secret: process.env.GITHUB_WEBHOOK_SECRET!
         })
-        .setClient(bot)
+        .setClient(client)
     await webhook.init()
 
     await quoteFactory.init()
@@ -84,11 +89,11 @@ bot.once('ready', async () => {
     const eventFiles = await readdir(path.join(__dirname, 'events'))
     for (const file of eventFiles) {
         const event = await import(path.join(__dirname, `events/${file}`)) as DiscordEventListener
-        event.default(bot)
+        event.default(client)
     }
 
     logger.ok('Commands initialized, bot ready')
-    bot.user!.setStatus('online')
+    client.user.setStatus('online')
     if (typeof process.send === 'function') {
         process.send({ type: 'READY' })
     }
@@ -102,7 +107,3 @@ process.on('unhandledRejection', async (reason, promise) => {
     logger.error(`Unhandled rejection at: ${red(promise)}, reason: ${red(reason)}`)
     await gracefulShutdown.shutdown('unhandledRejection')
 })
-
-logger.info('Logging in...')
-await bot.login(process.env.DISCORD_TOKEN)
-logger.ok('Logged in')

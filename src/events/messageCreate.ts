@@ -1,7 +1,7 @@
 import { Logger } from '../util/logger'
 const logger = new Logger('event.messageCreate')
 
-import { Client, TextChannel } from 'discord.js'
+import { type Client, TextChannel } from 'discord.js'
 import util from 'util'
 import { messageTrigger, shapesInc, crimsonChat } from '..'
 import GuildConfigManager from '../modules/GuildConfig'
@@ -10,7 +10,7 @@ import { normalizeUrl } from '../modules/CrimsonChat/util/url-utils'
 import { parseMentions } from '../modules/CrimsonChat/util/formatters'
 import { evaluate } from 'mathjs'
 
-export default async function onMessageCreate(client: Client) {
+export default async function onMessageCreate(client: Client<true>) {
     client.on('messageCreate', async message => {
         try {
             if (message.author === client.user) return // Only ignore itself
@@ -57,7 +57,7 @@ export default async function onMessageCreate(client: Client) {
             // CrimsonChat Logic
             const isMainChannel = message.channel.id === '1335992675459141632'
             const isTestingServer = message.guildId === '1335971145014579263'
-            const isMentioned = message.mentions.users.has(client.user!.id)
+            const isMentioned = message.mentions.users.has(client.user.id)
 
             if (isMainChannel || isTestingServer || isMentioned) {
                 if (!crimsonChat.isEnabled() || crimsonChat.isIgnored(message.author.id)) {

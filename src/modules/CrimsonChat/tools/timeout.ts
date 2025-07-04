@@ -3,7 +3,7 @@ const logger = new Logger('CrimsonChat | timeout()')
 
 import { z } from 'zod'
 import { tool } from 'ai'
-import { bot as client } from '../../../'
+import { client as client } from '../../../'
 import { distance } from 'fastest-levenshtein'
 import type { Guild, GuildMember } from 'discord.js'
 

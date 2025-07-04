@@ -16,7 +16,7 @@ export default class ShapesInc {
     private static instance: ShapesInc
     private webhook?: Webhook
     private channelId: string
-    private constructor(public client: Client, channelId: string) {
+    private constructor(public client: Client<true>, channelId: string) {
         this.channelId = channelId
     }
     public cookies!: string
@@ -50,7 +50,7 @@ export default class ShapesInc {
     private cookiesUpdateResolver?: (cookies: string) => void
 
     // --- Singleton & Initialization ---
-    static getInstance(client?: Client, channelId?: string): ShapesInc {
+    static getInstance(client?: Client<true>, channelId?: string): ShapesInc {
         if (!ShapesInc.instance) {
             if (!client || !channelId) throw new Error('Client and channelId must be provided for first ShapesInc instantiation')
             ShapesInc.instance = new ShapesInc(client, channelId)
@@ -461,7 +461,7 @@ export default class ShapesInc {
         }
         // --- Normal mode logic ---
         if (message.webhookId) return
-        if (message.author.id === this.client.user?.id) return
+        if (message.author.id === this.client.user.id) return
         if (message.channel.id !== this.channelId) return
         if (message.channel.type !== ChannelType.GuildText) return
         const typingMsg = await message.channel.send(`${TYPING_EMOJI} Shape is typing...`)
