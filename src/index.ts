@@ -1,3 +1,4 @@
+import { BanishmentManager } from './modules/BanishmentManager'
 import { Logger, yellow, red } from './util/logger'
 const logger = new Logger()
 logger.info('Starting bot')
@@ -46,6 +47,8 @@ export const awacsFeed = new AWACSFeed(bot)
 export const messageTrigger = new MessageTrigger()
 export const shapesInc = ShapesInc.getInstance(bot, '1335992675459141632')
 export const crimsonChat = CrimsonChat.getInstance()
+export const banishmentManager = BanishmentManager.getInstance().setClient(bot)
+
 bot.once('ready', async () => {
     logger.info(`Logged in as ${yellow(bot.user!.tag)}`)
     gracefulShutdown.setClient(bot)
@@ -57,6 +60,7 @@ bot.once('ready', async () => {
     MarkovChat.getInstance().setClient(bot)
 
     await guildConfigManager.init()
+    await banishmentManager.init()
 
     await commandManager.init()
     await commandManager.refreshGlobalCommands()

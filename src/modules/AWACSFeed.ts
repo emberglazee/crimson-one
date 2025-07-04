@@ -1,12 +1,15 @@
 import { Logger } from '../util/logger'
 const logger = new Logger('AWACSFeed')
 
-import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember, User, GuildBan } from 'discord.js'
-import type { ClientEvents, PartialGuildMember, Role } from 'discord.js'
+import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember, User, GuildBan, Role } from 'discord.js'
+import type { ClientEvents, PartialGuildMember } from 'discord.js'
 import { AWACS_FEED_CHANNEL } from '../util/constants'
 import { getRandomElement } from '../util/functions'
+import { BanishmentManager, type BanishmentEvent, type UnbanishmentEvent } from './BanishmentManager'
 
-const NO_IFF_DATA = '\\\\ NO IFF DATA \\\\' // New constant
+const NO_IFF_DATA = '\\\\ NO IFF DATA \\\\'
+const TARGET_GUILD_ID = '958518067690868796'
+const BANISHED_ROLE_ID = '1331170880591757434'
 
 type EventHandler<T extends keyof ClientEvents> = {
     event: T
@@ -14,13 +17,11 @@ type EventHandler<T extends keyof ClientEvents> = {
     messages: ((...params: string[]) => string)[]
 }
 
-const TARGET_GUILD_ID = '958518067690868796' // Target guild ID for events
-
 export class AWACSFeed {
     private client: Client
     private awacsChannel: TextChannel | undefined
+    private banishmentManager = BanishmentManager.getInstance()
 
-    private static readonly BANISHED_ROLE_ID = '1331170880591757434' // Banished role ID
     private static readonly IGNORED_ROLE_IDS = [
         '1371101530819657759',
         '958528919680716881',
@@ -222,61 +223,70 @@ export class AWACSFeed {
             if (!this.isTargetGuild(newMember.guild.id)) return
             this.handleGuildMemberUpdate(oldMember, newMember)
         })
+
+        // Banishment Manager listeners
+        this.banishmentManager.on('userBanished', data => this.onUserBanished(data))
+        this.banishmentManager.on('userUnbanished', data => this.onUserUnbanished(data))
+    }
+
+    private onUserBanished(data: BanishmentEvent) {
+        const { member, actor, type, duration, reason } = data
+        let message = `⛓️ ${member.user.username} has been banished by ${actor.username} via ${type}.`
+        if (duration) {
+            message += ` Duration: ${duration / 1000}s.`
+        }
+        if (reason) {
+            message += ` Reason: ${reason}`
+        }
+        this.sendMessage(message)
+    }
+
+    private onUserUnbanished(data: UnbanishmentEvent) {
+        const { member, actor, type, reason } = data
+        let message = `🔓 ${member.user.username} has been unbanished by ${actor.username} via ${type}.`
+        if (reason) {
+            message += ` Reason: ${reason}`
+        }
+        this.sendMessage(message)
     }
 
     private async handleGuildMemberUpdate(oldMember: GuildMember | PartialGuildMember, newMember: GuildMember): Promise<void> {
-        if (newMember.user.bot) return
+        if (newMember.user.bot || this.banishmentManager.isActionInProgress(newMember.id)) return
 
         await this.handleRoleChanges(oldMember, newMember)
         await this.handleTimeoutChanges(oldMember, newMember)
     }
 
     private async handleRoleChanges(oldMember: GuildMember | PartialGuildMember, newMember: GuildMember): Promise<void> {
-        // --- Check for added roles ---
         const oldRoleIds = new Set(oldMember.roles?.cache.map(r => r.id) || [])
         const addedRoles = newMember.roles.cache.filter(role => !oldRoleIds.has(role.id))
+        const removedRoles = oldMember.roles?.cache.filter(role => !newMember.roles.cache.has(role.id))
 
-        if (addedRoles.size > 0) {
-            const roleAdded = addedRoles.first()
-            if (roleAdded) {
-                if (AWACSFeed.IGNORED_ROLE_IDS.includes(roleAdded.id)) {
-                    return // Ignore this role
+        for (const role of addedRoles.values()) {
+            if (role.id === BANISHED_ROLE_ID) {
+                const assigner = await this.findRoleChanger(newMember, role, '$add')
+                if (assigner !== NO_IFF_DATA) {
+                    const actor = await this.client.users.fetch(assigner).catch(() => null)
+                    if(actor) this.banishmentManager.reportManualBanishment(newMember, actor)
                 }
-
-                const assigner = await this.findRoleChanger(newMember, roleAdded, '$add')
-                let message: string
-                if (roleAdded.id === AWACSFeed.BANISHED_ROLE_ID) {
-                    message = AWACSFeed.banishedRoleAddMessage(newMember.user.username, assigner)
-                } else {
-                    message = getRandomElement(AWACSFeed.roleAddMessages)(newMember.user.username, roleAdded.name, assigner)
-                }
+            } else if (!AWACSFeed.IGNORED_ROLE_IDS.includes(role.id)) {
+                const assigner = await this.findRoleChanger(newMember, role, '$add')
+                const message = getRandomElement(AWACSFeed.roleAddMessages)(newMember.user.username, role.name, assigner)
                 await this.sendMessage(message)
-                // Assuming only one role is added at a time for simplicity based on current logic
-                return
             }
         }
 
-        // --- Check for removed roles ---
-        const newRoleIds = new Set(newMember.roles.cache.map(r => r.id))
-        const removedRoles = oldMember.roles?.cache.filter(role => !newRoleIds.has(role.id))
-
-        if (removedRoles && removedRoles.size > 0) {
-            const roleRemoved = removedRoles.first()
-            if (roleRemoved) {
-                if (AWACSFeed.IGNORED_ROLE_IDS.includes(roleRemoved.id)) {
-                    return // Ignore this role
+        for (const role of removedRoles.values()) {
+            if (role.id === BANISHED_ROLE_ID) {
+                const remover = await this.findRoleChanger(newMember, role, '$remove')
+                if (remover !== NO_IFF_DATA) {
+                    const actor = await this.client.users.fetch(remover).catch(() => null)
+                    if(actor) this.banishmentManager.reportManualUnbanishment(newMember, actor)
                 }
-
-                const remover = await this.findRoleChanger(newMember, roleRemoved, '$remove')
-                let message: string
-                if (roleRemoved.id === AWACSFeed.BANISHED_ROLE_ID) {
-                    message = AWACSFeed.banishedRoleRemoveMessage(newMember.user.username, remover)
-                } else {
-                    message = getRandomElement(AWACSFeed.roleRemoveMessages)(newMember.user.username, roleRemoved.name, remover)
-                }
+            } else if (!AWACSFeed.IGNORED_ROLE_IDS.includes(role.id)) {
+                const remover = await this.findRoleChanger(newMember, role, '$remove')
+                const message = getRandomElement(AWACSFeed.roleRemoveMessages)(newMember.user.username, role.name, remover)
                 await this.sendMessage(message)
-                // Assuming only one role is removed at a time for simplicity based on current logic
-                return
             }
         }
     }

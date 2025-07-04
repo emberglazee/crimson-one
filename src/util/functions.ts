@@ -163,3 +163,36 @@ export function dateToDiscordEpoch(date: Date): number {
     if (DISCORD_EPOCH > currentUnixTimestamp) return 0
     return currentUnixTimestamp - DISCORD_EPOCH
 }
+
+export function parseDuration(durationStr: string): number | null {
+    const durationRegex = /(\d+)\s*(d|h|m|s)/g
+    let totalMilliseconds = 0
+    let match
+
+    if (!isNaN(Date.parse(durationStr))) {
+        const date = new Date(durationStr)
+        return date.getTime() - Date.now()
+    }
+
+    while ((match = durationRegex.exec(durationStr)) !== null) {
+        const value = parseInt(match[1])
+        const unit = match[2]
+
+        switch (unit) {
+            case 'd':
+                totalMilliseconds += value * 24 * 60 * 60 * 1000
+                break
+            case 'h':
+                totalMilliseconds += value * 60 * 60 * 1000
+                break
+            case 'm':
+                totalMilliseconds += value * 60 * 1000
+                break
+            case 's':
+                totalMilliseconds += value * 1000
+                break
+        }
+    }
+
+    return totalMilliseconds > 0 ? totalMilliseconds : null
+}

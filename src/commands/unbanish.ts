@@ -1,6 +1,6 @@
-import { ChannelType, InteractionContextType, SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { GuildSlashCommand } from '../types'
-import { PING_EMBI } from '../util/constants'
+import { BanishmentManager } from '../modules/BanishmentManager'
 
 export default {
     data: new SlashCommandBuilder()
@@ -10,50 +10,38 @@ export default {
             .setName('member')
             .setDescription('Server member to unbanish')
             .setRequired(true)
-        ).setContexts(InteractionContextType.Guild),
+        )
+        .addStringOption(so => so
+            .setName('reason')
+            .setDescription('Reason for the unbanishment.')
+            .setRequired(false)
+        )
+        .setContexts(InteractionContextType.Guild),
     async execute(context) {
         if (!context.member.permissions.has('ManageRoles')) {
-            await context.reply('❌ you dont have permission to manage roles')
+            await context.reply({ content: '❌ You dont have permission to manage roles.', ephemeral: true })
             return
         }
 
-        const target = await context.getUserOption('member', true)
-        const targetMember = await context.guild.members.fetch(target)
+        const targetUser = await context.getUserOption('member', true)
+        const reason = context.getStringOption('reason') ?? 'No reason provided.'
+
+        const targetMember = await context.guild.members.fetch(targetUser).catch(() => null)
         if (!targetMember) {
-            await context.reply(`❌ ${PING_EMBI} target member doesnt exist, FIX MEEEEEEEEE`)
+            await context.reply({ content: `❌ Could not find the specified member.`, ephemeral: true })
             return
         }
 
-        const role = await context.guild.roles.fetch('1331170880591757434')
-        if (!role) {
-            await context.reply(`❌ ${PING_EMBI} banished role doesnt exist, wrong id? (\`1331170880591757434\`)`)
-            return
-        }
+        const banishmentManager = BanishmentManager.getInstance()
 
-        const roles = targetMember.roles.cache.filter(role => role.name !== '@everyone')
-        if (!roles.find(r => r.id === role.id)) {
-            await context.reply(`⚠️ they don't have the banished role`)
-            return
+        try {
+            await context.deferReply()
+            await banishmentManager.unbanish(targetMember, context.user, 'command', reason)
+            await context.editReply(`✅ Successfully unbanished ${targetMember.user.username}.`)
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.'
+            await context.editReply(`❌ Failed to unbanish member: ${errorMessage}`)
         }
-
-        if (targetMember.id === context.user.id) {
-            await context.reply(`💔 what did you think was gonna happen?`)
-            return
-        }
-
-        await targetMember.roles.remove(role)
-        await context.reply(`Unbanished ${targetMember} for good behavior`)
-
-        const generalChannel = await context.guild.channels.fetch('1267488539503886386')
-        if (!generalChannel) {
-            await context.followUp(`⚠️ cant find the general channel \`1267488539503886386\`, whatever, you cook bro`)
-            return
-        }
-        if (generalChannel.type !== ChannelType.GuildText) {
-            await context.followUp(`⚠️ general channel is not guild text, k i guess (\`1267488539503886386\`)`)
-            return
-        }
-        await generalChannel.send(`${targetMember} has been unbanished for good behavior, welcome back!`)
     },
     guildId: '958518067690868796'
 } satisfies GuildSlashCommand
