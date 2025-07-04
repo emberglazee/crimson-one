@@ -6,7 +6,7 @@ import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message, t
 import { formatTimeRemaining } from '../util/functions'
 import { SlashCommand } from '../types'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
-import { MarkovDataSource } from '../modules/MarkovChain/DataSource'
+
 import type { CommandContext } from '../modules/CommandManager'
 
 // Discord interaction tokens expire after 15 minutes
@@ -235,7 +235,6 @@ export default {
 
         const subcommand = context.getSubcommand()
         const markov = MarkovChat.getInstance()
-        const dataSource = MarkovDataSource.getInstance()
 
         // Helper to resolve user from picker or user_id
         async function resolveUserOrId() {
@@ -550,14 +549,7 @@ export default {
                 return
             }
 
-            // Check if channel was previously fully collected
-            const wasFullyCollected = await dataSource.isChannelFullyCollected(context.guild.id, channel.id)
-
-            // Reply with appropriate message
             let replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'ALL' : limit} messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}...`
-            if (wasFullyCollected) {
-                replyContent += `\n⚠️ This channel was already fully collected before. Only collecting new messages since the last collection.`
-            }
             if (collectEntireChannel) {
                 replyContent += `\n💡 Using Discord User API to fetch the total message count.`
             }
@@ -565,10 +557,11 @@ export default {
             await context.reply(replyContent)
 
             try {
-                logger.info(`Collecting messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : userId ? ` by user ID ${userId}` : ''}, limit: ${yellow(limit)}, wasFullyCollected: ${yellow(wasFullyCollected)}`)
+                logger.info(`Collecting messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : userId ? ` by user ID ${userId}` : ''}, limit: ${yellow(limit)}`)
 
                 // Setup progress updates
-                let totalMessageCount = null
+                let totalMessageCount: number | null = null
+                let newMessagesOnly = false
                 let percentCompleteEmoji = '⏳'
 
                 // Track the interaction start time to handle token expiration
@@ -621,7 +614,7 @@ export default {
 
                         progressMessage += `📚 Batches processed: ${progress.batchNumber}`
 
-                        if (wasFullyCollected) {
+                        if (newMessagesOnly) {
                             progressMessage += `\n⚠️ Only collecting new messages since last collection.`
                         }
 
@@ -632,7 +625,8 @@ export default {
 
                 // Listen for collection completion to get total message count
                 markov.on('collectComplete', result => {
-                    totalMessageCount = result.totalMessageCount
+                    totalMessageCount = result.totalMessageCount ?? null
+                    newMessagesOnly = result.newMessagesOnly
                     logger.ok(`Collection complete. ${yellow(result.totalCollected)} messages collected${totalMessageCount ? ` out of ${yellow(totalMessageCount)} total` : ''}.`)
                 })
 
@@ -657,9 +651,7 @@ export default {
                     completionMessage += `📊 ${count} valid messages out of ${totalMessageCount} total messages in the channel (${percentageCollected}%)\n`
                 }
 
-                if (await wasFullyCollected) {
-                    completionMessage += `📋 These were new messages since the previous collection.`
-                } else if (collectEntireChannel) {
+                if (count > 0 && collectEntireChannel) { // Only mark as fully collected if some messages were collected
                     completionMessage += `📋 The entire channel has been marked as fully collected.`
                 }
 
