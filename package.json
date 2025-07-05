@@ -7,7 +7,7 @@
     "delete-commands": "bun src/deleteCommands.ts"
   },
   "devDependencies": {
-    "@types/bun": "^1.2.17",
+    "@types/bun": "^1.2.18",
     "@types/node": "^24.0.10",
     "@types/yargs": "^17.0.33",
     "globals": "^16.3.0",
@@ -39,6 +39,6 @@
     "typeorm": "^0.3.25",
     "undici": "^7.11.0",
     "yargs": "^18.0.0",
-    "zod": "^3.25.71"
+    "zod": "^3.25.74"
   }
 }
