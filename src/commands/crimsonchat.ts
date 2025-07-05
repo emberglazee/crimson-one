@@ -80,8 +80,9 @@ export default {
         ),
 
     async execute(context) {
-        if (!context.isEmbi) {
-            await context.reply('❌ You, solely, are responsible for this')
+        const isRoleAllowed = context.member?.roles.cache.has('958529446560808961') ?? false
+        if (!context.isEmbi && !isRoleAllowed) {
+            await context.reply('❌ You, solely, are responsible for this.')
             return
         }
 
