@@ -7,7 +7,8 @@ import {
     REST, InteractionResponse, ApplicationCommandType,
     MessageFlags, ChannelType, DiscordAPIError,
     SlashCommandSubcommandBuilder,
-    SlashCommandSubcommandGroupBuilder
+    SlashCommandSubcommandGroupBuilder,
+    PermissionsBitField, GuildChannel
 } from 'discord.js'
 import type {
     RESTPostAPIChatInputApplicationCommandsJSONBody, Role,
@@ -18,7 +19,7 @@ import type {
     GuildBasedChannel, MessageEditOptions, Client, CommandInteraction,
     ContextMenuCommandInteraction, MessageContextMenuCommandInteraction,
     UserContextMenuCommandInteraction, Guild, Attachment,
-    PermissionsBitField, ChatInputCommandInteraction,
+    ChatInputCommandInteraction,
     APIApplicationCommandOption,
 } from 'discord.js'
 
@@ -435,6 +436,15 @@ export default class CommandManager {
 
     public async handleMessageCommand(message: Message, prefix: string): Promise<void> {
         if (!this.initialized || !message.content.startsWith(prefix) || message.author.bot) return
+
+        // Check if the bot has permission to send messages in the channel
+        if (message.channel instanceof GuildChannel) {
+            const me = await message.guild?.members.fetchMe()
+            if (me && !message.channel.permissionsFor(me).has(PermissionsBitField.Flags.SendMessages)) {
+                logger.warn(`{handleMessageCommand} No permission to send messages in channel #${message.channel.name} (${message.channel.id})`)
+                return
+            }
+        }
 
         const { commandName, rawArgsString } = this._parseCommandFromMessage(message.content, prefix)
         if (!commandName) return
