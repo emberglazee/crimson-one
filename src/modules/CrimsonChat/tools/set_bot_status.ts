@@ -63,16 +63,16 @@ async function invoke({ status, activityType, activityName }: Input) {
 
         client.user.setPresence(presenceOptions) // not async
 
-        let responseMessage = 'Bot presence updated: '
+        let responseMessage = 'Success: Bot presence updated: '
         if (status) responseMessage += `Status set to ${yellow(status)}. `
         if (activityType && activityName) responseMessage += `Activity set to ${yellow(activityType)} ${yellow(activityName)}.`
 
         logger.ok(responseMessage)
-        return { success: true, message: responseMessage }
+        return responseMessage
 
     } catch (error) {
         logger.error(`Failed to set bot status: ${red(error instanceof Error ? error.message : String(error))}`)
-        return { success: false, message: `Failed to set bot status: ${error instanceof Error ? error.message : String(error)}` }
+        return `Error: Failed to set bot status: ${error instanceof Error ? error.message : String(error)}`
     }
 }
 

@@ -43,7 +43,7 @@ async function invoke({ username, displayname, length, reason }: Input) {
     }
     logger.info(`Timing out ${yellow(member.user.username)} for ${yellow(length)}ms with reason "${yellow(reason)}"`)
     await member.timeout(length, reason)
-    return `✅ Successfully timed out user ${member.user.username} (display name ${member.displayName}) for ${length} milliseconds`
+    return `Success: Timed out user ${member.user.username} (display name ${member.displayName}) for ${length} milliseconds`
 }
 
 export default tool({
