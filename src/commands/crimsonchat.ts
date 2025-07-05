@@ -67,14 +67,13 @@ export default {
                 .setDescription('The model to switch to')
                 .setRequired(true)
                 .addChoices(
-                    { name: 'Gemini Pro 2.5 Preview 06-05', value: 'gemini-2.5-pro-preview-06-05' },
-                    { name: 'Gemini Pro 2.5 Preview 05-06', value: 'gemini-2.5-pro-preview-05-06' },
-                    { name: 'Gemini Flash 2.5 Preview 05-20 (Default)', value: 'gemini-2.5-flash-preview-05-20' },
-                    { name: 'Gemini Flash 2.5 Preview 04-17', value: 'gemini-2.5-flash-preview-04-17' },
-                    { name: 'Gemini Flash 2.0', value: 'gemini-2.0-flash' },
-                    { name: 'Gemini Flash 2.0 Lite', value: 'gemini-2.0-flash-lite' },
-                    { name: 'Gemma 3n E4B IT', value: 'gemma-3n-e4b-it' },
-                    { name: 'Gemma 3 27B IT', value: 'gemma-3-27b-it' }
+                    { name: 'Gemini 2.5 Pro',                value: 'gemini-2.5-pro' },
+                    { name: 'Gemini 2.5 Flash',              value: 'gemini-2.5-flash' },
+                    { name: 'Gemini 2.5 Flash Lite Preview', value: 'gemini-2.5-flash-lite-preview-06-17' },
+                    { name: 'Gemini 2.0 Flash (Default)',    value: 'gemini-2.0-flash' },
+                    { name: 'Gemini 2.0 Flash Lite',         value: 'gemini-2.0-flash-lite' },
+                    { name: 'Gemma 3n E4B IT',               value: 'gemma-3n-e4b-it' },
+                    { name: 'Gemma 3 27B IT',                value: 'gemma-3-27b-it' }
                 )
             )
         ),
