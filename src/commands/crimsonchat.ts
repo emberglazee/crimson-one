@@ -76,6 +76,23 @@ export default {
                     { name: 'Gemma 3 27B IT',                value: 'gemma-3-27b-it' }
                 )
             )
+        ).addSubcommand(sub => sub
+            .setName('limit')
+            .setDescription('Set the chat history limit')
+            .addStringOption(opt => opt
+                .setName('mode')
+                .setDescription('The mode to use for the history limit')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'Messages', value: 'messages' },
+                    { name: 'Tokens', value: 'tokens' }
+                )
+            )
+            .addIntegerOption(opt => opt
+                .setName('limit')
+                .setDescription('The limit to set')
+                .setRequired(true)
+            )
         ),
 
     async execute(context) {
@@ -224,6 +241,20 @@ export default {
                 crimsonChat.sendMessage(
                     `System Alert: Model has been switched to \`${model}\` by ${context.user.username}.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: Model has been switched to \`${model}\` by ${context.user.username}.` }
+                )
+                break
+            }
+
+            case 'limit': {
+                const mode = context.getStringOption('mode', true) as 'messages' | 'tokens'
+                const limit = context.getIntegerOption('limit', true)
+
+                await context.deferReply()
+                await crimsonChat.setHistoryLimit(mode, limit)
+                await context.editReply(`✅ CrimsonChat history limit set to \`${limit}\` ${mode}.`)
+                crimsonChat.sendMessage(
+                    `System Alert: History limit has been set to \`${limit}\` ${mode} by ${context.user.username}.`,
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: History limit has been set to \`${limit}\` ${mode} by ${context.user.username}.` }
                 )
                 break
             }

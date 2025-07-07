@@ -5,7 +5,7 @@ import { Client, TextChannel, Message, ChatInputCommandInteraction, EmbedBuilder
 import type { UserMessageOptions, SlashCommand, HexColor } from '../../types'
 import type { CommandContext } from '../CommandManager'
 import { MessageQueue } from './MessageQueue'
-import { CrimsonFileBufferHistory } from './memory'
+import { CrimsonFileBufferHistory, type HistoryLimitMode } from './memory'
 import { usernamesToMentions } from './util/formatters'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST_PROMPT, DEFAULT_GEMINI_MODEL } from '../../util/constants'
 import * as fs from 'fs/promises'
@@ -373,6 +373,10 @@ export default class CrimsonChat {
     public setModel(modelName: string): void {
         this.modelName = modelName
         logger.ok(`CrimsonChat model switched to: ${green(modelName)}`)
+    }
+
+    public async setHistoryLimit(mode: HistoryLimitMode, limit: number): Promise<void> {
+        await this.memory.setHistoryLimit(mode, limit)
     }
 
     public setForceNextBreakdown(force: boolean): void {

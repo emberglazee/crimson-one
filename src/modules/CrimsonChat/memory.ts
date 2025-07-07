@@ -10,6 +10,8 @@ import {
 import type { AssistantContent, CoreMessage, FilePart, ImagePart, TextPart, ToolResultPart, ToolCallPart } from 'ai'
 import { Buffer } from 'buffer'
 
+export type HistoryLimitMode = 'messages' | 'tokens'
+
 // Define a serializable representation of an image part for JSON storage
 type SerializableImagePart = {
     type: 'image'
@@ -47,13 +49,57 @@ export class CrimsonFileBufferHistory {
     private initialized = false
     private systemPrompt: string = CRIMSON_CHAT_SYSTEM_PROMPT
 
+    private limitMode: HistoryLimitMode = 'messages'
+    private messageLimit = 100
+    private tokenLimit = 16384 // A reasonable default, can be changed later
+
+    private async pruneHistory(): Promise<void> {
+        if (this.limitMode === 'messages') {
+            // Keep the system prompt and the foundation messages, then the last N messages.
+            const foundationSize = getCrimsonChatHistoryFoundation().length
+            const totalAllowed = foundationSize + this.messageLimit
+            if (this.history.length > totalAllowed) {
+                const excess = this.history.length - totalAllowed
+                // Remove messages from after the foundation to the start of the sliding window
+                this.history.splice(foundationSize, excess)
+                logger.info(`Pruned message history to the last ${this.messageLimit} messages.`)
+            }
+        } else if (this.limitMode === 'tokens') {
+            // TODO: Implement token-based pruning
+            // This will require a tokenizer library compatible with Gemini.
+            // For now, we'll just log a warning.
+            logger.warn('Token-based history pruning is not yet implemented.')
+        }
+    }
+
+    public async setHistoryLimit(mode: HistoryLimitMode, limit: number): Promise<void> {
+        this.limitMode = mode
+        if (mode === 'messages') {
+            this.messageLimit = limit
+        } else {
+            this.tokenLimit = limit
+        }
+        logger.ok(`History limit set to ${limit} ${mode}.`)
+        await this.pruneHistory() // Prune immediately after setting the new limit
+        await this.saveHistoryToFile()
+    }
+
     private async loadHistoryFromFile(): Promise<void> {
         if (this.initialized) return
         try {
             const data = await fs.readFile(this.historyPath, 'utf-8')
-            const savedData = JSON.parse(data) as { systemPrompt: string, history: SerializableMessage[] }
+            const savedData = JSON.parse(data) as {
+                systemPrompt: string,
+                history: SerializableMessage[],
+                limitMode?: HistoryLimitMode,
+                messageLimit?: number,
+                tokenLimit?: number
+            }
 
             this.systemPrompt = savedData.systemPrompt || CRIMSON_CHAT_SYSTEM_PROMPT
+            this.limitMode = savedData.limitMode || 'messages'
+            this.messageLimit = savedData.messageLimit || 100
+            this.tokenLimit = savedData.tokenLimit || 16384
 
             // Deserialize history, converting base64 images back to buffers
             this.history = savedData.history.map(msg => {
@@ -136,7 +182,10 @@ export class CrimsonFileBufferHistory {
 
             const dataToSave = {
                 systemPrompt: this.systemPrompt,
-                history: serializableHistory
+                history: serializableHistory,
+                limitMode: this.limitMode,
+                messageLimit: this.messageLimit,
+                tokenLimit: this.tokenLimit
             }
 
             await fs.writeFile(this.historyPath, JSON.stringify(dataToSave, null, 2))
@@ -156,6 +205,7 @@ export class CrimsonFileBufferHistory {
     async addMessages(messages: CoreMessage[]): Promise<void> {
         await this.loadHistoryFromFile()
         this.history.push(...messages)
+        await this.pruneHistory()
         await this.saveHistoryToFile()
     }
 
