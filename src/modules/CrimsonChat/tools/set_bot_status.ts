@@ -13,12 +13,12 @@ const schema = z.object({
 })
 type Input = z.infer<typeof schema>
 
-async function invoke({ status, activityType, activityName }: Input) {
+async function invoke({ status, activityType, activityName }: Input): Promise<string> {
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ status, activityType, activityName }))}`)
     try {
         if (!client || !client.user) {
             logger.error(red('Discord client or user not available.'))
-            return { success: false, message: 'Discord client not available.' }
+            return JSON.stringify({ status: 'error', message: 'Discord client not available.' })
         }
 
         const presenceOptions: { status?: PresenceStatusData; activities?: { name: string; type: ActivityType }[] } = {}
@@ -54,25 +54,25 @@ async function invoke({ status, activityType, activityName }: Input) {
             }
         } else if (activityType || activityName) {
             logger.warn(yellow('Both activityType and activityName must be provided to set an activity.'))
-            return { success: false, message: 'Both activityType and activityName must be provided to set an activity.' }
+            return JSON.stringify({ status: 'error', message: 'Both activityType and activityName must be provided to set an activity.' })
         }
 
         if (Object.keys(presenceOptions).length === 0) {
-            return { success: false, message: 'No status or activity provided to set.' }
+            return JSON.stringify({ status: 'error', message: 'No status or activity provided to set.' })
         }
 
         client.user.setPresence(presenceOptions) // not async
 
-        let responseMessage = 'Success: Bot presence updated: '
-        if (status) responseMessage += `Status set to ${yellow(status)}. `
-        if (activityType && activityName) responseMessage += `Activity set to ${yellow(activityType)} ${yellow(activityName)}.`
+        let responseMessage = 'Bot presence updated: '
+        if (status) responseMessage += `Status set to ${status}. `
+        if (activityType && activityName) responseMessage += `Activity set to ${activityType} ${activityName}.`
 
         logger.ok(responseMessage)
-        return responseMessage
+        return JSON.stringify({ status: 'success', message: responseMessage })
 
     } catch (error) {
         logger.error(`Failed to set bot status: ${red(error instanceof Error ? error.message : String(error))}`)
-        return `Error: Failed to set bot status: ${error instanceof Error ? error.message : String(error)}`
+        return JSON.stringify({ status: 'error', message: `Failed to set bot status: ${error instanceof Error ? error.message : String(error)}` })
     }
 }
 

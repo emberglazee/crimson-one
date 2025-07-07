@@ -3,7 +3,7 @@ import { green, Logger, red, yellow } from '../../util/logger'
 const logger = new Logger('CrimsonChat')
 
 import { Client, TextChannel, Message, ChatInputCommandInteraction, EmbedBuilder, type MessageReplyOptions } from 'discord.js'
-import type { UserMessageOptions, SlashCommand } from '../../types'
+import type { UserMessageOptions, SlashCommand, HexColor } from '../../types'
 import type { CommandContext } from '../CommandManager'
 import { MessageQueue } from './MessageQueue'
 import { CrimsonFileBufferHistory } from './memory'
@@ -237,14 +237,40 @@ export default class CrimsonChat {
                     const resultString = typeof result.result === 'string'
                         ? result.result
                         : JSON.stringify(result.result, null, 2)
-                    const isSuccess = resultString.toLowerCase().startsWith('success:')
+
+                    let parsedResult: { status: string; message: string } | null = null
+                    try {
+                        parsedResult = JSON.parse(resultString)
+                    } catch (parseError) {
+                        logger.warn(`Failed to parse tool result as JSON: ${parseError}`)
+                    }
+
+                    let embedColor: HexColor = '#ED4245' // Default to red for error
+                    let embedTitle = '❌ Tool Failed'
+
+                    if (parsedResult) {
+                        switch (parsedResult.status) {
+                            case 'success':
+                                embedColor = '#57F287' // Green
+                                embedTitle = '✅ Tool Executed'
+                                break
+                            case 'info':
+                                embedColor = '#FEE75C' // Yellow
+                                embedTitle = 'ℹ️ Tool Information'
+                                break
+                            case 'error':
+                                embedColor = '#ED4245' // Red
+                                embedTitle = '❌ Tool Failed'
+                                break
+                        }
+                    }
 
                     const embed = new EmbedBuilder()
-                        .setColor(isSuccess ? '#57F287' : '#ED4245') // Green or Red
-                        .setTitle(isSuccess ? '✅ Tool Executed' : '❌ Tool Failed')
+                        .setColor(embedColor)
+                        .setTitle(embedTitle)
                         .addFields(
                             { name: 'Tool', value: `\`${result.toolName}\``, inline: true },
-                            { name: 'Result', value: `\`\`\`\n${resultString.substring(0, 1000)}\n\`\`\`` }
+                            { name: 'Message', value: `\`\`\`\n${parsedResult ? parsedResult.message : resultString.substring(0, 1000)}\n\`\`\`` }
                         )
                         .setFooter({ text: `Call ID: ${result.toolCallId}` })
                         .setTimestamp()

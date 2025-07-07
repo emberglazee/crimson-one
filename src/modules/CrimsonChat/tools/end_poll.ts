@@ -20,26 +20,26 @@ async function invoke({ messageId }: Input): Promise<string> {
     try {
         const channel = await client.channels.fetch(CHANNEL_ID)
         if (!channel || channel.type !== ChannelType.GuildText) {
-            return `Error: Channel with ID "${CHANNEL_ID}" not found or is not a text channel.`
+            return JSON.stringify({ status: 'error', message: `Channel with ID "${CHANNEL_ID}" not found or is not a text channel.` })
         }
 
         const message = await channel.messages.fetch(messageId)
 
         if (!message.poll) {
-            return `Error: Message with ID ${messageId} does not contain a poll.`
+            return JSON.stringify({ status: 'error', message: `Message with ID ${messageId} does not contain a poll.` })
         }
 
         if (message.poll.resultsFinalized) {
-            return `Information: Poll with message ID ${messageId} is already ended.`
+            return JSON.stringify({ status: 'info', message: `Poll with message ID ${messageId} is already ended.` })
         }
 
         await message.poll.end()
 
-        return `Success: Poll with message ID ${messageId} has been ended.`
+        return JSON.stringify({ status: 'success', message: `Poll with message ID ${messageId} has been ended.` })
     } catch (e) {
         const error = e as Error
         logger.error(`Failed to end poll: ${red(error.stack ?? error.message)}`)
-        return `Error: An internal error occurred while trying to end the poll: ${error.message}`
+        return JSON.stringify({ status: 'error', message: `An internal error occurred while trying to end the poll: ${error.message}` })
     }
 }
 

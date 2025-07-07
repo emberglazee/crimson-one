@@ -56,7 +56,7 @@ async function invoke(input: z.infer<typeof schema>): Promise<string> {
     try {
         const channel = await client.channels.fetch(channelId)
         if (!channel || channel.type !== ChannelType.GuildText) {
-            return `Error: Channel with ID "${channelId}" not found or is not a text channel.`
+            return JSON.stringify({ status: 'error', message: `Channel with ID "${channelId}" not found or is not a text channel.` })
         }
 
         const embed = new EmbedBuilder()
@@ -86,7 +86,7 @@ async function invoke(input: z.infer<typeof schema>): Promise<string> {
         if (timestamp) embed.setTimestamp()
 
         if (embed.data.fields?.length === 0 && !embed.data.image && !embed.data.thumbnail) {
-            return 'Error: Embed is empty. You must provide at least one property like a title, description, or image.'
+            return JSON.stringify({ status: 'error', message: 'Embed is empty. You must provide at least one property like a title, description, or image.' })
         }
 
         if (replyToMessageId) {
@@ -101,12 +101,12 @@ async function invoke(input: z.infer<typeof schema>): Promise<string> {
             await (channel as TextChannel).send({ embeds: [embed] })
         }
 
-        return `Success: Embed sent to channel #${(channel as TextChannel).name}.`
+        return JSON.stringify({ status: 'success', message: `Embed sent to channel #${(channel as TextChannel).name}.` })
 
     } catch (e) {
         const error = e as Error
         logger.error(`Failed to send embed: ${red(error.stack ?? error.message)}`)
-        return `Error: An internal error occurred while trying to send the embed: ${error.message}`
+        return JSON.stringify({ status: 'error', message: `An internal error occurred while trying to send the embed: ${error.message}` })
     }
 }
 

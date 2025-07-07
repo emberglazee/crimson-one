@@ -27,7 +27,7 @@ async function invoke({ question, answers, duration = 24, allowMultiselect = fal
     try {
         const channel = await client.channels.fetch(CHANNEL_ID)
         if (!channel || channel.type !== ChannelType.GuildText) {
-            return `Error: Channel with ID "${CHANNEL_ID}" not found or is not a text channel.`
+            return JSON.stringify({ status: 'error', message: `Channel with ID "${CHANNEL_ID}" not found or is not a text channel.` })
         }
 
         const pollOptions = {
@@ -40,11 +40,11 @@ async function invoke({ question, answers, duration = 24, allowMultiselect = fal
 
         const message = await channel.send({ poll: pollOptions })
 
-        return `Success: Poll created with message ID ${message.id}.`
+        return JSON.stringify({ status: 'success', message: `Poll created with message ID ${message.id}.` })
     } catch (e) {
         const error = e as Error
         logger.error(`Failed to create poll: ${red(error.stack ?? error.message)}`)
-        return `Error: An internal error occurred while trying to create the poll: ${error.message}`
+        return JSON.stringify({ status: 'error', message: `An internal error occurred while trying to create the poll: ${error.message}` })
     }
 }
 

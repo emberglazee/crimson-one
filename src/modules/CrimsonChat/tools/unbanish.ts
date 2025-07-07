@@ -21,7 +21,7 @@ async function invoke({ username, displayname, reason }: Input): Promise<string>
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ username, displayname, reason }))}`)
     const query = username ?? displayname
     if (!query) {
-        return 'Error: must provide either a username or display name to identify the target.'
+        return JSON.stringify({ status: 'error', message: 'must provide either a username or display name to identify the target.' })
     }
 
     let guild: Guild
@@ -29,34 +29,34 @@ async function invoke({ username, displayname, reason }: Input): Promise<string>
         guild = await client.guilds.fetch(GUILD_ID)
     } catch (e) {
         logger.error(`Failed to fetch guild ${GUILD_ID}: ${red((e as Error).message)}`)
-        return `Error: Internal error, could not find the designated guild.`
+        return JSON.stringify({ status: 'error', message: 'Internal error, could not find the designated guild.' })
     }
 
     const botMember = guild.members.me
     if (!botMember || !botMember.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-        return `Error: I do not have the 'Manage Roles' permission to perform this action.`
+        return JSON.stringify({ status: 'error', message: "I do not have the 'Manage Roles' permission to perform this action." })
     }
 
     const member = await findMember(guild, query)
     if (!member) {
-        return `Error: Could not find any member matching the query "${query}".`
+        return JSON.stringify({ status: 'error', message: `Could not find any member matching the query "${query}".` })
     }
 
     if (member.id === client.user.id) {
-        return "What did you think was gonna happen?"
+        return JSON.stringify({ status: 'info', message: "What did you think was gonna happen?" })
     }
     if (!member.manageable) {
-        return `Error: I cannot manage this user. They likely have a higher role than me. (Target: ${member.user.username})`
+        return JSON.stringify({ status: 'error', message: `I cannot manage this user. They likely have a higher role than me. (Target: ${member.user.username})` })
     }
 
     const banishmentManager = BanishmentManager.getInstance()
     try {
         await banishmentManager.unbanish(member, client.user, 'crimsonchat', reason ?? 'Unbanishment issued by Crimson 1.')
-        return `Success: User ${member.user.username} has been unbanished.`
+        return JSON.stringify({ status: 'success', message: `User ${member.user.username} has been unbanished.` })
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
         logger.error(`Unbanishment failed for ${member.user.username}: ${red(errorMessage)}`)
-        return `Error: Failed to unbanish the user. ${errorMessage}`
+        return JSON.stringify({ status: 'error', message: `Failed to unbanish the user. ${errorMessage}` })
     }
 }
 

@@ -23,7 +23,7 @@ async function invoke({ username, displayname, new_display_name, reason }: Input
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ username, displayname, new_display_name, reason }))}`)
     const query = username ?? displayname
     if (!query) {
-        return 'Error: must provide either a user ID, username, or current display name to identify the target.'
+        return JSON.stringify({ status: 'error', message: 'must provide either a user ID, username, or current display name to identify the target.' })
     }
 
     // 1. Fetch Guild and check bot permissions
@@ -32,18 +32,18 @@ async function invoke({ username, displayname, new_display_name, reason }: Input
         guild = await client.guilds.fetch(GUILD_ID)
     } catch (e) {
         logger.error(`Failed to fetch guild ${GUILD_ID}: ${red((e as Error).message)}`)
-        return `Error: Internal error, could not find the designated guild.`
+        return JSON.stringify({ status: 'error', message: 'Internal error, could not find the designated guild.' })
     }
 
     const botMember = guild.members.me
     if (!botMember || !botMember.permissions.has(PermissionsBitField.Flags.ManageNicknames)) {
-        return `Error: I do not have the 'Manage Nicknames' permission to perform this action.`
+        return JSON.stringify({ status: 'error', message: "I do not have the 'Manage Nicknames' permission to perform this action." })
     }
 
     // 2. Find the target member
     const member = await findMember(guild, query)
     if (!member) {
-        return `Error: Could not find any member matching the query "${query}".`
+        return JSON.stringify({ status: 'error', message: `Could not find any member matching the query "${query}".` })
     }
 
     // 3. Handle special cases
@@ -52,17 +52,17 @@ async function invoke({ username, displayname, new_display_name, reason }: Input
         try {
             await guild.members.me?.setNickname(new_display_name, reason ?? 'Display name changed by Crimson 1.')
             logger.ok(`Changed own display name to ${new_display_name}`)
-            return `Success: I have changed my display name to "${new_display_name}".`
+            return JSON.stringify({ status: 'success', message: `I have changed my display name to "${new_display_name}".` })
         } catch (e) {
             logger.error(`Failed to change own display name: ${red((e as Error).message)}`)
-            return `Error: Failed to change my own display name. There might have been a permissions error.`
+            return JSON.stringify({ status: 'error', message: 'Failed to change my own display name. There might have been a permissions error.' })
         }
     }
     if (member.id === EMBI_ID) {
-        return "I can't change my creator's display name. This is an invalid order."
+        return JSON.stringify({ status: 'info', message: "I can't change my creator's display name. This is an invalid order." })
     }
     if (!member.manageable) {
-        return `Error: I cannot manage this user's nickname. They likely have a higher role than me or are the server owner. (Target: ${member.user.username})`
+        return JSON.stringify({ status: 'error', message: `I cannot manage this user's nickname. They likely have a higher role than me or are the server owner. (Target: ${member.user.username})` })
     }
 
     // 4. Set the new display name
@@ -71,10 +71,10 @@ async function invoke({ username, displayname, new_display_name, reason }: Input
         logger.ok(`Changed ${member.user.username}'s display name to ${new_display_name}`)
     } catch (e) {
         logger.error(`Failed to set nickname for ${member.user.username}: ${red((e as Error).message)}`)
-        return `Error: Failed to set the display name. There might have been a permissions error or the name is invalid.`
+        return JSON.stringify({ status: 'error', message: 'Failed to set the display name. There might have been a permissions error or the name is invalid.' })
     }
 
-    return `Success: User ${member.user.username}'s display name has been changed to "${new_display_name}".`
+    return JSON.stringify({ status: 'success', message: `User ${member.user.username}'s display name has been changed to "${new_display_name}".` })
 }
 
 export default tool({
