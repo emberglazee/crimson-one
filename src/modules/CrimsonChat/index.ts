@@ -3,7 +3,8 @@ import { green, Logger, red, yellow } from '../../util/logger'
 const logger = new Logger('CrimsonChat')
 
 import { Client, TextChannel, Message, ChatInputCommandInteraction, EmbedBuilder, type MessageReplyOptions } from 'discord.js'
-import type { UserMessageOptions } from '../../types'
+import type { UserMessageOptions, SlashCommand } from '../../types'
+import type { CommandContext } from '../CommandManager'
 import { MessageQueue } from './MessageQueue'
 import { CrimsonFileBufferHistory } from './memory'
 import { usernamesToMentions } from './util/formatters'
@@ -27,7 +28,7 @@ export default class CrimsonChat {
     private static instance: CrimsonChat
     public client!: Client
     public channel: TextChannel | null = null
-    private channelId = '1335992675459141632'
+    public channelId = '1335992675459141632'
     private enabled = true
     private ignoredUsers: Set<string> = new Set()
     private imageProcessor: ImageProcessor
@@ -323,6 +324,21 @@ export default class CrimsonChat {
 
         const content = `User ${user.username} used command: ${command}${optionStr} (in server: ${interaction.guild?.name}, channel: ${(interaction.channel as TextChannel)?.name})`
 
+        await this.memory.addMessages([{ role: 'user', content }])
+    }
+
+    public async logCommandExecution(command: SlashCommand, context: CommandContext) {
+        const commandName = command.data.name
+        const user = context.user
+        const args = context.args.join(' ')
+        const response = context.chainedReplies.map(r => r.content).join('')
+        const executionDetails = {
+            command: commandName,
+            user: user.username,
+            arguments: args,
+            response: response
+        }
+        const content = `Command execution: ${JSON.stringify(executionDetails, null, 2)}`
         await this.memory.addMessages([{ role: 'user', content }])
     }
 

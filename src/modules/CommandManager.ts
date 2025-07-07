@@ -39,6 +39,7 @@ import type {
 } from '../types'
 
 import { EMBI_ID, PING_EMBI, TYPING_EMOJI } from '../util/constants'
+import { crimsonChat } from '..'
 import type { ArgumentsCamelCase, Argv, Options as YargsOptions } from 'yargs'
 import yargs from 'yargs'
 
@@ -676,6 +677,10 @@ export default class CommandManager {
                         // This is a global command, which can run anywhere.
                         // Its `execute` method expects the less-strict `CommandContext<boolean>`.
                         await command.execute(context)
+                    }
+
+                    if (context.channel?.id === crimsonChat.channelId) {
+                        await crimsonChat.logCommandExecution(command, context)
                     }
 
                 } catch (err) {
@@ -1475,6 +1480,7 @@ export default class CommandManager {
 
 export class CommandContext<InGuild extends boolean = boolean> {
     private originalMessageReply: Message | null = null
+    public chainedReplies: Message[] = []
 
     public readonly client: Client<true>
     public readonly interaction: ChatInputCommandInteraction | null
@@ -1535,12 +1541,17 @@ export class CommandContext<InGuild extends boolean = boolean> {
     async reply(options: string | InteractionReplyOptions | MessageReplyOptions): Promise<Message | InteractionResponse | void> {
         if (this.interaction) {
             if (this.interaction.isRepliable() && !this.interaction.replied && !this.interaction.deferred) {
-                return this.interaction.reply(options as string | InteractionReplyOptions)
+                const reply = await this.interaction.reply(options as string | InteractionReplyOptions)
+                if (reply) this.chainedReplies.push(await reply.fetch())
+                return reply
             } else if (this.interaction.isRepliable()) {
-                return this.interaction.followUp(options as string | InteractionReplyOptions)
+                const reply = await this.interaction.followUp(options as string | InteractionReplyOptions)
+                if (reply) this.chainedReplies.push(reply)
+                return reply
             }
         } else if (this.message) {
             this.originalMessageReply = await this.message.reply(options as string | MessageReplyOptions)
+            if (this.originalMessageReply) this.chainedReplies.push(this.originalMessageReply)
             return this.originalMessageReply
         }
     }
@@ -1589,7 +1600,13 @@ export class CommandContext<InGuild extends boolean = boolean> {
     }
     async editReply(options: string | InteractionEditReplyOptions | MessageEditOptions): Promise<Message | void> {
         if (this.interaction && this.interaction.isRepliable()) {
-            return this.interaction.editReply(options as string | InteractionEditReplyOptions)
+            const reply = await this.interaction.editReply(options as string | InteractionEditReplyOptions)
+            if (reply) {
+                const index = this.chainedReplies.findIndex(m => m.id === reply.id)
+                if (index !== -1) this.chainedReplies[index] = reply
+                else this.chainedReplies.push(reply)
+            }
+            return reply
         } else if (this.message) {
             const channel = this.message.channel
             if (channel && 'send' in channel && typeof channel.send === 'function' && this.originalMessageReply) {
@@ -1611,17 +1628,27 @@ export class CommandContext<InGuild extends boolean = boolean> {
                 ) {
                     (options as MessageEditOptions).content = ''
                 }
-                return this.originalMessageReply.edit(options as string | MessageEditOptions)
+                const reply = await this.originalMessageReply.edit(options as string | MessageEditOptions)
+                if (reply) {
+                    const index = this.chainedReplies.findIndex(m => m.id === reply.id)
+                    if (index !== -1) this.chainedReplies[index] = reply
+                    else this.chainedReplies.push(reply)
+                }
+                return reply
             }
         }
     }
     async followUp(options: string | InteractionReplyOptions): Promise<Message | void> {
         if (this.interaction && this.interaction.isRepliable()) {
-            return this.interaction.followUp(options)
+            const reply = await this.interaction.followUp(options)
+            if (reply) this.chainedReplies.push(reply)
+            return reply
         } else if (this.message) {
             const channel = this.message.channel
             if (channel && 'send' in channel && typeof channel.send === 'function' && this.originalMessageReply) {
-                return this.originalMessageReply.reply(options as string | MessageReplyOptions)
+                const reply = await this.originalMessageReply.reply(options as string | MessageReplyOptions)
+                if (reply) this.chainedReplies.push(reply)
+                return reply
             }
         }
     }
