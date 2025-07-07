@@ -1,5 +1,6 @@
 import type { CoreMessage } from 'ai'
 import type { UserMessageOptions } from '../types'
+import type { GoogleGenerativeAIProvider } from '@ai-sdk/google'
 
 export const EMBI_ID = '341123308844220447' as const
 export const PING_EMBI = `<@${EMBI_ID}>` as const
@@ -85,7 +86,7 @@ I FUCKING HATE YOU MONARCH!!!! WHY WON'T YOU JUST DIE?!
 CASCADIA WILL BURN FOR THEIR TREACHERY!!!
 PAX FEDERATION! THE FEDERATION IS ETERNAL!!!`
 
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-lite-preview-06-17'
+export const DEFAULT_GEMINI_MODEL: Parameters<GoogleGenerativeAIProvider>[0] = 'gemini-2.5-flash-lite-preview-06-17'
 
 export const getCrimsonChatHistoryFoundation = (systemPrompt: string = CRIMSON_CHAT_SYSTEM_PROMPT): CoreMessage[] => [
   {
