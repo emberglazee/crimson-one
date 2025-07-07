@@ -81,7 +81,7 @@ export default class CrimsonChat {
             this.forceNextBreakdown = false
             const result = await generateText({
                 model: this.model,
-                system: CRIMSON_BREAKDOWN_PROMPT
+                prompt: CRIMSON_BREAKDOWN_PROMPT
             })
             const breakdown = result.text
 
