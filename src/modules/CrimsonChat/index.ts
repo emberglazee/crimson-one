@@ -153,10 +153,8 @@ export default class CrimsonChat {
 
         const { history, systemInstruction } = await this.memory.getHistory()
 
-        // Construct the user message from the buffered content
         const contentParts: (TextPart | ImagePart)[] = []
 
-        // 1. Send UserMessageOptions as JSON, including new context
         const userMessageContext = {
             ...lastMessage.options,
             messageContent: lastMessage.content,
@@ -167,7 +165,6 @@ export default class CrimsonChat {
         const userMessageOptionsJson = JSON.stringify(userMessageContext)
         contentParts.push({ type: 'text', text: userMessageOptionsJson })
 
-        // 2. Collect and process all image attachments
         for (const msg of bufferedMessages) {
             if (msg.originalMessage && msg.originalMessage.attachments.size > 0) {
                 for (const attachment of msg.originalMessage.attachments.values()) {
@@ -193,7 +190,7 @@ export default class CrimsonChat {
                 setTimeout(() => reject(new Error('Assistant response timed out')), ASSISTANT_RESPONSE_TIMEOUT_MS)
             )
 
-            const { text, toolCalls, toolResults } = await Promise.race([
+            const result = await Promise.race([
                 generateText({
                     model: this.model,
                     system: systemInstruction,
@@ -206,13 +203,14 @@ export default class CrimsonChat {
                 timeoutPromise
             ])
 
-            // Add the user message and the assistant's response to memory
+            const { text, toolCalls, toolResults, usage } = result
+
             const newMessages: CoreMessage[] = [userMessage]
             if (toolCalls && toolCalls.length > 0) {
                 newMessages.push({ role: 'assistant', content: toolCalls })
                 for (const call of toolCalls as ToolCallPart[]) {
                     const embed = new EmbedBuilder()
-                        .setColor('#FEE75C') // Yellow
+                        .setColor('#FEE75C')
                         .setTitle('⚙️ Tool Call')
                         .addFields(
                             { name: 'Tool', value: `\`${call.toolName}\``, inline: true },
@@ -237,21 +235,21 @@ export default class CrimsonChat {
                         logger.warn(`Failed to parse tool result as JSON: ${parseError}`)
                     }
 
-                    let embedColor: HexColor = '#ED4245' // Default to red for error
+                    let embedColor: HexColor = '#ED4245'
                     let embedTitle = '❌ Tool Failed'
 
                     if (parsedResult) {
                         switch (parsedResult.status) {
                             case 'success':
-                                embedColor = '#57F287' // Green
+                                embedColor = '#57F287'
                                 embedTitle = '✅ Tool Executed'
                                 break
                             case 'info':
-                                embedColor = '#FEE75C' // Yellow
+                                embedColor = '#FEE75C'
                                 embedTitle = 'ℹ️ Tool Information'
                                 break
                             case 'error':
-                                embedColor = '#ED4245' // Red
+                                embedColor = '#ED4245'
                                 embedTitle = '❌ Tool Failed'
                                 break
                         }
@@ -273,7 +271,7 @@ export default class CrimsonChat {
                 newMessages.push({ role: 'assistant', content: text })
             }
 
-            await this.memory.addMessages(newMessages)
+            await this.memory.addMessages(newMessages, usage)
 
             return text || '-# ...'
         } catch (e) {
@@ -302,7 +300,6 @@ export default class CrimsonChat {
                 isFirst = false
             }
         } else {
-            // It's already a MessageReplyOptions object (with embeds)
             const replyTo = originalMessage
             messageQueue.queueMessage({ ...response, allowedMentions: { repliedUser: !!replyTo, parse: [] } }, targetChannel, replyTo)
         }
@@ -318,7 +315,6 @@ export default class CrimsonChat {
                 currentMessage += (currentMessage ? '\n' : '') + line
             } else {
                 if (currentMessage) messages.push(currentMessage)
-                // If a single line is too long, split it
                 if (line.length > 2000) {
                     messages.push(...(line.match(/.{1,2000}/g) || []))
                     currentMessage = ''
@@ -452,3 +448,4 @@ export default class CrimsonChat {
         return [...this.ignoredUsers]
     }
 }
+

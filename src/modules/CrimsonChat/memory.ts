@@ -7,7 +7,7 @@ import {
     getCrimsonChatHistoryFoundation,
     CRIMSON_CHAT_SYSTEM_PROMPT,
 } from '../../util/constants'
-import type { AssistantContent, CoreMessage, FilePart, ImagePart, TextPart, ToolResultPart, ToolCallPart } from 'ai'
+import type { CoreMessage, FilePart, ImagePart, TextPart, ToolResultPart, ToolCallPart } from 'ai'
 import { Buffer } from 'buffer'
 
 export type HistoryLimitMode = 'messages' | 'tokens'
@@ -16,19 +16,31 @@ export type HistoryLimitMode = 'messages' | 'tokens'
 type SerializableImagePart = {
     type: 'image'
     image: string // base64 string
-    mimeType?: string // mimeType is directly on the part, not nested
+    mimeType?: string
 }
 type SerializableCoreMessageContent = (
     | { type: 'text'; text: string }
     | SerializableImagePart
     | { type: 'tool-call'; toolCallId: string, toolName: string, args: unknown }
     | { type: 'tool-result'; toolCallId: string, result: unknown, toolName?: string }
-    | FilePart // Added FilePart for serialization
+    | FilePart
 )[]
 
-// New type for messages that are serializable for storage
-type SerializableMessage = Omit<CoreMessage, 'content'> & {
+// Type for messages stored in the JSON file
+type StoredMessage = Omit<CoreMessage, 'content'> & {
     content: string | SerializableCoreMessageContent | null;
+    usage?: {
+        promptTokens: number;
+        completionTokens: number;
+    };
+};
+
+// Type for in-memory messages, which are CoreMessages with optional usage data
+type MessageWithUsage = CoreMessage & {
+    usage?: {
+        promptTokens: number;
+        completionTokens: number;
+    };
 };
 
 // Type guard to check for our custom serializable image format
@@ -39,36 +51,73 @@ function isSerializableImagePart(part: unknown): part is SerializableImagePart {
         'type' in part &&
         part.type === 'image' &&
         'image' in part &&
-        typeof part.image === 'string' // Expecting base64 string here
+        typeof part.image === 'string'
     )
 }
 
 export class CrimsonFileBufferHistory {
     private historyPath = path.join(process.cwd(), 'data/chat_history.json')
-    private history: CoreMessage[] = []
+    private history: MessageWithUsage[] = []
     private initialized = false
     private systemPrompt: string = CRIMSON_CHAT_SYSTEM_PROMPT
 
     private limitMode: HistoryLimitMode = 'messages'
     private messageLimit = 100
-    private tokenLimit = 16384 // A reasonable default, can be changed later
+    private tokenLimit = 32768
+    private currentTokenCount = 0
+
+    private async updateTotalTokenCount(): Promise<void> {
+        if (this.limitMode !== 'tokens') {
+            this.currentTokenCount = 0
+            return
+        }
+
+        this.currentTokenCount = this.history.reduce((acc, msg) => {
+            if (msg.usage) {
+                // The promptTokens are for the whole history up to that point, so we only add the completionTokens for an accurate rolling count.
+                // The user prompt part is implicitly included in the *next* message's promptTokens.
+                // A better approximation is to sum completion tokens and estimate user message tokens.
+                const userMsgContent = Array.isArray(msg.content) ? msg.content.find(p => p.type === 'text') as TextPart : { text: msg.content as string }
+                const userTokens = Math.ceil((userMsgContent?.text?.length || 0) / 4)
+                return acc + (msg.usage.completionTokens || 0) + userTokens
+            }
+
+            // Fallback for messages without usage data (e.g. older history or user messages)
+            const content = Array.isArray(msg.content)
+                ? msg.content.map(p => (p.type === 'text' ? p.text : '')).join(' ')
+                : msg.content
+            return acc + Math.ceil((content || '').length / 4)
+        }, 0)
+        logger.info(`Recalculated total tokens: ${yellow(this.currentTokenCount)}`)
+    }
 
     private async pruneHistory(): Promise<void> {
         if (this.limitMode === 'messages') {
-            // Keep the system prompt and the foundation messages, then the last N messages.
             const foundationSize = getCrimsonChatHistoryFoundation().length
             const totalAllowed = foundationSize + this.messageLimit
             if (this.history.length > totalAllowed) {
                 const excess = this.history.length - totalAllowed
-                // Remove messages from after the foundation to the start of the sliding window
                 this.history.splice(foundationSize, excess)
                 logger.info(`Pruned message history to the last ${this.messageLimit} messages.`)
             }
         } else if (this.limitMode === 'tokens') {
-            // TODO: Implement token-based pruning
-            // This will require a tokenizer library compatible with Gemini.
-            // For now, we'll just log a warning.
-            logger.warn('Token-based history pruning is not yet implemented.')
+            const foundationSize = getCrimsonChatHistoryFoundation().length
+            await this.updateTotalTokenCount()
+
+            while (this.currentTokenCount > this.tokenLimit && this.history.length > foundationSize) {
+                const removedMessage = this.history.splice(foundationSize, 1)[0]
+                if (removedMessage.usage) {
+                    const userMsgContent = Array.isArray(removedMessage.content) ? removedMessage.content.find(p => p.type === 'text') as TextPart : { text: removedMessage.content as string }
+                    const userTokens = Math.ceil((userMsgContent?.text?.length || 0) / 4)
+                    this.currentTokenCount -= (removedMessage.usage.completionTokens || 0) + userTokens
+                } else {
+                    const content = Array.isArray(removedMessage.content)
+                        ? removedMessage.content.map(p => (p.type === 'text' ? p.text : '')).join(' ')
+                        : removedMessage.content
+                    this.currentTokenCount -= Math.ceil((content || '').length / 4)
+                }
+            }
+            logger.info(`Pruned history to ~${yellow(this.currentTokenCount)} tokens.`)
         }
     }
 
@@ -80,7 +129,7 @@ export class CrimsonFileBufferHistory {
             this.tokenLimit = limit
         }
         logger.ok(`History limit set to ${limit} ${mode}.`)
-        await this.pruneHistory() // Prune immediately after setting the new limit
+        await this.pruneHistory()
         await this.saveHistoryToFile()
     }
 
@@ -90,7 +139,7 @@ export class CrimsonFileBufferHistory {
             const data = await fs.readFile(this.historyPath, 'utf-8')
             const savedData = JSON.parse(data) as {
                 systemPrompt: string,
-                history: SerializableMessage[],
+                history: StoredMessage[],
                 limitMode?: HistoryLimitMode,
                 messageLimit?: number,
                 tokenLimit?: number
@@ -99,55 +148,63 @@ export class CrimsonFileBufferHistory {
             this.systemPrompt = savedData.systemPrompt || CRIMSON_CHAT_SYSTEM_PROMPT
             this.limitMode = savedData.limitMode || 'messages'
             this.messageLimit = savedData.messageLimit || 100
-            this.tokenLimit = savedData.tokenLimit || 16384
+            this.tokenLimit = savedData.tokenLimit || 30000
 
-            // Deserialize history, converting base64 images back to buffers
-            this.history = savedData.history.map(msg => {
-                // Create a new message object to avoid direct mutation of the mapped item
-                const newMsg = { ...msg } as CoreMessage
+            this.history = savedData.history.map((msg): MessageWithUsage => {
+                const { role, content: storedContent, ...rest } = msg
+                const loadedContent = storedContent ?? ''
 
-                if (Array.isArray(newMsg.content)) {
-                    // Based on the role, narrow the type of newMsg.content and map accordingly
-                    switch (newMsg.role) {
-                        case 'user':
-                            // User content can have TextPart, ImagePart, FilePart
-                            newMsg.content = (newMsg.content as SerializableCoreMessageContent).map(part => {
+                switch (role) {
+                    case 'system':
+                        return { role, content: loadedContent as string, ...rest }
+                    case 'user': {
+                        const content = Array.isArray(loadedContent)
+                            ? (loadedContent as SerializableCoreMessageContent).map(part => {
                                 if (isSerializableImagePart(part)) {
                                     return {
                                         type: 'image',
-                                        image: Buffer.from(part.image, 'base64'), // Directly use part.image (base64 string)
-                                        mimeType: part.mimeType, // Directly use part.mimeType
+                                        image: Buffer.from(part.image, 'base64'),
+                                        mimeType: part.mimeType,
                                     } as ImagePart
                                 }
                                 return part as TextPart | FilePart
-                            }) as (TextPart | ImagePart | FilePart)[]
-                            break
-                        case 'assistant':
-                            newMsg.content = (newMsg.content as SerializableCoreMessageContent)
-                                .map(part => {
-                                    return part as TextPart | ToolCallPart | ToolResultPart
-                                }) as Exclude<AssistantContent, string>
-                            break
-                        case 'tool':
-                            newMsg.content = (newMsg.content as SerializableCoreMessageContent).map(part => {
-                                return part as ToolResultPart
-                            }) as ToolResultPart[]
-                            break
-                        case 'system':
-                            break
+                            })
+                            : loadedContent
+                        return { role, content, ...rest }
+                    }
+                    case 'assistant': {
+                        const content = Array.isArray(loadedContent)
+                            ? (loadedContent as SerializableCoreMessageContent).filter(
+                                (p): p is TextPart | ToolCallPart => p.type === 'text' || p.type === 'tool-call',
+                            ) as (TextPart | ToolCallPart)[]
+                            : loadedContent
+                        return { role, content, ...rest }
+                    }
+                    case 'tool': {
+                        const content = Array.isArray(loadedContent)
+                            ? (loadedContent as SerializableCoreMessageContent).filter(
+                                (p): p is ToolResultPart => p.type === 'tool-result',
+                            ) as ToolResultPart[]
+                            : []
+                        return { role, content, ...rest }
+                    }
+                    default: {
+                        // This should not be reached with proper types, but as a fallback:
+                        const _: never = role
+                        return { role, content: loadedContent, ...rest } as MessageWithUsage
                     }
                 }
-                return newMsg
             })
 
+            await this.updateTotalTokenCount()
             this.initialized = true
-            logger.info(`Chat history loaded successfully with ${yellow(this.history.length)} messages`)
-        } catch(e) {
+            logger.info(`Chat history loaded successfully with ${yellow(this.history.length)} messages and ~${yellow(this.currentTokenCount)} tokens.`)
+        } catch (e) {
             logger.warn(`No existing chat history found, starting fresh. Error: ${e}`)
             this.systemPrompt = CRIMSON_CHAT_SYSTEM_PROMPT
             this.history = getCrimsonChatHistoryFoundation()
             this.initialized = true
-            await this.saveHistoryToFile() // Create the file on first run
+            await this.saveHistoryToFile()
         }
     }
 
@@ -155,27 +212,40 @@ export class CrimsonFileBufferHistory {
         try {
             await fs.mkdir(path.dirname(this.historyPath), { recursive: true })
 
-            // Serialize history, converting image buffers to base64
-            const serializableHistory: SerializableMessage[] = this.history.map((msg: CoreMessage) => { // Explicitly type as SerializableMessage[]
-                const newMsg: SerializableMessage = { ...msg } as SerializableMessage
-                if (Array.isArray(newMsg.content)) {
-                    newMsg.content = newMsg.content.map(p => {
+            const serializableHistory: StoredMessage[] = this.history.map((msg: MessageWithUsage) => {
+                const { content, ...rest } = msg
+                const newMsg: StoredMessage = { ...rest, content: null }
+
+                if (typeof content === 'string') {
+                    newMsg.content = content
+                } else if (Array.isArray(content)) {
+                    newMsg.content = content.map(p => {
                         if (p.type === 'image') {
-                            // Ensure p.image is not a string and then cast to Buffer for instanceof check and toString()
-                            if (typeof p.image !== 'string') {
-                                const imageBuffer = p.image as Buffer // Explicitly cast to Buffer
-                                if (imageBuffer instanceof Buffer) { // Now this should be valid
-                                    const serializablePart: SerializableImagePart = {
-                                        type: 'image',
-                                        image: imageBuffer.toString('base64'), // Use imageBuffer
-                                        mimeType: p.mimeType ?? 'image/png',
-                                    }
-                                    return serializablePart
+                            if (Buffer.isBuffer(p.image)) {
+                                return {
+                                    type: 'image',
+                                    image: p.image.toString('base64'),
+                                    mimeType: p.mimeType ?? 'image/png',
                                 }
                             }
+                            if (p.image instanceof ArrayBuffer) {
+                                return {
+                                    type: 'image',
+                                    image: Buffer.from(p.image).toString('base64'),
+                                    mimeType: p.mimeType ?? 'image/png',
+                                }
+                            }
+                            if (typeof p.image === 'string') {
+                                return {
+                                    type: 'image',
+                                    image: p.image,
+                                    mimeType: p.mimeType,
+                                }
+                            }
+                            return null
                         }
                         return p
-                    }) as SerializableCoreMessageContent
+                    }).filter((p): p is NonNullable<typeof p> => p !== null) as SerializableCoreMessageContent
                 }
                 return newMsg
             })
@@ -194,7 +264,7 @@ export class CrimsonFileBufferHistory {
         }
     }
 
-    async getHistory(): Promise<{history: CoreMessage[], systemInstruction: string}> {
+    async getHistory(): Promise<{ history: CoreMessage[], systemInstruction: string }> {
         await this.loadHistoryFromFile()
         return {
             history: this.history,
@@ -202,9 +272,33 @@ export class CrimsonFileBufferHistory {
         }
     }
 
-    async addMessages(messages: CoreMessage[]): Promise<void> {
+    async addMessages(messages: CoreMessage[], usage?: { promptTokens: number; completionTokens: number }): Promise<void> {
         await this.loadHistoryFromFile()
-        this.history.push(...messages)
+
+        const messagesWithUsage: MessageWithUsage[] = messages.map((msg, index) => {
+            const msgWithUsage: MessageWithUsage = msg
+            if (index === messages.length - 1 && usage) {
+                msgWithUsage.usage = {
+                    promptTokens: usage.promptTokens,
+                    completionTokens: usage.completionTokens,
+                }
+            }
+            return msgWithUsage
+        })
+
+        this.history.push(...messagesWithUsage)
+
+        if (usage) {
+            this.currentTokenCount += usage.promptTokens + usage.completionTokens
+        } else {
+            this.currentTokenCount += messages.reduce((acc, msg) => {
+                const content = Array.isArray(msg.content)
+                    ? msg.content.map(p => (p.type === 'text' ? p.text : '')).join(' ')
+                    : msg.content
+                return acc + Math.ceil((content || '').length / 4)
+            }, 0)
+        }
+
         await this.pruneHistory()
         await this.saveHistoryToFile()
     }
