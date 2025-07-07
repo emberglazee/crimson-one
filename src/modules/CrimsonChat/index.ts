@@ -1,4 +1,3 @@
-// modules\CrimsonChat\index.ts
 import { green, Logger, red, yellow } from '../../util/logger'
 const logger = new Logger('CrimsonChat')
 
@@ -31,11 +30,17 @@ export default class CrimsonChat {
     public channelId = '1335992675459141632'
     private enabled = true
     private ignoredUsers: Set<string> = new Set()
-    private imageProcessor: ImageProcessor
+    private imageProcessor = new ImageProcessor()
 
-    private genAI: ReturnType<typeof createGoogleGenerativeAI>
-    private memory: CrimsonFileBufferHistory
-    private modelName: string = DEFAULT_GEMINI_MODEL
+    private genAI = createGoogleGenerativeAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        baseURL: process.env.GEMINI_BASE_URL
+    })
+    private modelName = DEFAULT_GEMINI_MODEL
+    private model = this.genAI(this.modelName, {
+        useSearchGrounding: true
+    })
+    private memory = new CrimsonFileBufferHistory()
 
     private forceNextBreakdown = false
     private berserkMode = false
@@ -44,16 +49,6 @@ export default class CrimsonChat {
 
     private isGenerating = false
     private messageBuffer: BufferedMessage[] = []
-
-    private constructor() {
-        this.memory = new CrimsonFileBufferHistory()
-        this.imageProcessor = new ImageProcessor()
-        if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set in environment variables')
-        this.genAI = createGoogleGenerativeAI({
-            apiKey: process.env.GEMINI_API_KEY,
-            baseURL: 'http://localhost:1245/v1beta'
-        })
-    }
 
     public static getInstance(): CrimsonChat {
         if (!CrimsonChat.instance) {
@@ -84,11 +79,9 @@ export default class CrimsonChat {
         if (this.forceNextBreakdown || Math.random() < this.BREAKDOWN_CHANCE) {
             logger.info(`Triggering ${this.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
-
-            const model = this.genAI(this.modelName)
             const result = await generateText({
-                model,
-                prompt: CRIMSON_BREAKDOWN_PROMPT
+                model: this.model,
+                system: CRIMSON_BREAKDOWN_PROMPT
             })
             const breakdown = result.text
 
@@ -193,7 +186,6 @@ export default class CrimsonChat {
         const userMessage: CoreMessage = { role: 'user', content: contentParts }
         const messages: CoreMessage[] = [...history, userMessage]
 
-        const model = this.genAI(this.modelName)
         const tools = await loadTools()
 
         try {
@@ -203,7 +195,7 @@ export default class CrimsonChat {
 
             const { text, toolCalls, toolResults } = await Promise.race([
                 generateText({
-                    model: model,
+                    model: this.model,
                     system: systemInstruction,
                     messages: messages,
                     tools: Object.keys(tools).length > 0 ? tools : undefined,
