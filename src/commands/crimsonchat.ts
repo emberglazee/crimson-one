@@ -219,8 +219,8 @@ export default {
             case 'model': {
                 const model = context.getStringOption('model', true)
                 await context.deferReply()
-                await crimsonChat.setModel(model)
-                await context.editReply(`✅ CrimsonChat model switched to \`${model}\`. The chat chain has been re-initialized.`)
+                crimsonChat.setModel(model)
+                await context.editReply(`✅ CrimsonChat model switched to \`${model}\`.`)
                 crimsonChat.sendMessage(
                     `System Alert: Model has been switched to \`${model}\` by ${context.user.username}.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: Model has been switched to \`${model}\` by ${context.user.username}.` }

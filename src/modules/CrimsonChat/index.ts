@@ -378,7 +378,7 @@ export default class CrimsonChat {
         await this.memory.updateSystemPrompt(prompt)
     }
 
-    public async setModel(modelName: string): Promise<void> {
+    public setModel(modelName: string): void {
         this.modelName = modelName
         logger.ok(`CrimsonChat model switched to: ${green(modelName)}`)
     }
