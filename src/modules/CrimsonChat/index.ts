@@ -273,7 +273,7 @@ export default class CrimsonChat {
 
             await this.memory.addMessages(newMessages, usage)
 
-            return text || '-# ...'
+            return text
         } catch (e) {
             const error = e as Error
             if (error.message === 'Assistant response timed out') {
@@ -291,7 +291,7 @@ export default class CrimsonChat {
 
         if (typeof response === 'string') {
             const finalContent = await usernamesToMentions(this.client, response)
-            const messages = this.splitMessage(finalContent.trim() || '-# ...')
+            const messages = this.splitMessage(finalContent.trim())
 
             let isFirst = true
             for (const message of messages) {
