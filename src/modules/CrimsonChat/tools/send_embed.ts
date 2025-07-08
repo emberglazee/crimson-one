@@ -4,8 +4,7 @@ const logger = new Logger('CrimsonChat | send_embed()')
 import { z } from 'zod'
 import { tool } from 'ai'
 import { client as client } from '../../..'
-import { ChannelType, EmbedBuilder, type TextChannel } from 'discord.js'
-import type { HexColor } from '../../../types'
+import { ChannelType, EmbedBuilder, type HexColorString, type TextChannel } from 'discord.js'
 
 // Hex color regex
 const hexColorRegex = /^#(?:[0-9a-fA-F]{3}){1,2}$/
@@ -63,7 +62,7 @@ async function invoke(input: z.infer<typeof schema>): Promise<string> {
 
         if (title) embed.setTitle(title)
         if (description) embed.setDescription(description)
-        if (color) embed.setColor(color as HexColor)
+        if (color) embed.setColor(color as HexColorString)
 
         if (author_name) {
             embed.setAuthor({

@@ -1,8 +1,8 @@
-import type { HexColor } from '../types'
+import type { HexColorString } from 'discord.js'
 
 type BasicColorDefinition = {
     name: string
-    hex: HexColor
+    hex: HexColorString
 }
 
 const basicColors: BasicColorDefinition[] = [
@@ -56,7 +56,7 @@ export type ColorName = typeof basicColors[number]['name'] | typeof basicRoleCol
 
 export interface ColorDefinition {
     name: ColorName
-    hex: HexColor
+    hex: HexColorString
 }
 
 export const COLORS = basicColors as ColorDefinition[]

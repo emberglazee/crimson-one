@@ -29,8 +29,6 @@ export interface DiscordEventListener {
     default: (client: Client) => void
 }
 
-export type HexColor = `#${string}`
-
 export type Emoji = string
 export interface Emojis {
     billy: Emoji[]

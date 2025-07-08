@@ -1,8 +1,8 @@
 import { green, Logger, red, yellow } from '../../util/logger'
 const logger = new Logger('CrimsonChat')
 
-import { Client, TextChannel, Message, ChatInputCommandInteraction, EmbedBuilder, type MessageReplyOptions } from 'discord.js'
-import type { UserMessageOptions, SlashCommand, HexColor } from '../../types'
+import { Client, TextChannel, Message, ChatInputCommandInteraction, EmbedBuilder, type MessageReplyOptions, type HexColorString } from 'discord.js'
+import type { UserMessageOptions, SlashCommand } from '../../types'
 import type { CommandContext } from '../CommandManager'
 import { MessageQueue } from './MessageQueue'
 import { CrimsonFileBufferHistory, type HistoryLimitMode } from './memory'
@@ -235,7 +235,7 @@ export default class CrimsonChat {
                         logger.warn(`Failed to parse tool result as JSON: ${parseError}`)
                     }
 
-                    let embedColor: HexColor = '#ED4245'
+                    let embedColor: HexColorString = '#ED4245'
                     let embedTitle = '❌ Tool Failed'
 
                     if (parsedResult) {
