@@ -65,7 +65,8 @@ export default class CrimsonChat {
                             // Dummy implementation to satisfy the type checker
                         }
                     }
-                )
+                ),
+                apiKey: 'dummy-api-key-to-satisfy-ai-sdk'
             })
         }
 
