@@ -14,6 +14,7 @@ import { ImageProcessor } from './ImageProcessor'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { type CoreMessage, type TextPart, type ImagePart, type ToolCallPart, type ToolResultPart, generateText } from 'ai'
 import { loadTools } from './tools'
+import { OAuth2Client } from 'google-auth-library'
 
 const ASSISTANT_RESPONSE_TIMEOUT_MS = 60 * 1000 // 60 seconds
 
@@ -32,10 +33,57 @@ export default class CrimsonChat {
     private ignoredUsers: Set<string> = new Set()
     private imageProcessor = new ImageProcessor()
 
-    private genAI = createGoogleGenerativeAI({
-        apiKey: process.env.GEMINI_API_KEY,
-        baseURL: process.env.GEMINI_BASE_URL
-    })
+    private genAI = (() => {
+        // --- Primary Method: OAuth 2.0 (Region-Unlocked) ---
+        const refreshToken = process.env.GEMINI_OAUTH_REFRESH_TOKEN
+        const clientId = process.env.GEMINI_OAUTH_CLIENT_ID
+        const clientSecret = process.env.GEMINI_OAUTH_CLIENT_SECRET
+
+        if (refreshToken && clientId && clientSecret) {
+            logger.info('Using region-unlocked Gemini authentication via OAuth.')
+            const oauth2Client = new OAuth2Client(clientId, clientSecret)
+            oauth2Client.setCredentials({
+                refresh_token: refreshToken,
+            })
+
+            return createGoogleGenerativeAI({
+                fetch: Object.assign(
+                    async (url: RequestInfo | URL, options: RequestInit | undefined) => {
+                        const { token } = await oauth2Client.getAccessToken()
+                        const headers = new Headers(options?.headers)
+                        headers.set('Authorization', `Bearer ${token}`)
+                        headers.set('x-goog-api-client', 'cloud-code-fake')
+                        const newOptions = { ...options, headers }
+
+                        const urlString = typeof url === 'string' ? url : url.toString()
+                        const finalUrl = urlString.replace('https://generativelanguage.googleapis.com', 'https://cloudcode-pa.googleapis.com/v1internal')
+
+                        return fetch(finalUrl, newOptions)
+                    },
+                    {
+                        preconnect: () => {
+                            // Dummy implementation to satisfy the type checker
+                        }
+                    }
+                )
+            })
+        }
+
+        // --- Fallback Method: API Key ---
+        const apiKey = process.env.GEMINI_API_KEY
+        if (apiKey) {
+            logger.info('OAuth credentials not found. Falling back to standard Gemini API key authentication.')
+            return createGoogleGenerativeAI({
+                apiKey: apiKey,
+                baseURL: process.env.GEMINI_BASE_URL
+            })
+        }
+
+        // --- No Credentials Found ---
+        logger.warn('No valid Gemini credentials found (neither OAuth nor API Key). CrimsonChat will not function.')
+        // Return a dummy object to avoid crashing, but it will fail on use.
+        return createGoogleGenerativeAI({ apiKey: 'dummy-key-that-will-fail' })
+    })()
     private modelName = DEFAULT_GEMINI_MODEL
     private model = this.genAI(this.modelName, {
         useSearchGrounding: true

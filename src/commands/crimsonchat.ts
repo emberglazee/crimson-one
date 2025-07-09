@@ -1,6 +1,10 @@
 import { SlashCommand } from '../types'
 import { SlashCommandBuilder } from 'discord.js'
 import CrimsonChat from '../modules/CrimsonChat'
+import { OAuth2Client } from 'google-auth-library'
+import { Logger, red } from '../util/logger'
+
+const logger = new Logger('/crimsonchat')
 
 export default {
     data: new SlashCommandBuilder()
@@ -18,9 +22,6 @@ export default {
         ).addSubcommand(sub => sub
             .setName('forcebreak')
             .setDescription('Force a mental breakdown on next message')
-        ).addSubcommand(sub => sub
-            .setName('smack')
-            .setDescription('Remind Crimson of its system prompt')
         ).addSubcommand(sub => sub
             .setName('berserk')
             .setDescription('Toggle berserk mode (maximum chaos)')
@@ -86,11 +87,25 @@ export default {
                     { name: 'Messages', value: 'messages' },
                     { name: 'Tokens', value: 'tokens' }
                 )
-            )
-            .addIntegerOption(opt => opt
+            ).addIntegerOption(opt => opt
                 .setName('limit')
                 .setDescription('The limit to set')
                 .setRequired(true)
+            )
+        ).addSubcommandGroup(group => group
+            .setName('oauth')
+            .setDescription('Manage OAuth2 for Google AI')
+            .addSubcommand(sub => sub
+                .setName('get_auth_url')
+                .setDescription('Generates a URL to authorize the bot and get an auth code.')
+            ).addSubcommand(sub => sub
+                .setName('set_auth_code')
+                .setDescription('Sets the authorization code to get a new refresh token.')
+                .addStringOption(opt => opt
+                    .setName('code')
+                    .setDescription('The authorization code from Google.')
+                    .setRequired(true)
+                )
             )
         ),
 
@@ -103,6 +118,54 @@ export default {
 
         const crimsonChat = CrimsonChat.getInstance()
         const subcommand = context.getSubcommand()
+        const subcommandGroup = context.interaction?.options.getSubcommandGroup(false)
+
+        if (subcommandGroup === 'oauth') {
+            if (!context.isEmbi) {
+                await context.reply('❌ You, solely, are responsible for this.')
+                return
+            }
+
+            const clientId = process.env.GEMINI_OAUTH_CLIENT_ID
+            const clientSecret = process.env.GEMINI_OAUTH_CLIENT_SECRET
+            const redirectUri = 'http://localhost:3000/oauth2callback'
+
+            if (!clientId || !clientSecret) {
+                await context.reply({ content: '❌ OAuth Client ID or Secret is not configured in the environment.', ephemeral: true })
+                return
+            }
+
+            const oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri)
+
+            if (subcommand === 'get_auth_url') {
+                const authUrl = oauth2Client.generateAuthUrl({
+                    access_type: 'offline',
+                    scope: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'],
+                    prompt: 'consent',
+                    response_type: 'code'
+                })
+                await context.reply({
+                    content: `Click the link to authorize, then use the code in the redirected URL with \`/crimsonchat oauth set_auth_code\`.\n\n**Note:** The redirect to localhost will fail, this is expected. Copy the \`code\` parameter from the URL in your browser's address bar.\n\n${authUrl}`,
+                    ephemeral: true
+                })
+            } else if (subcommand === 'set_auth_code') {
+                const code = context.getStringOption('code', true)
+                try {
+                    await context.deferReply({ ephemeral: true })
+                    const { tokens } = await oauth2Client.getToken(code)
+                    if (tokens.refresh_token) {
+                        await context.editReply(`✅ New refresh token obtained! Please set this in your environment as \`GEMINI_OAUTH_REFRESH_TOKEN\` and restart the bot:\n\n\`\`\`\n${tokens.refresh_token}\n\`\`\``)
+                    } else {
+                        await context.editReply('❌ A new refresh token was not provided. This can happen if you have already authorized this app. Please revoke access from your Google account settings and try again.')
+                    }
+                } catch (e) {
+                    const error = e as Error
+                    logger.error(`OAuth Error: ${red(error.message)}`)
+                    await context.editReply(`❌ Error getting token: ${error.message}`)
+                }
+            }
+            return
+        }
 
         switch (subcommand) {
             case 'reset':
@@ -135,15 +198,6 @@ export default {
                 }
                 crimsonChat.setForceNextBreakdown(true)
                 await context.reply('✅ Mental breakdown will be triggered on next message')
-                break
-
-            case 'smack':
-                await context.reply('⏱️ Sending system prompt reminder...')
-                crimsonChat.sendMessage(
-                    `You've been smacked by ${context.user.username}. This means that you're out of line with the system prompt. Here's a friendly reminder for you.`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `You've been smacked by ${context.user.username}. This means that you're out of line with the system prompt. Here's a friendly reminder for you.` }
-                )
-                await context.followUp('✅ System prompt reminder sent')
                 break
 
             case 'berserk': {
