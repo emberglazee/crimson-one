@@ -38,6 +38,8 @@ export default class CrimsonChat {
         const refreshToken = process.env.GEMINI_OAUTH_REFRESH_TOKEN
         const clientId = process.env.GEMINI_OAUTH_CLIENT_ID
         const clientSecret = process.env.GEMINI_OAUTH_CLIENT_SECRET
+        // I specifically need a Google Cloud Project for Code Assist to work
+        const GOOGLE_CLOUD_PROJECT = process.env.GEMINI_GOOGLE_CLOUD_PROJECT
 
         if (refreshToken && clientId && clientSecret) {
             logger.info('Using region-unlocked Gemini authentication via OAuth.')
@@ -53,7 +55,10 @@ export default class CrimsonChat {
                         const headers = new Headers(options?.headers)
                         headers.set('Authorization', `Bearer ${token}`)
                         headers.set('x-goog-api-client', 'cloud-code-fake')
-                        const newOptions = { ...options, headers }
+                        const newOptions = {
+                            ...options, headers,
+                            project: GOOGLE_CLOUD_PROJECT
+                        }
 
                         const urlString = typeof url === 'string' ? url : url.toString()
                         const finalUrl = urlString.replace('https://generativelanguage.googleapis.com', 'https://cloudcode-pa.googleapis.com/v1internal')
