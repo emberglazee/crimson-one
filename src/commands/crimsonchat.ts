@@ -1,7 +1,7 @@
 import { SlashCommand } from '../types'
 import { MessageFlags, SlashCommandBuilder } from 'discord.js'
 import CrimsonChat from '../modules/CrimsonChat'
-import { Logger, red } from '../util/logger'
+import { green, Logger, red } from '../util/logger'
 
 const logger = new Logger('/crimsonchat')
 
@@ -148,17 +148,20 @@ export default {
                 const code = context.getStringOption('code', true)
                 try {
                     await context.deferReply({ flags: MessageFlags.Ephemeral })
+                    logger.info(`Getting OAuth2 tokens using code ${green(code)}...`)
                     const { tokens } = await crimsonChat.oauth2Client.getToken(code)
                     if (tokens) {
-                        await context.editReply(`✅ Tokens obtained!\n\n\`\`\`json\n${JSON.stringify(tokens, null, 4)}\n\`\`\``)
                         crimsonChat.oauth2Client.setCredentials(tokens)
+                        logger.ok('OAuth2 tokens obtained, credentials set')
+                        await context.editReply(`✅ Tokens obtained!\n\n\`\`\`json\n${JSON.stringify(tokens, null, 4)}\n\`\`\``)
                     } else {
+                        logger.warn('No OAuth2 tokens obtained')
                         await context.editReply('❌ A new refresh token was not provided. This can happen if you have already authorized this app. Please revoke access from your Google account settings and try again.')
                     }
                 } catch (e) {
                     const error = e as Error
-                    logger.error(`OAuth Error: ${red(error.message)}`)
-                    await context.editReply(`❌ Error getting token: ${error.message}`)
+                    logger.warn(`OAuth Error: ${red(error.stack ?? error.message)}`)
+                    await context.editReply(`❌ Error getting token: \`${error.message}\``)
                 }
             }
             return
