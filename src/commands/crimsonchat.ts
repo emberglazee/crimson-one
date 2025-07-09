@@ -127,7 +127,6 @@ export default {
 
             const clientId = process.env.GEMINI_OAUTH_CLIENT_ID
             const clientSecret = process.env.GEMINI_OAUTH_CLIENT_SECRET
-            const redirectUri = 'http://localhost:3000/oauth2callback'
 
             if (!clientId || !clientSecret) {
                 await context.reply({ content: '❌ OAuth Client ID or Secret is not configured in the environment.', flags: MessageFlags.Ephemeral })
@@ -137,8 +136,7 @@ export default {
             if (subcommand === 'get_auth_url') {
                 const authUrl = crimsonChat.oauth2Client.generateAuthUrl({
                     access_type: 'offline',
-                    scope: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'],
-                    redirect_uri: redirectUri
+                    scope: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email']
                 })
                 await context.reply({
                     content: `Click the link to authorize, then use the code in the redirected URL with \`/crimsonchat oauth set_auth_code\`.\n\n**Note:** The redirect to localhost will fail, this is expected. Copy the \`code\` parameter from the URL in your browser's address bar.\n\n${authUrl}`,
@@ -148,7 +146,7 @@ export default {
                 const code = context.getStringOption('code', true)
                 try {
                     await context.deferReply({ flags: MessageFlags.Ephemeral })
-                    logger.info(`Getting OAuth2 tokens using code ${green(code)}...`)
+                    logger.info(`Getting OAuth2 tokens using code "${green(code)}"...`)
                     const { tokens } = await crimsonChat.oauth2Client.getToken(code)
                     if (tokens) {
                         crimsonChat.oauth2Client.setCredentials(tokens)
@@ -160,7 +158,7 @@ export default {
                     }
                 } catch (e) {
                     const error = e as Error
-                    logger.warn(`OAuth Error: ${red(error.stack ?? error.message)}`)
+                    logger.warn(`oauth set_auth_code subcommand error: ${red(error.message)}`)
                     await context.editReply(`❌ Error getting token: \`${error.message}\``)
                 }
             }

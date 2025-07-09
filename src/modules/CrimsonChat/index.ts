@@ -28,6 +28,7 @@ interface BufferedMessage {
 const refreshToken = process.env.GEMINI_OAUTH_REFRESH_TOKEN
 const clientId = process.env.GEMINI_OAUTH_CLIENT_ID
 const clientSecret = process.env.GEMINI_OAUTH_CLIENT_SECRET
+const redirectUri = 'http://localhost:3000/oauth2callback'
 // I specifically need a Google Cloud Project for Code Assist to work
 const GOOGLE_CLOUD_PROJECT = process.env.GEMINI_GOOGLE_CLOUD_PROJECT
 
@@ -39,7 +40,7 @@ export default class CrimsonChat {
     private enabled = true
     private ignoredUsers: Set<string> = new Set()
     private imageProcessor = new ImageProcessor()
-    public oauth2Client = new OAuth2Client(clientId, clientSecret)
+    public oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri)
 
     private genAI = (() => {
         // --- Primary Method: OAuth 2.0 (Region-Unlocked) ---
