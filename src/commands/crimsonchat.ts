@@ -1,7 +1,6 @@
 import { SlashCommand } from '../types'
 import { MessageFlags, SlashCommandBuilder } from 'discord.js'
 import CrimsonChat from '../modules/CrimsonChat'
-import { OAuth2Client } from 'google-auth-library'
 import { Logger, red } from '../util/logger'
 
 const logger = new Logger('/crimsonchat')
@@ -131,30 +130,28 @@ export default {
             const redirectUri = 'http://localhost:3000/oauth2callback'
 
             if (!clientId || !clientSecret) {
-                await context.reply({ content: '❌ OAuth Client ID or Secret is not configured in the environment.', ephemeral: true })
+                await context.reply({ content: '❌ OAuth Client ID or Secret is not configured in the environment.', flags: MessageFlags.Ephemeral })
                 return
             }
 
-            const oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri)
-
             if (subcommand === 'get_auth_url') {
-                const authUrl = oauth2Client.generateAuthUrl({
+                const authUrl = crimsonChat.oauth2Client.generateAuthUrl({
                     access_type: 'offline',
-                    scope: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/userinfo.profile', 'openid', 'https://www.googleapis.com/auth/userinfo.email'],
-                    prompt: 'consent',
-                    response_type: 'code'
+                    scope: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'],
+                    redirect_uri: redirectUri
                 })
                 await context.reply({
                     content: `Click the link to authorize, then use the code in the redirected URL with \`/crimsonchat oauth set_auth_code\`.\n\n**Note:** The redirect to localhost will fail, this is expected. Copy the \`code\` parameter from the URL in your browser's address bar.\n\n${authUrl}`,
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 })
             } else if (subcommand === 'set_auth_code') {
                 const code = context.getStringOption('code', true)
                 try {
                     await context.deferReply({ flags: MessageFlags.Ephemeral })
-                    const { tokens } = await oauth2Client.getToken(code)
-                    if (tokens.refresh_token) {
-                        await context.editReply(`✅ New refresh token obtained! Please set this in your environment as \`GEMINI_OAUTH_REFRESH_TOKEN\` and restart the bot:\n\n\`\`\`\n${tokens.refresh_token}\n\`\`\``)
+                    const { tokens } = await crimsonChat.oauth2Client.getToken(code)
+                    if (tokens) {
+                        await context.editReply(`✅ Tokens obtained!\n\n\`\`\`json\n${JSON.stringify(tokens, null, 4)}\n\`\`\``)
+                        crimsonChat.oauth2Client.setCredentials(tokens)
                     } else {
                         await context.editReply('❌ A new refresh token was not provided. This can happen if you have already authorized this app. Please revoke access from your Google account settings and try again.')
                     }

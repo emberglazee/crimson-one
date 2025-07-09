@@ -15,14 +15,21 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { type CoreMessage, type TextPart, type ImagePart, type ToolCallPart, type ToolResultPart, generateText } from 'ai'
 import { loadTools } from './tools'
 import { OAuth2Client } from 'google-auth-library'
+import { randomUUID } from 'crypto'
 
-const ASSISTANT_RESPONSE_TIMEOUT_MS = 60 * 1000 // 60 seconds
+const ASSISTANT_RESPONSE_TIMEOUT_MS = 60000
 
 interface BufferedMessage {
     content: string
     options: UserMessageOptions
     originalMessage?: Message
 }
+
+const refreshToken = process.env.GEMINI_OAUTH_REFRESH_TOKEN
+const clientId = process.env.GEMINI_OAUTH_CLIENT_ID
+const clientSecret = process.env.GEMINI_OAUTH_CLIENT_SECRET
+// I specifically need a Google Cloud Project for Code Assist to work
+const GOOGLE_CLOUD_PROJECT = process.env.GEMINI_GOOGLE_CLOUD_PROJECT
 
 export default class CrimsonChat {
     private static instance: CrimsonChat
@@ -32,32 +39,23 @@ export default class CrimsonChat {
     private enabled = true
     private ignoredUsers: Set<string> = new Set()
     private imageProcessor = new ImageProcessor()
+    public oauth2Client = new OAuth2Client(clientId, clientSecret)
 
     private genAI = (() => {
         // --- Primary Method: OAuth 2.0 (Region-Unlocked) ---
-        const refreshToken = process.env.GEMINI_OAUTH_REFRESH_TOKEN
-        const clientId = process.env.GEMINI_OAUTH_CLIENT_ID
-        const clientSecret = process.env.GEMINI_OAUTH_CLIENT_SECRET
-        // I specifically need a Google Cloud Project for Code Assist to work
-        const GOOGLE_CLOUD_PROJECT = process.env.GEMINI_GOOGLE_CLOUD_PROJECT
-
         if (refreshToken && clientId && clientSecret) {
             logger.info('Using region-unlocked Gemini authentication via OAuth.')
-            const oauth2Client = new OAuth2Client(clientId, clientSecret)
-            oauth2Client.setCredentials({
-                refresh_token: refreshToken,
-            })
-
             return createGoogleGenerativeAI({
                 fetch: Object.assign(
                     async (url: RequestInfo | URL, options: RequestInit | undefined) => {
-                        const { token } = await oauth2Client.getAccessToken()
+                        const { token } = await this.oauth2Client.getAccessToken()
                         const headers = new Headers(options?.headers)
                         headers.set('Authorization', `Bearer ${token}`)
                         headers.set('x-goog-api-client', 'cloud-code-fake')
                         const newOptions = {
                             ...options, headers,
-                            project: GOOGLE_CLOUD_PROJECT
+                            project: GOOGLE_CLOUD_PROJECT,
+                            session_id: randomUUID()
                         }
 
                         const urlString = typeof url === 'string' ? url : url.toString()
