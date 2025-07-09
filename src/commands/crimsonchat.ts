@@ -1,5 +1,5 @@
 import { SlashCommand } from '../types'
-import { SlashCommandBuilder } from 'discord.js'
+import { MessageFlags, SlashCommandBuilder } from 'discord.js'
 import CrimsonChat from '../modules/CrimsonChat'
 import { OAuth2Client } from 'google-auth-library'
 import { Logger, red } from '../util/logger'
@@ -140,7 +140,7 @@ export default {
             if (subcommand === 'get_auth_url') {
                 const authUrl = oauth2Client.generateAuthUrl({
                     access_type: 'offline',
-                    scope: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'],
+                    scope: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/userinfo.profile', 'openid', 'https://www.googleapis.com/auth/userinfo.email'],
                     prompt: 'consent',
                     response_type: 'code'
                 })
@@ -151,7 +151,7 @@ export default {
             } else if (subcommand === 'set_auth_code') {
                 const code = context.getStringOption('code', true)
                 try {
-                    await context.deferReply({ ephemeral: true })
+                    await context.deferReply({ flags: MessageFlags.Ephemeral })
                     const { tokens } = await oauth2Client.getToken(code)
                     if (tokens.refresh_token) {
                         await context.editReply(`✅ New refresh token obtained! Please set this in your environment as \`GEMINI_OAUTH_REFRESH_TOKEN\` and restart the bot:\n\n\`\`\`\n${tokens.refresh_token}\n\`\`\``)
