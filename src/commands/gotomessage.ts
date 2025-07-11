@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { MessageFlags, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 
 export default {
@@ -23,7 +23,7 @@ export default {
             .setRequired(false)
         ),
     async execute(context) {
-        await context.deferReply({ ephemeral: true })
+        await context.deferReply({ flags: MessageFlags.Ephemeral })
 
         const messageId = context.getStringOption('message_id', true)
         const isDm = context.getBooleanOption('is_dm', false, context.channel?.isDMBased() ?? false)

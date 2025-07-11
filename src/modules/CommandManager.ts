@@ -1559,8 +1559,8 @@ export class CommandContext<InGuild extends boolean = boolean> {
         if (this.interaction) {
             // For slash commands, use ephemeral interaction reply
             const replyOptions: InteractionReplyOptions = typeof options === 'string'
-                ? { content: options, ephemeral: true }
-                : { ...options as InteractionReplyOptions, ephemeral: true }
+                ? { content: options, flags: MessageFlags.Ephemeral }
+                : { ...options as InteractionReplyOptions, flags: MessageFlags.Ephemeral }
 
             if (this.interaction.isRepliable() && !this.interaction.replied && !this.interaction.deferred) {
                 return this.interaction.reply(replyOptions)

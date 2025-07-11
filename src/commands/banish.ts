@@ -1,4 +1,4 @@
-import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, MessageFlags, SlashCommandBuilder } from 'discord.js'
 import { GuildSlashCommand } from '../types'
 import { BanishmentManager } from '../modules/BanishmentManager'
 
@@ -24,7 +24,7 @@ export default {
         .setContexts(InteractionContextType.Guild),
     async execute(context) {
         if (!context.member.permissions.has('ManageRoles')) {
-            await context.reply({ content: '❌ You dont have permission to manage roles.', ephemeral: true })
+            await context.reply({ content: '❌ You dont have permission to manage roles.', flags: MessageFlags.Ephemeral })
             return
         }
 
@@ -34,27 +34,27 @@ export default {
 
         const targetMember = await context.guild.members.fetch(targetUser).catch(() => null)
         if (!targetMember) {
-            await context.reply({ content: `❌ Could not find the specified member.`, ephemeral: true })
+            await context.reply({ content: `❌ Could not find the specified member.`, flags: MessageFlags.Ephemeral })
             return
         }
 
         if (targetMember.id === context.user.id) {
-            await context.reply({ content: `play stupid games win stupid prizes`, ephemeral: true })
+            await context.reply({ content: `play stupid games win stupid prizes`, flags: MessageFlags.Ephemeral })
             return
         }
 
         if (targetMember.id === context.client.user.id) {
-            await context.reply({ content: '❌ You cannot banish me.', ephemeral: true })
+            await context.reply({ content: '❌ You cannot banish me.', flags: MessageFlags.Ephemeral })
             return
         }
 
         if (!targetMember.manageable) {
-            await context.reply({ content: '❌ I cannot moderate this user. They may have a higher role than me or I may not have the necessary permissions.', ephemeral: true })
+            await context.reply({ content: '❌ I cannot moderate this user. They may have a higher role than me or I may not have the necessary permissions.', flags: MessageFlags.Ephemeral })
             return
         }
 
         if (context.member.roles.highest.position <= targetMember.roles.highest.position) {
-            await context.reply({ content: '❌ You cannot banish a member with an equal or higher role than you.', ephemeral: true })
+            await context.reply({ content: '❌ You cannot banish a member with an equal or higher role than you.', flags: MessageFlags.Ephemeral })
             return
         }
 

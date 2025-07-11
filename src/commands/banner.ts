@@ -1,4 +1,4 @@
-import { EmbedBuilder, SlashCommandBuilder } from 'discord.js'
+import { EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js'
 import type { ImageExtension, ImageSize } from 'discord.js'
 import type { SlashCommand } from '../types'
 
@@ -43,7 +43,7 @@ export default {
         const fetchedUser = await user.fetch(true)
         const banner = fetchedUser.bannerURL ? fetchedUser.bannerURL({ extension: ext, size: size }) : null
         if (!banner) {
-            await context.reply({ content: 'User does not have a banner', ephemeral: true })
+            await context.reply({ content: 'User does not have a banner', flags: MessageFlags.Ephemeral })
             return
         }
 
