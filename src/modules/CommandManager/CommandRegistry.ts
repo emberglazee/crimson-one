@@ -59,7 +59,7 @@ export class CommandRegistry {
     private async importCommand(file: Dirent) {
         const startTime = Date.now()
         try {
-            const importedModule = await import(path.join(this.currentDir, `../commands/${file.name}`))
+            const importedModule = await import(`../../commands/${file.name}`)
             const commands: (SlashCommand | ContextMenuCommand)[] = []
             const commandInfo: { name: string, type: string, guildId?: GuildId, aliases?: string[] }[] = []
 
