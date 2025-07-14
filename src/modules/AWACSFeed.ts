@@ -4,7 +4,7 @@ const logger = new Logger('AWACSFeed')
 import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember, User, GuildBan, Role } from 'discord.js'
 import type { ClientEvents, PartialGuildMember } from 'discord.js'
 import { AWACS_FEED_CHANNEL } from '../util/constants'
-import { getRandomElement } from '../util/functions'
+import { formatDuration, getRandomElement } from '../util/functions'
 import { BanishmentManager, type BanishmentEvent, type UnbanishmentEvent } from './BanishmentManager'
 
 const NO_IFF_DATA = '\\\\ NO IFF DATA \\\\'
@@ -233,7 +233,19 @@ export class AWACSFeed {
         const { member, actor, type, duration, reason } = data
         let message = `⛓️ ${member.user.username} has been banished by ${actor.username} via ${type}.`
         if (duration) {
-            message += ` Duration: ${duration}s.`
+            const durationInSeconds = Number(duration)
+            const releaseDate = new Date(Date.now() + durationInSeconds * 1000)
+            const releaseDateString = releaseDate.toLocaleString('en-GB', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: 'numeric',
+                timeZone: 'Europe/London',
+                timeZoneName: 'short'
+            })
+            message += ` Duration: ${formatDuration(durationInSeconds)} (until ${releaseDateString}).`
         }
         if (reason) {
             message += ` Reason: ${reason}`

@@ -164,46 +164,78 @@ export function dateToDiscordEpoch(date: Date): number {
     return currentUnixTimestamp - DISCORD_EPOCH
 }
 
-export function parseDuration(durationStr: string): bigint | null {
-    const durationRegex = /(\d+)\s*(d|h|m|s)/g
-    let totalSeconds = 0n // Use BigInt for seconds
-    let match
+const s = 1n
+const m = s * 60n
+const h = m * 60n
+const d = h * 24n
+const mo = d * 30n // 30 days
+const y = mo * 12n // 360 days
+const dec = y * 10n
+const cen = dec * 10n
+const mil = cen * 10n
 
-    // Handle specific date strings
+const DURATION_UNITS: Record<string, bigint> = {
+    s,
+    m,
+    h,
+    d,
+    M: mo,
+    mo,
+    y,
+    D: dec,
+    de: dec,
+    dec,
+    ce: cen,
+    cen,
+    mil,
+}
+
+export function parseDuration(durationStr: string): bigint | null {
+    const durationRegex = /(\d+)\s*(mil|cen|ce|dec|de|D|y|mo|M|d|h|m|s)/g
+    let totalSeconds = 0n
+
+    // Handle specific date strings like "2024-01-01"
     if (!isNaN(Date.parse(durationStr))) {
         const date = new Date(durationStr)
         const diff = BigInt(date.getTime() - Date.now())
-        return diff > 0n ? diff / 1000n : null // return seconds
+        return diff > 0n ? diff / 1000n : null
     }
 
+    let match
     while ((match = durationRegex.exec(durationStr)) !== null) {
-        const value = BigInt(parseInt(match[1]))
-        const unit = match[2]
-
-        switch (unit) {
-            case 'D':
-                totalSeconds += value * 10n * 12n * 30n * 24n * 60n * 60n
-                break
-            case 'y':
-                totalSeconds += value * 12n * 30n * 24n * 60n * 60n
-                break
-            case 'M':
-                totalSeconds += value * 30n * 24n * 60n * 60n
-                break
-            case 'd':
-                totalSeconds += value * 24n * 60n * 60n
-                break
-            case 'h':
-                totalSeconds += value * 60n * 60n
-                break
-            case 'm':
-                totalSeconds += value * 60n
-                break
-            case 's':
-                totalSeconds += value
-                break
-        }
+        const value = BigInt(match[1])
+        const unit = match[2] as keyof typeof DURATION_UNITS
+        totalSeconds += value * (DURATION_UNITS[unit] ?? 0n)
     }
 
     return totalSeconds > 0n ? totalSeconds : null
+}
+
+export function formatDuration(input: Date | number): string {
+    let totalSeconds = input instanceof Date ? Math.floor((input.getTime() - Date.now()) / 1000) : input
+
+    if (totalSeconds <= 0) {
+        return "0s"
+    }
+
+    const units: Array<[string, number]> = [
+        ['y', Number(y)],
+        ['mo', Number(mo)],
+        ['d', Number(d)],
+        ['h', Number(h)],
+        ['m', Number(m)],
+        ['s', Number(s)],
+    ]
+
+    const parts: string[] = []
+
+    for (const [unit, secondsInUnit] of units) {
+        if (totalSeconds >= secondsInUnit) {
+            const count = Math.floor(totalSeconds / secondsInUnit)
+            parts.push(`${count}${unit}`)
+            totalSeconds %= secondsInUnit
+        }
+    }
+
+    return parts.join(' ') || '0s'
 }
