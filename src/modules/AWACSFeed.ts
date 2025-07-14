@@ -233,7 +233,7 @@ export class AWACSFeed {
         const { member, actor, type, duration, reason } = data
         let message = `⛓️ ${member.user.username} has been banished by ${actor.username} via ${type}.`
         if (duration) {
-            message += ` Duration: ${duration / 1000}s.`
+            message += ` Duration: ${duration}s.`
         }
         if (reason) {
             message += ` Reason: ${reason}`

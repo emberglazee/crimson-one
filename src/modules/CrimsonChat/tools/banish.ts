@@ -8,6 +8,7 @@ import { distance } from 'fastest-levenshtein'
 import { type Guild, type GuildMember, PermissionsBitField } from 'discord.js'
 import { EMBI_ID } from '../../../util/constants'
 import { BanishmentManager } from '../../BanishmentManager'
+import { parseDuration } from '../../../util/functions'
 
 const GUILD_ID = '958518067690868796'
 
@@ -56,6 +57,14 @@ async function invoke({ username, displayname, duration, reason }: Input): Promi
 
     const banishmentManager = BanishmentManager.getInstance()
     try {
+        const durationSec = duration ? parseDuration(duration) : null
+        if (durationSec !== null) {
+            if (durationSec < 60n) return JSON.stringify({ status: 'error', message: 'Minimum banishment duration is 1 minute.' })
+
+            const unbanishTimestamp = BigInt(Date.now()) + durationSec * 1000n
+            if (unbanishTimestamp > 8.64e15) return JSON.stringify({ status: 'error', message: 'Calculated unbanishment date is beyond `13th of September, year 275760, 12:00:00.000 AM`. wtf is wrong with you' })
+        }
+
         await banishmentManager.banish(member, client.user, 'crimsonchat', duration ?? null, reason ?? 'Banishment issued by Crimson 1.')
         return JSON.stringify({ status: 'success', message: `User ${member.user.username} has been banished.` })
     } catch (error) {

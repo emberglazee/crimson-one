@@ -15,14 +15,14 @@ export type BanishmentType = 'manual' | 'command' | 'crimsonchat'
 interface TimedBanishment {
     guildId: string
     userId: string
-    unbanishAt: number
+    unbanishAt: string // Stored as ISO string
 }
 
 export interface BanishmentEvent {
     member: GuildMember
     actor: User
     type: BanishmentType
-    duration?: number // in ms
+    duration?: bigint // in seconds
     reason?: string
 }
 
@@ -60,6 +60,8 @@ export class BanishmentManager extends EventEmitter<{
 
     public async init() {
         await this.loadBanishments()
+        // Start a periodic re-check for very long banishments that exceed setTimeout's limit
+        setInterval(() => this.recheckBanishments(), 24 * 60 * 60 * 1000) // Check once every 24 hours
         logger.ok('BanishmentManager initialized.')
     }
 
@@ -85,10 +87,11 @@ export class BanishmentManager extends EventEmitter<{
         const now = Date.now()
 
         for (const ban of banishments) {
-            if (ban.unbanishAt <= now) {
+            const unbanishAt = new Date(ban.unbanishAt).getTime()
+            if (unbanishAt <= now) {
                 this.unbanishUser(ban.guildId, ban.userId, this.client.user, 'manual', 'Timed banishment expired during downtime.').catch(e => logger.error(`Failed to process expired banishment for ${ban.userId}: ${(e as Error).message}`))
             } else {
-                this.scheduleUnban(ban.guildId, ban.userId, ban.unbanishAt)
+                this.scheduleUnban(ban.guildId, ban.userId, unbanishAt)
             }
         }
     }
@@ -102,6 +105,12 @@ export class BanishmentManager extends EventEmitter<{
         }
 
         if (delay > 0) {
+            // setTimeout can handle delays up to 2^31 - 1 milliseconds (about 24.8 days)
+            // For longer durations, we rely on the bot restarting and re-evaluating.
+            if (delay > 2147483647) {
+                logger.warn(`Banishment for ${userId} is longer than 24.8 days. It will be applied upon next bot restart if it occurs after expiration.`)
+                return
+            }
             const timeout = setTimeout(() => {
                 this.unbanishUser(guildId, userId, this.client.user, 'manual', 'Timed banishment expired.').catch(e => logger.error(`Scheduled unbanish failed for ${userId}: ${(e as Error).message}`))
             }, delay)
@@ -123,18 +132,18 @@ export class BanishmentManager extends EventEmitter<{
 
             await member.roles.add(role, reason)
 
-            const durationMs = durationStr ? parseDuration(durationStr) : null
+            const durationSec = durationStr ? parseDuration(durationStr) : null
 
-            this.emit('userBanished', { member, actor, type, duration: durationMs ?? undefined, reason })
+            this.emit('userBanished', { member, actor, type, duration: durationSec ?? undefined, reason })
 
-            if (durationMs) {
-                const unbanishAt = Date.now() + durationMs
+            if (durationSec) {
+                const unbanishAt = Date.now() + Number(durationSec * 1000n)
                 const banishments = await this.getBanishments()
                 const existingIndex = banishments.findIndex(b => b.userId === member.id && b.guildId === member.guild.id)
                 if (existingIndex > -1) {
-                    banishments[existingIndex].unbanishAt = unbanishAt
+                    banishments[existingIndex].unbanishAt = new Date(unbanishAt).toISOString()
                 } else {
-                    banishments.push({ guildId: member.guild.id, userId: member.id, unbanishAt })
+                    banishments.push({ guildId: member.guild.id, userId: member.id, unbanishAt: new Date(unbanishAt).toISOString() })
                 }
                 await this.writeBanishments(banishments)
                 this.scheduleUnban(member.guild.id, member.id, unbanishAt)
@@ -189,5 +198,21 @@ export class BanishmentManager extends EventEmitter<{
 
     public reportManualUnbanishment(member: GuildMember, actor: User) {
         this.emit('userUnbanished', { member, actor, type: 'manual' })
+    }
+
+    private async recheckBanishments() {
+        logger.info('Periodically re-checking for expired long-term banishments...')
+        const banishments = await this.getBanishments()
+        const now = Date.now()
+
+        for (const ban of banishments) {
+            const unbanishAt = new Date(ban.unbanishAt).getTime()
+            if (unbanishAt <= now) {
+                // This ban has expired, but might not have been caught by setTimeout
+                // or might have expired during downtime.
+                this.unbanishUser(ban.guildId, ban.userId, this.client.user, 'manual', 'Timed banishment expired.')
+                    .catch(e => logger.error(`Failed to process expired banishment for ${ban.userId} during periodic check: ${(e as Error).message}`))
+            }
+        }
     }
 }

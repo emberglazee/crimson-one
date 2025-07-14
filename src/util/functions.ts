@@ -164,35 +164,46 @@ export function dateToDiscordEpoch(date: Date): number {
     return currentUnixTimestamp - DISCORD_EPOCH
 }
 
-export function parseDuration(durationStr: string): number | null {
+export function parseDuration(durationStr: string): bigint | null {
     const durationRegex = /(\d+)\s*(d|h|m|s)/g
-    let totalMilliseconds = 0
+    let totalSeconds = 0n // Use BigInt for seconds
     let match
 
+    // Handle specific date strings
     if (!isNaN(Date.parse(durationStr))) {
         const date = new Date(durationStr)
-        return date.getTime() - Date.now()
+        const diff = BigInt(date.getTime() - Date.now())
+        return diff > 0n ? diff / 1000n : null // return seconds
     }
 
     while ((match = durationRegex.exec(durationStr)) !== null) {
-        const value = parseInt(match[1])
+        const value = BigInt(parseInt(match[1]))
         const unit = match[2]
 
         switch (unit) {
+            case 'D':
+                totalSeconds += value * 10n * 12n * 30n * 24n * 60n * 60n
+                break
+            case 'y':
+                totalSeconds += value * 12n * 30n * 24n * 60n * 60n
+                break
+            case 'M':
+                totalSeconds += value * 30n * 24n * 60n * 60n
+                break
             case 'd':
-                totalMilliseconds += value * 24 * 60 * 60 * 1000
+                totalSeconds += value * 24n * 60n * 60n
                 break
             case 'h':
-                totalMilliseconds += value * 60 * 60 * 1000
+                totalSeconds += value * 60n * 60n
                 break
             case 'm':
-                totalMilliseconds += value * 60 * 1000
+                totalSeconds += value * 60n
                 break
             case 's':
-                totalMilliseconds += value * 1000
+                totalSeconds += value
                 break
         }
     }
 
-    return totalMilliseconds > 0 ? totalMilliseconds : null
+    return totalSeconds > 0n ? totalSeconds : null
 }

@@ -1,6 +1,7 @@
-import { InteractionContextType, MessageFlags, SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { GuildSlashCommand } from '../types'
 import { BanishmentManager } from '../modules/BanishmentManager'
+import { parseDuration } from '../util/functions'
 
 export default {
     data: new SlashCommandBuilder()
@@ -24,7 +25,7 @@ export default {
         .setContexts(InteractionContextType.Guild),
     async execute(context) {
         if (!context.member.permissions.has('ManageRoles')) {
-            await context.reply({ content: '❌ You dont have permission to manage roles.', flags: MessageFlags.Ephemeral })
+            await context.reply('❌ You dont have permission to manage roles.')
             return
         }
 
@@ -34,33 +35,47 @@ export default {
 
         const targetMember = await context.guild.members.fetch(targetUser).catch(() => null)
         if (!targetMember) {
-            await context.reply({ content: `❌ Could not find the specified member.`, flags: MessageFlags.Ephemeral })
+            await context.reply(`❌ Could not find the specified member.`)
             return
         }
 
         if (targetMember.id === context.user.id) {
-            await context.reply({ content: `play stupid games win stupid prizes`, flags: MessageFlags.Ephemeral })
+            await context.reply(`play stupid games win stupid prizes`)
             return
         }
 
         if (targetMember.id === context.client.user.id) {
-            await context.reply({ content: '❌ You cannot banish me.', flags: MessageFlags.Ephemeral })
+            await context.reply('❌ You cannot banish me.')
             return
         }
 
         if (!targetMember.manageable) {
-            await context.reply({ content: '❌ I cannot moderate this user. They may have a higher role than me or I may not have the necessary permissions.', flags: MessageFlags.Ephemeral })
+            await context.reply('❌ I cannot moderate this user. They may have a higher role than me or I may not have the necessary permissions.')
             return
         }
 
         if (context.member.roles.highest.position <= targetMember.roles.highest.position) {
-            await context.reply({ content: '❌ You cannot banish a member with an equal or higher role than you.', flags: MessageFlags.Ephemeral })
+            await context.reply('❌ You cannot banish a member with an equal or higher role than you.')
             return
         }
 
         const banishmentManager = BanishmentManager.getInstance()
 
         try {
+            const durationSec = duration ? parseDuration(duration) : null
+            if (durationSec !== null) {
+                if (durationSec < 60n) {
+                    await context.reply('❌ Minimum banishment duration is 1 minute.')
+                    return
+                }
+
+                const unbanishTimestamp = BigInt(Date.now()) + durationSec * 1000n
+                if (unbanishTimestamp > 8.64e15) {
+                    await context.reply('❌ Calculated unbanishment date is beyond `13th of September, year 275760, 12:00:00.000 AM`. why are you like this')
+                    return
+                }
+            }
+
             await context.deferReply()
             await banishmentManager.banish(targetMember, context.user, 'command', duration, reason)
             await context.editReply(`✅ Successfully banished ${targetMember.user.username}.`)
