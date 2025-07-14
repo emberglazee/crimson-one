@@ -7,7 +7,7 @@ import { formatTimeRemaining } from '../util/functions'
 import { SlashCommand } from '../types'
 import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
 
-import type { CommandContext } from '../modules/CommandManager'
+import type { CommandContext } from '../modules/CommandManager/CommandContext'
 
 // Discord interaction tokens expire after 15 minutes
 const INTERACTION_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes in milliseconds
@@ -489,8 +489,8 @@ export default {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const collectEntireChannel = await context.getBooleanOption('entire_channel', false)
-            const limit = collectEntireChannel ? 'entire' : (await context.getIntegerOption('limit'))
+            const collectEntireChannel = context.getBooleanOption('entire_channel', false)
+            const limit = collectEntireChannel ? 'entire' : context.getIntegerOption('limit')
 
             await context.deferReply()
             logger.info(`{collect_all} Collecting from every channel`)
@@ -539,8 +539,8 @@ export default {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const collectEntireChannel = await context.getBooleanOption('entire_channel', false)
-            const limit = collectEntireChannel ? 'entire' : (await context.getIntegerOption('limit'))
+            const collectEntireChannel = context.getBooleanOption('entire_channel', false)
+            const limit = collectEntireChannel ? 'entire' : context.getIntegerOption('limit')
 
             const channel = (await context.getChannelOption('channel')) as TextChannel
 

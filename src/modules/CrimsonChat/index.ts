@@ -2,8 +2,8 @@ import { green, Logger, red, yellow } from '../../util/logger'
 const logger = new Logger('CrimsonChat')
 
 import { Client, TextChannel, Message, ChatInputCommandInteraction, EmbedBuilder, type MessageReplyOptions, type HexColorString } from 'discord.js'
-import type { UserMessageOptions, SlashCommand } from '../../types'
-import type { CommandContext } from '../CommandManager'
+import type { UserMessageOptions, SlashCommand, ExplicitAny } from '../../types'
+import type { CommandContext } from '../CommandManager/CommandContext'
 import { MessageQueue } from './MessageQueue'
 import { CrimsonFileBufferHistory, type HistoryLimitMode } from './memory'
 import { usernamesToMentions } from './util/formatters'
@@ -43,41 +43,65 @@ export default class CrimsonChat {
     public oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri)
 
     private genAI = (() => {
-        // --- Primary Method: OAuth 2.0 (Region-Unlocked) ---
-        if (refreshToken && clientId && clientSecret) {
-            logger.info('Using region-unlocked Gemini authentication via OAuth.')
+        // --- Primary Method: OAuth 2.0 for Code Assist API ---
+        if (refreshToken && clientId && clientSecret && GOOGLE_CLOUD_PROJECT) {
+            logger.info('Using Code Assist API authentication via OAuth.')
+            this.oauth2Client.setCredentials({ refresh_token: refreshToken })
+
             return createGoogleGenerativeAI({
                 fetch: Object.assign(
-                    async (url: RequestInfo | URL, options: RequestInit | undefined) => {
+                    async (url: RequestInfo | URL, options?: RequestInit) => {
                         const { token } = await this.oauth2Client.getAccessToken()
+                        if (!token) throw new Error('Failed to retrieve access token.')
+
+                        const urlString = typeof url === 'string' ? url : url.toString()
+                        const modelMatch = urlString.match(/models\/(gemini-[^:]+)/)
+                        const modelName = modelMatch ? modelMatch[1] : this.modelName
+
+                        const finalUrl = `https://cloudcode-pa.googleapis.com/v1internal/publishers/google/models/${modelName}:generateContent`
+
+                        let finalBody = options?.body
+                        if (options?.body) {
+                            try {
+                                const originalBody = JSON.parse(options.body as string)
+                                const wrappedBody = {
+                                    model: `publishers/google/models/${modelName}`,
+                                    project: GOOGLE_CLOUD_PROJECT,
+                                    request: originalBody,
+                                    session_id: randomUUID()
+                                }
+                                finalBody = JSON.stringify(wrappedBody)
+                            } catch (e) {
+                                logger.error(`Failed to parse and wrap request body: ${e}`)
+                            }
+                        }
+
                         const headers = new Headers(options?.headers)
                         headers.set('Authorization', `Bearer ${token}`)
                         headers.set('x-goog-api-client', 'cloud-code-fake')
-                        const newOptions = {
-                            ...options, headers,
-                            project: GOOGLE_CLOUD_PROJECT,
-                            session_id: randomUUID()
-                        }
+                        headers.set('x-goog-cloud-project', GOOGLE_CLOUD_PROJECT)
+                        headers.set('Content-Type', 'application/json')
 
-                        const urlString = typeof url === 'string' ? url : url.toString()
-                        const finalUrl = urlString.replace('https://generativelanguage.googleapis.com', 'https://cloudcode-pa.googleapis.com/v1internal')
+                        const newOptions: RequestInit = {
+                            ...options,
+                            headers,
+                            body: finalBody,
+                        }
 
                         return fetch(finalUrl, newOptions)
                     },
                     {
-                        preconnect: () => {
-                            // Dummy implementation to satisfy the type checker
-                        }
+                        preconnect: () => { /* Dummy to satisfy type */ }
                     }
                 ),
                 apiKey: 'dummy-api-key-to-satisfy-ai-sdk'
             })
         }
 
-        // --- Fallback Method: API Key ---
+        // --- Fallback Method: Standard Gemini API Key ---
         const apiKey = process.env.GEMINI_API_KEY
         if (apiKey) {
-            logger.info('OAuth credentials not found. Falling back to standard Gemini API key authentication.')
+            logger.info('OAuth/Code Assist credentials not found. Falling back to standard Gemini API key authentication.')
             return createGoogleGenerativeAI({
                 apiKey: apiKey,
                 baseURL: process.env.GEMINI_BASE_URL
@@ -85,8 +109,7 @@ export default class CrimsonChat {
         }
 
         // --- No Credentials Found ---
-        logger.warn('No valid Gemini credentials found (neither OAuth nor API Key). CrimsonChat will not function.')
-        // Return a dummy object to avoid crashing, but it will fail on use.
+        logger.warn('No valid Gemini credentials found (neither Code Assist OAuth nor API Key). CrimsonChat will not function.')
         return createGoogleGenerativeAI({ apiKey: 'dummy-key-that-will-fail' })
     })()
     private modelName = DEFAULT_GEMINI_MODEL
@@ -243,7 +266,7 @@ export default class CrimsonChat {
                 setTimeout(() => reject(new Error('Assistant response timed out')), ASSISTANT_RESPONSE_TIMEOUT_MS)
             )
 
-            const result = await Promise.race([
+            const rawResult = await Promise.race([
                 generateText({
                     model: this.model,
                     system: systemInstruction,
@@ -255,6 +278,11 @@ export default class CrimsonChat {
                 }),
                 timeoutPromise
             ])
+
+            // The custom fetch wrapper for the Code Assist API returns a nested response object.
+            // Using `ExplicitAny` here is a deliberate choice to unwrap this specific, non-standard
+            // structure without creating a complex, one-off type definition.
+            const result = (rawResult as ExplicitAny).response ?? rawResult
 
             const { text, toolCalls, toolResults, usage } = result
 

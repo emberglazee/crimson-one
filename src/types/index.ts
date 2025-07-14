@@ -16,7 +16,7 @@ import {
     type MessageContextMenuCommandInteraction,
     type PermissionsString
 } from 'discord.js'
-import type { CommandContext } from '../modules/CommandManager'
+import type { CommandContext } from '../modules/CommandManager/CommandContext'
 
 export type GuildIdResolvable = string | Guild | BaseInteraction | GuildChannel | Message
 export type UserIdResolvable = GuildMember | User | string | Message

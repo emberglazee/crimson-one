@@ -68,8 +68,6 @@ client.once('ready', async () => {
     await banishmentManager.init()
 
     await commandManager.init()
-    await commandManager.refreshGlobalCommands()
-    await commandManager.refreshAllGuildCommands()
 
     await shapesInc.init()
 
