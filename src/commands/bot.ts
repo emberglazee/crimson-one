@@ -6,22 +6,20 @@ const usageTracker = new Map<string, number[]>()
 const USAGE_LIMIT = 2
 const WINDOW_MINUTES = 10
 
-function canExecuteCommand(): boolean {
+function canExecuteCommand(command: string): boolean {
     const now = Date.now()
-    const key = 'setusername'
-    const timestamps = usageTracker.get(key) ?? []
+    const timestamps = usageTracker.get(command) ?? []
     const windowMs = WINDOW_MINUTES * 60 * 1000
     const validTimestamps = timestamps.filter(t => now - t < windowMs)
     if (validTimestamps.length >= USAGE_LIMIT) return false
-    usageTracker.set(key, validTimestamps)
+    usageTracker.set(command, validTimestamps)
     return true
 }
 
-function trackSuccessfulExecution() {
-    const key = 'setusername'
-    const timestamps = usageTracker.get(key) ?? []
+function trackSuccessfulExecution(command: string): void {
+    const timestamps = usageTracker.get(command) ?? []
     timestamps.push(Date.now())
-    usageTracker.set(key, timestamps)
+    usageTracker.set(command, timestamps)
 }
 
 export default {
@@ -106,7 +104,7 @@ export default {
             return
         }
         if (subcommand === 'set_global_username') {
-            if (!canExecuteCommand()) {
+            if (!canExecuteCommand(subcommand)) {
                 await context.reply(`❌ This command can only be ran ${USAGE_LIMIT} times every ${WINDOW_MINUTES} minutes, to avoid API rate limiting`)
                 return
             }
@@ -138,7 +136,7 @@ export default {
             }
             try {
                 await context.client.user.setUsername(username)
-                trackSuccessfulExecution()
+                trackSuccessfulExecution(subcommand)
             } catch (e) {
                 if ((e as Error).message.includes('USERNAME_RATE_LIMIT')) {
                     await context.editReply('❌ Hit the username change rate limit')

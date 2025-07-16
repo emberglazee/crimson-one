@@ -6,6 +6,7 @@ import {
 } from 'discord.js'
 import type { ExplicitAny } from '../types'
 import { randomInt } from 'crypto'
+import { distance } from 'fastest-levenshtein'
 
 export const randRange = (min: number, max: number) => randomInt(min, max + 1)
 export const getRandomElement = <T>(array: T[]): T => array[randomInt(array.length)]
@@ -238,4 +239,32 @@ export function formatDuration(input: Date | number): string {
     }
 
     return parts.join(' ') || '0s'
+}
+
+export async function findMember(guild: Guild, query: string): Promise<GuildMember | null> {
+    // by username
+    await guild.members.fetch({ query: query, limit: 10 })
+    const memberByUsername = guild.members.cache.find(
+        member => member.user.username.toLowerCase() === query.toLowerCase()
+    )
+    if (memberByUsername) return memberByUsername
+
+    // by display name
+    let closestMatch: GuildMember | null = null
+    let smallestDistance = Infinity
+    for (const [_, member] of guild.members.cache) {
+        const displayName = member.displayName.toLowerCase()
+        const dist = distance(query.toLowerCase(), displayName)
+        if (dist < smallestDistance) {
+            smallestDistance = dist
+            closestMatch = member
+        }
+    }
+    // prevent anything thats more than half the distance
+    const threshold = Math.floor(query.length / 2)
+    if (closestMatch && smallestDistance <= threshold) {
+        return closestMatch
+    }
+
+    return null
 }

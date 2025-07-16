@@ -4,8 +4,7 @@ const logger = new Logger('CrimsonChat | timeout()')
 import { z } from 'zod'
 import { tool } from 'ai'
 import { client as client } from '../../../'
-import { distance } from 'fastest-levenshtein'
-import type { Guild, GuildMember } from 'discord.js'
+import { findMember } from '../../../util/functions'
 
 const schema = z.object({
     username: z.string().optional(),
@@ -51,31 +50,3 @@ export default tool({
     parameters: schema,
     execute: invoke
 })
-
-async function findMember(guild: Guild, query: string): Promise<GuildMember | null> {
-    // by username
-    await guild.members.fetch({ query: query, limit: 10 })
-    const memberByUsername = guild.members.cache.find(
-        member => member.user.username.toLowerCase() === query.toLowerCase()
-    )
-    if (memberByUsername) return memberByUsername
-
-    // by display name
-    let closestMatch = null
-    let smallestDistance = Infinity
-    for (const [_, member] of guild.members.cache) {
-        const displayName = member.displayName.toLowerCase()
-        const dist = distance(query.toLowerCase(), displayName)
-        if (dist < smallestDistance) {
-            smallestDistance = dist
-            closestMatch = member
-        }
-    }
-    // prevent anything thats more than half the distance
-    const threshold = Math.floor(query.length / 2)
-    if (closestMatch && smallestDistance <= threshold) {
-        return closestMatch
-    }
-
-    return null
-}

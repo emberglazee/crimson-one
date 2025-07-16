@@ -4,11 +4,10 @@ const logger = new Logger('CrimsonChat | set_display_name()')
 import { z } from 'zod'
 import { tool } from 'ai'
 import { client as client } from '../../..'
-import { distance } from 'fastest-levenshtein'
-import { type Guild, type GuildMember, PermissionsBitField } from 'discord.js'
+import { type Guild, PermissionsBitField } from 'discord.js'
 import { EMBI_ID } from '../../../util/constants'
+import { findMember } from '../../../util/functions'
 
-// --- Constants from the original /banish command ---
 const GUILD_ID = '958518067690868796'
 
 const schema = z.object({
@@ -82,31 +81,3 @@ export default tool({
     parameters: schema,
     execute: invoke
 })
-
-async function findMember(guild: Guild, query: string): Promise<GuildMember | null> {
-    // by username
-    await guild.members.fetch({ query: query, limit: 10 })
-    const memberByUsername = guild.members.cache.find(
-        member => member.user.username.toLowerCase() === query.toLowerCase()
-    )
-    if (memberByUsername) return memberByUsername
-
-    // by display name
-    let closestMatch: GuildMember | null = null
-    let smallestDistance = Infinity
-    for (const [_, member] of guild.members.cache) {
-        const displayName = member.displayName.toLowerCase()
-        const dist = distance(query.toLowerCase(), displayName)
-        if (dist < smallestDistance) {
-            smallestDistance = dist
-            closestMatch = member
-        }
-    }
-    // prevent anything thats more than half the distance
-    const threshold = Math.floor(query.length / 2)
-    if (closestMatch && smallestDistance <= threshold) {
-        return closestMatch
-    }
-
-    return null
-}
