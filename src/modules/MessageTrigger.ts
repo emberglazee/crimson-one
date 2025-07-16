@@ -181,7 +181,7 @@ export class MessageTrigger {
             }
         },
         {
-            pattern: [/(?:i'm|im|i am)\s+(.+)/gmi],
+            pattern: [/\b(i'm|im|i am)\b\s+(.+)/gmi],
             async action(message) {
                 if (!message.member?.moderatable) return
                 if (
@@ -189,10 +189,10 @@ export class MessageTrigger {
                     || !chance(1)
                 ) return
 
-                const match = message.content.match(/(?:i'm|im|i am)\s+(.+)/gmi)
+                const match = message.content.match(/\b(i'm|im|i am)\b\s+(.+)/gmi)
                 if (!match) return
 
-                let name = match[0].replace(/(?:i'm|im|i am)\s+/gmi, '').trim()
+                let name = match[0].replace(/\b(i'm|im|i am)\b\s+/gmi, '').trim()
                 name = name.split(/[.,]/)[0].trim()
                 if (name.length > 32) {
                     name = name.substring(0, 32)
