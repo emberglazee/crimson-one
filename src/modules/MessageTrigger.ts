@@ -184,7 +184,10 @@ export class MessageTrigger {
             pattern: [/(?:i'm|im|i am)\s+(.+)/gmi],
             async action(message) {
                 if (!message.member?.moderatable) return
-                if (!chance(1)) return
+                if (
+                    message.member.id === '1065465855191814284' // screw them in particular
+                    || !chance(1)
+                ) return
 
                 const match = message.content.match(/(?:i'm|im|i am)\s+(.+)/gmi)
                 if (!match) return
