@@ -1,9 +1,6 @@
 import { SlashCommand } from '../types'
-import { MessageFlags, SlashCommandBuilder } from 'discord.js'
+import { SlashCommandBuilder } from 'discord.js'
 import CrimsonChat from '../modules/CrimsonChat'
-import { green, Logger, red } from '../util/logger'
-
-const logger = new Logger('/crimsonchat')
 
 export default {
     data: new SlashCommandBuilder()
@@ -72,7 +69,6 @@ export default {
                     { name: 'Gemini 2.5 Flash Lite (Default)', value: 'gemini-2.5-flash-lite-preview-06-17' },
                     { name: 'Gemini 2.0 Flash',      value: 'gemini-2.0-flash' },
                     { name: 'Gemini 2.0 Flash Lite', value: 'gemini-2.0-flash-lite' },
-                    { name: 'Gemma 3 27B IT',        value: 'gemma-3-27b-it' }
                 )
             )
         ).addSubcommand(sub => sub
@@ -117,53 +113,6 @@ export default {
 
         const crimsonChat = CrimsonChat.getInstance()
         const subcommand = context.getSubcommand()
-        const subcommandGroup = context.interaction?.options.getSubcommandGroup(false)
-
-        if (subcommandGroup === 'oauth') {
-            if (!context.isEmbi) {
-                await context.reply('❌ You, solely, are responsible for this.')
-                return
-            }
-
-            const clientId = process.env.GEMINI_OAUTH_CLIENT_ID
-            const clientSecret = process.env.GEMINI_OAUTH_CLIENT_SECRET
-
-            if (!clientId || !clientSecret) {
-                await context.reply({ content: '❌ OAuth Client ID or Secret is not configured in the environment.', flags: MessageFlags.Ephemeral })
-                return
-            }
-
-            if (subcommand === 'get_auth_url') {
-                const authUrl = crimsonChat.oauth2Client.generateAuthUrl({
-                    access_type: 'offline',
-                    scope: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email']
-                })
-                await context.reply({
-                    content: `Click the link to authorize, then use the code in the redirected URL with \`/crimsonchat oauth set_auth_code\`.\n\n**Note:** The redirect to localhost will fail, this is expected. Copy the \`code\` parameter from the URL in your browser's address bar.\n\n${authUrl}`,
-                    flags: MessageFlags.Ephemeral
-                })
-            } else if (subcommand === 'set_auth_code') {
-                const code = context.getStringOption('code', true)
-                try {
-                    await context.deferReply({ flags: MessageFlags.Ephemeral })
-                    logger.info(`Getting OAuth2 tokens using code "${green(code)}"...`)
-                    const { tokens } = await crimsonChat.oauth2Client.getToken(code)
-                    if (tokens) {
-                        crimsonChat.oauth2Client.setCredentials(tokens)
-                        logger.ok('OAuth2 tokens obtained, credentials set')
-                        await context.editReply(`✅ Tokens obtained!\n\n\`\`\`json\n${JSON.stringify(tokens, null, 4)}\n\`\`\``)
-                    } else {
-                        logger.warn('No OAuth2 tokens obtained')
-                        await context.editReply('❌ A new refresh token was not provided. This can happen if you have already authorized this app. Please revoke access from your Google account settings and try again.')
-                    }
-                } catch (e) {
-                    const error = e as Error
-                    logger.warn(`oauth set_auth_code subcommand error: ${red(error.message)}`)
-                    await context.editReply(`❌ Error getting token: \`${error.message}\``)
-                }
-            }
-            return
-        }
 
         switch (subcommand) {
             case 'reset':

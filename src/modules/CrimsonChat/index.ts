@@ -14,8 +14,6 @@ import { ImageProcessor } from './ImageProcessor'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { type CoreMessage, type TextPart, type ImagePart, type ToolCallPart, type ToolResultPart, generateText } from 'ai'
 import { loadTools } from './tools'
-import { OAuth2Client } from 'google-auth-library'
-import { randomUUID } from 'crypto'
 
 const ASSISTANT_RESPONSE_TIMEOUT_MS = 60000
 
@@ -25,13 +23,6 @@ interface BufferedMessage {
     originalMessage?: Message
 }
 
-const refreshToken = process.env.GEMINI_OAUTH_REFRESH_TOKEN
-const clientId = process.env.GEMINI_OAUTH_CLIENT_ID
-const clientSecret = process.env.GEMINI_OAUTH_CLIENT_SECRET
-const redirectUri = 'http://localhost:3000/oauth2callback'
-// I specifically need a Google Cloud Project for Code Assist to work
-const GOOGLE_CLOUD_PROJECT = process.env.GEMINI_GOOGLE_CLOUD_PROJECT
-
 export default class CrimsonChat {
     private static instance: CrimsonChat
     public client!: Client
@@ -40,78 +31,11 @@ export default class CrimsonChat {
     private enabled = true
     private ignoredUsers: Set<string> = new Set()
     private imageProcessor = new ImageProcessor()
-    public oauth2Client = new OAuth2Client(clientId, clientSecret, redirectUri)
 
-    private genAI = (() => {
-        // --- Primary Method: OAuth 2.0 for Code Assist API ---
-        if (refreshToken && clientId && clientSecret && GOOGLE_CLOUD_PROJECT) {
-            logger.info('Using Code Assist API authentication via OAuth.')
-            this.oauth2Client.setCredentials({ refresh_token: refreshToken })
-
-            return createGoogleGenerativeAI({
-                fetch: Object.assign(
-                    async (url: RequestInfo | URL, options?: RequestInit) => {
-                        const { token } = await this.oauth2Client.getAccessToken()
-                        if (!token) throw new Error('Failed to retrieve access token.')
-
-                        const urlString = typeof url === 'string' ? url : url.toString()
-                        const modelMatch = urlString.match(/models\/(gemini-[^:]+)/)
-                        const modelName = modelMatch ? modelMatch[1] : this.modelName
-
-                        const finalUrl = `https://cloudcode-pa.googleapis.com/v1internal/publishers/google/models/${modelName}:generateContent`
-
-                        let finalBody = options?.body
-                        if (options?.body) {
-                            try {
-                                const originalBody = JSON.parse(options.body as string)
-                                const wrappedBody = {
-                                    model: `publishers/google/models/${modelName}`,
-                                    project: GOOGLE_CLOUD_PROJECT,
-                                    request: originalBody,
-                                    session_id: randomUUID()
-                                }
-                                finalBody = JSON.stringify(wrappedBody)
-                            } catch (e) {
-                                logger.error(`Failed to parse and wrap request body: ${e}`)
-                            }
-                        }
-
-                        const headers = new Headers(options?.headers)
-                        headers.set('Authorization', `Bearer ${token}`)
-                        headers.set('x-goog-api-client', 'cloud-code-fake')
-                        headers.set('x-goog-cloud-project', GOOGLE_CLOUD_PROJECT)
-                        headers.set('Content-Type', 'application/json')
-
-                        const newOptions: RequestInit = {
-                            ...options,
-                            headers,
-                            body: finalBody,
-                        }
-
-                        return fetch(finalUrl, newOptions)
-                    },
-                    {
-                        preconnect: () => { /* Dummy to satisfy type */ }
-                    }
-                ),
-                apiKey: 'dummy-api-key-to-satisfy-ai-sdk'
-            })
-        }
-
-        // --- Fallback Method: Standard Gemini API Key ---
-        const apiKey = process.env.GEMINI_API_KEY
-        if (apiKey) {
-            logger.info('OAuth/Code Assist credentials not found. Falling back to standard Gemini API key authentication.')
-            return createGoogleGenerativeAI({
-                apiKey: apiKey,
-                baseURL: process.env.GEMINI_BASE_URL
-            })
-        }
-
-        // --- No Credentials Found ---
-        logger.warn('No valid Gemini credentials found (neither Code Assist OAuth nor API Key). CrimsonChat will not function.')
-        return createGoogleGenerativeAI({ apiKey: 'dummy-key-that-will-fail' })
-    })()
+    private genAI = createGoogleGenerativeAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        baseURL: process.env.GEMINI_BASE_URL
+    })
     private modelName = DEFAULT_GEMINI_MODEL
     private model = this.genAI(this.modelName, {
         useSearchGrounding: true
@@ -529,4 +453,3 @@ export default class CrimsonChat {
         return [...this.ignoredUsers]
     }
 }
-
