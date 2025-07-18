@@ -87,21 +87,6 @@ export default {
                 .setDescription('The limit to set')
                 .setRequired(true)
             )
-        ).addSubcommandGroup(group => group
-            .setName('oauth')
-            .setDescription('Manage OAuth2 for Google AI')
-            .addSubcommand(sub => sub
-                .setName('get_auth_url')
-                .setDescription('Generates a URL to authorize the bot and get an auth code.')
-            ).addSubcommand(sub => sub
-                .setName('set_auth_code')
-                .setDescription('Sets the authorization code to get a new refresh token.')
-                .addStringOption(opt => opt
-                    .setName('code')
-                    .setDescription('The authorization code from Google.')
-                    .setRequired(true)
-                )
-            )
         ),
 
     async execute(context) {
