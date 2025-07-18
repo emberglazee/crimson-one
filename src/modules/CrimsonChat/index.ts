@@ -32,7 +32,9 @@ export default class CrimsonChat {
     private ignoredUsers: Set<string> = new Set()
     private imageProcessor = new ImageProcessor()
 
-    private genAI = createVertex()
+    private genAI = createVertex({
+        location: 'europe-west1'
+    })
     private modelName = DEFAULT_GEMINI_MODEL
     private model = this.genAI(this.modelName, {
         useSearchGrounding: true
