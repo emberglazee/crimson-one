@@ -11,7 +11,7 @@ import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST
 import * as fs from 'fs/promises'
 import path from 'path'
 import { ImageProcessor } from './ImageProcessor'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createVertex } from '@ai-sdk/google-vertex'
 import { type CoreMessage, type TextPart, type ImagePart, type ToolCallPart, type ToolResultPart, generateText } from 'ai'
 import { loadTools } from './tools'
 
@@ -32,10 +32,7 @@ export default class CrimsonChat {
     private ignoredUsers: Set<string> = new Set()
     private imageProcessor = new ImageProcessor()
 
-    private genAI = createGoogleGenerativeAI({
-        apiKey: process.env.GEMINI_API_KEY,
-        baseURL: process.env.GEMINI_BASE_URL
-    })
+    private genAI = createVertex()
     private modelName = DEFAULT_GEMINI_MODEL
     private model = this.genAI(this.modelName, {
         useSearchGrounding: true
