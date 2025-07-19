@@ -124,7 +124,8 @@ export class MessageTrigger {
                     'https://cdn.discordapp.com/attachments/1267488539503886386/1362140010559705260/image.png?ex=68014f3d&is=67fffdbd&hm=ff8f1cd3bf09fd0d8dca408a43c81f89ebcfa2fbb33aaeae1a07eddc0d74455c&',
                     'https://cdn.discordapp.com/attachments/982138135653793804/1362142160606199988/image.png?ex=6801513e&is=67ffffbe&hm=3920645809825cd0a04615a6d78beae4e44dcbdd89532af8b95cc0390d4c85fa&',
                     'https://cdn.discordapp.com/attachments/982138135653793804/1386321925340532808/image.png?ex=68594867&is=6857f6e7&hm=d39bae8efb9a310efefe0ca677ebc78eadbeafc190de7446b4152203ec117d31&',
-                    'https://cdn.discordapp.com/attachments/982138135653793804/1386321932848468109/image.png?ex=68594869&is=6857f6e9&hm=ce0ade2cbd71ddfde03e522cfb22b387fa1d0820c19a06331bf90c5be5b4155b&'
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1386321932848468109/image.png?ex=68594869&is=6857f6e9&hm=ce0ade2cbd71ddfde03e522cfb22b387fa1d0820c19a06331bf90c5be5b4155b&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1396164071925219519/image.png?ex=687d169e&is=687bc51e&hm=040a51bbd38f6edbcd3aa445a069acde6732b4e519e308757a963406077c9de6&'
                 ]))
                 const ashleigh = await message.client.users.fetch(ashleighId)
                 await ashleigh.send(`<@${ashleighId}> https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`)
