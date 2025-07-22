@@ -201,7 +201,17 @@ export class MarkovChat extends EventEmitter<{
     }
 
     public async generateMessage(options: MarkovGenerateOptions): Promise<string> {
-        return this.sendTask<string>('generate', options)
+        const { guild, channel, user, userId, words, seed, global, mode } = options
+        return this.sendTask<string>('generate', {
+            guildId: guild?.id,
+            channelId: channel?.id,
+            user,
+            userId,
+            words,
+            seed,
+            global,
+            mode
+        })
     }
 
     public async getMessageStats(options: MarkovGenerateOptions): Promise<MessageStats> {
