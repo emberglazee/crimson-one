@@ -31,7 +31,7 @@ interface MarkovGenerateOptions {
     words?: number
     seed?: string
     global?: boolean
-    characterMode?: boolean
+    mode?: 'trigram' | 'bigram'
 }
 
 interface MarkovCollectProgressEvent {

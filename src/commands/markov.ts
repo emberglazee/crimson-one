@@ -149,10 +149,14 @@ export default {
                 .setName('seed')
                 .setDescription('Start the generated text with specific words')
                 .setRequired(false)
-            ).addBooleanOption(bo => bo
-                .setName('character_mode')
-                .setDescription('Generate text character by character (cursed, for maximum chaos)')
+            ).addStringOption(so => so
+                .setName('mode')
+                .setDescription('The generation mode to use (default: trigram)')
                 .setRequired(false)
+                .addChoices(
+                    { name: 'Trigram (default)', value: 'trigram' },
+                    { name: 'Bigram (classic)', value: 'bigram' }
+                )
             )
         ).addSubcommand(sc => sc
             .setName('info')
@@ -261,7 +265,7 @@ export default {
             const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined
             const words = context.getIntegerOption('words', false, 20)
             const seed = context.getStringOption('seed', false)
-            const characterMode = context.getBooleanOption('character_mode', false, false)
+            const mode = context.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram'
 
             await context.deferReply()
 
@@ -321,7 +325,7 @@ export default {
                     words,
                     seed: seed ?? undefined,
                     global: source === 'global',
-                    characterMode: characterMode ?? undefined
+                    mode: mode
                 })
 
                 // Clean up event listener
@@ -341,9 +345,9 @@ export default {
                                 source === 'global' ? 'Global' : 'This server',
                                 channel ? `Channel: #${channel.name ?? channel.id}` : null,
                                 user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
-                                words !== 20 ? (characterMode ? `Characters: ${words}` : `Words: ${words}`) : null,
+                                words !== 20 ? `Words: ${words}` : null,
                                 seed ? `Seed: "${seed}"` : null,
-                                characterMode ? 'Mode: Character-by-character (cursed)' : null
+                                `Mode: ${mode}`
                             ].filter(Boolean).join(', ') || 'None',
                             inline: false
                         }

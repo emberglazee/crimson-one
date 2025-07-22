@@ -3,7 +3,7 @@ import { Logger, red } from '../../util/logger'
 const logger = new Logger('MarkovChain | Worker')
 
 import { Client, Guild, Message as DiscordMessage, TextChannel, ChannelType, Collection, IntentsBitField, Partials, User } from 'discord.js'
-import { ChainBuilder, CharacterChainBuilder } from './entities/MarkovChain'
+import { BigramChainBuilder, TrigramChainBuilder } from './entities/MarkovChain'
 import { MarkovDataSource } from './DataSource'
 import { getChannelMessageCount } from './DiscordUserApi'
 
@@ -19,7 +19,7 @@ interface GenerateOptions {
     words?: number
     seed?: string
     global?: boolean
-    characterMode?: boolean
+    mode?: 'trigram' | 'bigram'
 }
 
 interface MessageStatsOptions {
@@ -187,7 +187,7 @@ class MarkovEngine {
 
     public async generateMessage(options: GenerateOptions) {
         const startTime = Date.now()
-        const chain = options.characterMode ? new CharacterChainBuilder() : new ChainBuilder()
+        const chain = options.mode === 'bigram' ? new BigramChainBuilder() : new TrigramChainBuilder()
 
         parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'querying', progress: 0, total: 1, elapsedTime: 0, estimatedTimeRemaining: null } })
 
@@ -216,20 +216,11 @@ class MarkovEngine {
 
         parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'generating', progress: 0, total: 1, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null } })
 
-        let result: string
-        if (options.characterMode) {
-            result = (chain as CharacterChainBuilder).generate({
-                minChars: Math.max(5, Math.floor((options.words || 20) * 0.8)),
-                maxChars: options.words || 20,
-                seed: options.seed ?? ''
-            })
-        } else {
-            result = (chain as ChainBuilder).generate({
-                minWords: Math.max(3, Math.floor((options.words || 20) * 0.8)),
-                maxWords: options.words || 20,
-                seed: options.seed ? options.seed.split(/\s+/) : []
-            })
-        }
+        const result = chain.generate({
+            minWords: Math.max(3, Math.floor((options.words || 20) * 0.8)),
+            maxWords: options.words || 20,
+            seed: options.seed ? options.seed.split(/\s+/) : []
+        })
 
         return result
     }
