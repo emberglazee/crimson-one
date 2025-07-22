@@ -188,11 +188,6 @@ export class CrimsonFileBufferHistory {
                             : []
                         return { role, content, ...rest }
                     }
-                    default: {
-                        // This should not be reached with proper types, but as a fallback:
-                        const _: never = role
-                        return { role, content: loadedContent, ...rest } as MessageWithUsage
-                    }
                 }
             })
 

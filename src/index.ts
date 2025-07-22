@@ -47,7 +47,6 @@ export const client = unreadyClient as Client<true>
 logger.ok('Logged in')
 
 export const guildConfigManager = GuildConfigManager.getInstance()
-const commandManager = CommandManager.getInstance().setClient(client)
 export const quoteFactory = new QuoteFactory(client)
 export const awacsFeed = new AWACSFeed(client)
 export const messageTrigger = new MessageTrigger()
@@ -58,9 +57,11 @@ export const dashboardServer = DashboardServer.getInstance()
 
 client.once('ready', async () => {
     logger.info(`Logged in as ${yellow(client.user.tag)}`)
+    client.user.setStatus('dnd')
     gracefulShutdown.setClient(client)
     gracefulShutdown.registerShutdownHandlers()
-    client.user.setStatus('dnd')
+
+    const commandManager = CommandManager.getInstance().setClient(client)
 
     dashboardServer.start(Number(process.env.DASHBOARD_PORT) || 9826)
 

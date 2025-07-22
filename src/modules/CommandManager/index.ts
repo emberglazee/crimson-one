@@ -60,6 +60,16 @@ export default class CommandManager {
         logger.ok(`{init} Total time: ${yellow(totalTime)}s`)
     }
 
+    public async refreshGlobalCommands(): Promise<void> {
+        if (!this.deployer) throw new ClassNotInitializedError()
+        await this.deployer.refreshGlobalCommands()
+    }
+
+    public async refreshAllGuildCommands(): Promise<void> {
+        if (!this.deployer) throw new ClassNotInitializedError()
+        await this.deployer.refreshAllGuildCommands()
+    }
+
     public async handleInteraction(interaction: CommandInteraction | ContextMenuCommandInteraction): Promise<void> {
         if (!this.initialized || !this.registry) throw new ClassNotInitializedError()
         if (!interaction.isChatInputCommand() && !interaction.isContextMenuCommand()) return
@@ -137,8 +147,8 @@ export default class CommandManager {
             const context = await TextCommandParser.createContextForMessageCommand(message, command, rawArgsString, prefix)
 
             if (context.parsedArgs?.h === true || context.parsedArgs?.help === true) {
-                const finalArgsString = this._reconstructArgumentsForYargs(rawArgsString, command)
-                const yargsParser = this.buildYargsParserForCommand(command, message, finalArgsString, prefix)
+                const finalArgsString = TextCommandParser._reconstructArgumentsForYargs(rawArgsString, command)
+                const yargsParser = TextCommandParser._buildYargsParserForCommand(command, message, finalArgsString, prefix)
                 const helpText = await yargsParser.getHelp()
                 await message.reply(`\`\`\`\n${helpText.trim()}\n\`\`\``)
                 return

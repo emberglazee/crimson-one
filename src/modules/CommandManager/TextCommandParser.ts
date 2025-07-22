@@ -11,7 +11,7 @@ import { CommandContext } from './CommandContext'
 export class TextCommandParser {
     public static async createContextForMessageCommand(message: Message, command: SlashCommand, rawArgsString: string, prefix: string): Promise<CommandContext> {
         const finalArgsString = this._reconstructArgumentsForYargs(rawArgsString, command)
-        const yargsParser = this.buildYargsParserForCommand(command, message, finalArgsString, prefix)
+        const yargsParser = this._buildYargsParserForCommand(command, message, finalArgsString, prefix)
 
         const parsedYargsArgs = await yargsParser.parseAsync()
 
@@ -31,7 +31,7 @@ export class TextCommandParser {
         return { commandName, rawArgsString }
     }
 
-    private static _reconstructArgumentsForYargs(rawArgsString: string, command: SlashCommand): string {
+    static _reconstructArgumentsForYargs(rawArgsString: string, command: SlashCommand): string {
         const commandData = command.data.toJSON()
         const allTokens = this.tokenizeArgs(rawArgsString)
 
@@ -192,7 +192,7 @@ export class TextCommandParser {
         }
     }
 
-    private static buildYargsParserForCommand(commandDef: SlashCommand, message: Message, rawArgsString: string, prefix: string): Argv<{}> {
+    static _buildYargsParserForCommand(commandDef: SlashCommand, message: Message, rawArgsString: string, prefix: string): Argv<{}> {
         const baseCommandData = commandDef.data.toJSON()
         const parser = yargs(rawArgsString)
 
