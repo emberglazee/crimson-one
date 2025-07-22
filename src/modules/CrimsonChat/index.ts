@@ -15,6 +15,8 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { type CoreMessage, type TextPart, type ImagePart, type ToolCallPart, type ToolResultPart, generateText } from 'ai'
 import { loadTools } from './tools'
 
+import { EventEmitter } from 'tseep'
+
 const ASSISTANT_RESPONSE_TIMEOUT_MS = 60000
 
 interface BufferedMessage {
@@ -23,7 +25,9 @@ interface BufferedMessage {
     originalMessage?: Message
 }
 
-export default class CrimsonChat {
+export default class CrimsonChat extends EventEmitter<{
+    statusChange: () => void
+}> {
     private static instance: CrimsonChat
     public client!: Client
     public channel: TextChannel | null = null
@@ -36,19 +40,23 @@ export default class CrimsonChat {
         apiKey: process.env.GEMINI_API_KEY,
         baseURL: process.env.GEMINI_BASE_URL
     })
-    private modelName = DEFAULT_GEMINI_MODEL
+    public modelName = DEFAULT_GEMINI_MODEL
     private model = this.genAI(this.modelName, {
         useSearchGrounding: true
     })
-    private memory = new CrimsonFileBufferHistory()
+    public memory = new CrimsonFileBufferHistory()
 
     private forceNextBreakdown = false
-    private berserkMode = false
-    private testMode = false
+    public berserkMode = false
+    public testMode = false
     private readonly BREAKDOWN_CHANCE = 0.01
 
     private isGenerating = false
     private messageBuffer: BufferedMessage[] = []
+
+    private constructor() {
+        super()
+    }
 
     public static getInstance(): CrimsonChat {
         if (!CrimsonChat.instance) {
@@ -373,21 +381,25 @@ export default class CrimsonChat {
 
     public setModel(modelName: string): void {
         this.modelName = modelName
+        this.emit('statusChange')
         logger.ok(`CrimsonChat model switched to: ${green(modelName)}`)
     }
 
     public async setHistoryLimit(mode: HistoryLimitMode, limit: number): Promise<void> {
         await this.memory.setHistoryLimit(mode, limit)
+        this.emit('statusChange')
     }
 
     public setForceNextBreakdown(force: boolean): void {
         this.forceNextBreakdown = force
+        this.emit('statusChange')
         logger.ok(`Force next breakdown set to: ${yellow(force)}`)
     }
 
     public async toggleBerserkMode(): Promise<boolean> {
         if (this.testMode) return false
         this.berserkMode = !this.berserkMode
+        this.emit('statusChange')
         return this.berserkMode
     }
 
@@ -397,6 +409,7 @@ export default class CrimsonChat {
             this.berserkMode = false
         }
         await this.updateSystemPrompt()
+        this.emit('statusChange')
         logger.ok(`Test mode set to: ${yellow(enabled)}. System prompt updated.`)
     }
 
@@ -410,6 +423,7 @@ export default class CrimsonChat {
 
     public setEnabled(state: boolean): void {
         this.enabled = state
+        this.emit('statusChange')
         logger.info(`CrimsonChat ${green(state ? 'enabled' : 'disabled')}`)
     }
 

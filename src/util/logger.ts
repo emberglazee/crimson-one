@@ -12,6 +12,17 @@ export const { yellow, red, cyan, green, blue } = chalk
 
 const esmodules = !!import.meta.url
 
+export type LogLevel = 'error' | 'warn' | 'info' | 'ok' | 'debug'
+export interface LogPayload {
+    level: LogLevel
+    message: string
+    module?: string
+}
+
+const staticEventEmitter = new EventEmitter<{
+    log: (payload: LogPayload) => void
+}>()
+
 export class Logger extends EventEmitter<{
     error: (data: JSONResolvable) => void
     warn: (data: JSONResolvable) => void
@@ -22,6 +33,9 @@ export class Logger extends EventEmitter<{
     file = ''
     useWebhook = false
     module: string | undefined
+
+    public static readonly events = staticEventEmitter
+
     constructor(module?: string) {
         super()
         this._createLogFile()
@@ -30,7 +44,11 @@ export class Logger extends EventEmitter<{
         }
         this.module = module
     }
-    private _log(level: 'error' | 'warn' | 'info' | 'ok' | 'debug', data: JSONResolvable) {
+    private _log(level: LogLevel, data: JSONResolvable) {
+        const message = typeof data === 'string' ? data : JSON.stringify(data)
+
+        staticEventEmitter.emit('log', { level, message, module: this.module })
+
         console.log(logoutput(level, data, this.module, true))
         this.emit(level, logoutput(level, data, this.module))
         this.writeLogLine(logoutput(level, data, this.module))

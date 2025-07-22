@@ -3,6 +3,7 @@ const logger = new Logger('GracefulShutdown')
 
 import { operationTracker } from './OperationTracker'
 import { Client } from 'discord.js'
+import { DashboardServer } from './DashboardServer'
 
 export class GracefulShutdown {
     private static instance: GracefulShutdown
@@ -46,6 +47,8 @@ export class GracefulShutdown {
         }
 
         await operationTracker.executeShutdown()
+
+        DashboardServer.getInstance().stop()
 
         try {
             this.client.destroy()

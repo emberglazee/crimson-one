@@ -57,14 +57,14 @@ function isSerializableImagePart(part: unknown): part is SerializableImagePart {
 
 export class CrimsonFileBufferHistory {
     private historyPath = path.join(process.cwd(), 'data/chat_history.json')
-    private history: MessageWithUsage[] = []
+    public history: MessageWithUsage[] = []
     private initialized = false
     private systemPrompt: string = CRIMSON_CHAT_SYSTEM_PROMPT
 
-    private limitMode: HistoryLimitMode = 'messages'
-    private messageLimit = 100
-    private tokenLimit = 32768
-    private currentTokenCount = 0
+    public limitMode: HistoryLimitMode = 'messages'
+    public messageLimit = 100
+    public tokenLimit = 32768
+    public currentTokenCount = 0
 
     private async updateTotalTokenCount(): Promise<void> {
         if (this.limitMode !== 'tokens') {

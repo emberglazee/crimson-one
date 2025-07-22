@@ -19,6 +19,7 @@ import { gracefulShutdown } from './modules/GracefulShutdown'
 import GuildConfigManager from './modules/GuildConfig'
 import { QuoteImageFactory } from './modules/QuoteImageFactory'
 import CrimsonChat from './modules/CrimsonChat'
+import { DashboardServer } from './modules/DashboardServer'
 
 const unreadyClient = new Client({
     intents: new IntentsBitField([
@@ -53,12 +54,15 @@ export const messageTrigger = new MessageTrigger()
 export const shapesInc = ShapesInc.getInstance(client, '1335992675459141632')
 export const crimsonChat = CrimsonChat.getInstance()
 export const banishmentManager = BanishmentManager.getInstance().setClient(client)
+export const dashboardServer = DashboardServer.getInstance()
 
 client.once('ready', async () => {
     logger.info(`Logged in as ${yellow(client.user.tag)}`)
     gracefulShutdown.setClient(client)
     gracefulShutdown.registerShutdownHandlers()
     client.user.setStatus('dnd')
+
+    dashboardServer.start(Number(process.env.DASHBOARD_PORT) || 9826)
 
     QuoteImageFactory.getInstance().setClient(client)
 

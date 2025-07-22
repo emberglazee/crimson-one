@@ -1,12 +1,11 @@
-// guardian.ts
-import { spawn } from 'bun'
-import { fork, type ChildProcess } from 'child_process' // <-- Import fork and ChildProcess
-import path from 'path'
 import { Logger, red, yellow } from './util/logger'
-
 const logger = new Logger('Guardian')
 
-let botProcess: ChildProcess | null = null // <-- Use ChildProcess type
+import { spawn } from 'bun'
+import { fork, type ChildProcess } from 'child_process'
+import path from 'path'
+
+let botProcess: ChildProcess | null = null
 let lastKnownGoodCommit = ''
 let restartAttempts = 0
 let isReady = false
@@ -35,7 +34,6 @@ async function startBot() {
         stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     })
 
-    // --- Cleaner stream piping ---
     if (botProcess.stdout) {
         botProcess.stdout.pipe(process.stdout)
     }
@@ -57,17 +55,15 @@ async function startBot() {
         }
     })
 
-    // Set a timeout for the 'READY' signal
     setTimeout(() => {
         // If it's still running but hasn't sent 'READY'
         if (botProcess && (!botProcess.killed && !isReady)) {
             logger.error("Bot did not send 'READY' signal within 30 seconds. Assuming startup failure.")
             botProcess.kill()
         }
-    }, 30000) // 30-second timeout
+    }, 30000)
 }
 
-// Function to handle messages received from the child process
 async function handleBotMessage(message: { type: string }) {
     if (message.type === 'UPDATE_REQUEST') {
         logger.info('Received update request from bot. Initiating update...')
@@ -83,10 +79,9 @@ async function handleBotMessage(message: { type: string }) {
 async function performUpdate() {
     logger.info('Killing current bot process for update...')
     if (botProcess) {
-        // Set up a promise to wait for the exit event
         const waitForExit = new Promise<void>(resolve => botProcess!.on('exit', () => resolve()))
         botProcess.kill()
-        await waitForExit // Wait for it to fully exit
+        await waitForExit
         isReady = false
         botProcess = null
     }
@@ -101,12 +96,12 @@ async function performUpdate() {
         await bunInstall.exited
 
         logger.ok('Update successful. Restarting bot...')
-        restartAttempts = 0 // Reset crash counter after a manual update
+        restartAttempts = 0
         await startBot()
 
     } catch (error) {
         logger.error(`Update failed: ${red(error)}. Attempting to restart with old code...`)
-        await startBot() // Restart with whatever code is there
+        await startBot()
     }
 }
 
@@ -117,7 +112,7 @@ async function handleCrash(crashedCommit: string) {
 
         if (crashedCommit === lastKnownGoodCommit) {
             logger.error('Crashed on the last known good commit. Cannot roll back. Halting.')
-            return // Stop trying
+            return
         }
 
         try {
@@ -126,7 +121,7 @@ async function handleCrash(crashedCommit: string) {
             await gitReset.exited
 
             logger.info('Rollback complete. Attempting to restart...')
-            restartAttempts = 0 // Reset counter after rollback
+            restartAttempts = 0
             await startBot()
 
         } catch (error) {
@@ -134,12 +129,10 @@ async function handleCrash(crashedCommit: string) {
         }
     } else {
         logger.warn(`Crash detected. Attempting restart ${restartAttempts}/${MAX_RESTART_ATTEMPTS}...`)
-        setTimeout(() => startBot(), 5000) // Wait 5 seconds before restarting
+        setTimeout(() => startBot(), 5000)
     }
 }
 
-
-// Initial start
 (async () => {
     lastKnownGoodCommit = await getCommitHash()
     await startBot()

@@ -1,6 +1,8 @@
 import { Logger } from '../util/logger'
 const logger = new Logger('OperationTracker')
 
+import { EventEmitter } from 'tseep'
+
 type OperationType = 'SLASH_COMMAND' | 'TEXT_COMMAND' | 'TASK' | 'JOB' | 'EVENT' | 'OTHER'
 type OperationStatus = 'RUNNING' | 'COMPLETED' | 'FAILED'
 
@@ -14,7 +16,10 @@ interface Operation {
     refable?: { ref(): void; unref(): void }
 }
 
-export class OperationTracker {
+export class OperationTracker extends EventEmitter<{
+    operationStart: (operation: Operation) => void
+    operationEnd: (operation: Operation) => void
+}> {
     private static instance: OperationTracker
     private operations = new Map<string, Operation>()
     private shuttingDown = false
@@ -23,6 +28,7 @@ export class OperationTracker {
     private resolveShutdown: (() => void) | null = null
 
     private constructor() {
+        super()
         this.shutdownPromise = new Promise(resolve => {
             this.resolveShutdown = resolve
         })
@@ -50,7 +56,8 @@ export class OperationTracker {
             ref() { },
             unref() { }
         }
-        this.addOperation(opId, operationName, operationType, { ...metadata, refable })
+        const operationData = this.addOperation(opId, operationName, operationType, { ...metadata, refable })
+        this.emit('operationStart', operationData)
         process.ref(refable)
 
         try {
@@ -85,7 +92,8 @@ export class OperationTracker {
             ref() { },
             unref() { }
         }
-        this.addOperation(opId, operationName, operationType, { ...metadata, refable })
+        const operationData = this.addOperation(opId, operationName, operationType, { ...metadata, refable })
+        this.emit('operationStart', operationData)
         process.ref(refable)
 
         return {
@@ -185,15 +193,17 @@ export class OperationTracker {
         name: string,
         type: OperationType,
         metadata?: Record<string, unknown>
-    ): void {
-        this.operations.set(id, {
+    ): Operation {
+        const operation: Operation = {
             id,
             type,
             name,
             start: new Date(),
             status: 'RUNNING',
             metadata
-        })
+        }
+        this.operations.set(id, operation)
+        return operation
     }
 
     private updateOperationStatus(
@@ -209,7 +219,11 @@ export class OperationTracker {
     }
 
     private removeOperation(id: string): void {
-        this.operations.delete(id)
+        const operation = this.operations.get(id)
+        if (operation) {
+            this.operations.delete(id)
+            this.emit('operationEnd', operation)
+        }
     }
 
     private logPendingOperations(): void {

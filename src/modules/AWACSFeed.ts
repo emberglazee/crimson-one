@@ -7,6 +7,8 @@ import { AWACS_FEED_CHANNEL } from '../util/constants'
 import { formatDuration, getRandomElement } from '../util/functions'
 import { BanishmentManager, type BanishmentEvent, type UnbanishmentEvent } from './BanishmentManager'
 
+import { EventEmitter } from 'tseep'
+
 const NO_IFF_DATA = '\\\\ NO IFF DATA \\\\'
 const TARGET_GUILD_ID = '958518067690868796'
 const BANISHED_ROLE_ID = '1331170880591757434'
@@ -17,7 +19,9 @@ type EventHandler<T extends keyof ClientEvents> = {
     messages: ((...params: string[]) => string)[]
 }
 
-export class AWACSFeed {
+export class AWACSFeed extends EventEmitter<{
+    awacsEvent: (message: string) => void
+}> {
     private client: Client
     private awacsChannel: TextChannel | undefined
     private banishmentManager = BanishmentManager.getInstance()
@@ -43,9 +47,6 @@ export class AWACSFeed {
         (member: string, role: string, remover: string) => `🏷️ ${member}'s ${role} designation was revoked${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`,
         (member: string, role: string, remover: string) => `🧑‍✈️ ${member} has been demoted from the ${role} unit${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`
     ]
-
-    private static readonly banishedRoleAddMessage = (member: string, assigner: string) => `⛓️ ${member} has been banished${assigner === NO_IFF_DATA ? '.' : ` by ${assigner}.`}`
-    private static readonly banishedRoleRemoveMessage = (member: string, remover: string) => `🔓 ${member} has been unbanished${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`
 
     private static readonly timeoutMessages = [
         (member: string, moderator: string) => `🔇 ${member} has been muted${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
@@ -194,6 +195,7 @@ export class AWACSFeed {
     ]
 
     constructor(client: Client) {
+        super()
         this.client = client
         this.initializeListeners()
     }
@@ -279,7 +281,7 @@ export class AWACSFeed {
                 const assigner = await this.findRoleChanger(newMember, role, '$add')
                 if (assigner !== NO_IFF_DATA) {
                     const actor = await this.client.users.fetch(assigner).catch(() => null)
-                    if(actor) this.banishmentManager.reportManualBanishment(newMember, actor)
+                    if (actor) this.banishmentManager.reportManualBanishment(newMember, actor)
                 }
             } else if (!AWACSFeed.IGNORED_ROLE_IDS.includes(role.id)) {
                 const assigner = await this.findRoleChanger(newMember, role, '$add')
@@ -293,7 +295,7 @@ export class AWACSFeed {
                 const remover = await this.findRoleChanger(newMember, role, '$remove')
                 if (remover !== NO_IFF_DATA) {
                     const actor = await this.client.users.fetch(remover).catch(() => null)
-                    if(actor) this.banishmentManager.reportManualUnbanishment(newMember, actor)
+                    if (actor) this.banishmentManager.reportManualUnbanishment(newMember, actor)
                 }
             } else if (!AWACSFeed.IGNORED_ROLE_IDS.includes(role.id)) {
                 const remover = await this.findRoleChanger(newMember, role, '$remove')
@@ -387,6 +389,7 @@ export class AWACSFeed {
     }
 
     private async sendMessage(message: string) {
+        this.emit('awacsEvent', message)
         if (!this.awacsChannel) {
             const channel = await this.client.channels.fetch(AWACS_FEED_CHANNEL)
             if (channel?.isTextBased() && channel.type === ChannelType.GuildText) {
