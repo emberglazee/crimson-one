@@ -79,7 +79,11 @@ async function handleBotMessage(message: { type: string }) {
 async function performUpdate() {
     logger.info('Killing current bot process for update...')
     if (botProcess) {
-        const waitForExit = new Promise<void>(resolve => botProcess!.on('exit', () => resolve()))
+        botProcess.removeAllListeners('exit')
+        const waitForExit = new Promise<void>(resolve => botProcess!.on('exit', (code: number | null) => {
+            logger.info(`Bot exited during update with code: ${code}`)
+            resolve()
+        }))
         botProcess.kill()
         await waitForExit
         isReady = false
