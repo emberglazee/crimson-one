@@ -48,6 +48,17 @@ export class AWACSFeed extends EventEmitter<{
         (member: string, role: string, remover: string) => `🧑‍✈️ ${member} has been demoted from the ${role} unit${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`
     ]
 
+    private static readonly roleSelfAddMessages = [
+        (member: string, role: string) => `🛰️ ${member} has acquired the ${role} role.`,
+        (member: string, role: string) => `🛰️ ${member} has taken on the ${role} designation.`,
+        (member: string, role: string) => `🛰️ ${member} now identifies as ${role}.`
+    ]
+
+    private static readonly roleSelfRemoveMessages = [
+        (member: string, role: string) => `🛰️ ${member} has relinquished the ${role} role.`,
+        (member: string, role: string) => `🛰️ ${member} is no longer designated as ${role}.`
+    ]
+
     private static readonly timeoutMessages = [
         (member: string, moderator: string) => `🔇 ${member} has been muted${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
         (member: string, moderator: string) => `🔇 ${member} has been silenced${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
@@ -285,8 +296,13 @@ export class AWACSFeed extends EventEmitter<{
                 }
             } else if (!AWACSFeed.IGNORED_ROLE_IDS.includes(role.id)) {
                 const assigner = await this.findRoleChanger(newMember, role, '$add')
-                const message = getRandomElement(AWACSFeed.roleAddMessages)(newMember.user.username, role.name, assigner)
-                await this.sendMessage(message)
+                if (assigner === newMember.user.username) {
+                    const message = getRandomElement(AWACSFeed.roleSelfAddMessages)(newMember.user.username, role.name)
+                    await this.sendMessage(message)
+                } else {
+                    const message = getRandomElement(AWACSFeed.roleAddMessages)(newMember.user.username, role.name, assigner)
+                    await this.sendMessage(message)
+                }
             }
         }
 
@@ -299,8 +315,13 @@ export class AWACSFeed extends EventEmitter<{
                 }
             } else if (!AWACSFeed.IGNORED_ROLE_IDS.includes(role.id)) {
                 const remover = await this.findRoleChanger(newMember, role, '$remove')
-                const message = getRandomElement(AWACSFeed.roleRemoveMessages)(newMember.user.username, role.name, remover)
-                await this.sendMessage(message)
+                if (remover === newMember.user.username) {
+                    const message = getRandomElement(AWACSFeed.roleSelfRemoveMessages)(newMember.user.username, role.name)
+                    await this.sendMessage(message)
+                } else {
+                    const message = getRandomElement(AWACSFeed.roleRemoveMessages)(newMember.user.username, role.name, remover)
+                    await this.sendMessage(message)
+                }
             }
         }
     }
