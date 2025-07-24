@@ -53,6 +53,9 @@ export default class CommandManager {
         const currentDir = path.dirname(fileURLToPath(import.meta.url))
         await this.registry.loadCommands(path.join(currentDir, '../../commands'))
 
+        await this.refreshGlobalCommands()
+        await this.refreshAllGuildCommands()
+
         this.initialized = true
 
         const initEndTime = process.hrtime.bigint()
