@@ -34,8 +34,12 @@ client.once('ready', async () => {
         // Delete all global commands
         logger.info('Starting deletion of all global commands...')
         await commandManager.deleteAllGlobalCommands()
-
         logger.ok('Successfully deleted all global commands')
+
+        // Delete all registered guild commands
+        logger.info('Starting deletion of all registered guild commands...')
+        await commandManager.deleteAllRegisteredGuildCommands()
+        logger.ok('Successfully deleted all registered guild commands')
     } catch (error) {
         logger.error(`Failed to delete commands: ${red(error)}`)
     } finally {

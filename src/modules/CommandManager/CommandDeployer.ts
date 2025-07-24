@@ -183,6 +183,13 @@ export class CommandDeployer {
         }
     }
 
+    public async deleteAllRegisteredGuildCommands(): Promise<void> {
+        const guilds = [...this.registry.guildCommands.keys()]
+        for (const guildId of guilds) {
+            await this.deleteAllGuildCommands(guildId)
+        }
+    }
+
     private normalizeCommandData(data: ExplicitAny): ExplicitAny {
         const normalized = JSON.parse(JSON.stringify(data))
 

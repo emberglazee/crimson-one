@@ -70,6 +70,16 @@ export default class CommandManager {
         await this.deployer.refreshAllGuildCommands()
     }
 
+    public async deleteAllGlobalCommands(): Promise<void> {
+        if (!this.deployer) throw new ClassNotInitializedError()
+        await this.deployer.deleteAllGlobalCommands()
+    }
+
+    public async deleteAllRegisteredGuildCommands(): Promise<void> {
+        if (!this.deployer) throw new ClassNotInitializedError()
+        await this.deployer.deleteAllRegisteredGuildCommands()
+    }
+
     public async handleInteraction(interaction: CommandInteraction | ContextMenuCommandInteraction): Promise<void> {
         if (!this.initialized || !this.registry) throw new ClassNotInitializedError()
         if (!interaction.isChatInputCommand() && !interaction.isContextMenuCommand()) return
