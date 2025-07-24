@@ -115,7 +115,7 @@ export default {
                 break
 
             case 'toggle':
-                crimsonChat.setEnabled(!crimsonChat.isEnabled())
+                await crimsonChat.setEnabled(!crimsonChat.isEnabled())
                 await context.reply(crimsonChat.isEnabled() ? '✅ CrimsonChat enabled' : '🔴 CrimsonChat disabled')
                 crimsonChat.sendMessage(
                     `Chat is now ${crimsonChat.isEnabled() ? 'enabled' : 'disabled'}`,
@@ -221,7 +221,7 @@ export default {
             case 'model': {
                 const model = context.getStringOption('model', true)
                 await context.deferReply()
-                crimsonChat.setModel(model)
+                await crimsonChat.setModel(model)
                 await context.editReply(`✅ CrimsonChat model switched to \`${model}\`.`)
                 crimsonChat.sendMessage(
                     `System Alert: Model has been switched to \`${model}\` by ${context.user.username}.`,

@@ -5,11 +5,9 @@ import { Client, TextChannel, Message, ChatInputCommandInteraction, EmbedBuilder
 import type { UserMessageOptions, SlashCommand, ExplicitAny } from '../../types'
 import type { CommandContext } from '../CommandManager/CommandContext'
 import { MessageQueue } from './MessageQueue'
-import { CrimsonFileBufferHistory, type HistoryLimitMode } from './memory'
+import { CrimsonChatState, type HistoryLimitMode } from './memory'
 import { usernamesToMentions } from './util/formatters'
-import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST_PROMPT, DEFAULT_GEMINI_MODEL } from '../../util/constants'
-import * as fs from 'fs/promises'
-import path from 'path'
+import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST_PROMPT } from '../../util/constants'
 import { ImageProcessor } from './ImageProcessor'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { type CoreMessage, type TextPart, type ImagePart, type ToolCallPart, type ToolResultPart, generateText } from 'ai'
@@ -32,23 +30,15 @@ export default class CrimsonChat extends EventEmitter<{
     public client!: Client
     public channel: TextChannel | null = null
     public channelId = '1335992675459141632'
-    private enabled = true
-    private ignoredUsers: Set<string> = new Set()
     private imageProcessor = new ImageProcessor()
 
     private genAI = createGoogleGenerativeAI({
         apiKey: process.env.GEMINI_API_KEY,
         baseURL: process.env.GEMINI_BASE_URL
     })
-    public modelName = DEFAULT_GEMINI_MODEL
-    private model = this.genAI(this.modelName, {
-        useSearchGrounding: true
-    })
-    public memory = new CrimsonFileBufferHistory()
+    public state = new CrimsonChatState()
 
     private forceNextBreakdown = false
-    public berserkMode = false
-    public testMode = false
     private readonly BREAKDOWN_CHANCE = 0.01
 
     private isGenerating = false
@@ -77,23 +67,23 @@ export default class CrimsonChat extends EventEmitter<{
         if (!this.channel) {
             throw new Error(`Could not find text channel ${this.channelId}`)
         }
-        await this.loadIgnoredUsers()
+        await this.state.loadStateFromFile()
         logger.ok('CrimsonChat initialized successfully')
     }
 
     private async handleRandomBreakdown(): Promise<string | null> {
-        if (this.testMode) return null
+        if (this.state.testMode) return null
 
         if (this.forceNextBreakdown || Math.random() < this.BREAKDOWN_CHANCE) {
             logger.info(`Triggering ${this.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
             const result = await generateText({
-                model: this.model,
+                model: this.genAI(this.state.modelName),
                 prompt: CRIMSON_BREAKDOWN_PROMPT
             })
             const breakdown = result.text
 
-            await this.memory.addMessages([{ role: 'assistant', content: breakdown }])
+            await this.state.addMessages([{ role: 'assistant', content: breakdown }])
             return breakdown
         }
         return null
@@ -104,7 +94,7 @@ export default class CrimsonChat extends EventEmitter<{
         options: UserMessageOptions,
         originalMessage?: Message
     ): void {
-        if (!this.channel || !this.enabled) return
+        if (!this.channel || !this.state.enabled) return
 
         this.messageBuffer.push({ content, options, originalMessage })
         logger.info(`Message from ${yellow(options.username)} buffered. Buffer size: ${yellow(this.messageBuffer.length)}`)
@@ -159,7 +149,7 @@ export default class CrimsonChat extends EventEmitter<{
             return breakdown
         }
 
-        const { history, systemInstruction } = await this.memory.getHistory()
+        const state = await this.state.getState()
 
         const contentParts: (TextPart | ImagePart)[] = []
 
@@ -189,7 +179,7 @@ export default class CrimsonChat extends EventEmitter<{
         }
 
         const userMessage: CoreMessage = { role: 'user', content: contentParts }
-        const messages: CoreMessage[] = [...history, userMessage]
+        const messages: CoreMessage[] = [...state.history, userMessage]
 
         const tools = await loadTools()
 
@@ -200,12 +190,12 @@ export default class CrimsonChat extends EventEmitter<{
 
             const rawResult = await Promise.race([
                 generateText({
-                    model: this.model,
-                    system: systemInstruction,
+                    model: this.genAI(this.state.modelName),
+                    system: state.systemPrompt,
                     messages: messages,
                     tools: Object.keys(tools).length > 0 ? tools : undefined,
-                    temperature: this.berserkMode ? 2.0 : 0.8,
-                    topP: this.berserkMode ? 1.0 : 0.95,
+                    temperature: this.state.berserkMode ? 2.0 : 0.8,
+                    topP: this.state.berserkMode ? 1.0 : 0.95,
                     maxRetries: 10
                 }),
                 timeoutPromise
@@ -284,7 +274,7 @@ export default class CrimsonChat extends EventEmitter<{
                 newMessages.push({ role: 'assistant', content: text })
             }
 
-            await this.memory.addMessages(newMessages, usage)
+            await this.state.addMessages(newMessages, usage)
 
             return text
         } catch (e) {
@@ -331,7 +321,8 @@ export default class CrimsonChat extends EventEmitter<{
                 if (line.length > 2000) {
                     messages.push(...(line.match(/.{1,2000}/g) || []))
                     currentMessage = ''
-                } else {
+                }
+                else {
                     currentMessage = line
                 }
             }
@@ -351,7 +342,7 @@ export default class CrimsonChat extends EventEmitter<{
 
         const content = `User ${user.username} used command: ${command}${optionStr} (in server: ${interaction.guild?.name}, channel: ${(interaction.channel as TextChannel)?.name})`
 
-        await this.memory.addMessages([{ role: 'user', content }])
+        await this.state.addMessages([{ role: 'user', content }])
     }
 
     public async logCommandExecution(command: SlashCommand, context: CommandContext) {
@@ -366,27 +357,27 @@ export default class CrimsonChat extends EventEmitter<{
             response: response
         }
         const content = `Command execution: ${JSON.stringify(executionDetails, null, 2)}`
-        await this.memory.addMessages([{ role: 'user', content }])
+        await this.state.addMessages([{ role: 'user', content }])
     }
 
     public async clearHistory(): Promise<void> {
-        const prompt = this.testMode ? CRIMSON_CHAT_TEST_PROMPT : CRIMSON_CHAT_SYSTEM_PROMPT
-        await this.memory.clear(prompt)
+        const prompt = this.state.testMode ? CRIMSON_CHAT_TEST_PROMPT : CRIMSON_CHAT_SYSTEM_PROMPT
+        await this.state.clear(prompt)
     }
 
     public async updateSystemPrompt(): Promise<void> {
-        const prompt = this.testMode ? CRIMSON_CHAT_TEST_PROMPT : CRIMSON_CHAT_SYSTEM_PROMPT
-        await this.memory.updateSystemPrompt(prompt)
+        const prompt = this.state.testMode ? CRIMSON_CHAT_TEST_PROMPT : CRIMSON_CHAT_SYSTEM_PROMPT
+        await this.state.updateSystemPrompt(prompt)
     }
 
-    public setModel(modelName: string): void {
-        this.modelName = modelName
+    public async setModel(modelName: string): Promise<void> {
+        await this.state.setModelName(modelName)
         this.emit('statusChange')
         logger.ok(`CrimsonChat model switched to: ${green(modelName)}`)
     }
 
     public async setHistoryLimit(mode: HistoryLimitMode, limit: number): Promise<void> {
-        await this.memory.setHistoryLimit(mode, limit)
+        await this.state.setHistoryLimit(mode, limit)
         this.emit('statusChange')
     }
 
@@ -397,16 +388,16 @@ export default class CrimsonChat extends EventEmitter<{
     }
 
     public async toggleBerserkMode(): Promise<boolean> {
-        if (this.testMode) return false
-        this.berserkMode = !this.berserkMode
+        if (this.state.testMode) return false
+        await this.state.setBerserkMode(!this.state.berserkMode)
         this.emit('statusChange')
-        return this.berserkMode
+        return this.state.berserkMode
     }
 
     public async setTestMode(enabled: boolean): Promise<void> {
-        this.testMode = enabled
-        if (enabled && this.berserkMode) {
-            this.berserkMode = false
+        await this.state.setTestMode(enabled)
+        if (enabled && this.state.berserkMode) {
+            await this.state.setBerserkMode(false)
         }
         await this.updateSystemPrompt()
         this.emit('statusChange')
@@ -414,56 +405,34 @@ export default class CrimsonChat extends EventEmitter<{
     }
 
     public isTestMode(): boolean {
-        return this.testMode
+        return this.state.testMode
     }
 
     public isEnabled(): boolean {
-        return this.enabled
+        return this.state.enabled
     }
 
-    public setEnabled(state: boolean): void {
-        this.enabled = state
+    public async setEnabled(state: boolean): Promise<void> {
+        await this.state.setEnabled(state)
         this.emit('statusChange')
         logger.info(`CrimsonChat ${green(state ? 'enabled' : 'disabled')}`)
     }
 
-    private async loadIgnoredUsers(): Promise<void> {
-        const ignoredUsersPath = path.join(process.cwd(), 'data/ignored_users.json')
-        try {
-            const data = await fs.readFile(ignoredUsersPath, 'utf-8')
-            this.ignoredUsers = new Set(JSON.parse(data))
-        } catch {
-            this.ignoredUsers = new Set()
-        }
-    }
-
     public isIgnored(userId: string): boolean {
-        return this.ignoredUsers.has(userId)
+        return this.state.ignoredUsers.includes(userId)
     }
 
     public async ignoreUser(userId: string): Promise<void> {
-        this.ignoredUsers.add(userId)
-        await this.saveIgnoredUsers()
+        await this.state.addIgnoredUser(userId)
         logger.ok(`Ignored user ${yellow(userId)}`)
     }
 
     public async unignoreUser(userId: string): Promise<void> {
-        this.ignoredUsers.delete(userId)
-        await this.saveIgnoredUsers()
+        await this.state.removeIgnoredUser(userId)
         logger.ok(`Unignored user ${yellow(userId)}`)
     }
 
-    private async saveIgnoredUsers(): Promise<void> {
-        const ignoredUsersPath = path.join(process.cwd(), 'data/ignored_users.json')
-        try {
-            await fs.mkdir(path.dirname(ignoredUsersPath), { recursive: true })
-            await fs.writeFile(ignoredUsersPath, JSON.stringify([...this.ignoredUsers]))
-        } catch (error) {
-            console.error('Failed to save ignored users:', error)
-        }
-    }
-
     public getIgnoredUsers(): string[] {
-        return [...this.ignoredUsers]
+        return this.state.ignoredUsers
     }
 }

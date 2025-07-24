@@ -83,16 +83,16 @@ export class DashboardServer {
             type: 'crimsonchat_status',
             timestamp: new Date().toISOString(),
             payload: {
-                enabled: crimsonChat.isEnabled(),
-                model: crimsonChat.modelName,
+                enabled: crimsonChat.state.enabled,
+                model: crimsonChat.state.modelName,
                 history: {
-                    mode: crimsonChat.memory.limitMode,
-                    count: crimsonChat.memory.history.length,
-                    limit: crimsonChat.memory.limitMode === 'messages' ? crimsonChat.memory.messageLimit : crimsonChat.memory.tokenLimit
+                    mode: crimsonChat.state.limitMode,
+                    count: crimsonChat.state.history.length,
+                    limit: crimsonChat.state.limitMode === 'messages' ? crimsonChat.state.messageLimit : crimsonChat.state.tokenLimit
                 },
                 modes: [
-                    crimsonChat.berserkMode ? 'BERSERK' : null,
-                    crimsonChat.isTestMode() ? 'TEST MODE' : null
+                    crimsonChat.state.berserkMode ? 'BERSERK' : null,
+                    crimsonChat.state.testMode ? 'TEST MODE' : null
                 ].filter(Boolean)
             }
         })

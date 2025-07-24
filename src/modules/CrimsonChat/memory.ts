@@ -1,11 +1,12 @@
 import { Logger, red, yellow } from '../../util/logger'
-const logger = new Logger('CrimsonChat | History')
+const logger = new Logger('CrimsonChat | State')
 
 import { promises as fs } from 'fs'
 import path from 'path'
 import {
     getCrimsonChatHistoryFoundation,
     CRIMSON_CHAT_SYSTEM_PROMPT,
+    DEFAULT_GEMINI_MODEL
 } from '../../util/constants'
 import type { CoreMessage, FilePart, ImagePart, TextPart, ToolResultPart, ToolCallPart } from 'ai'
 import { Buffer } from 'buffer'
@@ -55,16 +56,21 @@ function isSerializableImagePart(part: unknown): part is SerializableImagePart {
     )
 }
 
-export class CrimsonFileBufferHistory {
-    private historyPath = path.join(process.cwd(), 'data/chat_history.json')
+export class CrimsonChatState {
+    private statePath = path.join(process.cwd(), 'data/crimsonchat_state.json')
     public history: MessageWithUsage[] = []
     private initialized = false
-    private systemPrompt: string = CRIMSON_CHAT_SYSTEM_PROMPT
 
+    public systemPrompt: string = CRIMSON_CHAT_SYSTEM_PROMPT
     public limitMode: HistoryLimitMode = 'messages'
     public messageLimit = 100
     public tokenLimit = 32768
     public currentTokenCount = 0
+    public enabled = true
+    public modelName: string = DEFAULT_GEMINI_MODEL
+    public berserkMode = false
+    public testMode = false
+    public ignoredUsers: string[] = []
 
     private async updateTotalTokenCount(): Promise<void> {
         if (this.limitMode !== 'tokens') {
@@ -130,25 +136,35 @@ export class CrimsonFileBufferHistory {
         }
         logger.ok(`History limit set to ${limit} ${mode}.`)
         await this.pruneHistory()
-        await this.saveHistoryToFile()
+        await this.saveStateToFile()
     }
 
-    private async loadHistoryFromFile(): Promise<void> {
+    public async loadStateFromFile(): Promise<void> {
         if (this.initialized) return
         try {
-            const data = await fs.readFile(this.historyPath, 'utf-8')
+            const data = await fs.readFile(this.statePath, 'utf-8')
             const savedData = JSON.parse(data) as {
                 systemPrompt: string,
                 history: StoredMessage[],
                 limitMode?: HistoryLimitMode,
                 messageLimit?: number,
                 tokenLimit?: number
+                enabled?: boolean,
+                modelName?: string,
+                berserkMode?: boolean,
+                testMode?: boolean,
+                ignoredUsers?: string[]
             }
 
             this.systemPrompt = savedData.systemPrompt || CRIMSON_CHAT_SYSTEM_PROMPT
             this.limitMode = savedData.limitMode || 'messages'
             this.messageLimit = savedData.messageLimit || 100
             this.tokenLimit = savedData.tokenLimit || 30000
+            this.enabled = savedData.enabled ?? true
+            this.modelName = savedData.modelName || DEFAULT_GEMINI_MODEL
+            this.berserkMode = savedData.berserkMode ?? false
+            this.testMode = savedData.testMode ?? false
+            this.ignoredUsers = savedData.ignoredUsers || []
 
             this.history = savedData.history.map((msg): MessageWithUsage => {
                 const { role, content: storedContent, ...rest } = msg
@@ -193,19 +209,19 @@ export class CrimsonFileBufferHistory {
 
             await this.updateTotalTokenCount()
             this.initialized = true
-            logger.info(`Chat history loaded successfully with ${yellow(this.history.length)} messages and ~${yellow(this.currentTokenCount)} tokens.`)
+            logger.info(`CrimsonChat state loaded successfully with ${yellow(this.history.length)} messages and ~${yellow(this.currentTokenCount)} tokens.`)
         } catch (e) {
-            logger.warn(`No existing chat history found, starting fresh. Error: ${e}`)
+            logger.warn(`No existing state file found, starting fresh. Error: ${e}`)
             this.systemPrompt = CRIMSON_CHAT_SYSTEM_PROMPT
             this.history = getCrimsonChatHistoryFoundation()
             this.initialized = true
-            await this.saveHistoryToFile()
+            await this.saveStateToFile()
         }
     }
 
-    private async saveHistoryToFile(): Promise<void> {
+    public async saveStateToFile(): Promise<void> {
         try {
-            await fs.mkdir(path.dirname(this.historyPath), { recursive: true })
+            await fs.mkdir(path.dirname(this.statePath), { recursive: true })
 
             const serializableHistory: StoredMessage[] = this.history.map((msg: MessageWithUsage) => {
                 const { content, ...rest } = msg
@@ -250,25 +266,27 @@ export class CrimsonFileBufferHistory {
                 history: serializableHistory,
                 limitMode: this.limitMode,
                 messageLimit: this.messageLimit,
-                tokenLimit: this.tokenLimit
+                tokenLimit: this.tokenLimit,
+                enabled: this.enabled,
+                modelName: this.modelName,
+                berserkMode: this.berserkMode,
+                testMode: this.testMode,
+                ignoredUsers: this.ignoredUsers,
             }
 
-            await fs.writeFile(this.historyPath, JSON.stringify(dataToSave, null, 2))
+            await fs.writeFile(this.statePath, JSON.stringify(dataToSave, null, 2))
         } catch (e) {
-            logger.error(`Failed to save chat history: ${red((e as Error).message)}`)
+            logger.error(`Failed to save chat state: ${red((e as Error).message)}`)
         }
     }
 
-    async getHistory(): Promise<{ history: CoreMessage[], systemInstruction: string }> {
-        await this.loadHistoryFromFile()
-        return {
-            history: this.history,
-            systemInstruction: this.systemPrompt
-        }
+    async getState(): Promise<CrimsonChatState> {
+        await this.loadStateFromFile()
+        return this
     }
 
     async addMessages(messages: CoreMessage[], usage?: { promptTokens: number; completionTokens: number }): Promise<void> {
-        await this.loadHistoryFromFile()
+        await this.loadStateFromFile()
 
         const messagesWithUsage: MessageWithUsage[] = messages.map((msg, index) => {
             const msgWithUsage: MessageWithUsage = msg
@@ -295,20 +313,55 @@ export class CrimsonFileBufferHistory {
         }
 
         await this.pruneHistory()
-        await this.saveHistoryToFile()
+        await this.saveStateToFile()
     }
 
     async clear(systemPrompt: string = CRIMSON_CHAT_SYSTEM_PROMPT): Promise<void> {
         this.systemPrompt = systemPrompt
         this.history = getCrimsonChatHistoryFoundation()
-        await this.saveHistoryToFile()
+        await this.saveStateToFile()
         logger.ok('Chat history cleared and file reset.')
     }
 
     async updateSystemPrompt(newPrompt: string): Promise<void> {
-        await this.loadHistoryFromFile()
+        await this.loadStateFromFile()
         this.systemPrompt = newPrompt
-        await this.saveHistoryToFile()
+        await this.saveStateToFile()
         logger.ok(`System prompt updated.`)
+    }
+
+    public async setEnabled(enabled: boolean): Promise<void> {
+        this.enabled = enabled
+        await this.saveStateToFile()
+    }
+
+    public async setModelName(modelName: string): Promise<void> {
+        this.modelName = modelName
+        await this.saveStateToFile()
+    }
+
+    public async setBerserkMode(berserkMode: boolean): Promise<void> {
+        this.berserkMode = berserkMode
+        await this.saveStateToFile()
+    }
+
+    public async setTestMode(testMode: boolean): Promise<void> {
+        this.testMode = testMode
+        await this.saveStateToFile()
+    }
+
+    public async addIgnoredUser(userId: string): Promise<void> {
+        if (!this.ignoredUsers.includes(userId)) {
+            this.ignoredUsers.push(userId)
+            await this.saveStateToFile()
+        }
+    }
+
+    public async removeIgnoredUser(userId: string): Promise<void> {
+        const index = this.ignoredUsers.indexOf(userId)
+        if (index > -1) {
+            this.ignoredUsers.splice(index, 1)
+            await this.saveStateToFile()
+        }
     }
 }
