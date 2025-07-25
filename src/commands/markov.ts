@@ -210,6 +210,10 @@ export default {
                 .setName('entire_channel')
                 .setDescription('Collect every message from the channel (ignores limit)')
                 .setRequired(false)
+            ).addBooleanOption(bo => bo
+                .setName('force_rescan')
+                .setDescription('Force a full rescan, ignoring previously collected messages.')
+                .setRequired(false)
             )
         ).addSubcommand(sc => sc
             .setName('collect_all')
@@ -229,6 +233,10 @@ export default {
             ).addBooleanOption(bo => bo
                 .setName('entire_channel')
                 .setDescription('Collect every message from every channel (ignores limit)')
+                .setRequired(false)
+            ).addBooleanOption(bo => bo
+                .setName('force_rescan')
+                .setDescription('Force a full rescan, ignoring previously collected messages.')
                 .setRequired(false)
             )
         ),
@@ -504,6 +512,7 @@ export default {
                 const user = userOrId && 'tag' in userOrId ? userOrId : undefined
                 const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
                 const collectEntireChannel = context.getBooleanOption('entire_channel', false)
+                const forceRescan = context.getBooleanOption('force_rescan', false)
                 const limit = collectEntireChannel ? 'entire' : context.getIntegerOption('limit')
 
                 await context.deferReply()
@@ -536,7 +545,8 @@ export default {
                             user,
                             userId,
                             limit: limit === null ? undefined : limit,
-                            disableUserApiLookup: true
+                            disableUserApiLookup: true,
+                            forceRescan: forceRescan ?? undefined
                         })
                         logger.ok(`Collected ${yellow(count)} messages from #${yellow(targetChannel.name)}`)
                         return { channel: targetChannel.name, count, status: 'success' }
@@ -569,6 +579,7 @@ export default {
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
             const collectEntireChannel = context.getBooleanOption('entire_channel', false)
+            const forceRescan = context.getBooleanOption('force_rescan', false)
             const limit = collectEntireChannel ? 'entire' : context.getIntegerOption('limit')
 
             const channel = (await context.getChannelOption('channel')) as TextChannel
@@ -664,6 +675,7 @@ export default {
                     user,
                     userId,
                     limit: limit === null ? undefined : limit,
+                    forceRescan: forceRescan ?? undefined
                 })
 
                 // Clean up event listeners to prevent memory leaks

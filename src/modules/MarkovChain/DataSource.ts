@@ -146,7 +146,7 @@ export class MarkovDataSource {
         }
     }
 
-    public async addMessages(messages: DiscordMessage[], guild: DiscordGuild, fullyCollectedChannelId?: string) {
+    public async addMessages(messages: DiscordMessage[], guild: DiscordGuild, fullyCollectedChannelId?: string, forceRescan = false) {
         await this.init()
 
         const BATCH_SIZE = 1000
@@ -234,7 +234,7 @@ export class MarkovDataSource {
                 await manager.update(
                     Channel,
                     { id: fullyCollectedChannelId },
-                    { fullyCollected: true }
+                    { fullyCollected: !forceRescan }
                 )
                 logger.ok(`{addMessages} Marked channel ${yellow(fullyCollectedChannelId)} as fully collected`)
             }

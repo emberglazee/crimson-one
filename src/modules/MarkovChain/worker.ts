@@ -56,10 +56,11 @@ class MarkovEngine {
         limit?: number | 'entire';
         delayMs?: number;
         disableUserApiLookup?: boolean;
+        forceRescan?: boolean;
     }) {
         if (!this.client) throw new Error('Worker client not initialized')
 
-        const { guildId: _guildId, channelId, user, userId, limit = 1000, delayMs = 1000, disableUserApiLookup = false } = options
+        const { guildId: _guildId, channelId, user, userId, limit = 1000, delayMs = 1000, disableUserApiLookup = false, forceRescan = false } = options
 
         const channel = await this.client.channels.fetch(channelId) as TextChannel
         if (!channel) throw new Error(`Channel ${channelId} not found.`)
@@ -69,7 +70,7 @@ class MarkovEngine {
         const MAX_RETRIES = 3
         const BATCH_SIZE = 100
 
-        const wasFullyCollected = await this.dataSource.isChannelFullyCollected(channel.guild.id, channel.id)
+        const wasFullyCollected = forceRescan ? false : await this.dataSource.isChannelFullyCollected(channel.guild.id, channel.id)
         const isEntireChannel = limit === 'entire'
 
         let existingMessageIds: Set<string> = new Set()
@@ -309,6 +310,7 @@ parentPort!.on('message', async (message: { type: string; options: unknown; task
                     limit?: number | 'entire';
                     delayMs?: number;
                     disableUserApiLookup?: boolean;
+                    forceRescan?: boolean;
                 })
                 break
             case 'generate':

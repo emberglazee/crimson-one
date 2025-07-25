@@ -19,6 +19,7 @@ interface CollectTaskOptions {
     limit?: number | 'entire'
     delayMs?: number
     disableUserApiLookup?: boolean
+    forceRescan?: boolean
 }
 
 type AllTaskOptions = InitializeTaskOptions | CollectTaskOptions | MarkovGenerateOptions
@@ -184,10 +185,11 @@ export class MarkovChat extends EventEmitter<{
         limit?: number | 'entire'
         delayMs?: number
         disableUserApiLookup?: boolean
+        forceRescan?: boolean
     } = {}): Promise<number> {
         if (!this.client) throw new Error('Client not set')
 
-        const { user, userId, limit, delayMs, disableUserApiLookup } = options
+        const { user, userId, limit, delayMs, disableUserApiLookup, forceRescan } = options
 
         return this.sendTask<number>('collect', {
             guildId: channel.guild.id,
@@ -196,7 +198,8 @@ export class MarkovChat extends EventEmitter<{
             userId,
             limit,
             delayMs,
-            disableUserApiLookup
+            disableUserApiLookup,
+            forceRescan
         })
     }
 
