@@ -33,6 +33,7 @@ interface MessageStatsOptions {
 class MarkovEngine {
     private client: Client | null = null
     private dataSource = MarkovDataSource.getInstance()
+    private dbWriteQueue: Promise<void> = Promise.resolve()
 
     async initialize(token: string, userToken?: string) {
         if (this.client) return
@@ -46,6 +47,17 @@ class MarkovEngine {
         await this.client.login(token)
         await this.dataSource.init()
         logger.ok('Worker client and data source initialized.')
+    }
+
+    private addToDbWriteQueue(messages: DiscordMessage[], guild: Guild, fullyCollectedChannelId?: string, forceRescan?: boolean): Promise<void> {
+        this.dbWriteQueue = this.dbWriteQueue
+            .then(() => this.dataSource.addMessages(messages, guild, fullyCollectedChannelId, forceRescan))
+            .catch(err => {
+                logger.error(`Database write operation failed: ${red(err.message)}`)
+                // Even if one write fails, we want the queue to continue with the next item.
+                // The error is logged, but the promise chain is not broken.
+            })
+        return this.dbWriteQueue
     }
 
     public async collectMessages(options: {
@@ -167,7 +179,7 @@ class MarkovEngine {
         }
 
         if (messages.length > 0) {
-            await this.dataSource.addMessages(messages, channel.guild, isEntireChannel ? channel.id : undefined)
+            await this.addToDbWriteQueue(messages, channel.guild, isEntireChannel ? channel.id : undefined, forceRescan)
         }
 
         parentPort!.postMessage({
