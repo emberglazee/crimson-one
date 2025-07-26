@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, AttachmentBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
+import { chance } from '../util/functions'
 
 export default {
     data: new SlashCommandBuilder()
@@ -68,13 +69,25 @@ function isRussianText(text: string): boolean {
 }
 
 function drunkWrite(inputText: string): string {
+    const MAX_EXTRA_SPACES = 2
+    const MAX_REPEATS = 3
+
+    // In percentages
+    const REPEAT_CHAR_CHANCE = 10
+    const SHOUTING_MODE_TOGGLE_CHANCE = 2
+    const EXTRA_SPACE_CHANCE = 8
+    const SKIP_CHAR_CHANCE = 3
+    const RANDOM_UPPERCASE_CHANCE = 5
+    const SHIFT_SPECIALS_CHANCE = 30
+    const ADJACENT_KEY_CHANCE = 10
+
     function getRandomItem<T>(array: T[]): T {
         return array[Math.floor(Math.random() * array.length)]
     }
 
     function repeatChar(char: string): string {
-        if (Math.random() < 0.1) {
-            return char.repeat(Math.floor(Math.random() * 3) + 2)
+        if (chance(REPEAT_CHAR_CHANCE)) {
+            return char.repeat(Math.floor(Math.random() * MAX_REPEATS) + 2)
         }
         return char
     }
@@ -88,28 +101,28 @@ function drunkWrite(inputText: string): string {
         const char = inputText[i]
 
         // Randomly enter/exit shouting mode
-        if (Math.random() < 0.02) isShoutingMode = !isShoutingMode
+        if (chance(SHOUTING_MODE_TOGGLE_CHANCE)) isShoutingMode = !isShoutingMode
 
         // Random extra spaces
-        if (Math.random() < 0.08) result += ' '.repeat(Math.floor(Math.random() * 2) + 1)
+        if (chance(EXTRA_SPACE_CHANCE)) result += ' '.repeat(Math.floor(Math.random() * MAX_EXTRA_SPACES) + 1)
 
         // Skip character (forget to type it)
-        if (Math.random() < 0.03) continue
+        if (chance(SKIP_CHAR_CHANCE)) continue
 
         const lowerChar = char.toLowerCase()
 
         // Apply case based on shouting mode or random uppercase
-        const shouldBeUpper = isShoutingMode || Math.random() < 0.05
+        const shouldBeUpper = isShoutingMode || chance(RANDOM_UPPERCASE_CHANCE)
         const finalChar = shouldBeUpper ? lowerChar.toUpperCase() : lowerChar
 
         // Random shift specials (only for non-Russian text)
-        if (!isRussian && shiftSpecials[char as keyof typeof shiftSpecials] && Math.random() < 0.3) {
+        if (!isRussian && shiftSpecials[char as keyof typeof shiftSpecials] && chance(SHIFT_SPECIALS_CHANCE)) {
             result += shiftSpecials[char as keyof typeof shiftSpecials]
             continue
         }
 
         // Random adjacent key
-        if (layoutMap[lowerChar as keyof typeof layoutMap] && Math.random() < 0.1) {
+        if (layoutMap[lowerChar as keyof typeof layoutMap] && chance(ADJACENT_KEY_CHANCE)) {
             result += getRandomItem(layoutMap[lowerChar as keyof typeof layoutMap])
             continue
         }
