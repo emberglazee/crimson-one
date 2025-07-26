@@ -19,6 +19,7 @@ import { CommandContext } from './CommandContext'
 import { CommandRegistry } from './CommandRegistry'
 import { TextCommandParser } from './TextCommandParser'
 import { CommandDeployer } from './CommandDeployer'
+import { CommandHotReloader } from './CommandHotReloader'
 
 export default class CommandManager {
     private static instance: CommandManager
@@ -27,6 +28,7 @@ export default class CommandManager {
     private client: Client | null = null
     private registry: CommandRegistry | null = null
     private deployer: CommandDeployer | null = null
+    private hotReloader: CommandHotReloader | null = null
 
     private constructor() {}
 
@@ -41,6 +43,7 @@ export default class CommandManager {
         this.client = client
         this.registry = new CommandRegistry(client)
         this.deployer = new CommandDeployer(client, this.registry)
+        this.hotReloader = new CommandHotReloader(this.registry, this.deployer)
         return this
     }
 
@@ -55,6 +58,8 @@ export default class CommandManager {
 
         await this.refreshGlobalCommands()
         await this.refreshAllGuildCommands()
+
+        this.hotReloader!.start()
 
         this.initialized = true
 
@@ -81,6 +86,11 @@ export default class CommandManager {
     public async deleteAllRegisteredGuildCommands(): Promise<void> {
         if (!this.deployer) throw new ClassNotInitializedError()
         await this.deployer.deleteAllRegisteredGuildCommands()
+    }
+
+    public async reloadCommand(commandName: string): Promise<void> {
+        if (!this.hotReloader) throw new ClassNotInitializedError()
+        await this.hotReloader.reloadCommand(commandName)
     }
 
     public async handleInteraction(interaction: CommandInteraction | ContextMenuCommandInteraction): Promise<void> {
