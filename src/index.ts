@@ -47,10 +47,11 @@ await unreadyClient.login(process.env.DISCORD_TOKEN)
 export const client = unreadyClient as Client<true>
 logger.ok('Logged in')
 
-export const guildConfigManager = GuildConfigManager.getInstance()
 export const quoteFactory = new QuoteFactory(client)
-export const awacsFeed = new AWACSFeed(client)
 export const messageTrigger = new MessageTrigger()
+
+export const guildConfigManager = GuildConfigManager.getInstance()
+export const awacsFeed = AWACSFeed.getInstance().setClient(client)
 export const shapesInc = ShapesInc.getInstance(client, '1335992675459141632')
 export const crimsonChat = CrimsonChat.getInstance()
 export const banishmentManager = BanishmentManager.getInstance().setClient(client)

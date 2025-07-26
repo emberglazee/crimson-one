@@ -22,7 +22,6 @@ type EventHandler<T extends keyof ClientEvents> = {
 export class AWACSFeed extends EventEmitter<{
     awacsEvent: (message: string) => void
 }> {
-    private client: Client
     private awacsChannel: TextChannel | undefined
     private banishmentManager = BanishmentManager.getInstance()
 
@@ -205,10 +204,23 @@ export class AWACSFeed extends EventEmitter<{
         }
     ]
 
-    constructor(client: Client) {
+    private static instance: AWACSFeed
+    private client!: Client
+    private constructor() {
         super()
+    }
+
+    public static getInstance(): AWACSFeed {
+        if (!AWACSFeed.instance) {
+            AWACSFeed.instance = new AWACSFeed()
+        }
+        return AWACSFeed.instance
+    }
+
+    public setClient(client: Client): this {
         this.client = client
         this.initializeListeners()
+        return this
     }
 
     private isTargetGuild(guildId: string): boolean {

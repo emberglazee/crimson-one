@@ -49,7 +49,7 @@ export class DashboardServer {
         operationTracker.on('operationStart', () => this.sendOperations())
         operationTracker.on('operationEnd', () => this.sendOperations())
 
-        const awacsFeed = new AWACSFeed(client)
+        const awacsFeed = AWACSFeed.getInstance()
         awacsFeed.on('awacsEvent', message => this.sendAwacsEvent(message))
 
         crimsonChat.on('statusChange', () => this.sendCrimsonChatStatus())
