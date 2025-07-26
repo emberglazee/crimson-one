@@ -135,32 +135,32 @@ export class TrigramChainBuilder {
             throw new Error('No data to generate from')
         }
 
-        let currentKey: string
-        const result: string[] = []
+        let currentKey: string | undefined
+        const result: string[] = seed ? [...seed] : []
 
         if (seed && seed.length >= 2) {
             const seedKey = `${seed[seed.length - 2]} ${seed[seed.length - 1]}`
             if (this.chain.has(seedKey)) {
                 currentKey = seedKey
-                result.push(...seed)
-            } else {
-                currentKey = this.starters[Math.floor(Math.random() * this.starters.length)]
-                result.push(...currentKey.split(' '))
             }
-        } else if (seed && seed.length > 0) {
-            // Fallback for short seed
-            currentKey = this.starters[Math.floor(Math.random() * this.starters.length)]
-            result.push(...seed, ...currentKey.split(' ').slice(seed.length))
         }
-        else {
-            currentKey = this.starters[Math.floor(Math.random() * this.starters.length)]
-            result.push(...currentKey.split(' '))
+
+        // If no valid key from seed, or no seed, we need a starting point.
+        if (!currentKey) {
+            const randomStarterKey = this.starters[Math.floor(Math.random() * this.starters.length)]
+            // If there was a seed, we don't add the starter words to the result.
+            // We just use the starter key to begin the generation loop.
+            // If there was no seed, we add the starter words.
+            if (result.length === 0) {
+                result.push(...randomStarterKey.split(' '))
+            }
+            currentKey = randomStarterKey
         }
 
         const targetLength = Math.floor(Math.random() * (maxWords - minWords + 1)) + minWords
 
         while (result.length < targetLength) {
-            const node = this.chain.get(currentKey)
+            const node = this.chain.get(currentKey!)
             if (!node?.next.size) break
 
             const total = node.total
