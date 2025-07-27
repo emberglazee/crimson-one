@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 import { formatBytes } from '../util/functions'
+import { operationTracker } from '../modules/OperationTracker'
 
 const usageTracker = new Map<string, number[]>()
 const USAGE_LIMIT = 2
@@ -31,7 +32,7 @@ export default {
             .setDescription('Show bot statistics and information')
         ).addSubcommand(subcommand => subcommand
             .setName('set_global_avatar')
-            .setDescription('Change the global bot avatar (restricted only to the bot owner)')
+            .setDescription('Change the global bot avatar.')
             .addAttachmentOption(option => option
                 .setName('avatar')
                 .setDescription('New avatar')
@@ -39,7 +40,7 @@ export default {
             )
         ).addSubcommand(subcommand => subcommand
             .setName('set_global_banner')
-            .setDescription('Set the global bot banner (restricted only to the bot owner)')
+            .setDescription('Set the global bot banner.')
             .addAttachmentOption(option => option
                 .setName('banner')
                 .setDescription('New banner')
@@ -47,7 +48,7 @@ export default {
             )
         ).addSubcommand(subcommand => subcommand
             .setName('set_global_username')
-            .setDescription('Change the global bot username (restricted only to the bot owner)')
+            .setDescription('Change the global bot username.')
             .addStringOption(option => option
                 .setName('username')
                 .setDescription('New username')
@@ -70,13 +71,16 @@ export default {
             const uptime = Math.floor(process.uptime())
             const uptimeStr = `${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`
             const application = await context.client.application!.fetch()
+            const ongoingOperations = operationTracker.getPendingOperations().length
+
             await context.editReply({
                 embeds: [{
                     title: '🤖 Bot Information',
                     fields: [
                         { name: 'Memory Usage', value: `Heap: ${formatBytes(heapUsed)}/${formatBytes(heapTotal)}\nRSS: ${formatBytes(rss)}`, inline: true },
-                        { name: 'Uptime', value: uptimeStr, inline: true },
-                        { name: 'Stats (approx.)', value: `Servers: ${application.approximateGuildCount ?? 'N/A'}\nUsers: ${application.approximateUserInstallCount ?? 'N/A'}`, inline: true },
+                        { name: 'Process Uptime', value: uptimeStr, inline: true },
+                        { name: '~ Installation Stats', value: `Servers: ${application.approximateGuildCount ?? 'N/A'}\nUsers: ${application.approximateUserInstallCount ?? 'N/A'}`, inline: true },
+                        { name: 'Ongoing Operations', value: `${ongoingOperations}`, inline: true },
                     ],
                     color: 0x2B2D31,
                     timestamp: new Date().toISOString()
