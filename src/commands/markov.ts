@@ -512,7 +512,7 @@ export default {
                 const user = userOrId && 'tag' in userOrId ? userOrId : undefined
                 const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
                 const collectEntireChannel = context.getBooleanOption('entire_channel', false)
-                const forceRescan = context.getBooleanOption('force_rescan', false)
+                const forceRescan = context.getBooleanOption('force_rescan', false, false)
                 const limit = collectEntireChannel ? 'entire' : context.getIntegerOption('limit')
 
                 await context.deferReply()
