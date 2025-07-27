@@ -6,10 +6,7 @@ export default {
         .setName('update')
         .setDescription('Pulls the latest commit and restarts the bot.'),
     async execute(context) {
-        if (!context.isEmbi) {
-            await context.reply('❌ You, solely, are responsible for this.')
-            return
-        }
+        try { await context.assertEmbi() } catch { return }
 
         // Check if the bot is managed by the guardian
         if (typeof process.send !== 'function') {

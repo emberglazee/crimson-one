@@ -89,10 +89,7 @@ export default {
             return
         }
 
-        if (!context.isEmbi) {
-            await context.reply('❌ You, solely, are responsible for this.')
-            return
-        }
+        if (subcommand !== 'info') try { await context.assertEmbi() } catch { return }
         if (subcommand === 'set_global_avatar') {
             await context.deferReply()
             const avatar = context.getAttachmentOption('avatar', true)

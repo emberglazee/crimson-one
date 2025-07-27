@@ -98,12 +98,8 @@ export default {
                 break
             }
             case 'set_cookies': {
-                const user = context.user
-                if (user.id !== context.embiId) {
-                    await context.reply('❌ You, solely, are responsible for this')
-                    return
-                }
-                const attachment = await context.getAttachmentOption('cookies', true)
+                try { await context.assertEmbi() } catch { return }
+                const attachment = context.getAttachmentOption('cookies', true)
                 if (!attachment.name.toLowerCase().includes('cookie')) {
                     await context.editReply('❌ The file name must contain "cookie".')
                     return

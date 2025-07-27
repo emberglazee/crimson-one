@@ -12,10 +12,7 @@ export default {
             .setRequired(true)
         ),
     async execute(context) {
-        if (!context.isEmbi) {
-            await context.reply('❌ You, solely, are responsible for this.')
-            return
-        }
+        try { await context.assertEmbi() } catch { return }
 
         await context.deferReply()
 

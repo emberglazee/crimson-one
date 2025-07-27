@@ -19,10 +19,7 @@ export default {
             )
         ),
     async execute(context) {
-        if (!context.isEmbi) {
-            await context.reply('❌ You, solely, are responsible for this.')
-            return
-        }
+        try { await context.assertEmbi() } catch { return }
 
         const subcommand = context.getSubcommand(true)
         const commandManager = CommandManager.getInstance()

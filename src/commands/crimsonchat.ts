@@ -91,10 +91,7 @@ export default {
 
     async execute(context) {
         const isRoleAllowed = context.member?.roles.cache.has('958529446560808961') ?? false
-        if (!context.isEmbi && !isRoleAllowed) {
-            await context.reply('❌ You, solely, are responsible for this.')
-            return
-        }
+        if (!isRoleAllowed) try { await context.assertEmbi() } catch { return }
 
         const crimsonChat = CrimsonChat.getInstance()
         const subcommand = context.getSubcommand()
