@@ -6,7 +6,7 @@ export default {
     data: new SlashCommandBuilder()
         .setName('eval')
         .setDescription('Evaluate JavaScript code')
-        .addStringOption(so => so
+        .addStringOption(option => option
             .setName('code')
             .setDescription('The code to evaluate')
             .setRequired(true)

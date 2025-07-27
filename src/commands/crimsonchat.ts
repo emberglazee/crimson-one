@@ -6,60 +6,60 @@ export default {
     data: new SlashCommandBuilder()
         .setName('crimsonchat')
         .setDescription('Admin commands to control CrimsonChat (reserved to emberglaze)')
-        .addSubcommand(sub => sub
+        .addSubcommand(subcommand => subcommand
             .setName('reset')
             .setDescription('Reset chat history')
-        ).addSubcommand(sub => sub
+        ).addSubcommand(subcommand => subcommand
             .setName('updateprompt')
             .setDescription('Update the system prompt to latest version')
-        ).addSubcommand(sub => sub
+        ).addSubcommand(subcommand => subcommand
             .setName('toggle')
             .setDescription('Toggle CrimsonChat on/off')
-        ).addSubcommand(sub => sub
+        ).addSubcommand(subcommand => subcommand
             .setName('forcebreak')
             .setDescription('Force a mental breakdown on next message')
-        ).addSubcommand(sub => sub
+        ).addSubcommand(subcommand => subcommand
             .setName('berserk')
             .setDescription('Toggle berserk mode (maximum chaos)')
-        ).addSubcommand(sub => sub
+        ).addSubcommand(subcommand => subcommand
             .setName('testmode')
             .setDescription('Toggle compliant test mode (bypasses personality for easier testing)')
-            .addBooleanOption(opt => opt
+            .addBooleanOption(option => option
                 .setName('enabled')
                 .setDescription('Enable or disable test mode')
                 .setRequired(true)
             )
-        ).addSubcommand(sub => sub
+        ).addSubcommand(subcommand => subcommand
             .setName('ignore')
             .setDescription('Make CrimsonChat ignore a user')
-            .addUserOption(opt => opt
+            .addUserOption(option => option
                 .setName('user')
                 .setDescription('The user to ignore')
                 .setRequired(false)
-            ).addStringOption(opt => opt
+            ).addStringOption(option => option
                 .setName('userid')
                 .setDescription('The user ID to ignore')
                 .setRequired(false)
             )
-        ).addSubcommand(sub => sub
+        ).addSubcommand(subcommand => subcommand
             .setName('unignore')
             .setDescription('Stop CrimsonChat from ignoring a user')
-            .addUserOption(opt => opt
+            .addUserOption(option => option
                 .setName('user')
                 .setDescription('The user to stop ignoring')
                 .setRequired(false)
-            ).addStringOption(opt => opt
+            ).addStringOption(option => option
                 .setName('userid')
                 .setDescription('The user ID to unignore')
                 .setRequired(false)
             )
-        ).addSubcommand(sub => sub
+        ).addSubcommand(subcommand => subcommand
             .setName('ignorelist')
             .setDescription('List all ignored users')
-        ).addSubcommand(sub => sub
+        ).addSubcommand(subcommand => subcommand
             .setName('model')
             .setDescription('Switch the Gemini model used for responses')
-            .addStringOption(opt => opt
+            .addStringOption(option => option
                 .setName('model')
                 .setDescription('The model to switch to')
                 .setRequired(true)
@@ -71,10 +71,10 @@ export default {
                     { name: 'Gemini 2.0 Flash Lite', value: 'gemini-2.0-flash-lite' },
                 )
             )
-        ).addSubcommand(sub => sub
+        ).addSubcommand(subcommand => subcommand
             .setName('limit')
             .setDescription('Set the chat history limit')
-            .addStringOption(opt => opt
+            .addStringOption(option => option
                 .setName('mode')
                 .setDescription('The mode to use for the history limit')
                 .setRequired(true)
@@ -82,7 +82,7 @@ export default {
                     { name: 'Messages', value: 'messages' },
                     { name: 'Tokens', value: 'tokens' }
                 )
-            ).addIntegerOption(opt => opt
+            ).addIntegerOption(option => option
                 .setName('limit')
                 .setDescription('The limit to set')
                 .setRequired(true)

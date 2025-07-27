@@ -7,15 +7,15 @@ export default {
     data: new SlashCommandBuilder()
         .setName('poortranslate')
         .setDescription('Translates your text through multiple languages for a goofy, poor translation effect.')
-        .addStringOption(so => so
+        .addStringOption(option => option
             .setName('text')
             .setDescription('The text to translate.')
             .setRequired(true)
-        ).addBooleanOption(bo => bo
+        ).addBooleanOption(option => option
             .setName('randomize_chain')
             .setDescription('Randomize the language translation chain')
             .setRequired(false)
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('exit_lang')
             .setDescription('The language to end the translation chain with (default: en)')
             .setRequired(false)

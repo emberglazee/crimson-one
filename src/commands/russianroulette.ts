@@ -5,7 +5,7 @@ export default {
     data: new SlashCommandBuilder()
         .setName('roulette')
         .setDescription('Play Russian Roulette with a specified action')
-        .addStringOption(so => so
+        .addStringOption(option => option
             .setName('action')
             .setDescription('What happens if you lose (e.g., "timeout for 1 minute")')
         ),

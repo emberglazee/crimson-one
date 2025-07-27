@@ -6,7 +6,7 @@ export default {
     data: new SlashCommandBuilder()
         .setName('drunk')
         .setDescription('Simulate drunk typing on the keyboard')
-        .addStringOption(so => so
+        .addStringOption(option => option
             .setName('text')
             .setDescription('The text to drunkenly type')
             .setRequired(true)

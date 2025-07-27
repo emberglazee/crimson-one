@@ -7,17 +7,17 @@ export default {
     data: new SlashCommandBuilder()
         .setName('banish')
         .setDescription('Give a server member the `banished` role')
-        .addUserOption(uo => uo
+        .addUserOption(option => option
             .setName('member')
             .setDescription('Server member to banish')
             .setRequired(true)
         )
-        .addStringOption(so => so
+        .addStringOption(option => option
             .setName('duration')
             .setDescription('Duration of the banishment (e.g., "6d 3h 2m" or a specific date). Default is permanent.')
             .setRequired(false)
         )
-        .addStringOption(so => so
+        .addStringOption(option => option
             .setName('reason')
             .setDescription('Reason for the banishment.')
             .setRequired(false)

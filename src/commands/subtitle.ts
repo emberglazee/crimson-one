@@ -7,7 +7,7 @@ export const slashCommand = {
     data: new SlashCommandBuilder()
         .setName('subtitle')
         .setDescription('Generate an Ace Combat 7 or Project Wingman-styled subtitle image')
-        .addStringOption(so => so
+        .addStringOption(option => option
             .setName('style')
             .setDescription('The subtitle style to use')
             .setRequired(true)
@@ -16,36 +16,36 @@ export const slashCommand = {
                 { name: 'Project Wingman', value: 'pw' },
                 { name: 'Helldivers 2 (WIP)', value: 'hd2' }
             )
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('speaker')
             .setDescription('The name of the speaker')
             .setRequired(true)
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('text')
             .setDescription('The text to display')
             .setRequired(true)
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('color')
             .setDescription('The color of the speaker\'s name')
             .setRequired(false)
             .setChoices(
                 COLORS.map(color => ({ name: color.name, value: color.name }))
             )
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('role_color')
             .setDescription('Use a Discord role color for the speaker\'s name')
             .setRequired(false)
             .setChoices(
                 ROLE_COLORS.map(color => ({ name: color.name, value: color.name }))
             )
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('character_color')
             .setDescription('Use a character color for the speaker\'s name')
             .setRequired(false)
             .setChoices(
                 CHARACTER_COLORS.map(color => ({ name: color.name, value: color.name }))
             )
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('gradient')
             .setDescription('Apply a gradient effect to the speaker\'s name')
             .setRequired(false)
@@ -55,11 +55,11 @@ export const slashCommand = {
                 { name: 'Italian Flag', value: 'italian' },
                 { name: 'French Flag', value: 'french' }
             )
-        ).addBooleanOption(bo => bo
+        ).addBooleanOption(option => option
             .setName('stretch')
             .setDescription('Stretch the gradient across the entire name instead of repeating it')
             .setRequired(false)
-        ).addBooleanOption(bo => bo
+        ).addBooleanOption(option => option
             .setName('interpret_newlines')
             .setDescription('Convert <newline> tags into line breaks')
             .setRequired(false)

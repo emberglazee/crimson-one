@@ -6,10 +6,10 @@ export default {
     data: new SlashCommandBuilder()
         .setName('mode')
         .setDescription('Manage the bot\'s active mode (owner only)')
-        .addSubcommand(sub => sub
+        .addSubcommand(subcommand => subcommand
             .setName('switch')
             .setDescription('Switch between CrimsonChat and ShapesInc')
-            .addStringOption(opt => opt
+            .addStringOption(option => option
                 .setName('bot')
                 .setDescription('The bot to switch to')
                 .setRequired(true)
@@ -18,10 +18,10 @@ export default {
                     { name: 'ShapesInc', value: 'shapesinc' }
                 )
             )
-        ).addSubcommand(sub => sub
+        ).addSubcommand(subcommand => subcommand
             .setName('shapesinc_solo')
             .setDescription('Toggle solo mode for ShapesInc')
-            .addBooleanOption(opt => opt
+            .addBooleanOption(option => option
                 .setName('enabled')
                 .setDescription('Enable or disable solo mode')
                 .setRequired(true)

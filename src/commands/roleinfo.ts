@@ -5,7 +5,7 @@ export default {
     data: new SlashCommandBuilder()
         .setName('roleinfo')
         .setDescription('Get detailed information about a role.')
-        .addRoleOption(ro => ro
+        .addRoleOption(option => option
             .setName('role')
             .setDescription('The role to get information about')
             .setRequired(true)

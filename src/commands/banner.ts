@@ -15,20 +15,20 @@ export default {
     data: new SlashCommandBuilder()
         .setName('banner')
         .setDescription('Show the banner of a user')
-        .addUserOption(uo => uo
+        .addUserOption(option => option
             .setName('user')
             .setDescription('The user to show the banner of (default: yourself)')
             .setRequired(false)
-        ).addBooleanOption(bo => bo
+        ).addBooleanOption(option => option
             .setName('raw')
             .setDescription('Send as a raw message? (default: false)')
             .setRequired(false)
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('extension')
             .setDescription('Image format to get the banner in (default: PNG, if banner is animated, pick GIF)')
             .addChoices(...bannerExtensionOptions)
             .setRequired(false)
-        ).addNumberOption(no => no
+        ).addNumberOption(option => option
             .setName('size')
             .setDescription('Banner size (default: 1024)')
             .addChoices(...bannerSizeOptions)

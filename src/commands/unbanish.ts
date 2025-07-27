@@ -6,12 +6,12 @@ export default {
     data: new SlashCommandBuilder()
         .setName('unbanish')
         .setDescription('Remove the `banished` role from a server member')
-        .addUserOption(uo => uo
+        .addUserOption(option => option
             .setName('member')
             .setDescription('Server member to unbanish')
             .setRequired(true)
         )
-        .addStringOption(so => so
+        .addStringOption(option => option
             .setName('reason')
             .setDescription('Reason for the unbanishment.')
             .setRequired(false)

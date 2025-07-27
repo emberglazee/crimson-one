@@ -8,17 +8,17 @@ export default {
     data: new SlashCommandBuilder()
         .setName('morse')
         .setDescription('Decode or encode text from or to morse code')
-        .addSubcommand(sc => sc
+        .addSubcommand(subcommand => subcommand
             .setName('decode')
             .setDescription('Decode morse code into text')
-            .addStringOption(so => so
+            .addStringOption(option => option
                 .setName('code')
                 .setDescription('Morse code to attempt to decode')
             )
-        ).addSubcommand(sc => sc
+        ).addSubcommand(subcommand => subcommand
             .setName('encode')
             .setDescription('Encode text into morse code')
-            .addStringOption(so => so
+            .addStringOption(option => option
                 .setName('text')
                 .setDescription('text to encode into morse code')
             )

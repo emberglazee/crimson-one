@@ -45,11 +45,11 @@ export default {
     data: new SlashCommandBuilder()
         .setName('8ball')
         .setDescription('Ask the magic 8ball a question.')
-        .addStringOption(so => so
+        .addStringOption(option => option
             .setName('question')
             .setDescription('The question you want to ask the magic 8ball.')
             .setRequired(true)
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('theme')
             .setDescription('Choose the theme of the answer.')
             .addChoices(

@@ -5,45 +5,45 @@ export default {
     data: new SlashCommandBuilder()
         .setName('shapesinc')
         .setDescription('Set of commands to manage the shapes.inc chat')
-        .addSubcommand(sc => sc
+        .addSubcommand(subcommand => subcommand
             .setName('wack')
             .setDescription('Clear chat history')
-        ).addSubcommand(sc => sc
+        ).addSubcommand(subcommand => subcommand
             .setName('change_shape')
             .setDescription('Change the shape used by the bot')
-            .addStringOption(so => so
+            .addStringOption(option => option
                 .setName('vanity')
                 .setDescription('The vanity of the shape to use')
                 .setRequired(false)
-            ).addStringOption(so => so
+            ).addStringOption(option => option
                 .setName('uuid')
                 .setDescription('The UUID of the shape to use')
                 .setRequired(false)
             )
-        ).addSubcommand(sc => sc
+        ).addSubcommand(subcommand => subcommand
             .setName('duel_mode')
             .setDescription('Toggle duel mode (one-on-one shape conversation)')
-            .addBooleanOption(bo => bo
+            .addBooleanOption(option => option
                 .setName('enabled')
                 .setDescription('Enable or disable duel mode')
                 .setRequired(true)
-            ).addStringOption(so => so
+            ).addStringOption(option => option
                 .setName('shape_a')
                 .setDescription('Username of the first shape (required if enabling)')
                 .setRequired(false)
-            ).addStringOption(so => so
+            ).addStringOption(option => option
                 .setName('shape_b')
                 .setDescription('Username of the second shape (required if enabling)')
                 .setRequired(false)
-            ).addStringOption(so => so
+            ).addStringOption(option => option
                 .setName('channel_id')
                 .setDescription('Channel ID for the duel (required if enabling)')
                 .setRequired(false)
             )
-        ).addSubcommand(sc => sc
+        ).addSubcommand(subcommand => subcommand
             .setName('set_cookies')
             .setDescription('Update ShapesInc cookies (EMBERGLAZE only)')
-            .addAttachmentOption(ao => ao
+            .addAttachmentOption(option => option
                 .setName('cookies')
                 .setDescription('Netscape cookies.txt file')
                 .setRequired(true)

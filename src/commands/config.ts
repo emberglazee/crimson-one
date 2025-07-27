@@ -7,23 +7,23 @@ export default {
     data: new SlashCommandBuilder()
         .setName('config')
         .setDescription('Configure the bot for your server')
-        .addSubcommand(sc => sc
+        .addSubcommand(subcommand => subcommand
             .setName('prefix')
             .setDescription('Set the prefix for the bot')
-            .addStringOption(so => so
+            .addStringOption(option => option
                 .setName('prefix')
                 .setDescription('The prefix for the bot')
                 .setRequired(true)
             )
-        ).addSubcommand(sc => sc
+        ).addSubcommand(subcommand => subcommand
             .setName('message-trigger')
             .setDescription('Toggle the message trigger feature')
-            .addBooleanOption(bo => bo
+            .addBooleanOption(option => option
                 .setName('enabled')
                 .setDescription('Whether to enable the message trigger feature')
                 .setRequired(true)
             )
-        ).addSubcommand(sc => sc
+        ).addSubcommand(subcommand => subcommand
             .setName('get')
             .setDescription('Get the current config for the server')
         ),

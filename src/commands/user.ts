@@ -6,10 +6,10 @@ export const slashCommand = {
     data: new SlashCommandBuilder()
         .setName('user')
         .setDescription('Shows information about a user')
-        .addSubcommand(sc => sc
+        .addSubcommand(subcommand => subcommand
             .setName('info')
             .setDescription('Shows information about a user')
-            .addUserOption(uo => uo
+            .addUserOption(option => option
                 .setName('user')
                 .setDescription('The user to get info about (defaults to yourself)')
                 .setRequired(false)

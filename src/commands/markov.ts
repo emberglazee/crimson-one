@@ -120,10 +120,10 @@ export default {
     data: new SlashCommandBuilder()
         .setName('markov')
         .setDescription('Generate text using Markov chains trained on chat messages')
-        .addSubcommand(sc => sc
+        .addSubcommand(subcommand => subcommand
             .setName('generate')
             .setDescription('Create a new message based on collected chat data')
-            .addStringOption(so => so
+            .addStringOption(option => option
                 .setName('source')
                 .setDescription('Where to get messages from for generation')
                 .setRequired(false)
@@ -131,28 +131,28 @@ export default {
                     { name: '🏠 This entire server', value: 'guild' },
                     { name: '🌐 Global (all servers)', value: 'global' }
                 )
-            ).addChannelOption(co => co
+            ).addChannelOption(option => option
                 .setName('channel')
                 .setDescription('Specific channel to use for message generation')
                 .setRequired(false)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
-            ).addUserOption(uo => uo
+            ).addUserOption(option => option
                 .setName('user')
                 .setDescription('Generate text in the style of a specific user')
                 .setRequired(false)
-            ).addStringOption(so => so
+            ).addStringOption(option => option
                 .setName('user_id')
                 .setDescription('User ID to use if the user is not in the server')
                 .setRequired(false)
-            ).addIntegerOption(io => io
+            ).addIntegerOption(option => option
                 .setName('words')
                 .setDescription('How many words to generate (default: 20)')
                 .setRequired(false)
-            ).addStringOption(so => so
+            ).addStringOption(option => option
                 .setName('seed')
                 .setDescription('Start the generated text with specific words')
                 .setRequired(false)
-            ).addStringOption(so => so
+            ).addStringOption(option => option
                 .setName('mode')
                 .setDescription('The generation mode to use (default: trigram)')
                 .setRequired(false)
@@ -161,10 +161,10 @@ export default {
                     { name: 'Bigram (classic)', value: 'bigram' }
                 )
             )
-        ).addSubcommand(sc => sc
+        ).addSubcommand(subcommand => subcommand
             .setName('info')
             .setDescription('View statistics about available message data')
-            .addStringOption(so => so
+            .addStringOption(option => option
                 .setName('source')
                 .setDescription('Where to get message statistics from')
                 .setRequired(false)
@@ -172,69 +172,69 @@ export default {
                     { name: '🏠 This entire server', value: 'guild' },
                     { name: '🌐 Global (all servers)', value: 'global' }
                 )
-            ).addChannelOption(co => co
+            ).addChannelOption(option => option
                 .setName('channel')
                 .setDescription('Specific channel to view statistics for')
                 .setRequired(false)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
-            ).addUserOption(uo => uo
+            ).addUserOption(option => option
                 .setName('user')
                 .setDescription('View statistics for a specific user\'s messages')
                 .setRequired(false)
-            ).addStringOption(so => so
+            ).addStringOption(option => option
                 .setName('user_id')
                 .setDescription('User ID to use if the user is not in the server')
                 .setRequired(false)
             )
-        ).addSubcommand(sc => sc
+        ).addSubcommand(subcommand => subcommand
             .setName('collect')
             .setDescription('Gather messages to train the Markov chain')
-            .addChannelOption(co => co
+            .addChannelOption(option => option
                 .setName('channel')
                 .setDescription('Channel to collect messages from')
                 .setRequired(true)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
-            ).addUserOption(uo => uo
+            ).addUserOption(option => option
                 .setName('user')
                 .setDescription('Only collect messages from this user')
                 .setRequired(false)
-            ).addStringOption(so => so
+            ).addStringOption(option => option
                 .setName('user_id')
                 .setDescription('User ID to use if the user is not in the server')
                 .setRequired(false)
-            ).addIntegerOption(io => io
+            ).addIntegerOption(option => option
                 .setName('limit')
                 .setDescription('Maximum number of messages to collect (default: 1000)')
                 .setRequired(false)
-            ).addBooleanOption(bo => bo
+            ).addBooleanOption(option => option
                 .setName('entire_channel')
                 .setDescription('Collect every message from the channel (ignores limit)')
                 .setRequired(false)
-            ).addBooleanOption(bo => bo
+            ).addBooleanOption(option => option
                 .setName('force_rescan')
                 .setDescription('Force a full rescan, ignoring previously collected messages.')
                 .setRequired(false)
             )
-        ).addSubcommand(sc => sc
+        ).addSubcommand(subcommand => subcommand
             .setName('collect_all')
             .setDescription('Collect messages from every text channel and thread in the server')
-            .addUserOption(uo => uo
+            .addUserOption(option => option
                 .setName('user')
                 .setDescription('Only collect messages from this user')
                 .setRequired(false)
-            ).addStringOption(so => so
+            ).addStringOption(option => option
                 .setName('user_id')
                 .setDescription('User ID to use if the user is not in the server')
                 .setRequired(false)
-            ).addIntegerOption(io => io
+            ).addIntegerOption(option => option
                 .setName('limit')
                 .setDescription('Maximum number of messages to collect per channel (default: 1000)')
                 .setRequired(false)
-            ).addBooleanOption(bo => bo
+            ).addBooleanOption(option => option
                 .setName('entire_channel')
                 .setDescription('Collect every message from every channel (ignores limit)')
                 .setRequired(false)
-            ).addBooleanOption(bo => bo
+            ).addBooleanOption(option => option
                 .setName('force_rescan')
                 .setDescription('Force a full rescan, ignoring previously collected messages.')
                 .setRequired(false)

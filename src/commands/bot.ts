@@ -26,33 +26,33 @@ export default {
     data: new SlashCommandBuilder()
         .setName('bot')
         .setDescription('Bot management and info commands')
-        .addSubcommand(sc => sc
+        .addSubcommand(subcommand => subcommand
             .setName('info')
             .setDescription('Show bot statistics and information')
-        ).addSubcommand(sc =>
-            sc.setName('set_global_avatar')
-                .setDescription('Change the global bot avatar (restricted only to the bot owner)')
-                .addAttachmentOption(ao => ao
-                    .setName('avatar')
-                    .setDescription('New avatar')
-                    .setRequired(true)
-                )
-        ).addSubcommand(sc => sc
+        ).addSubcommand(subcommand => subcommand
+            .setName('set_global_avatar')
+            .setDescription('Change the global bot avatar (restricted only to the bot owner)')
+            .addAttachmentOption(option => option
+                .setName('avatar')
+                .setDescription('New avatar')
+                .setRequired(true)
+            )
+        ).addSubcommand(subcommand => subcommand
             .setName('set_global_banner')
             .setDescription('Set the global bot banner (restricted only to the bot owner)')
-            .addAttachmentOption(ao => ao
+            .addAttachmentOption(option => option
                 .setName('banner')
                 .setDescription('New banner')
                 .setRequired(true)
             )
-        ).addSubcommand(sc => sc
+        ).addSubcommand(subcommand => subcommand
             .setName('set_global_username')
             .setDescription('Change the global bot username (restricted only to the bot owner)')
-            .addStringOption(so => so
+            .addStringOption(option => option
                 .setName('username')
                 .setDescription('New username')
                 .setRequired(false)
-            ).addStringOption(so => so
+            ).addStringOption(option => option
                 .setName('shortcut')
                 .setDescription('Shortcut to change username to either guild name, your username, or your guild username')
                 .addChoices(

@@ -16,25 +16,25 @@ export default {
     data: new SlashCommandBuilder()
         .setName('avatar')
         .setDescription('Get a user\'s profile picture')
-        .addUserOption(uo => uo
+        .addUserOption(option => option
             .setName('user')
             .setDescription('User to show their avatar of (default: yourself)')
             .setRequired(false)
-        ).addBooleanOption(bo => bo
+        ).addBooleanOption(option => option
             .setName('raw')
             .setDescription('Send as a raw message? (default: false)')
             .setRequired(false)
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('extension')
             .setDescription('Image format to get the avatar in (default: PNG, if avatar is animated, pick GIF)')
             .addChoices(...avatarExtensionOptions)
             .setRequired(false)
-        ).addNumberOption(no => no
+        ).addNumberOption(option => option
             .setName('size')
             .setDescription('Avatar size (default: 1024)')
             .addChoices(...avatarSizeOptions)
             .setRequired(false)
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('serverorglobal')
             .setDescription('Should the avatar be from the server or global? (default: server/guild, unless not in a server)')
             .addChoices(

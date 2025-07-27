@@ -11,20 +11,19 @@ export default {
     data: new SlashCommandBuilder()
         .setName('cutoutro')
         .setDescription('Cut the outro of a TikTok or an Instagram Reel')
-        .addAttachmentOption(ao => ao
+        .addAttachmentOption(option => option
             .setName('video')
             .setDescription('Video to cut the outro of (must be supported by ffmpeg)')
             .setRequired(true)
         ),
     async execute(context) {
         await context.deferReply()
-        const video = await context.getAttachmentOption('video', true)
-        const videoUrl = video.url
+        const video = context.getAttachmentOption('video', true)
         const videoName = video.name // still has the extension
         const videoExtension = video.name.split('.').pop()
         const videoPath = path.join(process.cwd(), 'data', videoName)
         await context.editReply('Downloading video...')
-        const videoBuffer = await fetch(videoUrl).then(res => res.arrayBuffer())
+        const videoBuffer = await fetch(video.url).then(res => res.arrayBuffer())
         await writeFile(videoPath, Buffer.from(videoBuffer))
         await context.editReply('Cutting outro...')
         const outputPath = path.join(process.cwd(), 'data', `${videoName}_cut.${videoExtension}`)

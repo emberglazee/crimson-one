@@ -6,31 +6,31 @@ export default {
     data: new SlashCommandBuilder()
         .setName('ac7portrait')
         .setDescription('Generate an Ace Combat 7 style portrait with either a custom image or someone\'s avatar')
-        .addStringOption(so => so
+        .addStringOption(option => option
             .setName('name')
             .setDescription('Name to display on the portrait')
             .setRequired(true)
-        ).addAttachmentOption(ao => ao
+        ).addAttachmentOption(option => option
             .setName('image')
             .setDescription('Custom image to use as the portrait')
             .setRequired(false)
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('url')
             .setDescription('URL of the image to use as the portrait')
             .setRequired(false)
-        ).addUserOption(uo => uo
+        ).addUserOption(option => option
             .setName('user')
             .setDescription('User to use their avatar as the portrait')
             .setRequired(false)
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('subtext')
             .setDescription('Smaller text to display below the name')
             .setRequired(false)
-        ).addBooleanOption(bo => bo
+        ).addBooleanOption(option => option
             .setName('filter')
             .setDescription('Apply VHS glitch effect to the image')
             .setRequired(false)
-        ).addBooleanOption(so => so
+        ).addBooleanOption(option => option
             .setName('ephemeral')
             .setDescription('Should the response only show up for you?')
             .setRequired(false)

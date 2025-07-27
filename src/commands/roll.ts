@@ -17,17 +17,17 @@ function rollDice(sides: number): { result: number; isNat: boolean } {
 
 function addCommonRollOptions(sc: SlashCommandSubcommandBuilder) {
     return sc
-        .addNumberOption(no => no
+        .addNumberOption(option => option
             .setName('rolls')
             .setDescription('Number of times to roll the dice (default: 1)')
             .setRequired(false)
             .setMinValue(1)
             .setMaxValue(MAX_ROLLS)
-        ).addStringOption(so => so
+        ).addStringOption(option => option
             .setName('action')
             .setDescription('What action is the roll for?')
             .setRequired(false)
-        ).addUserOption(uo => uo
+        ).addUserOption(option => option
             .setName('user')
             .setDescription('Who is the roll for?')
             .setRequired(false)
@@ -38,31 +38,31 @@ export default {
     data: new SlashCommandBuilder()
         .setName('roll')
         .setDescription('Do a dice roll 🎲')
-        .addSubcommand(sc => { sc
+        .addSubcommand(subcommand => { subcommand
             .setName('custom')
             .setDescription('Roll a custom dice')
-            .addNumberOption(no => no
+            .addNumberOption(option => option
                 .setName('sides')
                 .setDescription('Number of sides on the dice')
                 .setRequired(true)
                 .setMinValue(1)
                 .setMaxValue(MAX_SIDES)
             )
-            return addCommonRollOptions(sc)
+            return addCommonRollOptions(subcommand)
         })
-        .addSubcommand(sc => addCommonRollOptions(sc.setName('d6').setDescription('Roll a d6 dice')))
-        .addSubcommand(sc => addCommonRollOptions(sc.setName('d20').setDescription('Roll a d20 dice')))
-        .addSubcommand(sc => addCommonRollOptions(sc.setName('d100').setDescription('Roll a d100 dice')))
-        .addSubcommand(sc => sc
+        .addSubcommand(subcommand => addCommonRollOptions(subcommand.setName('d6').setDescription('Roll a d6 dice')))
+        .addSubcommand(subcommand => addCommonRollOptions(subcommand.setName('d20').setDescription('Roll a d20 dice')))
+        .addSubcommand(subcommand => addCommonRollOptions(subcommand.setName('d100').setDescription('Roll a d100 dice')))
+        .addSubcommand(subcommand => subcommand
             .setName('until')
             .setDescription('Roll dice until you get a specific number 🎲')
-            .addNumberOption(no => no
+            .addNumberOption(option => option
                 .setName('number')
                 .setDescription('The number to roll until (required)')
                 .setRequired(true)
                 .setMinValue(1)
                 .setMaxValue(MAX_UNTIL_SIDES)
-            ).addNumberOption(no => no
+            ).addNumberOption(option => option
                 .setName('sides')
                 .setDescription('Number of sides on the dice (required)')
                 .setRequired(true)
