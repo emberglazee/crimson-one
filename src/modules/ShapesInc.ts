@@ -251,8 +251,16 @@ export default class ShapesInc {
     async sendMessage(message: string, attachment_url: string | null = null, shapeUsername?: string): Promise<ShapesIncSendMessageResponse> {
         logger.info('{sendMessage} Sending message...')
         const username = shapeUsername || this.currentShapeUsername
-        const shape = this.shapes.get(username)
-        if (!shape) throw new Error(`Shape ${username} not loaded`)
+        let shape = this.shapes.get(username)
+        if (!shape) {
+            logger.warn(`Webhook failed: Shape ${username} not loaded. Attempting to load automatically...`)
+            await this.addShapeByUsername(username)
+            shape = this.shapes.get(username)
+            if (!shape) {
+                throw new Error(`Shape ${username} could not be loaded.`)
+            }
+            logger.ok(`Shape ${username} loaded successfully.`)
+        }
         const url = `https://shapes.inc/api/shapes/${shape.id}/chat`
         const body = JSON.stringify({
             message,
