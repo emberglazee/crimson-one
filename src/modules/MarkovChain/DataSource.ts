@@ -154,88 +154,55 @@ export class MarkovDataSource {
 
         return this.orm.transaction(async manager => {
             // Upsert guild in a single operation
-            await manager.upsert(Guild, {
-                id: guild.id
-            }, ['id'])
+            await manager.upsert(Guild, { id: guild.id }, ['id'])
             logger.debug(`{addMessages} Guild ${yellow(guild.id)} upserted`)
 
-            // Process in batches
-            logger.debug('{addMessages} Beginning to process batches')
-            for (let i = 0; i < messages.length; i += BATCH_SIZE) {
-                logger.debug(`{addMessages} Processing batch ${yellow(i)}`)
-                const chunk = messages.slice(i, i + BATCH_SIZE)
-                logger.debug(`{addMessages} Chunk size: ${yellow(chunk.length)}`)
+            // 1. Collect all unique users and channels from the entire message set first.
+            const allUsers = removeDuplicatesByKey(messages.map(msg => ({ id: msg.author.id })), user => user.id)
+            const allChannels = removeDuplicatesByKey(messages.map(msg => ({
+                id: msg.channelId,
+                guild: { id: guild.id },
+                name: (msg.channel as TextChannel).name,
+                fullyCollected: false
+            })), channel => channel.id)
 
-                // Bulk upsert users
-                const usersToUpsert = removeDuplicatesByKey(
-                    chunk.map(msg => ({
-                        id: msg.author.id
-                    })),
-                    user => user.id
-                )
-                logger.debug(`{addMessages} Upserting ${yellow(usersToUpsert.length)} users`)
-                await manager
-                    .createQueryBuilder()
-                    .insert()
-                    .into(User)
-                    .values(usersToUpsert)
-                    .orUpdate(['id'], ['id'])
-                    .execute()
-                logger.debug('{addMessages} Users upserted')
-
-                // Bulk upsert channels
-                const channelsToUpsert = removeDuplicatesByKey(
-                    chunk.map(msg => ({
-                        id: msg.channelId,
-                        guild: { id: guild.id },
-                        name: (msg.channel as TextChannel).name,
-                        fullyCollected: false
-                    })),
-                    channel => channel.id
-                )
-                logger.debug(`{addMessages} Upserting ${yellow(channelsToUpsert.length)} channels`)
-                await manager
-                    .createQueryBuilder()
-                    .insert()
-                    .into(Channel)
-                    .values(channelsToUpsert)
-                    .orUpdate(['fullyCollected'], ['id'])
-                    .execute()
-                logger.debug('{addMessages} Channels upserted')
-
-                // Bulk insert messages with conflict handling
-                const messagesToInsert = removeDuplicatesByKey(
-                    chunk.map(msg => ({
-                        id: msg.id,
-                        text: msg.content,
-                        authorId: msg.author.id,
-                        channelId: msg.channelId,
-                        guildId: guild.id,
-                        author: { id: msg.author.id },
-                        channel: { id: msg.channelId },
-                        guild: { id: guild.id },
-                        timestamp: msg.createdTimestamp
-                    })),
-                    message => message.id
-                )
-                logger.debug(`{addMessages} Executing custom insert query for ${yellow(messagesToInsert.length)} messages`)
-                await manager
-                    .createQueryBuilder()
-                    .insert()
-                    .into(Message)
-                    .values(messagesToInsert)
-                    .orUpdate(['text', 'timestamp'], ['id'])
-                    .execute()
-                logger.debug('{addMessages} Messages inserted, batch processed')
+            // 2. Bulk upsert all unique users ONCE.
+            if (allUsers.length > 0) {
+                logger.debug(`{addMessages} Upserting ${yellow(allUsers.length)} unique users`)
+                await manager.createQueryBuilder().insert().into(User).values(allUsers).orIgnore().execute()
+                logger.debug('{addMessages} Unique users upserted')
             }
+
+            // 3. Bulk upsert all unique channels ONCE.
+            if (allChannels.length > 0) {
+                logger.debug(`{addMessages} Upserting ${yellow(allChannels.length)} unique channels`)
+                await manager.createQueryBuilder().insert().into(Channel).values(allChannels).orIgnore().execute()
+                logger.debug('{addMessages} Unique channels upserted')
+            }
+
+            // 4. Process messages in batches for insertion.
+            logger.debug('{addMessages} Beginning to process message batches for insertion')
+            for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+                const chunk = messages.slice(i, i + BATCH_SIZE)
+                const messagesToInsert = chunk.map(msg => ({
+                    id: msg.id,
+                    text: msg.content,
+                    authorId: msg.author.id,
+                    channelId: msg.channelId,
+                    guildId: guild.id,
+                    timestamp: msg.createdTimestamp
+                }))
+
+                if (messagesToInsert.length > 0) {
+                    logger.debug(`{addMessages} Inserting batch of ${yellow(messagesToInsert.length)} messages`)
+                    await manager.createQueryBuilder().insert().into(Message).values(messagesToInsert).orUpdate(['text', 'timestamp'], ['id']).execute()
+                }
+            }
+            logger.debug('{addMessages} All message batches inserted')
 
             // Mark channel as fully collected if specified
             if (fullyCollectedChannelId) {
-                await manager.update(
-                    Channel,
-                    { id: fullyCollectedChannelId },
-                    { fullyCollected: !forceRescan }
-                )
+                await manager.update(Channel, { id: fullyCollectedChannelId }, { fullyCollected: !forceRescan })
                 logger.debug(`{addMessages} Marked channel ${yellow(fullyCollectedChannelId)} as fully collected`)
             }
             logger.debug('{addMessages} Finished!')
