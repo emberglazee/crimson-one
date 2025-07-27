@@ -5,6 +5,7 @@ import path from 'path'
 import url from 'url'
 
 import chalk from 'chalk'
+import { BotSettings } from '../modules/BotSettings'
 // Force colors to be enabled
 chalk.level = 2
 // Shortcut for using chalk colors alongside logger
@@ -48,6 +49,12 @@ export class Logger extends EventEmitter<{
         const message = typeof data === 'string' ? data : JSON.stringify(data)
 
         staticEventEmitter.emit('log', { level, message, module: this.module })
+
+        if (level === 'debug' && !BotSettings.isDebugModeEnabled()) {
+            // Debug mode is off, so only write to file
+            this.writeLogLine(logoutput(level, data, this.module))
+            return
+        }
 
         console.log(logoutput(level, data, this.module, true))
         this.emit(level, logoutput(level, data, this.module))
