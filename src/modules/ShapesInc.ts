@@ -43,11 +43,11 @@ export default class ShapesInc {
     private duelShapes: [string, string] | null = null // [shapeA, shapeB]
     private duelLastSpeaker: string | null = null
     private duelConversation: { author: string, content: string, isShape: boolean, timestamp: number }[] = []
-    private duelLastSent: number = 0
+    // private duelLastSent: number = 0
     private readonly DUEL_MIN_INTERVAL_MS = 2500
 
     private waitingForCookies: boolean = false
-    private cookiesUpdateResolver?: (cookies: string) => void
+    // private cookiesUpdateResolver?: (cookies: string) => void
 
     // --- Singleton & Initialization ---
     static getInstance(client?: Client<true>, channelId?: string): ShapesInc {
@@ -249,7 +249,7 @@ export default class ShapesInc {
     }
 
     async sendMessage(message: string, attachment_url: string | null = null, shapeUsername?: string): Promise<ShapesIncSendMessageResponse> {
-        logger.info('{sendMessage} Sending message...')
+        logger.debug('{sendMessage} Sending message...')
         const username = shapeUsername || this.currentShapeUsername
         let shape = this.shapes.get(username)
         if (!shape) {
@@ -279,7 +279,7 @@ export default class ShapesInc {
             logger.error(`{sendMessage} Error sending message:\n${err instanceof Error ? err.stack ?? err.message : inspect(err)}`)
             throw err
         })
-        logger.ok('{sendMessage} Done')
+        logger.debug('{sendMessage} Done')
         const json = await res.json()
         if (json.error) {
             logger.error(`{sendMessage} Error sending message:\n${json.error}`)
@@ -525,7 +525,7 @@ export default class ShapesInc {
         this.duelShapes = [shapeA, shapeB]
         this.duelLastSpeaker = null
         this.duelConversation = []
-        this.duelLastSent = 0
+        // this.duelLastSent = 0
 
         let shapeAData: ShapesIncShape
         try {
@@ -554,7 +554,7 @@ export default class ShapesInc {
                     allowedMentions: { repliedUser: false, parse: [] }
                 })
                 this.duelLastSpeaker = shapeA // Mark shapeA as the last speaker
-                this.duelLastSent = Date.now()
+                // this.duelLastSent = Date.now()
                 // Trigger the next shape's turn automatically
                 await this._processDuelTurn()
             } catch (err) {
@@ -572,7 +572,7 @@ export default class ShapesInc {
         this.duelShapes = null
         this.duelLastSpeaker = null
         this.duelConversation = []
-        this.duelLastSent = 0
+        // this.duelLastSent = 0
     }
 
     /**
@@ -658,7 +658,7 @@ export default class ShapesInc {
             })
             this.duelLastSpeaker = nextShape
             // Move the interval logic here: set duelLastSent after all async work is done
-            this.duelLastSent = Date.now()
+            // this.duelLastSent = Date.now()
             // Continue the duel if still enabled, but wait the interval AFTER all async work
             if (this.duelMode) {
                 setTimeout(() => this._processDuelTurn(), this.DUEL_MIN_INTERVAL_MS)
