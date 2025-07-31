@@ -155,7 +155,8 @@ export class MessageTrigger {
                 await message.react('🐴')
                 await message.reply(getRandomElement([
                     'https://tenor.com/view/horse-you-have-alerted-the-horse-alert-alert-horse-horse-alert-gif-10675569724654458517',
-                    'https://tenor.com/view/order-of-iris-how-hungry-horse-honse-gif-14835892721220569918'
+                    'https://tenor.com/view/order-of-iris-how-hungry-horse-honse-gif-14835892721220569918',
+                    'https://tenor.com/view/meme-horse-you-have-alerted-the-horse-pretty-derby-uma-musume-gif-15063465391514740847'
                 ]))
             }
         },
