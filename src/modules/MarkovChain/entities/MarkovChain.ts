@@ -47,17 +47,16 @@ export class BigramChainBuilder {
         }
 
         let current: string
-        if (seed && seed.length > 0) {
-            // Try to start with the last word of the seed if it exists in the chain
-            const lastSeedWord = seed[seed.length - 1]
-            current = this.chain.has(lastSeedWord)
-                ? lastSeedWord
-                : Array.from(this.chain.keys())[Math.floor(Math.random() * this.chain.size)]
+        const result: string[] = []
+
+        if (seed && seed.length > 0 && this.chain.has(seed[seed.length - 1])) {
+            current = seed[seed.length - 1]
+            result.push(...seed)
         } else {
             current = Array.from(this.chain.keys())[Math.floor(Math.random() * this.chain.size)]
+            result.push(current)
         }
 
-        const result: string[] = seed || []
         const targetLength = Math.floor(Math.random() * (maxWords - minWords + 1)) + minWords
 
         while (result.length < targetLength) {
@@ -136,21 +135,20 @@ export class TrigramChainBuilder {
         }
 
         let currentKey: string | undefined
-        const result: string[] = seed ? [...seed] : []
+        const result: string[] = []
 
         if (seed && seed.length >= 2) {
             const seedKey = `${seed[seed.length - 2]} ${seed[seed.length - 1]}`
             if (this.chain.has(seedKey)) {
                 currentKey = seedKey
+                result.push(...seed)
             }
         }
 
         // If no valid key from seed, or no seed, we need a starting point.
         if (!currentKey) {
             const randomStarterKey = this.starters[Math.floor(Math.random() * this.starters.length)]
-            // If there was a seed, we don't add the starter words to the result.
-            // We just use the starter key to begin the generation loop.
-            // If there was no seed, we add the starter words.
+            // If result is empty (meaning no valid seed was found), start with the random starter.
             if (result.length === 0) {
                 result.push(...randomStarterKey.split(' '))
             }
