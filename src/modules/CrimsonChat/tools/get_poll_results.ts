@@ -44,6 +44,6 @@ async function invoke({ messageId }: Input): Promise<string> {
 
 export default tool({
     description: "Retrieves the current results of a poll in the primary CrimsonChat channel.",
-    parameters: schema,
+    inputSchema: schema,
     execute: invoke
 })

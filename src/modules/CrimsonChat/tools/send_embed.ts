@@ -111,6 +111,6 @@ async function invoke(input: z.infer<typeof schema>): Promise<string> {
 
 export default tool({
     description: "Sends a customizable rich embed message to a specific Discord channel. Can be used to present information in a structured and visually appealing way.",
-    parameters: schema,
+    inputSchema: schema,
     execute: invoke
 })

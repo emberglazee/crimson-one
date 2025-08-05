@@ -10,7 +10,7 @@ import { usernamesToMentions } from './util/formatters'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST_PROMPT } from '../../util/constants'
 import { ImageProcessor } from './ImageProcessor'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { type CoreMessage, type TextPart, type ImagePart, type ToolCallPart, type ToolResultPart, generateText } from 'ai'
+import { type ModelMessage, type TextPart, type ImagePart, type ToolCallPart, type ToolResultPart, generateText } from 'ai'
 import { loadTools } from './tools'
 
 import { EventEmitter } from 'tseep'
@@ -171,15 +171,15 @@ export default class CrimsonChat extends EventEmitter<{
                         const imageData = await this.imageProcessor.fetchAndConvertToBase64(attachment.url)
                         if (imageData) {
                             const imageBuffer = Buffer.from(imageData.inlineData.data, 'base64')
-                            contentParts.push({ type: 'image', image: imageBuffer, mimeType: imageData.inlineData.mimeType })
+                            contentParts.push({ type: 'image', image: imageBuffer, mediaType: imageData.inlineData.mimeType })
                         }
                     }
                 }
             }
         }
 
-        const userMessage: CoreMessage = { role: 'user', content: contentParts }
-        const messages: CoreMessage[] = [...state.history, userMessage]
+        const userMessage: ModelMessage = { role: 'user', content: contentParts }
+        const messages: ModelMessage[] = [...state.history, userMessage]
 
         const tools = await loadTools()
 
@@ -208,7 +208,7 @@ export default class CrimsonChat extends EventEmitter<{
 
             const { text, toolCalls, toolResults, usage } = result
 
-            const newMessages: CoreMessage[] = [userMessage]
+            const newMessages: ModelMessage[] = [userMessage]
             if (toolCalls && toolCalls.length > 0) {
                 newMessages.push({ role: 'assistant', content: toolCalls })
                 for (const call of toolCalls as ToolCallPart[]) {
@@ -217,7 +217,7 @@ export default class CrimsonChat extends EventEmitter<{
                         .setTitle('⚙️ Tool Call')
                         .addFields(
                             { name: 'Tool', value: `\`${call.toolName}\``, inline: true },
-                            { name: 'Arguments', value: `\`\`\`json\n${JSON.stringify(call.args, null, 2)}\n\`\`\`` }
+                            { name: 'Arguments', value: `\`\`\`json\n${JSON.stringify(call.input, null, 2)}\n\`\`\`` }
                         )
                         .setFooter({ text: `Call ID: ${call.toolCallId}` })
                         .setTimestamp()
@@ -227,11 +227,11 @@ export default class CrimsonChat extends EventEmitter<{
             if (toolResults && toolResults.length > 0) {
                 newMessages.push({ role: 'tool', content: toolResults })
                 for (const result of toolResults as ToolResultPart[]) {
-                    const resultString = typeof result.result === 'string'
-                        ? result.result
-                        : JSON.stringify(result.result, null, 2)
+                    const resultString = typeof result.output === 'string'
+                        ? result.output
+                        : JSON.stringify(result.output, null, 2)
 
-                    let parsedResult: { status: string; message: string } | null = null
+                    let parsedResult: { status: string, message: string } | null = null
                     try {
                         parsedResult = JSON.parse(resultString)
                     } catch (parseError) {

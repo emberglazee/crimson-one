@@ -76,7 +76,7 @@ async function invoke({ username, displayname, duration, reason }: Input): Promi
 
 export default tool({
     description: 'Assigns the "banished" role to a server member, restricting their access. This is a form of server moderation.',
-    parameters: schema,
+    inputSchema: schema,
     execute: invoke
 })
 

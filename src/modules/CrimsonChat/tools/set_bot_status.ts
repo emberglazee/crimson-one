@@ -78,6 +78,6 @@ async function invoke({ status, activityType, activityName }: Input): Promise<st
 
 export default tool({
     description: 'Sets the Discord bot\'s presence status and activity.',
-    parameters: schema,
+    inputSchema: schema,
     execute: invoke
 })

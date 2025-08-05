@@ -47,6 +47,6 @@ async function invoke({ username, displayname, length, reason }: Input): Promise
 
 export default tool({
     description: 'Timeout a discord user',
-    parameters: schema,
+    inputSchema: schema,
     execute: invoke
 })

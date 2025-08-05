@@ -62,7 +62,7 @@ async function invoke({ username, displayname, reason }: Input): Promise<string>
 
 export default tool({
     description: 'Removes the "banished" role from a server member, restoring their access. This is a form of server moderation.',
-    parameters: schema,
+    inputSchema: schema,
     execute: invoke
 })
 

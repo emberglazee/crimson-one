@@ -78,6 +78,6 @@ async function invoke({ username, displayname, new_display_name, reason }: Input
 
 export default tool({
     description: 'Sets the display name (nickname) of a Discord server member, including the bot itself. This is a form of server moderation.',
-    parameters: schema,
+    inputSchema: schema,
     execute: invoke
 })

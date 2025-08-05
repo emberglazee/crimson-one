@@ -8,7 +8,7 @@ import {
     CRIMSON_CHAT_SYSTEM_PROMPT,
     DEFAULT_GEMINI_MODEL
 } from '../../util/constants'
-import type { CoreMessage, FilePart, ImagePart, TextPart, ToolResultPart, ToolCallPart } from 'ai'
+import type { ModelMessage, FilePart, ImagePart, TextPart, ToolResultPart, ToolCallPart } from 'ai'
 import { Buffer } from 'buffer'
 
 export type HistoryLimitMode = 'messages' | 'tokens'
@@ -19,30 +19,30 @@ type SerializableImagePart = {
     image: string // base64 string
     mimeType?: string
 }
-type SerializableCoreMessageContent = (
-    | { type: 'text'; text: string }
+type SerializableModelMessageContent = (
+    | { type: 'text', text: string }
     | SerializableImagePart
-    | { type: 'tool-call'; toolCallId: string, toolName: string, args: unknown }
-    | { type: 'tool-result'; toolCallId: string, result: unknown, toolName?: string }
+    | { type: 'tool-call', toolCallId: string, toolName: string, input: unknown }
+    | { type: 'tool-result', toolCallId: string, output: unknown, toolName?: string }
     | FilePart
 )[]
 
 // Type for messages stored in the JSON file
-type StoredMessage = Omit<CoreMessage, 'content'> & {
-    content: string | SerializableCoreMessageContent | null;
+type StoredMessage = Omit<ModelMessage, 'content'> & {
+    content: string | SerializableModelMessageContent | null
     usage?: {
-        promptTokens: number;
-        completionTokens: number;
-    };
-};
+        promptTokens: number
+        completionTokens: number
+    }
+}
 
-// Type for in-memory messages, which are CoreMessages with optional usage data
-type MessageWithUsage = CoreMessage & {
+// Type for in-memory messages, which are ModelMessages with optional usage data
+type MessageWithUsage = ModelMessage & {
     usage?: {
-        promptTokens: number;
-        completionTokens: number;
-    };
-};
+        promptTokens: number
+        completionTokens: number
+    }
+}
 
 // Type guard to check for our custom serializable image format
 function isSerializableImagePart(part: unknown): part is SerializableImagePart {
@@ -175,7 +175,7 @@ export class CrimsonChatState {
                         return { role, content: loadedContent as string, ...rest }
                     case 'user': {
                         const content = Array.isArray(loadedContent)
-                            ? (loadedContent as SerializableCoreMessageContent).map(part => {
+                            ? (loadedContent as SerializableModelMessageContent).map(part => {
                                 if (isSerializableImagePart(part)) {
                                     return {
                                         type: 'image',
@@ -190,16 +190,16 @@ export class CrimsonChatState {
                     }
                     case 'assistant': {
                         const content = Array.isArray(loadedContent)
-                            ? (loadedContent as SerializableCoreMessageContent).filter(
-                                (p): p is TextPart | ToolCallPart => p.type === 'text' || p.type === 'tool-call',
+                            ? (loadedContent as SerializableModelMessageContent).filter(
+                                (p): p is TextPart | ToolCallPart => p.type === 'text' || (p.type === 'tool-call' && 'toolCallId' in p && 'toolName' in p && 'input' in p),
                             ) as (TextPart | ToolCallPart)[]
                             : loadedContent
                         return { role, content, ...rest }
                     }
                     case 'tool': {
                         const content = Array.isArray(loadedContent)
-                            ? (loadedContent as SerializableCoreMessageContent).filter(
-                                (p): p is ToolResultPart => p.type === 'tool-result',
+                            ? (loadedContent as SerializableModelMessageContent).filter(
+                                (p): p is ToolResultPart => p.type === 'tool-result' && 'toolCallId' in p && 'output' in p,
                             ) as ToolResultPart[]
                             : []
                         return { role, content, ...rest }
@@ -236,27 +236,27 @@ export class CrimsonChatState {
                                 return {
                                     type: 'image',
                                     image: p.image.toString('base64'),
-                                    mimeType: p.mimeType ?? 'image/png',
+                                    mimeType: p.mediaType ?? 'image/png',
                                 }
                             }
                             if (p.image instanceof ArrayBuffer) {
                                 return {
                                     type: 'image',
                                     image: Buffer.from(p.image).toString('base64'),
-                                    mimeType: p.mimeType ?? 'image/png',
+                                    mimeType: p.mediaType ?? 'image/png',
                                 }
                             }
                             if (typeof p.image === 'string') {
                                 return {
                                     type: 'image',
                                     image: p.image,
-                                    mimeType: p.mimeType,
+                                    mimeType: p.mediaType
                                 }
                             }
                             return null
                         }
                         return p
-                    }).filter((p): p is NonNullable<typeof p> => p !== null) as SerializableCoreMessageContent
+                    }).filter((p): p is NonNullable<typeof p> => p !== null) as SerializableModelMessageContent
                 }
                 return newMsg
             })
@@ -285,7 +285,7 @@ export class CrimsonChatState {
         return this
     }
 
-    async addMessages(messages: CoreMessage[], usage?: { promptTokens: number; completionTokens: number }): Promise<void> {
+    async addMessages(messages: ModelMessage[], usage?: { promptTokens: number, completionTokens: number }): Promise<void> {
         await this.loadStateFromFile()
 
         const messagesWithUsage: MessageWithUsage[] = messages.map((msg, index) => {

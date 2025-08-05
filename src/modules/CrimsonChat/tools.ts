@@ -26,7 +26,7 @@ export async function loadTools(): Promise<Record<string, Tool<z.ZodObject<Recor
                     const toolDefinition = toolModule.default as Tool<z.ZodObject<Record<string, z.ZodTypeAny>>>
                     const toolName = path.basename(file, '.ts')
 
-                    if (toolDefinition && toolDefinition.parameters && toolDefinition.execute) {
+                    if (toolDefinition && toolDefinition.inputSchema && toolDefinition.execute) {
                         tools[toolName] = toolDefinition
                         logger.ok(`Loaded tool: ${yellow(toolName)}`)
                     } else {
