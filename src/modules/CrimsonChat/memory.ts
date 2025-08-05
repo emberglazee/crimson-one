@@ -144,15 +144,15 @@ export class CrimsonChatState {
         try {
             const data = await fs.readFile(this.statePath, 'utf-8')
             const savedData = JSON.parse(data) as {
-                systemPrompt: string,
-                history: StoredMessage[],
-                limitMode?: HistoryLimitMode,
-                messageLimit?: number,
+                systemPrompt: string
+                history: StoredMessage[]
+                limitMode?: HistoryLimitMode
+                messageLimit?: number
                 tokenLimit?: number
-                enabled?: boolean,
-                modelName?: string,
-                berserkMode?: boolean,
-                testMode?: boolean,
+                enabled?: boolean
+                modelName?: string
+                berserkMode?: boolean
+                testMode?: boolean
                 ignoredUsers?: string[]
             }
 
@@ -180,7 +180,7 @@ export class CrimsonChatState {
                                     return {
                                         type: 'image',
                                         image: Buffer.from(part.image, 'base64'),
-                                        mimeType: part.mimeType,
+                                        mimeType: part.mimeType
                                     } as ImagePart
                                 }
                                 return part as TextPart | FilePart
@@ -191,7 +191,7 @@ export class CrimsonChatState {
                     case 'assistant': {
                         const content = Array.isArray(loadedContent)
                             ? (loadedContent as SerializableModelMessageContent).filter(
-                                (p): p is TextPart | ToolCallPart => p.type === 'text' || (p.type === 'tool-call' && 'toolCallId' in p && 'toolName' in p && 'input' in p),
+                                (p): p is TextPart | ToolCallPart => p.type === 'text' || (p.type === 'tool-call' && 'toolCallId' in p && 'toolName' in p && 'input' in p)
                             ) as (TextPart | ToolCallPart)[]
                             : loadedContent
                         return { role, content, ...rest }
@@ -199,7 +199,7 @@ export class CrimsonChatState {
                     case 'tool': {
                         const content = Array.isArray(loadedContent)
                             ? (loadedContent as SerializableModelMessageContent).filter(
-                                (p): p is ToolResultPart => p.type === 'tool-result' && 'toolCallId' in p && 'output' in p,
+                                (p): p is ToolResultPart => p.type === 'tool-result' && 'toolCallId' in p && 'output' in p
                             ) as ToolResultPart[]
                             : []
                         return { role, content, ...rest }
@@ -236,14 +236,14 @@ export class CrimsonChatState {
                                 return {
                                     type: 'image',
                                     image: p.image.toString('base64'),
-                                    mimeType: p.mediaType ?? 'image/png',
+                                    mimeType: p.mediaType ?? 'image/png'
                                 }
                             }
                             if (p.image instanceof ArrayBuffer) {
                                 return {
                                     type: 'image',
                                     image: Buffer.from(p.image).toString('base64'),
-                                    mimeType: p.mediaType ?? 'image/png',
+                                    mimeType: p.mediaType ?? 'image/png'
                                 }
                             }
                             if (typeof p.image === 'string') {
@@ -271,7 +271,7 @@ export class CrimsonChatState {
                 modelName: this.modelName,
                 berserkMode: this.berserkMode,
                 testMode: this.testMode,
-                ignoredUsers: this.ignoredUsers,
+                ignoredUsers: this.ignoredUsers
             }
 
             await fs.writeFile(this.statePath, JSON.stringify(dataToSave, null, 2))
@@ -293,7 +293,7 @@ export class CrimsonChatState {
             if (index === messages.length - 1 && usage) {
                 msgWithUsage.usage = {
                     promptTokens: usage.promptTokens,
-                    completionTokens: usage.completionTokens,
+                    completionTokens: usage.completionTokens
                 }
             }
             return msgWithUsage

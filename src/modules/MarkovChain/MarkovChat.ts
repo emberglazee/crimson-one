@@ -78,7 +78,7 @@ interface MessageStats {
 
 export class MarkovChat extends EventEmitter<{
     collectProgress: (event: MarkovCollectProgressEvent) => void
-    collectComplete: (event: { totalCollected: number; channelName: string; userFiltered: boolean; entireChannel: boolean; newMessagesOnly: boolean; totalMessageCount?: number }) => void
+    collectComplete: (event: { totalCollected: number, channelName: string, userFiltered: boolean, entireChannel: boolean, newMessagesOnly: boolean, totalMessageCount?: number }) => void
     generateProgress: (event: MarkovGenerateProgressEvent) => void
     infoProgress: (event: MarkovInfoProgressEvent) => void
 }> {
@@ -86,7 +86,7 @@ export class MarkovChat extends EventEmitter<{
     private client: Client | null = null
     private worker: Worker | null = null
     private taskIdCounter = 0
-    private pendingTasks = new Map<string, { resolve: (value: unknown) => void; reject: (reason?: unknown) => void }>()
+    private pendingTasks = new Map<string, { resolve: (value: unknown) => void, reject: (reason?: unknown) => void }>()
 
     private constructor() {
         super()
@@ -117,7 +117,7 @@ export class MarkovChat extends EventEmitter<{
                         this.emit(eventName, message.data as MarkovCollectProgressEvent)
                         break
                     case 'collectComplete':
-                        this.emit(eventName, message.data as { totalCollected: number; channelName: string; userFiltered: boolean; entireChannel: boolean; newMessagesOnly: boolean; totalMessageCount?: number })
+                        this.emit(eventName, message.data as { totalCollected: number, channelName: string, userFiltered: boolean, entireChannel: boolean, newMessagesOnly: boolean, totalMessageCount?: number })
                         break
                     case 'generateProgress':
                         this.emit(eventName, message.data as MarkovGenerateProgressEvent)

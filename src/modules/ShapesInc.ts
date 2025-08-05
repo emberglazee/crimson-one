@@ -75,7 +75,7 @@ export default class ShapesInc {
         if (this.apiKey) {
             this.openaiClient = new OpenAI({
                 apiKey: this.apiKey,
-                baseURL: 'https://api.shapes.inc/v1',
+                baseURL: 'https://api.shapes.inc/v1'
             })
             logger.ok('{init} Initialized OpenAI client for Shapes API')
         } else {

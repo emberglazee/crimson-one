@@ -31,7 +31,7 @@ async function startBot() {
     botProcess = fork(botScriptPath, [], {
         // 'pipe' ensures stdout/stderr are streams we can read
         // 'ipc' is crucial for process.send() to work
-        stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+        stdio: ['ignore', 'pipe', 'pipe', 'ipc']
     })
 
     if (botProcess.stdout) {
@@ -43,7 +43,7 @@ async function startBot() {
 
     logger.ok(`Bot process spawned with PID: ${botProcess.pid}`)
 
-    botProcess.on('message', (message: { type: string; [key: string]: unknown }) => {
+    botProcess.on('message', (message: { type: string, [key: string]: unknown }) => {
         handleBotMessage(message)
     })
 

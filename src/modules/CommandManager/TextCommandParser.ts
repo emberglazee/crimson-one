@@ -23,7 +23,7 @@ export class TextCommandParser {
         return context
     }
 
-    public static parseCommandFromMessage(content: string, prefix: string): { commandName: string | null; rawArgsString: string } {
+    public static parseCommandFromMessage(content: string, prefix: string): { commandName: string | null, rawArgsString: string } {
         const contentWithoutPrefix = content.slice(prefix.length).trim()
         const commandName = contentWithoutPrefix.split(/ +/)[0]?.toLowerCase() ?? null
         const firstSpaceIndex = contentWithoutPrefix.indexOf(' ')
@@ -151,7 +151,7 @@ export class TextCommandParser {
             const opt = option
             const yargsOptConfig: YargsOptions = {
                 describe: opt.description,
-                required: opt.required || false,
+                required: opt.required || false
             }
 
             if (opt.required) {

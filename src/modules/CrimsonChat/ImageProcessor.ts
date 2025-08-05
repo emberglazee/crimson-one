@@ -13,7 +13,7 @@ export class ImageProcessor {
     public normalizeUrl = normalizeUrl
     public cleanImageUrl = cleanImageUrl
 
-    public async fetchAndConvertToBase64(url: string): Promise<{ inlineData: { mimeType: string; data: string } } | null> {
+    public async fetchAndConvertToBase64(url: string): Promise<{ inlineData: { mimeType: string, data: string } } | null> {
         try {
             const urlObj = new URL(url)
             const isGif = urlObj.pathname.toLowerCase().endsWith('.gif')

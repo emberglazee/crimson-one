@@ -15,7 +15,7 @@ const schema = z.object({
     displayname: z.string().optional().describe("The user's display name in the server; the least accurate, performs a closest match search"),
     reason: z.string().optional().describe("Optional reason for the unbanishment for the audit log.")
 })
-type Input = z.infer<typeof schema>;
+type Input = z.infer<typeof schema>
 
 async function invoke({ username, displayname, reason }: Input): Promise<string> {
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ username, displayname, reason }))}`)

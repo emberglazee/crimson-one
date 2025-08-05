@@ -105,7 +105,7 @@ export const slashCommand = {
                     ).addTextDisplayComponents(
 
                         new TextDisplayBuilder()
-                            .setContent('### User flags'),
+                            .setContent('### User flags')
 
                     ).addTextDisplayComponents(
 
@@ -221,7 +221,7 @@ export const slashCommand = {
                             ).addTextDisplayComponents(
 
                                 new TextDisplayBuilder()
-                                    .setContent('### Member flags'),
+                                    .setContent('### Member flags')
 
                             ).addTextDisplayComponents(
 

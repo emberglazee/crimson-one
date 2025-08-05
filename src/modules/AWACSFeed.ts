@@ -365,7 +365,7 @@ export class AWACSFeed extends EventEmitter<{
         try {
             const auditLogs = await member.guild.fetchAuditLogs({
                 limit: 10,
-                type: AuditLogEvent.MemberRoleUpdate,
+                type: AuditLogEvent.MemberRoleUpdate
             })
 
             const logEntry = auditLogs.entries.find(entry => {

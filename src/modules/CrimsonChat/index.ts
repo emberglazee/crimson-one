@@ -136,7 +136,7 @@ export default class CrimsonChat extends EventEmitter<{
     }
 
     private async _generateResponse(
-        bufferedMessages: BufferedMessage[],
+        bufferedMessages: BufferedMessage[]
     ): Promise<string | null> {
         const lastMessage = bufferedMessages[bufferedMessages.length - 1]
         const targetChannel = lastMessage.options.targetChannel || this.channel!

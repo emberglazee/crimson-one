@@ -472,7 +472,7 @@ export default {
                         { name: 'Unique Words', value: stats.uniqueWordCount.toLocaleString(), inline: true },
                         { name: 'Words Per Message', value: stats.avgWordsPerMessage.toFixed(1), inline: true },
                         { name: 'Oldest Message', value: oldestDate, inline: false },
-                        { name: 'Newest Message', value: newestDate, inline: false },
+                        { name: 'Newest Message', value: newestDate, inline: false }
                     )
                     .setFooter({ text: `Generated in ${timeEndMs.toFixed(0)}ms` })
                     .setTimestamp()

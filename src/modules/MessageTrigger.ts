@@ -164,7 +164,7 @@ export class MessageTrigger {
             pattern: [/horse/gmi],
             async action(message) {
                 await message.react('🐴')
-            },
+            }
         },
         {
             pattern: [/femboy/gmi],

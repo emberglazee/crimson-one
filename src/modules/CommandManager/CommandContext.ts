@@ -9,21 +9,17 @@ import {
     ApplicationIntegrationType
 } from 'discord.js'
 import type {
-    Role,
-    InteractionEditReplyOptions, ImageExtension, User,
+    Role, InteractionEditReplyOptions, ImageExtension, User,
     ImageSize, TextBasedChannel, MessageReplyOptions, GuildMember,
     InteractionReplyOptions, InteractionDeferReplyOptions,
     GuildBasedChannel, MessageEditOptions, Client,
     Guild, Attachment,
-    ChatInputCommandInteraction,
+    ChatInputCommandInteraction
 } from 'discord.js'
 
 import { getUserAvatar, guildMember } from '../../util/functions'
 
-import { BotInstallationType } from '../../types'
-import type {
-    JSONResolvable,
-} from '../../types'
+import { BotInstallationType, type JSONResolvable } from '../../types'
 
 import { EMBI_ID, PING_EMBI, TYPING_EMOJI } from '../../util/constants'
 import type { ArgumentsCamelCase } from 'yargs'

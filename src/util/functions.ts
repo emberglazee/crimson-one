@@ -109,7 +109,7 @@ const DURATION_UNITS: Record<string, bigint> = {
     dec,
     ce: cen,
     cen,
-    mil,
+    mil
 }
 
 export function parseDuration(durationStr: string): bigint | null {
@@ -146,7 +146,7 @@ export function formatDuration(input: Date | number): string {
         ['d', Number(d)],
         ['h', Number(h)],
         ['m', Number(m)],
-        ['s', Number(s)],
+        ['s', Number(s)]
     ]
 
     const parts: string[] = []
@@ -182,9 +182,9 @@ export function getUserAvatar(
     user: User,
     guild: Guild | null,
     options: {
-        extension?: ImageExtension;
-        size?: ImageSize;
-        useGlobalAvatar?: boolean;
+        extension?: ImageExtension
+        size?: ImageSize
+        useGlobalAvatar?: boolean
     } = {}
 ): string {
     const {
@@ -279,7 +279,7 @@ export function parseNetscapeCookieFile(fileContent: string) {
             path,
             expires: isNaN(expires) ? -1 : expires,
             httpOnly: false, // Not available in cookies.txt format
-            secure: secure.toUpperCase() === 'TRUE',
+            secure: secure.toUpperCase() === 'TRUE'
         })
     }
     return cookies

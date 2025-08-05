@@ -11,7 +11,7 @@ export default {
         await context.deferReply()
         const url = await randomProjectWingmanArticle().catch(() => '❌ Failed to get article')
         await context.editReply(url)
-    },
+    }
 } satisfies SlashCommand
 
 async function randomProjectWingmanArticle(): Promise<string> {

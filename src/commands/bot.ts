@@ -80,7 +80,7 @@ export default {
                         { name: 'Memory Usage', value: `Heap: ${formatBytes(heapUsed)}/${formatBytes(heapTotal)}\nRSS: ${formatBytes(rss)}`, inline: true },
                         { name: 'Process Uptime', value: uptimeStr, inline: true },
                         { name: '~ Installation Stats', value: `Servers: ${application.approximateGuildCount ?? 'N/A'}\nUsers: ${application.approximateUserInstallCount ?? 'N/A'}`, inline: true },
-                        { name: 'Ongoing Operations', value: `${ongoingOperations}`, inline: true },
+                        { name: 'Ongoing Operations', value: `${ongoingOperations}`, inline: true }
                     ],
                     color: 0x2B2D31,
                     timestamp: new Date().toISOString()

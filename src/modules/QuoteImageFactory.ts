@@ -15,7 +15,7 @@ registerFont(path.join(__dirname, '../../data/Aces07.ttf'), { family: 'Aces07' }
 registerFont(path.join(__dirname, '../../data/FSSinclairRegular.otf'), { family: 'FSSinclair' }) // Helldivers 2
 
 export type QuoteImageResult = {
-    buffer: Buffer,
+    buffer: Buffer
     type: 'image/gif' | 'image/png'
 }
 

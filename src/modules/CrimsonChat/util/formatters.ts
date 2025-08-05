@@ -9,7 +9,7 @@ export async function formatUserMessage(
     displayName: string,
     serverDisplayName: string,
     content: string,
-    respondingTo?: { targetUsername: string; targetText: string },
+    respondingTo?: { targetUsername: string, targetText: string },
     guildName?: string,
     channelName?: string
 ): Promise<string> {

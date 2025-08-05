@@ -13,7 +13,7 @@ interface Operation {
     start: Date
     status: OperationStatus
     metadata?: Record<string, unknown>
-    refable?: { ref(): void; unref(): void }
+    refable?: { ref(): void, unref(): void }
 }
 
 export class OperationTracker extends EventEmitter<{

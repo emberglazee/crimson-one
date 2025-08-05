@@ -61,14 +61,14 @@ class MarkovEngine {
     }
 
     public async collectMessages(options: {
-        guildId: string;
-        channelId: string;
-        user?: { id: string };
-        userId?: string;
-        limit?: number | 'entire';
-        delayMs?: number;
-        disableUserApiLookup?: boolean;
-        forceRescan?: boolean;
+        guildId: string
+        channelId: string
+        user?: { id: string }
+        userId?: string
+        limit?: number | 'entire'
+        delayMs?: number
+        disableUserApiLookup?: boolean
+        forceRescan?: boolean
     }) {
         if (!this.client) throw new Error('Worker client not initialized')
 
@@ -104,7 +104,7 @@ class MarkovEngine {
         while (messages.length < numericLimit) {
             if (batchCount > 0) await new Promise(resolve => setTimeout(resolve, delayMs))
 
-            const fetchOptions: { limit: number; before?: string } = {
+            const fetchOptions: { limit: number, before?: string } = {
                 limit: Math.min(BATCH_SIZE, isEntireChannel ? BATCH_SIZE : numericLimit - messages.length)
             }
             if (lastId) fetchOptions.before = lastId
@@ -302,7 +302,7 @@ class MarkovEngine {
 
 const engine = new MarkovEngine()
 
-parentPort!.on('message', async (message: { type: string; options: unknown; taskId: string }) => {
+parentPort!.on('message', async (message: { type: string, options: unknown, taskId: string }) => {
     try {
         if (message.type === 'initialize') {
             const { token, userToken } = message.options as { token: string, userToken?: string }
@@ -315,14 +315,14 @@ parentPort!.on('message', async (message: { type: string; options: unknown; task
         switch (message.type) {
             case 'collect':
                 result = await engine.collectMessages(message.options as {
-                    guildId: string;
-                    channelId: string;
-                    user?: { id: string };
-                    userId?: string;
-                    limit?: number | 'entire';
-                    delayMs?: number;
-                    disableUserApiLookup?: boolean;
-                    forceRescan?: boolean;
+                    guildId: string
+                    channelId: string
+                    user?: { id: string }
+                    userId?: string
+                    limit?: number | 'entire'
+                    delayMs?: number
+                    disableUserApiLookup?: boolean
+                    forceRescan?: boolean
                 })
                 break
             case 'generate':

@@ -9,7 +9,7 @@ const logger = new Logger('CrimsonChat | set_bot_status()')
 const schema = z.object({
     status: z.enum(['online', 'idle', 'dnd', 'invisible']).optional(),
     activityType: z.enum(['Playing', 'Streaming', 'Listening', 'Watching', 'Competing']).optional(),
-    activityName: z.string().optional(),
+    activityName: z.string().optional()
 })
 type Input = z.infer<typeof schema>
 
@@ -21,7 +21,7 @@ async function invoke({ status, activityType, activityName }: Input): Promise<st
             return JSON.stringify({ status: 'error', message: 'Discord client not available.' })
         }
 
-        const presenceOptions: { status?: PresenceStatusData; activities?: { name: string; type: ActivityType }[] } = {}
+        const presenceOptions: { status?: PresenceStatusData, activities?: { name: string, type: ActivityType }[] } = {}
 
         if (status) {
             presenceOptions.status = status

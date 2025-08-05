@@ -7,7 +7,7 @@ const MAX_ROLLS = 100 // Maximum number of rolls allowed
 const MAX_ITERATIONS = 1000 // Maximum number of rolls allowed for 'until'
 const MAX_UNTIL_SIDES = 100 // Max sides for 'until' subcommand
 
-function rollDice(sides: number): { result: number; isNat: boolean } {
+function rollDice(sides: number): { result: number, isNat: boolean } {
     const result = randRange(1, sides)
     return {
         result,
