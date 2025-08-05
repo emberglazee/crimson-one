@@ -1,9 +1,10 @@
 import { Logger, red } from '../util/logger'
 const logger = new Logger('/duplicate')
 
-import { SlashCommandBuilder, PermissionsBitField, roleMention, PermissionOverwrites, PermissionFlagsBits, InteractionContextType } from 'discord.js'
+import { SlashCommandBuilder, PermissionsBitField, roleMention, InteractionContextType } from 'discord.js'
 import { SlashCommand } from '../types'
 import { PING_EMBI } from '../util/constants'
+import { convertOverwriteToOptions } from '../util/functions'
 
 export default {
     data: new SlashCommandBuilder()
@@ -104,17 +105,3 @@ export default {
         }
     }
 } satisfies SlashCommand
-
-// For correctly casting `PermissionOverwrites` as `PermissionOverwriteOptions`
-function convertOverwriteToOptions(overwrite: PermissionOverwrites) {
-    const options: Record<string, boolean | null> = {}
-    for (const perm of Object.keys(PermissionFlagsBits)) {
-        const bit = PermissionFlagsBits[perm as keyof typeof PermissionFlagsBits]
-        if (overwrite.allow.has(bit)) {
-            options[perm] = true
-        } else if (overwrite.deny.has(bit)) {
-            options[perm] = false
-        }
-    }
-    return options
-}

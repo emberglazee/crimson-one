@@ -12,7 +12,7 @@ const App = () => {
     useEffect(() => {
         const ws = new WebSocket('ws://localhost:8080')
 
-        ws.onmessage = (event) => {
+        ws.onmessage = event => {
             const message = JSON.parse(event.data as string)
 
             switch (message.type) {

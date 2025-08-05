@@ -1,12 +1,16 @@
 import {
-    AttachmentBuilder, Guild, GuildMember, User,
+    AttachmentBuilder, Guild, GuildMember,
+    PermissionFlagsBits, PermissionOverwrites, User,
     type APIInteractionDataResolvedGuildMember,
     type APIInteractionGuildMember,
-    type ImageExtension, type ImageSize
+    type ImageExtension, type ImageSize,
+    type PermissionOverwriteOptions
 } from 'discord.js'
 import type { ExplicitAny } from '../types'
 import { randomInt } from 'crypto'
 import { distance } from 'fastest-levenshtein'
+
+// --- Randomization & Array Manipulation ---
 
 export const randRange = (min: number, max: number) => randomInt(min, max + 1)
 export const getRandomElement = <T>(array: T[]): T => array[randomInt(array.length)]
@@ -18,50 +22,9 @@ export function shuffleArray<T>(array: T[]): T[] {
     }
     return shuffled
 }
-
-export const hexStringToNumber = (hex: string) => parseInt(hex.replace('#', ''), 16)
-
 export function removeDuplicatesAndNulls<T>(array: T[]): T[] {
     return [...new Set(array)].filter(item => item !== undefined && item !== null)
 }
-
-export const absoluteDiscordTimestamp = (seconds: number) => `<t:${seconds}>`   as const
-export const relativeDiscordTimestamp = (seconds: number) => `<t:${seconds}:R>` as const
-
-export function stringToAttachment(string: string, filename?: string) {
-    if (!filename) filename = 'file.txt'
-    const buffer = Buffer.from(string, 'utf-8')
-    return new AttachmentBuilder(buffer).setName(filename)
-}
-export function pluralize(count: number, singular: string, few: string, many: string) {
-    if (count === 1) return singular
-    if (count > 1 && count < 5) return few
-    return many
-}
-
-export const boolToEmoji = (bool: boolean) => bool ? '✅' : '❌'
-
-export function formatBytes(bytes: number): string {
-    const sizes = ['B', 'KB', 'MB', 'GB']
-    if (bytes === 0) return '0 B'
-    const i = Math.floor(Math.log(bytes) / Math.log(1024))
-    return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`
-}
-
-export function chance(percentage: number): boolean {
-    const clamped = Math.max(0, Math.min(100, percentage))
-    if (clamped === 100) return true
-    if (clamped === 0) return false
-    return randomInt(100) < clamped
-}
-
-export function hasProp<T extends object, K extends PropertyKey>(
-    obj: unknown,
-    prop: K
-): obj is T & Record<K, unknown> {
-    return typeof obj === 'object' && obj !== null && prop in obj
-}
-
 export function removeDuplicatesByKey<T>(arr: T[], key: (item: T) => ExplicitAny): T[] {
     const map = new Map()
     return arr.reduce((acc: T[], item: T) => {
@@ -72,7 +35,33 @@ export function removeDuplicatesByKey<T>(arr: T[], key: (item: T) => ExplicitAny
         return acc
     }, [])
 }
+export function chance(percentage: number): boolean {
+    const clamped = Math.max(0, Math.min(100, percentage))
+    if (clamped === 100) return true
+    if (clamped === 0) return false
+    return randomInt(100) < clamped
+}
 
+// --- String, Number & Formatting ---
+
+export const hexStringToNumber = (hex: string) => parseInt(hex.replace('#', ''), 16)
+export function pluralize(count: number, singular: string, few: string, many: string) {
+    if (count === 1) return singular
+    if (count > 1 && count < 5) return few
+    return many
+}
+export function formatBytes(bytes: number): string {
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    if (bytes === 0) return '0 B'
+    const i = Math.floor(Math.log(bytes) / Math.log(1024))
+    return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`
+}
+export const smallFooterNote = <T extends string>(note: T) => `-# - ${note}` as const
+
+// --- Time & Date ---
+
+export const absoluteDiscordTimestamp = (seconds: number) => `<t:${seconds}>`   as const
+export const relativeDiscordTimestamp = (seconds: number) => `<t:${seconds}:R>` as const
 /**
  * Format seconds into a human-readable time string
  */
@@ -90,74 +79,6 @@ export function formatTimeRemaining(seconds: number): string {
         return `${hours}h ${minutes}m ${remainingSeconds}s`
     }
 }
-
-/**
- * Type-safe function to exclude `APIInteractionGuildMember` from `GuildMember | null`
- */
-export function guildMember(member: GuildMember | APIInteractionGuildMember | APIInteractionDataResolvedGuildMember | null): GuildMember | null {
-    if (!member) return null
-    if (member instanceof GuildMember) return member
-    return null
-}
-
-export function getUserAvatar(
-    user: User,
-    guild: Guild | null,
-    options: {
-        extension?: ImageExtension;
-        size?: ImageSize;
-        useGlobalAvatar?: boolean;
-    } = {}
-): string {
-    const {
-        extension = 'png',
-        size = 1024,
-        useGlobalAvatar = false
-    } = options
-
-    if (useGlobalAvatar || !guild) {
-        return user.displayAvatarURL({ extension, size })
-    }
-
-    const member = guild.members.cache.get(user.id)
-    if (!member) {
-        return user.displayAvatarURL({ extension, size })
-    }
-
-    return member.displayAvatarURL({ extension, size })
-}
-
-/**
- * Parse a Netscape cookie file and return an array of Playwright-compatible cookie objects.
- * @param fileContent The content of the cookie file as a string
- * @returns Array of cookies { name, value, domain, path, expires, httpOnly, secure }
- */
-export function parseNetscapeCookieFile(fileContent: string) {
-    const lines = fileContent.split(/\r?\n/)
-    const cookies = []
-    for (const line of lines) {
-        if (!line || line.startsWith('#')) continue // skip comments and empty lines
-        const parts = line.split('\t')
-        if (parts.length < 7) continue
-
-        const [domain, _flag, path, secure, expiresStr, name, value] = parts
-
-        const expires = Number(expiresStr)
-        cookies.push({
-            name: name.trim(),
-            value: value.trim(),
-            domain,
-            path,
-            expires: isNaN(expires) ? -1 : expires,
-            httpOnly: false, // Not available in cookies.txt format
-            secure: secure.toUpperCase() === 'TRUE',
-        })
-    }
-    return cookies
-}
-
-export const smallFooterNote = <T extends string>(note: T) => `-# - ${note}` as const
-
 export function dateToDiscordEpoch(date: Date): number {
     const DISCORD_EPOCH = new Date('2015-01-01T00:00:00Z').getTime()
     const currentUnixTimestamp = date.getTime()
@@ -241,6 +162,48 @@ export function formatDuration(input: Date | number): string {
     return parts.join(' ') || '0s'
 }
 
+// --- Discord-Specific Utilities ---
+
+export function stringToAttachment(string: string, filename?: string) {
+    if (!filename) filename = 'file.txt'
+    const buffer = Buffer.from(string, 'utf-8')
+    return new AttachmentBuilder(buffer).setName(filename)
+}
+export const boolToEmoji = (bool: boolean) => bool ? '✅' : '❌'
+/**
+ * Type-safe function to exclude `APIInteractionGuildMember` from `GuildMember | null`
+ */
+export function guildMember(member: GuildMember | APIInteractionGuildMember | APIInteractionDataResolvedGuildMember | null): GuildMember | null {
+    if (!member) return null
+    if (member instanceof GuildMember) return member
+    return null
+}
+export function getUserAvatar(
+    user: User,
+    guild: Guild | null,
+    options: {
+        extension?: ImageExtension;
+        size?: ImageSize;
+        useGlobalAvatar?: boolean;
+    } = {}
+): string {
+    const {
+        extension = 'png',
+        size = 1024,
+        useGlobalAvatar = false
+    } = options
+
+    if (useGlobalAvatar || !guild) {
+        return user.displayAvatarURL({ extension, size })
+    }
+
+    const member = guild.members.cache.get(user.id)
+    if (!member) {
+        return user.displayAvatarURL({ extension, size })
+    }
+
+    return member.displayAvatarURL({ extension, size })
+}
 export async function findMember(guild: Guild, query: string): Promise<GuildMember | null> {
     // by username
     await guild.members.fetch({ query: query, limit: 10 })
@@ -267,4 +230,57 @@ export async function findMember(guild: Guild, query: string): Promise<GuildMemb
     }
 
     return null
+}
+// For correctly casting `PermissionOverwrites` as `PermissionOverwriteOptions`
+export function convertOverwriteToOptions(overwrite: PermissionOverwrites): PermissionOverwriteOptions {
+    const options: Record<string, boolean | null> = {}
+    for (const perm of Object.keys(PermissionFlagsBits)) {
+        const bit = PermissionFlagsBits[perm as keyof typeof PermissionFlagsBits]
+        if (overwrite.allow.has(bit)) {
+            options[perm] = true
+        } else if (overwrite.deny.has(bit)) {
+            options[perm] = false
+        }
+    }
+    return options
+}
+
+// --- Type Guards & Object Utilities ---
+
+export function hasProp<T extends object, K extends PropertyKey>(
+    obj: unknown,
+    prop: K
+): obj is T & Record<K, unknown> {
+    return typeof obj === 'object' && obj !== null && prop in obj
+}
+
+// --- Parsing ---
+
+/**
+ * Parse a Netscape cookie file and return an array of Playwright-compatible cookie objects.
+ * @param fileContent The content of the cookie file as a string
+ * @returns Array of cookies { name, value, domain, path, expires, httpOnly, secure }
+ */
+export function parseNetscapeCookieFile(fileContent: string) {
+    const lines = fileContent.split(/\r?\n/)
+    const cookies = []
+    for (const line of lines) {
+        if (!line || line.startsWith('#')) continue // skip comments and empty lines
+        const parts = line.split('\t')
+        if (parts.length < 7) continue
+
+        const [domain, _flag, path, secure, expiresStr, name, value] = parts
+
+        const expires = Number(expiresStr)
+        cookies.push({
+            name: name.trim(),
+            value: value.trim(),
+            domain,
+            path,
+            expires: isNaN(expires) ? -1 : expires,
+            httpOnly: false, // Not available in cookies.txt format
+            secure: secure.toUpperCase() === 'TRUE',
+        })
+    }
+    return cookies
 }
