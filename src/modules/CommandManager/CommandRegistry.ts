@@ -1,8 +1,8 @@
-import { Logger, yellow } from '../../util/logger'
+import { green, Logger, yellow } from '../../util/logger'
 const logger = new Logger('CommandRegistry')
 
-import { SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandOptionType, ApplicationCommandType, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder } from 'discord.js'
-import type { APIApplicationCommandOption, Client } from 'discord.js'
+import { SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandOptionType, ApplicationCommandType, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder, ChannelType } from 'discord.js'
+import type { APIApplicationCommandOption } from 'discord.js'
 import { readdir } from 'fs/promises'
 import type { Dirent } from 'fs'
 import path from 'path'
@@ -12,17 +12,14 @@ import type { SlashCommand, GuildSlashCommand, ContextMenuCommand, ExplicitAny, 
 type CommandBuilderWithOptions = SlashCommandBuilder | SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder;
 
 export class CommandRegistry {
-    private currentDir = ''
     public readonly globalCommands: Map<string, SlashCommand> = new Map()
     public readonly guildCommands: Map<GuildId, Map<string, GuildSlashCommand>> = new Map()
     public readonly contextMenuCommands: Map<string, ContextMenuCommand> = new Map()
 
-    constructor(private client: Client) {}
-
     public async loadCommands(dir: string) {
-        logger.info(`{loadCommands} Reading commands from ${yellow(dir)}...`)
+        logger.debug(`{loadCommands} Reading commands from ${yellow(dir)}...`)
         const files = await readdir(dir, { withFileTypes: true })
-        logger.ok(`{loadCommands} Found ${yellow(files.length)} files in ${yellow(dir)}`)
+        logger.debug(`{loadCommands} Found ${yellow(files.length)} files in ${yellow(dir)}`)
 
         const importPromises: Promise<{ file: string; commands: { name: string; type: string; guildId?: string, aliases?: string[] }[]; time: number; error?: unknown }>[] = []
         for (const file of files) {
@@ -36,7 +33,7 @@ export class CommandRegistry {
         const results = await Promise.all(importPromises)
         const totalCommands = results.reduce((acc, result) => acc + result.commands.length, 0)
         const totalTime = results.reduce((acc, result) => acc + result.time, 0)
-        logger.ok(`{loadCommands} Loaded ${yellow(totalCommands)} commands from ${yellow(results.length)} files in ${yellow(totalTime / 1000)}s`)
+        logger.debug(`{loadCommands} Loaded ${yellow(totalCommands)} commands from ${yellow(results.length)} files in ${yellow(totalTime / 1000)}s`)
 
         const commandTypes = new Map<string, number>()
         const guildCommands = new Map<string, number>()
@@ -46,14 +43,14 @@ export class CommandRegistry {
                 if (cmd.guildId) guildCommands.set(cmd.guildId, (guildCommands.get(cmd.guildId) || 0) + 1)
             })
         })
-        commandTypes.forEach((count, type) => logger.info(`{loadCommands} ${yellow(count)} ${type} commands`))
+        commandTypes.forEach((count, type) => logger.debug(`{loadCommands}   ${yellow(count)} ${green(type)} commands`))
         if (guildCommands.size > 0) {
-            logger.info('{loadCommands} Guild command distribution:')
+            logger.debug('{loadCommands} Guild command distribution:')
             guildCommands.forEach((count, guildId) => {
-                logger.info(`{loadCommands}   ${yellow(guildId)}: ${yellow(count)} commands`)
+                logger.debug(`{loadCommands}   ${yellow(guildId)}: ${yellow(count)} commands`)
             })
         }
-        logger.ok(`{loadCommands} Finished loading commands in ${yellow(dir)}`)
+        logger.debug(`{loadCommands} Finished loading commands in ${yellow(dir)}`)
     }
 
     private async importCommand(file: Dirent) {
