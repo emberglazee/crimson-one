@@ -21,4 +21,4 @@ export class BotSettingsManager {
     }
 }
 
-export const BotSettings = BotSettingsManager.getInstance()
+export const botSettings = BotSettingsManager.getInstance()

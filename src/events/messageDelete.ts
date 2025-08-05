@@ -12,14 +12,16 @@ export default function onMessageDelete(client: Client) {
 
             // Send deletion notification through CrimsonChat
             const chatInstance = CrimsonChat.getInstance()
-            await chatInstance.sendMessage(`Message Delete Event\n\`\`\`json\n${JSON.stringify({
+            const content = `Message Delete Event\n\`\`\`json\n${JSON.stringify({
                 type: 'messageDelete',
                 author: deletedMessage.author.username,
                 content: deletedMessage.content
-            }, null, 2)}\n\`\`\``, {
+            }, null, 2)}\n\`\`\``
+            chatInstance.sendMessage(content, {
                 username: 'System',
                 displayName: 'Message Delete',
-                serverDisplayName: 'Message Delete'
+                serverDisplayName: 'Message Delete',
+                messageContent: content
             })
         }
     })

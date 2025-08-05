@@ -16,15 +16,17 @@ export default function onMessageUpdate(client: Client) {
 
             // Send edit notification through CrimsonChat
             const chatInstance = CrimsonChat.getInstance()
-            await chatInstance.sendMessage(`Message Edit Event\n\`\`\`json\n${JSON.stringify({
+            const content = `Message Edit Event\n\`\`\`json\n${JSON.stringify({
                 type: 'messageEdit',
                 author: current.author.username,
                 before: old.content,
                 after: current.content
-            }, null, 2)}\n\`\`\``, {
+            }, null, 2)}\n\`\`\``
+            chatInstance.sendMessage(content, {
                 username: 'System',
                 displayName: 'Message Edit',
-                serverDisplayName: 'Message Edit'
+                serverDisplayName: 'Message Edit',
+                messageContent: content
             }, current)
         }
     })

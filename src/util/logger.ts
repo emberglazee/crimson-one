@@ -1,15 +1,16 @@
-import { EventEmitter } from 'tseep'
-import type { JSONResolvable } from '../types'
-import fs from 'fs'
-import path from 'path'
-import url from 'url'
-
 import chalk from 'chalk'
-import { BotSettings } from '../modules/BotSettings'
 // Force colors to be enabled
 chalk.level = 2
 // Shortcut for using chalk colors alongside logger
 export const { yellow, red, cyan, green, blue } = chalk
+
+import { botSettings } from '../modules/BotSettings'
+import type { JSONResolvable } from '../types'
+import { EventEmitter } from 'tseep'
+import fs from 'fs'
+import path from 'path'
+import url from 'url'
+
 
 const esmodules = !!import.meta.url
 
@@ -50,7 +51,7 @@ export class Logger extends EventEmitter<{
 
         staticEventEmitter.emit('log', { level, message, module: this.module })
 
-        if (level === 'debug' && !BotSettings.isDebugModeEnabled()) {
+        if (level === 'debug' && !botSettings.isDebugModeEnabled()) {
             // Debug mode is off, so only write to file
             this.writeLogLine(logoutput(level, data, this.module))
             return

@@ -9,7 +9,7 @@ import path from 'path'
 
 import type { SlashCommand, GuildSlashCommand, ContextMenuCommand, ExplicitAny, GuildId } from '../../types'
 
-type CommandBuilderWithOptions = SlashCommandBuilder | SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder;
+type CommandBuilderWithOptions = SlashCommandBuilder | SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder
 
 export class CommandRegistry {
     public readonly globalCommands: Map<string, SlashCommand> = new Map()
@@ -21,7 +21,7 @@ export class CommandRegistry {
         const files = await readdir(dir, { withFileTypes: true })
         logger.debug(`{loadCommands} Found ${yellow(files.length)} files in ${yellow(dir)}`)
 
-        const importPromises: Promise<{ file: string; commands: { name: string; type: string; guildId?: string, aliases?: string[] }[]; time: number; error?: unknown }>[] = []
+        const importPromises: Promise<{ file: string, commands: { name: string, type: string, guildId?: string, aliases?: string[] }[], time: number, error?: unknown }>[] = []
         for (const file of files) {
             if (file.isDirectory()) {
                 await this.loadCommands(path.join(dir, file.name))

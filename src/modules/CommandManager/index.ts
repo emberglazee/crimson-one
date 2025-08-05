@@ -41,7 +41,7 @@ export default class CommandManager {
 
     public setClient(client: Client): CommandManager {
         this.client = client
-        this.registry = new CommandRegistry(client)
+        this.registry = new CommandRegistry()
         this.deployer = new CommandDeployer(client, this.registry)
         this.hotReloader = new CommandHotReloader(this.registry, this.deployer)
         return this

@@ -14,7 +14,7 @@ export class CommandDeployer {
     }
 
     public async refreshGlobalCommands() {
-        logger.info('{refreshGlobalCommands} Checking for changes...')
+        logger.debug('{refreshGlobalCommands} Checking for changes...')
         try {
             const commands = [
                 ...this.registry.globalCommands.values(),
@@ -23,11 +23,11 @@ export class CommandDeployer {
 
             const hasChanges = await this.checkCommandChanges(commands)
             if (!hasChanges) {
-                logger.info('{refreshGlobalCommands} No changes detected, skipping refresh')
+                logger.debug('{refreshGlobalCommands} No changes detected, skipping refresh')
                 return
             }
 
-            logger.info('{refreshGlobalCommands} Changes detected, refreshing commands...')
+            logger.debug('{refreshGlobalCommands} Changes detected, refreshing commands...')
             const commandData = commands.map(command => command.data.toJSON())
 
             await this.rest.put(
@@ -43,7 +43,7 @@ export class CommandDeployer {
     }
 
     public async refreshGuildCommands(guildId: string) {
-        logger.info(`{refreshGuildCommands} Checking for changes in guild ${yellow(guildId)}...`)
+        logger.debug(`{refreshGuildCommands} Checking for changes in guild ${yellow(guildId)}...`)
         try {
             const guild = await this.client.guilds.fetch(guildId)
             if (!guild) {
@@ -53,18 +53,18 @@ export class CommandDeployer {
 
             const guildCommands = this.registry.guildCommands.get(guildId)
             if (!guildCommands) {
-                logger.info(`{refreshGuildCommands} No commands found for guild ${yellow(guildId)}`)
+                logger.debug(`{refreshGuildCommands} No commands found for guild ${yellow(guildId)}`)
                 return
             }
 
             const commands = [...guildCommands.values()]
             const hasChanges = await this.checkCommandChanges(commands, guildId)
             if (!hasChanges) {
-                logger.info(`{refreshGuildCommands} No changes detected for guild ${yellow(guildId)}, skipping refresh`)
+                logger.debug(`{refreshGuildCommands} No changes detected for guild ${yellow(guildId)}, skipping refresh`)
                 return
             }
 
-            logger.info(`{refreshGuildCommands} Changes detected, refreshing commands for guild ${yellow(guildId)}...`)
+            logger.debug(`{refreshGuildCommands} Changes detected, refreshing commands for guild ${yellow(guildId)}...`)
             const commandData = commands.map(command => command.data.toJSON())
 
             await this.rest.put(
@@ -85,11 +85,11 @@ export class CommandDeployer {
             await this.refreshGuildCommands(guildId)
     }
 
-    public async fetchGlobalCommandIds(): Promise<{ id: string; name: string }[]> {
+    public async fetchGlobalCommandIds(): Promise<{ id: string, name: string }[]> {
         try {
             const commands = await this.rest.get(
                 Routes.applicationCommands(this.client.application!.id)
-            ) as { id: string; name: string }[]
+            ) as { id: string, name: string }[]
             return commands
         } catch (error) {
             logger.error(`{fetchGlobalCommandIds} Failed: ${red(error)}`)
@@ -109,11 +109,11 @@ export class CommandDeployer {
         }
     }
 
-    public async fetchGuildCommandIds(guildId: string): Promise<{ id: string; name: string }[]> {
+    public async fetchGuildCommandIds(guildId: string): Promise<{ id: string, name: string }[]> {
         try {
             const commands = await this.rest.get(
                 Routes.applicationGuildCommands(this.client.application!.id, guildId)
-            ) as { id: string; name: string }[]
+            ) as { id: string, name: string }[]
             return commands
         } catch (error) {
             logger.error(`{fetchGuildCommandIds} Failed for guild ${yellow(guildId)}: ${red(error)}`)
