@@ -897,9 +897,10 @@ export class QuoteImageFactory {
 
                         // Ace Combat 7/Zero specific opening arrows
                         if ((style === 'ac7' || style === 'acz') && i === 0) {
+                            ctx.save()
                             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
                             ctx.fillText('<<', currentX - 40, y)
-                            ctx.fillStyle = 'white'
+                            ctx.restore()
                         }
 
                         // Reset for actual drawing
@@ -943,8 +944,10 @@ export class QuoteImageFactory {
 
                         // Surprise, we need closing arrows too
                         if ((style === 'ac7' || style === 'acz') && i === quoteLines.length - 1) {
+                            ctx.save()
                             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
                             ctx.fillText('>>', currentX + 40, y)
+                            ctx.restore()
                         }
 
                         y += lineHeight
