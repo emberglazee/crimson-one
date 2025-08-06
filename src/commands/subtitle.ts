@@ -14,6 +14,7 @@ export const slashCommand = {
             .setChoices(
                 { name: 'Ace Combat 7', value: 'ac7' },
                 { name: 'Project Wingman', value: 'pw' },
+                { name: 'Ace Combat Zero', value: 'acz' },
                 { name: 'Helldivers 2 (WIP)', value: 'hd2' }
             )
         ).addStringOption(option => option
@@ -65,7 +66,7 @@ export const slashCommand = {
             .setRequired(false)
         ),
     async execute(context) {
-        const style = (context.getStringOption('style', true)) as 'ac7' | 'pw' | 'hd2'
+        const style = (context.getStringOption('style', true)) as 'ac7' | 'pw' | 'acz' | 'hd2'
         const speaker = context.getStringOption('speaker', true)
         const text = context.getStringOption('text', true)
         const gradient = (context.getStringOption('gradient', false, 'none')) as GradientType

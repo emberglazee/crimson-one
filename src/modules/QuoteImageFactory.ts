@@ -12,6 +12,7 @@ import { type Client, type Guild } from 'discord.js'
 
 registerFont(path.join(__dirname, '../../data/Roboto.ttf'), { family: 'Roboto' }) // Project Wingman
 registerFont(path.join(__dirname, '../../data/Aces07.ttf'), { family: 'Aces07' }) // Ace Combat 7
+registerFont(path.join(__dirname, '../../data/Frutiger.ttf'), { family: 'Frutiger' }) // Ace Combat Zero
 registerFont(path.join(__dirname, '../../data/FSSinclairRegular.otf'), { family: 'FSSinclair' }) // Helldivers 2
 
 export type QuoteImageResult = {
@@ -19,8 +20,8 @@ export type QuoteImageResult = {
     type: 'image/gif' | 'image/png'
 }
 
-/** Subtitle style: Project Wingman, Ace Combat 7, or Helldivers 2 */
-export type QuoteStyle = 'pw' | 'ac7' | 'hd2'
+/** Subtitle style: Project Wingman, Ace Combat 7, Ace Combat Zero, or Helldivers 2 */
+export type QuoteStyle = 'pw' | 'ac7' | 'acz' | 'hd2'
 
 export class QuoteImageFactory {
     private static instance: QuoteImageFactory
@@ -228,7 +229,7 @@ export class QuoteImageFactory {
         const padding = 40
         const minWidth = 1024
         const maxWidth = 2048
-        const font = style === 'pw' ? 'Roboto' : style === 'ac7' ? 'Aces07' : 'FSSinclair'
+        const font = style === 'pw' ? 'Roboto' : style === 'ac7' ? 'Aces07' : style === 'acz' ? 'Frutiger' : 'FSSinclair'
         const arrowQuoteWidth = style === 'ac7' ? 80 : 0 // Width for << and >> in AC7 style
 
         // Create canvas for measurements
@@ -551,6 +552,7 @@ export class QuoteImageFactory {
                 // Create canvas and context for this frame
                 const canvas = createCanvas(width, height)
                 const ctx = canvas.getContext('2d')
+                const speakerLineWidths: number[] = []
 
                 // HD2-specific measurements
                 const hd2FontSize = Math.floor(canvas.width * 0.025) // Increased from 0.012 to make text larger
@@ -717,10 +719,17 @@ export class QuoteImageFactory {
                         const lineText = line
                         for (const emoji of adjustedEmojis) {
                             const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
-                            totalWidth += ctx.measureText(textBefore).width + fontSize
+                            totalWidth += ctx.measureText(textBefore).width
+                            if (emoji.type === 'ping') {
+                                const username = this.usernames.get(emoji.id!) || emoji.full
+                                totalWidth += ctx.measureText('@' + username).width
+                            } else {
+                                totalWidth += fontSize
+                            }
                             currentPos = emoji.relativeIndex + emoji.length
                         }
                         totalWidth += ctx.measureText(lineText.substring(currentPos)).width
+                        speakerLineWidths.push(totalWidth)
 
                         // Text and emojis
                         const centerX = width / 2
@@ -764,6 +773,7 @@ export class QuoteImageFactory {
                     }
                 } else {
                     for (const line of speakerLines) {
+                        speakerLineWidths.push(ctx.measureText(line).width)
                         let x = width / 2 - ctx.measureText(line).width / 2
                         for (let i = 0; i < line.length; i++) {
                             const char = line[i]
@@ -781,8 +791,24 @@ export class QuoteImageFactory {
                     ctx.textAlign = 'center'
                 }
 
+                if (style === 'acz') {
+                    const maxSpeakerLineWidth = speakerLineWidths.length > 0 ? Math.max(...speakerLineWidths) : 0
+                    if (maxSpeakerLineWidth > 0) {
+                        y += lineHeight / 4
+                        const separatorWidth = maxSpeakerLineWidth * 1.2
+                        const separatorX = width / 2 - separatorWidth / 2
+                        ctx.fillStyle = speakerColor
+                        ctx.fillRect(separatorX, y, separatorWidth, 2)
+                        y += lineHeight / 2
+                    }
+                }
+
                 // Draw quote
-                ctx.fillStyle = 'white'
+                if (style === 'acz') {
+                    ctx.fillStyle = speakerColor
+                } else {
+                    ctx.fillStyle = 'white'
+                }
                 y += 2
 
                 if (style === 'hd2' as QuoteStyle) {
