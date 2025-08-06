@@ -230,7 +230,7 @@ export class QuoteImageFactory {
         const minWidth = 1024
         const maxWidth = 2048
         const font = style === 'pw' ? 'Roboto' : style === 'ac7' ? 'Aces07' : style === 'acz' ? 'Frutiger' : 'FSSinclair'
-        const arrowQuoteWidth = style === 'ac7' ? 80 : 0 // Width for << and >> in AC7 style
+        const arrowQuoteWidth = style === 'ac7' || style === 'acz' ? 80 : 0 // Width for << and >> in AC7/ACZ style
 
         // Create canvas for measurements
         const measureCanvas = createCanvas(1, 1)
@@ -895,8 +895,8 @@ export class QuoteImageFactory {
                         const centerX = width / 2
                         let currentX = centerX - totalWidth / 2
 
-                        // Ace Combat 7 specific opening arrows
-                        if (style === 'ac7' && i === 0) {
+                        // Ace Combat 7/Zero specific opening arrows
+                        if ((style === 'ac7' || style === 'acz') && i === 0) {
                             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
                             ctx.fillText('<<', currentX - 40, y)
                             ctx.fillStyle = 'white'
@@ -942,7 +942,7 @@ export class QuoteImageFactory {
                         }
 
                         // Surprise, we need closing arrows too
-                        if (style === 'ac7' && i === quoteLines.length - 1) {
+                        if ((style === 'ac7' || style === 'acz') && i === quoteLines.length - 1) {
                             ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
                             ctx.fillText('>>', currentX + 40, y)
                         }
