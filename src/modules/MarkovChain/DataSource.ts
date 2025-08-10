@@ -1,10 +1,8 @@
-import { Logger, yellow } from '../../util/logger'
+import { Logger, red, yellow } from '../../util/logger'
 const logger = new Logger('MarkovChain | DataSource')
 
 import { Guild as DiscordGuild, Message as DiscordMessage, TextChannel, User as DiscordUser } from 'discord.js'
 import { DataSource as ORMDataSource } from 'typeorm'
-import { existsSync, mkdirSync } from 'fs'
-import { join } from 'path'
 
 import { removeDuplicatesByKey } from '../../util/functions'
 
@@ -18,7 +16,6 @@ export class MarkovDataSource {
     private static instance: MarkovDataSource
     private orm!: ORMDataSource
     private initialized = false
-    private readonly databasePath = join(process.cwd(), 'data/markov.sqlite')
 
     private constructor() {}
 
@@ -29,119 +26,26 @@ export class MarkovDataSource {
         return MarkovDataSource.instance
     }
 
-    private ensureDataDirectory() {
-        const dataDir = join(process.cwd(), 'data')
-        if (!existsSync(dataDir)) {
-            logger.info('Creating data directory')
-            mkdirSync(dataDir, { recursive: true })
-        }
-    }
-
     public async init() {
         if (this.initialized) return
 
         try {
-            this.ensureDataDirectory()
-
             this.orm = new ORMDataSource({
-                type: 'sqlite',
-                database: this.databasePath,
+                type: 'postgres',
+                host: process.env.POSTGRES_HOST,
+                port: Number(process.env.POSTGRES_PORT),
+                username: process.env.POSTGRES_USER,
+                password: process.env.POSTGRES_PASSWORD,
+                database: process.env.POSTGRES_DB,
                 entities: [Channel, Message, Guild, User, Tag],
-                synchronize: true
+                synchronize: true // Note: For production, consider using migrations instead.
             })
 
             await this.orm.initialize()
-
-            // Verify tables exist
-            const tables = await this.orm.query(`
-                SELECT name FROM sqlite_master 
-                WHERE type='table' 
-                AND name IN ('messages', 'channels', 'guilds', 'users', 'tags')
-            `)
-
-            if (tables.length < 5) {
-                logger.warn('Some tables are missing, forcing table creation')
-                await this.orm.synchronize(true)
-            }
-
-            // Create indexes for better query performance
-            await this.orm.query(`
-                CREATE INDEX IF NOT EXISTS idx_messages_id ON messages(id);
-                CREATE INDEX IF NOT EXISTS idx_messages_channel_id ON messages(channelId);
-                CREATE INDEX IF NOT EXISTS idx_messages_guild_id ON messages(guildId);
-                CREATE INDEX IF NOT EXISTS idx_messages_author_id ON messages(authorId);
-                CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
-                CREATE INDEX IF NOT EXISTS idx_channels_id ON channels(id);
-                CREATE INDEX IF NOT EXISTS idx_guilds_id ON guilds(id);
-                CREATE INDEX IF NOT EXISTS idx_users_id ON users(id);
-            `)
-
-            // Run migration to add new columns if needed
-            await this.migrateMessageColumns()
-
             this.initialized = true
-            logger.ok('{init} SQLite database initialized')
+            logger.ok('{init} PostgreSQL database initialized')
         } catch (error) {
-            logger.error(`Failed to initialize database: ${error}`)
-            throw error
-        }
-    }
-
-    private async migrateMessageColumns() {
-        try {
-            // Check if columns exist
-            const columns = await this.orm.query(`
-                PRAGMA table_info(messages)
-            `)
-
-            const hasAuthorId = columns.some((col: { name: string }) => col.name === 'authorId')
-            const hasChannelId = columns.some((col: { name: string }) => col.name === 'channelId')
-            const hasGuildId = columns.some((col: { name: string }) => col.name === 'guildId')
-
-            if (!hasAuthorId || !hasChannelId || !hasGuildId) {
-                logger.info('Running message table migration...')
-
-                // Add new columns if they don't exist
-                if (!hasAuthorId) {
-                    await this.orm.query(`
-                        ALTER TABLE messages ADD COLUMN authorId TEXT
-                    `)
-                }
-                if (!hasChannelId) {
-                    await this.orm.query(`
-                        ALTER TABLE messages ADD COLUMN channelId TEXT
-                    `)
-                }
-                if (!hasGuildId) {
-                    await this.orm.query(`
-                        ALTER TABLE messages ADD COLUMN guildId TEXT
-                    `)
-                }
-
-                // Update the new columns with data from relations
-                await this.orm.query(`
-                    UPDATE messages 
-                    SET authorId = (
-                        SELECT author.id 
-                        FROM users author 
-                        WHERE author.id = messages.authorId
-                    ),
-                    channelId = (
-                        SELECT channel.id 
-                        FROM channels channel 
-                        WHERE channel.id = messages.channelId
-                    ),
-                    guildId = (
-                        SELECT guild.id 
-                        FROM guilds guild 
-                        WHERE guild.id = messages.guildId
-                    )
-                `)
-
-                logger.ok('Message table migration completed')
-            }
-        } catch (error) {
-            logger.error(`Failed to migrate message columns: ${error}`)
+            logger.error(`Failed to initialize database: ${red(error instanceof Error ? error.message : String(error))}`)
             throw error
         }
     }
@@ -195,6 +99,7 @@ export class MarkovDataSource {
 
                 if (messagesToInsert.length > 0) {
                     logger.debug(`{addMessages} Inserting batch of ${yellow(messagesToInsert.length)} messages`)
+                    // Use `orUpdate` for PostgreSQL to handle conflicts (ON CONFLICT DO UPDATE)
                     await manager.createQueryBuilder().insert().into(Message).values(messagesToInsert).orUpdate(['text', 'timestamp'], ['id']).execute()
                 }
             }
