@@ -37,6 +37,6 @@ export class Message {
     @JoinTable()
     tags!: Tag[]
 
-    @Column('int')
+    @Column('bigint')
     timestamp!: number
 }
