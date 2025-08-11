@@ -69,7 +69,7 @@ class MarkovEngine {
         delayMs?: number
         disableUserApiLookup?: boolean
         forceRescan?: boolean
-    }) {
+    }, taskId: string) {
         if (!this.client) throw new Error('Worker client not initialized')
 
         const { guildId: _guildId, channelId, user, userId, limit = 1000, delayMs = 1000, disableUserApiLookup = false, forceRescan = false } = options
@@ -175,7 +175,7 @@ class MarkovEngine {
                 messagesPerSecond,
                 estimatedTimeRemaining
             }
-            parentPort!.postMessage({ type: 'progress', event: 'collectProgress', data: progressEvent })
+            parentPort!.postMessage({ type: 'progress', event: 'collectProgress', data: progressEvent, taskId: taskId })
         }
 
         if (messages.length > 0) {
@@ -192,7 +192,8 @@ class MarkovEngine {
                 entireChannel: isEntireChannel,
                 newMessagesOnly: wasFullyCollected,
                 totalMessageCount: totalMessageCount || undefined
-            }
+            },
+            taskId: taskId
         })
 
         return messages.length
@@ -323,7 +324,7 @@ parentPort!.on('message', async (message: { type: string, options: unknown, task
                     delayMs?: number
                     disableUserApiLookup?: boolean
                     forceRescan?: boolean
-                })
+                }, message.taskId)
                 break
             case 'generate':
                 result = await engine.generateMessage(message.options as GenerateOptions)

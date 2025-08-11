@@ -16,6 +16,30 @@ let isCollectingAll = false
 const INTERACTION_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes in milliseconds
 const SAFETY_MARGIN_MS = 1 * 60 * 1000 // Switch to new message 1 minute before expiry (at 14 minutes)
 
+// Markov event types
+interface MarkovCollectProgressEvent {
+    batchNumber: number
+    messagesCollected: number
+    totalCollected: number
+    limit: number | 'entire'
+    percentComplete: number
+    channelName: string
+    startTime: number
+    elapsedTime: number
+    messagesPerSecond: number
+    estimatedTimeRemaining: number | null
+    taskId: string
+}
+interface MarkovCollectCompleteEvent {
+    totalCollected: number
+    channelName: string
+    userFiltered: boolean
+    entireChannel: boolean
+    newMessagesOnly: boolean
+    totalMessageCount?: number
+    taskId: string
+}
+
 // Helper interface to manage message updates
 interface MessageUpdater {
     updateMessage(content: string): Promise<void>
@@ -541,13 +565,14 @@ export default {
                 const collectionPromises = allTargets.map(targetChannel => (async () => {
                     try {
                         logger.info(`Collecting from #${yellow(targetChannel.name)} (${yellow(targetChannel.id)})`)
-                        const count = await markov.collectMessages(targetChannel as TextChannel, {
+                        const { completionPromise } = markov.collectMessages(targetChannel as TextChannel, {
                             user,
                             userId,
                             limit: limit === null ? undefined : limit,
                             disableUserApiLookup: true,
                             forceRescan: forceRescan ?? undefined
                         })
+                        const count = await completionPromise
                         logger.ok(`Collected ${yellow(count)} messages from #${yellow(targetChannel.name)}`)
                         return { channel: targetChannel.name, count, status: 'success' }
                     } catch (err) {
@@ -596,6 +621,8 @@ export default {
 
             await context.reply(replyContent)
 
+            let operationTaskId: string | null = null
+
             try {
                 logger.info(`Collecting messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : userId ? ` by user ID ${userId}` : ''}, limit: ${yellow(limit)}`)
 
@@ -610,10 +637,12 @@ export default {
                 // Create the message manager for handling follow-up messages
                 const messageManager = new InteractionMessageManager(context)
 
-                markov.on('collectProgress', async progress => {
+                const progressHandler = async (progress: MarkovCollectProgressEvent) => {
+                    if (progress.taskId !== operationTaskId) return
+
                     // Update every 10 batches
                     if (progress.batchNumber % 10 === 0 || progress.batchNumber === 1) {
-                        logger.ok(`Progress update: ${yellow(progress.batchNumber)} batches, ${yellow(progress.totalCollected)}/${yellow(progress.limit === 'entire' ? 'ALL' : progress.limit)} messages (${yellow(progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%' )})`)
+                        logger.ok(`[#${progress.channelName}] Progress update: ${yellow(progress.batchNumber)} batches, ${yellow(progress.totalCollected)}/${yellow(progress.limit === 'entire' ? 'ALL' : progress.limit)} messages (${yellow(progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%' )})`)
 
                         // Check if we're approaching the interaction token timeout
                         const elapsedSinceInteractionArr = process.hrtime(interactionStartTime)
@@ -661,26 +690,31 @@ export default {
                         // Update the appropriate message using our manager
                         await messageManager.updateMessage(progressMessage)
                     }
-                })
+                }
 
-                // Listen for collection completion to get total message count
-                markov.on('collectComplete', result => {
+                const completionHandler = (result: MarkovCollectCompleteEvent) => {
+                    if (result.taskId !== operationTaskId) return
                     totalMessageCount = result.totalMessageCount ?? null
                     newMessagesOnly = result.newMessagesOnly
                     logger.ok(`Collection complete. ${yellow(result.totalCollected)} messages collected${totalMessageCount ? ` out of ${yellow(totalMessageCount)} total` : ''}.`)
-                })
+                }
+
+                markov.on('collectProgress', progressHandler)
+                markov.on('collectComplete', completionHandler)
 
                 // Process in one go
-                const count = await markov.collectMessages(channel, {
+                const { completionPromise, taskId } = markov.collectMessages(channel, {
                     user,
                     userId,
                     limit: limit === null ? undefined : limit,
                     forceRescan: forceRescan ?? undefined
                 })
+                operationTaskId = taskId
+                const count = await completionPromise
 
                 // Clean up event listeners to prevent memory leaks
-                markov.removeAllListeners('collectProgress')
-                markov.removeAllListeners('collectComplete')
+                markov.removeListener('collectProgress', progressHandler)
+                markov.removeListener('collectComplete', completionHandler)
 
                 logger.ok(`Collected ${yellow(count)} messages from ${yellow(channel)}${user ? ` by ${yellow(user.tag)}` : userId ? ` by user ID ${userId}` : ''}`)
 

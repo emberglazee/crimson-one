@@ -46,6 +46,7 @@ interface MarkovCollectProgressEvent {
     elapsedTime: number
     messagesPerSecond: number
     estimatedTimeRemaining: number | null
+    taskId: string
 }
 
 interface MarkovGenerateProgressEvent {
@@ -54,6 +55,7 @@ interface MarkovGenerateProgressEvent {
     total: number
     elapsedTime: number
     estimatedTimeRemaining: number | null
+    taskId: string
 }
 
 interface MarkovInfoProgressEvent {
@@ -62,6 +64,7 @@ interface MarkovInfoProgressEvent {
     total: number
     elapsedTime: number
     estimatedTimeRemaining: number | null
+    taskId: string
 }
 
 interface MessageStats {
@@ -76,9 +79,19 @@ interface MessageStats {
     newestMessageTimestamp: number | null
 }
 
+interface MarkovCollectCompleteEvent {
+    totalCollected: number
+    channelName: string
+    userFiltered: boolean
+    entireChannel: boolean
+    newMessagesOnly: boolean
+    totalMessageCount?: number
+    taskId: string
+}
+
 export class MarkovChat extends EventEmitter<{
     collectProgress: (event: MarkovCollectProgressEvent) => void
-    collectComplete: (event: { totalCollected: number, channelName: string, userFiltered: boolean, entireChannel: boolean, newMessagesOnly: boolean, totalMessageCount?: number }) => void
+    collectComplete: (event: MarkovCollectCompleteEvent) => void
     generateProgress: (event: MarkovGenerateProgressEvent) => void
     infoProgress: (event: MarkovInfoProgressEvent) => void
 }> {
@@ -112,19 +125,22 @@ export class MarkovChat extends EventEmitter<{
         this.worker.on('message', (message: { type: string, event: string, data: unknown, taskId: string, error: string }) => {
             if (message.type === 'progress') {
                 const eventName = message.event as keyof MarkovChat['events']
-                switch (eventName) {
-                    case 'collectProgress':
-                        this.emit(eventName, message.data as MarkovCollectProgressEvent)
-                        break
-                    case 'collectComplete':
-                        this.emit(eventName, message.data as { totalCollected: number, channelName: string, userFiltered: boolean, entireChannel: boolean, newMessagesOnly: boolean, totalMessageCount?: number })
-                        break
-                    case 'generateProgress':
-                        this.emit(eventName, message.data as MarkovGenerateProgressEvent)
-                        break
-                    case 'infoProgress':
-                        this.emit(eventName, message.data as MarkovInfoProgressEvent)
-                        break
+                if (typeof message.data === 'object' && message.data !== null) {
+                    const eventDataWithId = { ...message.data, taskId: message.taskId }
+                    switch (eventName) {
+                        case 'collectProgress':
+                            this.emit(eventName, eventDataWithId as MarkovCollectProgressEvent)
+                            break
+                        case 'collectComplete':
+                            this.emit(eventName, eventDataWithId as MarkovCollectCompleteEvent)
+                            break
+                        case 'generateProgress':
+                            this.emit(eventName, eventDataWithId as MarkovGenerateProgressEvent)
+                            break
+                        case 'infoProgress':
+                            this.emit(eventName, eventDataWithId as MarkovInfoProgressEvent)
+                            break
+                    }
                 }
             } else if (message.type === 'result') {
                 const task = this.pendingTasks.get(message.taskId)
@@ -179,28 +195,45 @@ export class MarkovChat extends EventEmitter<{
         })
     }
 
-    public async collectMessages(channel: TextChannel, options: {
+    public collectMessages(channel: TextChannel, options: {
         user?: User
         userId?: string
         limit?: number | 'entire'
         delayMs?: number
         disableUserApiLookup?: boolean
         forceRescan?: boolean
-    } = {}): Promise<number> {
+    } = {}): { taskId: string, completionPromise: Promise<number> } {
         if (!this.client) throw new Error('Client not set')
+
+        if (!this.worker) {
+            this.initializeWorker()
+            if (!this.worker) {
+                throw new Error('Markov worker is not available.')
+            }
+        }
 
         const { user, userId, limit, delayMs, disableUserApiLookup, forceRescan } = options
 
-        return this.sendTask<number>('collect', {
-            guildId: channel.guild.id,
-            channelId: channel.id,
-            user,
-            userId,
-            limit,
-            delayMs,
-            disableUserApiLookup,
-            forceRescan
+        const taskId = `task-${this.taskIdCounter++}`
+        const completionPromise = new Promise<number>((resolve, reject) => {
+            this.pendingTasks.set(taskId, { resolve: resolve as (value: unknown) => void, reject })
+            this.worker!.postMessage({
+                type: 'collect',
+                options: {
+                    guildId: channel.guild.id,
+                    channelId: channel.id,
+                    user,
+                    userId,
+                    limit,
+                    delayMs,
+                    disableUserApiLookup,
+                    forceRescan
+                },
+                taskId
+            })
         })
+
+        return { taskId, completionPromise }
     }
 
     public async generateMessage(options: MarkovGenerateOptions): Promise<string> {
