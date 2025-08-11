@@ -280,8 +280,15 @@ class MarkovEngine {
                     }
                 }
                 if (msg.timestamp) {
-                    if (oldestTimestamp === null || msg.timestamp < oldestTimestamp) oldestTimestamp = msg.timestamp
-                    if (newestTimestamp === null || msg.timestamp > newestTimestamp) newestTimestamp = msg.timestamp
+                    const ts = Number(msg.timestamp)
+                    if (isNaN(ts)) continue
+
+                    if (oldestTimestamp === null || ts < oldestTimestamp) {
+                        oldestTimestamp = ts
+                    }
+                    if (newestTimestamp === null || ts > newestTimestamp) {
+                        newestTimestamp = ts
+                    }
                 }
             }
             parentPort!.postMessage({ type: 'progress', event: 'infoProgress', data: { step: 'processing', progress: Math.min(i + CHUNK_SIZE, messages.length), total: messages.length, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null } })
