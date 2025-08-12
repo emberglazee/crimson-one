@@ -251,6 +251,13 @@ export class MarkovChat extends EventEmitter<{
     }
 
     public async getMessageStats(options: MarkovGenerateOptions): Promise<MessageStats> {
-        return this.sendTask<MessageStats>('info', options)
+        const { guild, channel, user, userId, global } = options
+        return this.sendTask<MessageStats>('info', {
+            guildId: guild?.id,
+            channelId: channel?.id,
+            user,
+            userId,
+            global
+        })
     }
 }
