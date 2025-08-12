@@ -137,11 +137,14 @@ export class MarkovDataSource {
             .orderBy('message.timestamp', 'DESC')
 
         if (options.global) {
-            // No additional filters for global scope
-        } else if (options.guild) {
-            query.where('message.guildId = :guildId', { guildId: options.guild.id })
-        } else if (options.channel) {
-            query.where('message.channelId = :channelId', { channelId: options.channel.id })
+            // No guild/channel filters
+        } else {
+            if (options.guild) {
+                query.andWhere('message.guildId = :guildId', { guildId: options.guild.id })
+            }
+            if (options.channel) {
+                query.andWhere('message.channelId = :channelId', { channelId: options.channel.id })
+            }
         }
 
         if (options.user) {

@@ -411,7 +411,7 @@ export default {
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
             const source = (context.getStringOption('source')) as Source
-            const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined
+            const channel = (await context.getChannelOption('channel')) as TextChannel | null ?? undefined
 
             await context.deferReply()
 
@@ -464,8 +464,8 @@ export default {
                 })
 
                 const stats = await markov.getMessageStats({
-                    guild: source === 'guild' ? context.guild : undefined,
-                    channel: !source ? channel : undefined,
+                    guild: (source === 'guild' || (!source && !channel)) ? context.guild : undefined,
+                    channel: channel ?? undefined,
                     user: user,
                     userId: userId,
                     global: source === 'global'
