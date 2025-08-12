@@ -485,19 +485,29 @@ export default {
                     ? new Date(stats.newestMessageTimestamp).toLocaleString('en-GB')
                     : 'N/A'
 
+                const embedFields = [
+                    { name: 'Messages', value: stats.messageCount.toLocaleString(), inline: true }
+                ]
+
+                if (!user && !userId) {
+                    embedFields.push({ name: 'Unique Authors', value: stats.authorCount.toLocaleString(), inline: true })
+                }
+                if (!channel) {
+                    embedFields.push({ name: 'Channels', value: stats.channelCount.toLocaleString(), inline: true })
+                }
+
+                embedFields.push(
+                    { name: 'Total Words', value: stats.totalWordCount.toLocaleString(), inline: true },
+                    { name: 'Unique Words', value: stats.uniqueWordCount.toLocaleString(), inline: true },
+                    { name: 'Words Per Message', value: stats.avgWordsPerMessage.toFixed(1), inline: true },
+                    { name: 'Oldest Message', value: oldestDate, inline: false },
+                    { name: 'Newest Message', value: newestDate, inline: false }
+                )
+
                 const embed = new EmbedBuilder()
                     .setTitle('Markov Chain Data Statistics')
                     .setColor(0x0099FF)
-                    .addFields(
-                        { name: 'Messages', value: stats.messageCount.toLocaleString(), inline: true },
-                        { name: 'Unique Authors', value: stats.authorCount.toLocaleString(), inline: true },
-                        { name: 'Channels', value: stats.channelCount.toLocaleString(), inline: true },
-                        { name: 'Total Words', value: stats.totalWordCount.toLocaleString(), inline: true },
-                        { name: 'Unique Words', value: stats.uniqueWordCount.toLocaleString(), inline: true },
-                        { name: 'Words Per Message', value: stats.avgWordsPerMessage.toFixed(1), inline: true },
-                        { name: 'Oldest Message', value: oldestDate, inline: false },
-                        { name: 'Newest Message', value: newestDate, inline: false }
-                    )
+                    .addFields(embedFields)
                     .setFooter({ text: `Generated in ${timeEndMs.toFixed(0)}ms` })
                     .setTimestamp()
 
