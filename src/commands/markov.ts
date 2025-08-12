@@ -119,14 +119,25 @@ class InteractionMessageManager implements MessageUpdater {
 
     public async sendFinalMessage(options: MessageEditOptions): Promise<void> {
         try {
-            if (this.useFollowUp && this.followUpMessage) {
-                await this.followUpMessage.edit(options)
+            if (this.useFollowUp) {
+                // Ensure we have the follow-up message before trying to edit it
+                if (this.followUpMessagePromise && !this.followUpMessage) {
+                    this.followUpMessage = await this.followUpMessagePromise
+                }
+
+                if (this.followUpMessage) {
+                    await this.followUpMessage.edit(options)
+                } else {
+                    // This case means we intended to use a follow-up, but it failed to create.
+                    // The original interaction is likely expired, so we throw to trigger the catch block's follow-up.
+                    throw new Error('Follow-up message not available for final update.')
+                }
             } else {
                 await this.context.editReply(options)
             }
         } catch (error) {
             // If both methods fail, try to send a new follow-up message with the results
-            logger.warn(`Failed to send final message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
+            logger.debug(`Failed to send final message, attempting follow-up final message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
             try {
                 await this.context.followUp({
                     content: options.content ?? undefined,
@@ -134,8 +145,12 @@ class InteractionMessageManager implements MessageUpdater {
                     allowedMentions: options.allowedMentions
                 })
             } catch (finalError) {
-                logger.error(`Failed to send any completion message: ${red(finalError instanceof Error ? finalError.message : 'Unknown error')}`)
+                logger.warn(`Failed to send any completion message: ${red(finalError instanceof Error ? finalError.message : 'Unknown error')}`)
             }
+            // Why not `warn()` on the first fail, and `error()` on the second one?
+            // 1. At this point the operation itself is complete, so by extension any error after that is not critical;
+            // 2. We have a solid backup (`context.followUp()`) (implying the bot can still message in the channel).
+            // While we cannot work around the second fail, a `warn()` is sufficient at that point because it does not interrupt the workflow.
         }
     }
 }
