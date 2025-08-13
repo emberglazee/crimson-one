@@ -49,7 +49,6 @@ export default {
         const name = context.getStringOption('name', true)
         const subtext = context.getStringOption('subtext')
         const useFilter = context.getBooleanOption('filter', false)
-        const color = context.getStringOption('color', false, '#FFFFFF')
 
         // Validate image source options
         const selectedOptions = [imageAttachment, urlOption, user].filter(Boolean).length
@@ -135,7 +134,7 @@ export default {
             ctx.shadowColor = '#808080'
             ctx.shadowOffsetX = -4
             ctx.shadowOffsetY = 4
-            ctx.fillStyle = color
+            ctx.fillStyle = '#FFFFFF'
 
             // Draw each character with spacing
             let currentX = 20 // Fixed left position
