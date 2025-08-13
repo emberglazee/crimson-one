@@ -1,7 +1,7 @@
 import type { Message } from 'discord.js'
 import type { MessageTriggerEntry as MessageTriggers } from '../types'
 import { chance, getRandomElement } from '../util/functions'
-import { EMBI_ID, PING_EMBI } from '../util/constants'
+import { EMBI_ID, PING_EMBI, SOLITARY_CONFINEMENT_GUILD_ID } from '../util/constants'
 import { sleep } from 'bun'
 import type { GuildMember } from 'discord.js'
 
@@ -83,7 +83,7 @@ export class MessageTrigger {
             async action(message) {
                 if (message.channelId === '1372567739931037890') return
                 if (message.mentions.users.has(EMBI_ID) || message.author.id === EMBI_ID) return
-                if (message.guildId !== '958518067690868796') return
+                if (message.guildId !== SOLITARY_CONFINEMENT_GUILD_ID) return
                 if (chance(50)) await message.reply(getRandomElement([
                     'https://cdn.discordapp.com/attachments/982138135653793804/1374422035769462824/Vesktop_iH8AUuU6rH.png?ex=682dfdc4&is=682cac44&hm=1f37d03b5501415f6c38ff1e894e73f9d8ceb37430840908609b15a1d8ad3285&',
                     'https://cdn.discordapp.com/attachments/982138135653793804/1374422059534516294/Vesktop_0rpn0aJGEh.png?ex=682dfdca&is=682cac4a&hm=8b34b654b7ca3b9d00767090d471a93af56e5784d0991e6cb6d011c6bf8eb5d8&',
@@ -108,7 +108,7 @@ export class MessageTrigger {
             async action(message) {
                 const ashleighId = '231808039282409472'
                 if (message.channelId === '1372567739931037890') return
-                if (message.guildId !== '958518067690868796') return
+                if (message.guildId !== SOLITARY_CONFINEMENT_GUILD_ID) return
                 if (message.mentions.users.has(ashleighId) || message.author.id === ashleighId) return
                 if (chance(50)) await message.reply(getRandomElement([
                     'https://cdn.discordapp.com/attachments/1267488539503886386/1331344509036003338/file.jpg?ex=67e25af2&is=67e10972&hm=847306a43bf42323c2ffa3e1b641d1a4bd1c3a737d89a526e84df7e034694dc0&',

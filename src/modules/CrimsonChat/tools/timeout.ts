@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { tool } from 'ai'
 import { client as client } from '../../../'
 import { findMember } from '../../../util/functions'
+import { SOLITARY_CONFINEMENT_GUILD_ID } from '../../../util/constants'
 
 const schema = z.object({
     username: z.string().optional(),
@@ -21,7 +22,7 @@ async function invoke({ username, displayname, length, reason }: Input): Promise
         logger.info('No query determined')
         return JSON.stringify({ status: 'error', message: 'must provide either user id, username, or display name' })
     }
-    const guild = await client.guilds.fetch('958518067690868796')
+    const guild = await client.guilds.fetch(SOLITARY_CONFINEMENT_GUILD_ID)
     const member = await findMember(guild, query).catch(err => {
         logger.info(`Error while running the findMember() function: ${red(err)}`)
         return `Error: Could not find a member due to a \`findMember()\` runtime error: ${err}`

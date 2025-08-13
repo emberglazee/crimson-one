@@ -1,6 +1,7 @@
 import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { GuildSlashCommand } from '../types'
 import { BanishmentManager } from '../modules/BanishmentManager'
+import { SOLITARY_CONFINEMENT_GUILD_ID } from '../util/constants'
 
 export default {
     data: new SlashCommandBuilder()
@@ -63,5 +64,5 @@ export default {
             await context.editReply(`❌ Failed to unbanish member: ${errorMessage}`)
         }
     },
-    guildId: '958518067690868796'
+    guildId: SOLITARY_CONFINEMENT_GUILD_ID
 } satisfies GuildSlashCommand

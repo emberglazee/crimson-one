@@ -1,6 +1,8 @@
 import { SlashCommandBuilder } from 'discord.js'
 import { GuildSlashCommand } from '../types'
 import { shapesInc } from '..'
+import { SOLITARY_CONFINEMENT_GUILD_ID } from '../util/constants'
+
 export default {
     data: new SlashCommandBuilder()
         .setName('shapesinc')
@@ -124,5 +126,5 @@ export default {
             }
         }
     },
-    guildId: '958518067690868796'
+    guildId: SOLITARY_CONFINEMENT_GUILD_ID
 } satisfies GuildSlashCommand

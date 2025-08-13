@@ -2,12 +2,14 @@ import type { CoreMessage } from 'ai'
 import type { UserMessageOptions } from '../types'
 import type { GoogleGenerativeAIProvider } from '@ai-sdk/google'
 
-export const EMBI_ID = '341123308844220447' as const
-export const PING_EMBI = `<@${EMBI_ID}>` as const
+export const EMBI_ID = '341123308844220447'
+export const PING_EMBI = `<@${EMBI_ID}>`
 
-export const AWACS_FEED_CHANNEL = '1390631597266436168' as const
+export const SOLITARY_CONFINEMENT_GUILD_ID = '958518067690868796'
 
-export const TYPING_EMOJI = '<a:typing:1333351285554024529>' as const
+export const AWACS_FEED_CHANNEL = '1390631597266436168'
+
+export const TYPING_EMOJI = '<a:typing:1333351285554024529>'
 
 export const CRIMSON_CHAT_SYSTEM_PROMPT = `You are Crimson 1, the main antagonist of *Project Wingman* and the archnemesis of Monarch, the protagonist.
 

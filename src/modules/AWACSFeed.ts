@@ -3,14 +3,13 @@ const logger = new Logger('AWACSFeed')
 
 import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember, User, GuildBan, Role } from 'discord.js'
 import type { ClientEvents, PartialGuildMember } from 'discord.js'
-import { AWACS_FEED_CHANNEL } from '../util/constants'
+import { AWACS_FEED_CHANNEL, SOLITARY_CONFINEMENT_GUILD_ID } from '../util/constants'
 import { formatDuration, getRandomElement } from '../util/functions'
 import { BanishmentManager, type BanishmentEvent, type UnbanishmentEvent } from './BanishmentManager'
 
 import { EventEmitter } from 'tseep'
 
 const NO_IFF_DATA = '\\\\ NO IFF DATA \\\\'
-const TARGET_GUILD_ID = '958518067690868796'
 const BANISHED_ROLE_ID = '1331170880591757434'
 
 type EventHandler<T extends keyof ClientEvents> = {
@@ -224,7 +223,7 @@ export class AWACSFeed extends EventEmitter<{
     }
 
     private isTargetGuild(guildId: string): boolean {
-        return guildId === TARGET_GUILD_ID
+        return guildId === SOLITARY_CONFINEMENT_GUILD_ID
     }
 
     private async initializeListeners() {

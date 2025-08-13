@@ -5,11 +5,9 @@ import { z } from 'zod'
 import { tool } from 'ai'
 import { client as client } from '../../..'
 import { type Guild, PermissionsBitField } from 'discord.js'
-import { EMBI_ID } from '../../../util/constants'
+import { EMBI_ID, SOLITARY_CONFINEMENT_GUILD_ID } from '../../../util/constants'
 import { BanishmentManager } from '../../BanishmentManager'
 import { findMember, parseDuration } from '../../../util/functions'
-
-const GUILD_ID = '958518067690868796'
 
 const schema = z.object({
     username: z.string().optional().describe('The user\'s global Discord username (e.g., "johndoe")'),
@@ -28,9 +26,9 @@ async function invoke({ username, displayname, duration, reason }: Input): Promi
 
     let guild: Guild
     try {
-        guild = await client.guilds.fetch(GUILD_ID)
+        guild = await client.guilds.fetch(SOLITARY_CONFINEMENT_GUILD_ID)
     } catch (e) {
-        logger.error(`Failed to fetch guild ${GUILD_ID}: ${red((e as Error).message)}`)
+        logger.error(`Failed to fetch guild ${SOLITARY_CONFINEMENT_GUILD_ID}: ${red((e as Error).message)}`)
         return JSON.stringify({ status: 'error', message: 'Internal error, could not find the designated guild.' })
     }
 
