@@ -142,7 +142,7 @@ export class AWACSFeed extends EventEmitter<{
             messages: [
                 (role: string, creator: string) => `✨ Squadron ${role} was created${creator === NO_IFF_DATA ? '.' : ` by ${creator}`}.`,
                 (role: string, creator: string) => `➕ New Squadron ${role} added${creator === NO_IFF_DATA ? '.' : ` by ${creator}`}.`,
-                (role: string, creator: string) => `🛠️ ${creator === NO_IFF_DATA ? `Someone` : creator} formed the ${role} squadron.`
+                (role: string, creator: string) => `🛠️ ${creator === NO_IFF_DATA ? 'Someone' : creator} formed the ${role} squadron.`
             ]
         },
         {
@@ -168,7 +168,7 @@ export class AWACSFeed extends EventEmitter<{
             messages: [
                 (role: string, deleter: string) => `🗑️ Squadron ${role} was deleted${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`,
                 (role: string, deleter: string) => `➖ Squadron ${role} was disbanded${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`,
-                (role: string, deleter: string) => `🔥 ${deleter === NO_IFF_DATA ? `Someone` : deleter} incinerated the ${role} squadron.`
+                (role: string, deleter: string) => `🔥 ${deleter === NO_IFF_DATA ? 'Someone' : deleter} incinerated the ${role} squadron.`
             ]
         },
         {

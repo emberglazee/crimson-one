@@ -33,7 +33,7 @@ export default {
                 logger.debug(`  Does keys.includes(0 / GuildInstall): ${Object.prototype.hasOwnProperty.call(authOwners, ApplicationIntegrationType.GuildInstall)}`)
                 logger.debug(`  Does keys.includes(1 / UserInstall): ${Object.prototype.hasOwnProperty.call(authOwners, ApplicationIntegrationType.UserInstall)}`)
             } else {
-                logger.debug(`  authorizingIntegrationOwners is undefined/null.`)
+                logger.debug('  authorizingIntegrationOwners is undefined/null.')
             }
         } else if (context.message) {
             logger.debug(`  Message Guild ID (raw from message.guild): ${context.message.guild?.id || 'N/A (null)'}`)

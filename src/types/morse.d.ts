@@ -1,4 +1,4 @@
-declare module "morse" {
+declare module 'morse' {
     /**
      * Encodes a string into Morse code.
      * @param obj The string to encode.
@@ -39,8 +39,8 @@ declare module "morse" {
      */
     interface MorseTreeNode {
         stop?: string
-        ".": MorseTreeNode
-        "-": MorseTreeNode
+        '.': MorseTreeNode
+        '-': MorseTreeNode
     }
 
     /**

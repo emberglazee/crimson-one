@@ -9,7 +9,7 @@ import { SOLITARY_CONFINEMENT_GUILD_ID } from '../../../util/constants'
 
 const schema = z.object({
     username: z.string().optional(),
-    displayname: z.string().optional().describe("Discord display name; the least accurate, performs a closest match search"),
+    displayname: z.string().optional().describe('Discord display name; the least accurate, performs a closest match search'),
     length: z.number().describe('Length of the timeout in milliseconds').min(5000).max(40320000),
     reason: z.string().optional().describe("Optional reason for the timeout - for moderators' convenience")
 })

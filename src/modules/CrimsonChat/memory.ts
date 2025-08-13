@@ -327,7 +327,7 @@ export class CrimsonChatState {
         await this.loadStateFromFile()
         this.systemPrompt = newPrompt
         await this.saveStateToFile()
-        logger.ok(`System prompt updated.`)
+        logger.ok('System prompt updated.')
     }
 
     public async setEnabled(enabled: boolean): Promise<void> {

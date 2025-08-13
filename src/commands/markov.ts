@@ -67,8 +67,8 @@ class InteractionMessageManager implements MessageUpdater {
         try {
             // First update the original message to inform users
             await this.context.editReply(
-                `⏳ Operation in progress...\n` +
-                `⚠️ *This is taking longer than 14 minutes. Real-time updates will continue in a follow-up message.*`
+                '⏳ Operation in progress...\n' +
+                '⚠️ *This is taking longer than 14 minutes. Real-time updates will continue in a follow-up message.*'
             ).catch((err: Error) => {
                 logger.warn(`Failed to update original message about timeout: ${red(err.message)}`)
             })
@@ -351,7 +351,7 @@ export default {
                         messageManager.switchToFollowUp()
                     }
 
-                    let progressMessage = `⏳ Generating message...\n`
+                    let progressMessage = '⏳ Generating message...\n'
                     progressMessage += `📊 Step: ${progress.step}\n`
 
                     if (progress.step === 'training') {
@@ -462,7 +462,7 @@ export default {
                         messageManager.switchToFollowUp()
                     }
 
-                    let progressMessage = `⏳ Gathering statistics...\n`
+                    let progressMessage = '⏳ Gathering statistics...\n'
                     progressMessage += `📊 Step: ${progress.step}\n`
 
                     if (progress.step === 'processing') {
@@ -565,7 +565,7 @@ export default {
                 const limit = collectEntireChannel ? 'entire' : context.getIntegerOption('limit')
 
                 await context.deferReply()
-                logger.info(`{collect_all} Starting collection from all channels...`)
+                logger.info('{collect_all} Starting collection from all channels...')
 
                 const textChannels = (await context.guild.channels.fetch())
                     .filter(c => c && (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) && c.viewable) as Map<string, TextChannel>
@@ -594,7 +594,6 @@ export default {
                             user,
                             userId,
                             limit: limit === null ? undefined : limit,
-                            disableUserApiLookup: true,
                             forceRescan: forceRescan ?? undefined
                         })
                         const count = await completionPromise
@@ -641,7 +640,7 @@ export default {
 
             let replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'ALL' : limit} messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}...`
             if (collectEntireChannel) {
-                replyContent += `\n💡 Using Discord User API to fetch the total message count.`
+                replyContent += '\n💡 Using Discord User API to fetch the total message count.'
             }
 
             await context.reply(replyContent)
@@ -709,7 +708,7 @@ export default {
                         progressMessage += `📚 Batches processed: ${progress.batchNumber}`
 
                         if (newMessagesOnly) {
-                            progressMessage += `\n⚠️ Only collecting new messages since last collection.`
+                            progressMessage += '\n⚠️ Only collecting new messages since last collection.'
                         }
 
                         // Update the appropriate message using our manager
@@ -752,7 +751,7 @@ export default {
                 }
 
                 if (count > 0 && collectEntireChannel) { // Only mark as fully collected if some messages were collected
-                    completionMessage += `📋 The entire channel has been marked as fully collected.`
+                    completionMessage += '📋 The entire channel has been marked as fully collected.'
                 }
 
                 // Send the final message using our manager

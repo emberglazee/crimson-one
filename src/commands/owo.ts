@@ -25,52 +25,52 @@ export default {
 
 function owoTranslate(input: string): string {
     const replaceWords: Record<string, string> = {
-        "love": "wuv",
-        "mr": "mistuh",
-        "dog": "doggo",
-        "cat": "kitteh",
-        "hello": "henwo",
-        "hell": "heck",
-        "fuck": "fwick",
-        "fuk": "fwick",
-        "shit": "shoot",
-        "friend": "fwend",
-        "stop": "stamp",
-        "god": "gosh",
-        "dick": "peepee",
-        "penis": "peepee",
-        "damn": "darn"
+        'love': 'wuv',
+        'mr': 'mistuh',
+        'dog': 'doggo',
+        'cat': 'kitteh',
+        'hello': 'henwo',
+        'hell': 'heck',
+        'fuck': 'fwick',
+        'fuk': 'fwick',
+        'shit': 'shoot',
+        'friend': 'fwend',
+        'stop': 'stamp',
+        'god': 'gosh',
+        'dick': 'peepee',
+        'penis': 'peepee',
+        'damn': 'darn'
     }
 
-    const prefixes = ["OwO", "hehe", "*nuzzles*", "*blushes*", "*giggles*", "*waises paw*", "OwO whats this?"]
-    const suffixes = [":3", ">:3", "xox", ">3<", "UwU", "hehe", "r@^eJ", "(- • w •)", "(>• w •<)", "murr~", "(  • ⌒ •)", "(* ⌒Д⌒)", "(  ▁¡  ▁)", "(  • ω •)", "*gwomps*", "(＾ ω＾)"]
+    const prefixes = ['OwO', 'hehe', '*nuzzles*', '*blushes*', '*giggles*', '*waises paw*', 'OwO whats this?']
+    const suffixes = [':3', '>:3', 'xox', '>3<', 'UwU', 'hehe', 'r@^eJ', '(- • w •)', '(>• w •<)', 'murr~', '(  • ⌒ •)', '(* ⌒Д⌒)', '(  ▁¡  ▁)', '(  • ω •)', '*gwomps*', '(＾ ω＾)']
 
     // Replace words
     for (const [key, value] of Object.entries(replaceWords)) {
-        const regex = new RegExp(`\\b${key}\\b`, "gi")
+        const regex = new RegExp(`\\b${key}\\b`, 'gi')
         input = input.replace(regex, value)
     }
 
     // R and L to W
-    input = input.replace(/[rl]/g, "w").replace(/[RL]/g, "W")
+    input = input.replace(/[rl]/g, 'w').replace(/[RL]/g, 'W')
 
     // Y after N with vowel
-    input = input.replace(/n([aeiou])/gi, "ny$1")
+    input = input.replace(/n([aeiou])/gi, 'ny$1')
 
     // Repeat words ending in Y
-    input = input.replace(/(\b\w*y\b)/gi, "$1 $1")
+    input = input.replace(/(\b\w*y\b)/gi, '$1 $1')
 
     // Stuttering effect (10% chance per word)
     input = input.replace(/\b(\w)/g, match => Math.random() < 0.1 ? `${match}-${match}` : match)
 
     // Add a random prefix (10% chance)
     if (Math.random() < 0.1) {
-        input = prefixes[Math.floor(Math.random() * prefixes.length)] + " " + input
+        input = prefixes[Math.floor(Math.random() * prefixes.length)] + ' ' + input
     }
 
     // Add a random suffix (10% chance)
     if (Math.random() < 0.1) {
-        input += " " + suffixes[Math.floor(Math.random() * suffixes.length)]
+        input += ' ' + suffixes[Math.floor(Math.random() * suffixes.length)]
     }
 
     return input

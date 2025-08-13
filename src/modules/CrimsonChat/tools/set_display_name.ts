@@ -11,8 +11,8 @@ import { findMember } from '../../../util/functions'
 const schema = z.object({
     username: z.string().optional().describe('The user\'s global Discord username (e.g., "johndoe")'),
     displayname: z.string().optional().describe("The user's current display name in the server; the least accurate, performs a closest match search"),
-    new_display_name: z.string().min(1).max(32).describe("The new display name for the user. Must be between 1 and 32 characters."),
-    reason: z.string().optional().describe("Optional reason for changing the display name for the audit log.")
+    new_display_name: z.string().min(1).max(32).describe('The new display name for the user. Must be between 1 and 32 characters.'),
+    reason: z.string().optional().describe('Optional reason for changing the display name for the audit log.')
 })
 type Input = z.infer<typeof schema>
 

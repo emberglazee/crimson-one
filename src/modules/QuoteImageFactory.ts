@@ -740,14 +740,14 @@ export class QuoteImageFactory {
                             const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
                             if (textBefore) {
                                 const textWidth = ctx.measureText(textBefore).width
-                                drawText(textBefore, currentX + textWidth/2, y)
+                                drawText(textBefore, currentX + textWidth / 2, y)
                                 currentX += textWidth
                             }
 
                             if (emoji.type === 'ping') {
                                 const username = this.usernames.get(emoji.id!) || emoji.full
                                 const pingWidth = ctx.measureText('@' + username).width
-                                drawText(emoji.full, currentX + pingWidth/2, y, true, emoji.id)
+                                drawText(emoji.full, currentX + pingWidth / 2, y, true, emoji.id)
                                 currentX += pingWidth
                             } else {
                                 // Existing emoji drawing code
@@ -766,7 +766,7 @@ export class QuoteImageFactory {
                         const remainingText = lineText.substring(currentPos)
                         if (remainingText) {
                             const textWidth = ctx.measureText(remainingText).width
-                            drawText(remainingText, currentX + textWidth/2, y)
+                            drawText(remainingText, currentX + textWidth / 2, y)
                         }
 
                         y += lineHeight
@@ -909,14 +909,14 @@ export class QuoteImageFactory {
                             const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
                             if (textBefore) {
                                 const textWidth = ctx.measureText(textBefore).width
-                                drawText(textBefore, currentX + textWidth/2, y)
+                                drawText(textBefore, currentX + textWidth / 2, y)
                                 currentX += textWidth
                             }
 
                             if (emoji.type === 'ping') {
                                 const username = this.usernames.get(emoji.id!) || emoji.full
                                 const pingWidth = ctx.measureText('@' + username).width
-                                drawText(emoji.full, currentX + pingWidth/2, y, true, emoji.id)
+                                drawText(emoji.full, currentX + pingWidth / 2, y, true, emoji.id)
                                 currentX += pingWidth
                             } else {
                                 // Find and draw the loaded emoji image
@@ -938,7 +938,7 @@ export class QuoteImageFactory {
                         const remainingText = lineText.substring(currentPos)
                         if (remainingText) {
                             const textWidth = ctx.measureText(remainingText).width
-                            drawText(remainingText, currentX + textWidth/2, y)
+                            drawText(remainingText, currentX + textWidth / 2, y)
                             currentX += textWidth
                         }
 

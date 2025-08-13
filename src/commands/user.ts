@@ -32,7 +32,7 @@ export const slashCommand = {
             )
 
             const accountCreatedText = (
-                `**Account created:**\n` +
+                '**Account created:**\n' +
                 `${absoluteDiscordTimestamp(Math.floor(user.createdTimestamp / 1000))}\n` +
                 `(${relativeDiscordTimestamp(Math.floor(user.createdTimestamp / 1000))})`
             )
@@ -126,7 +126,7 @@ export const slashCommand = {
                 if (member) {
 
                     const joinedServerText = (
-                        `**Joined server:**\n` +
+                        '**Joined server:**\n' +
                         `${absoluteDiscordTimestamp(Math.floor(member.joinedTimestamp! / 1000))}\n` +
                         `(${relativeDiscordTimestamp(Math.floor(member.joinedTimestamp! / 1000))})`
                     )

@@ -13,7 +13,7 @@ const schema = z.object({
     username: z.string().optional().describe('The user\'s global Discord username (e.g., "johndoe")'),
     displayname: z.string().optional().describe("The user's display name in the server; the least accurate, performs a closest match search"),
     duration: z.string().optional().describe('Duration of the banishment (e.g., "6d 3h 2m" or a specific date). Default is permanent.'),
-    reason: z.string().optional().describe("Optional reason for the banishment for the audit log.")
+    reason: z.string().optional().describe('Optional reason for the banishment for the audit log.')
 })
 type Input = z.infer<typeof schema>
 

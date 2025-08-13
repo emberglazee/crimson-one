@@ -132,7 +132,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
                 logger.warn(`{ephemeralReply} Could not DM user ${this.author.tag} (${this.author.id}). Replying to channel instead. Error: ${error instanceof DiscordAPIError ? error.message : error}`)
                 const errorMessage = typeof options === 'string'
                     ? `I tried to send you a private message, but I couldn't. Please check your privacy settings. (Original message: "${options.substring(0, 100)}${options.length > 100 ? '...' : ''}")`
-                    : `I tried to send you a private message, but I couldn't. Please check your privacy settings.`
+                    : 'I tried to send you a private message, but I couldn\'t. Please check your privacy settings.'
 
                 await this.message.reply({
                     content: `❌ ${errorMessage}`,

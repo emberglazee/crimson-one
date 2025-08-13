@@ -137,7 +137,7 @@ export function formatDuration(input: Date | number): string {
     let totalSeconds = input instanceof Date ? Math.floor((input.getTime() - Date.now()) / 1000) : input
 
     if (totalSeconds <= 0) {
-        return "0s"
+        return '0s'
     }
 
     const units: Array<[string, number]> = [

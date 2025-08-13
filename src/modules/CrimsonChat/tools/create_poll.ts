@@ -49,7 +49,7 @@ async function invoke({ question, answers, duration = 24, allowMultiselect = fal
 }
 
 export default tool({
-    description: "Creates a new poll in the primary CrimsonChat channel.",
+    description: 'Creates a new poll in the primary CrimsonChat channel.',
     inputSchema: schema,
     execute: invoke
 })

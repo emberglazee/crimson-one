@@ -12,7 +12,7 @@ import { SOLITARY_CONFINEMENT_GUILD_ID } from '../../../util/constants'
 const schema = z.object({
     username: z.string().optional().describe('The user\'s global Discord username (e.g., "johndoe")'),
     displayname: z.string().optional().describe("The user's display name in the server; the least accurate, performs a closest match search"),
-    reason: z.string().optional().describe("Optional reason for the unbanishment for the audit log.")
+    reason: z.string().optional().describe('Optional reason for the unbanishment for the audit log.')
 })
 type Input = z.infer<typeof schema>
 
@@ -42,7 +42,7 @@ async function invoke({ username, displayname, reason }: Input): Promise<string>
     }
 
     if (member.id === client.user.id) {
-        return JSON.stringify({ status: 'info', message: "What did you think was gonna happen?" })
+        return JSON.stringify({ status: 'info', message: 'What did you think was gonna happen?' })
     }
     if (!member.manageable) {
         return JSON.stringify({ status: 'error', message: `I cannot manage this user. They likely have a higher role than me. (Target: ${member.user.username})` })

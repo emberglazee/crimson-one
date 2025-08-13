@@ -248,7 +248,7 @@ export class TextCommandParser {
                     await message.reply(formattedReply)
                 } else {
                     logger.warn(`{buildYargsParserForCommand} Yargs .fail() called with no message and no error for ${baseCommandData.name}.`)
-                    await message.reply("An unspecified error occurred with your command input.")
+                    await message.reply('An unspecified error occurred with your command input.')
                 }
             })
 
@@ -312,7 +312,7 @@ export class TextCommandParser {
         if (hasSubcommandsOrGroups && topLevelOptions.length === 0) {
             parser.demandCommand(
                 1,
-                `This command requires a subcommand. Use --help for options.`
+                'This command requires a subcommand. Use --help for options.'
             )
         }
         return parser

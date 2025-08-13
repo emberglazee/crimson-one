@@ -230,7 +230,7 @@ export default class CommandManager {
                     if (this.registry!.isGuildSlashCommand(command)) {
                         if (!context.guild || !context.member) {
                             logger.warn(`{executeUnifiedCommand} Guild command "${command.data.name}" was executed in a non-guild context. This should not happen.`)
-                            await context.reply("❌ This command can only be used in a server.")
+                            await context.reply('❌ This command can only be used in a server.')
                             return
                         }
                         await command.execute(context as GuildOnlyCommandContext)
@@ -245,7 +245,7 @@ export default class CommandManager {
                     const error = err as Error
                     logger.warn(`{executeUnifiedCommand} Error in ${yellow(commandIdentifier)} (${context.isInteraction ? 'Interaction' : 'Message'}): ${red(error.message)}`)
                     if (error.message.toLowerCase().includes('unknown interaction') || error.message.toLowerCase().includes('unknown message')) {
-                        logger.warn(`{executeUnifiedCommand} Discord API error, interaction/message may have timed out or been deleted.`)
+                        logger.warn('{executeUnifiedCommand} Discord API error, interaction/message may have timed out or been deleted.')
                         return
                     }
                     throw error

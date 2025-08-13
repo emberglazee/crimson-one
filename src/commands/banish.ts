@@ -36,12 +36,12 @@ export default {
 
         const targetMember = await context.guild.members.fetch(targetUser).catch(() => null)
         if (!targetMember) {
-            await context.reply(`❌ Could not find the specified member.`)
+            await context.reply('❌ Could not find the specified member.')
             return
         }
 
         if (targetMember.id === context.user.id) {
-            await context.reply(`play stupid games win stupid prizes`)
+            await context.reply('play stupid games win stupid prizes')
             return
         }
 

@@ -70,7 +70,7 @@ export type GuildOnlyCommandContext = CommandContext<true>
 /**
  * the "i know what im doing" `any` type, bypasses eslint
  * */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export type ExplicitAny = any
 
 export type OldSlashCommandHelpers = {
