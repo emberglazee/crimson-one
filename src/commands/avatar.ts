@@ -3,15 +3,6 @@ import { SlashCommand } from '../types'
 import { BotInstallationType } from '../types'
 import { smallFooterNote } from '../util/functions'
 
-const avatarExtensionOptions = [
-    { name: 'GIF', value: 'gif' },
-    { name: 'WEBP', value: 'webp' },
-    { name: 'PNG', value: 'png' },
-    { name: 'JPEG', value: 'jpg' }
-] as const
-const avatarSizes = [16, 32, 64, 128, 256, 512, 1024, 2048, 4096] as const
-const avatarSizeOptions = avatarSizes.map(size => ({ name: `${size}px` as const, value: size }))
-
 export default {
     data: new SlashCommandBuilder()
         .setName('avatar')
@@ -26,19 +17,32 @@ export default {
             .setRequired(false)
         ).addStringOption(option => option
             .setName('extension')
-            .setDescription('Image format to get the avatar in (default: PNG, if avatar is animated, pick GIF)')
-            .addChoices(...avatarExtensionOptions)
-            .setRequired(false)
+            .setDescription('Image format to get the avatar in')
+            .addChoices(
+                { name: 'GIF (choose for animated avatars)', value: 'gif' },
+                { name: 'WEBP (0 compatability)', value: 'webp' },
+                { name: 'PNG (default)', value: 'png' },
+                { name: 'JPEG (compression)', value: 'jpg' }
+            ).setRequired(false)
         ).addNumberOption(option => option
             .setName('size')
-            .setDescription('Avatar size (default: 1024)')
-            .addChoices(...avatarSizeOptions)
-            .setRequired(false)
+            .setDescription('Avatar size in pixels')
+            .addChoices(
+                { name: '16px', value: 16 },
+                { name: '32px', value: 32 },
+                { name: '64px', value: 64 },
+                { name: '128px', value: 128 },
+                { name: '256px', value: 256 },
+                { name: '512px', value: 512 },
+                { name: '1024px (default)', value: 1024 },
+                { name: '2048px', value: 2048 },
+                { name: '4096px', value: 4096 }
+            ).setRequired(false)
         ).addStringOption(option => option
             .setName('serverorglobal')
-            .setDescription('Should the avatar be from the server or global? (default: server/guild, unless not in a server)')
+            .setDescription('Should the avatar be from the server or global?')
             .addChoices(
-                { name: 'Server', value: 'guild' },
+                { name: 'Server (default)', value: 'guild' },
                 { name: 'Global', value: 'global' }
             ).setRequired(false)
         ),
