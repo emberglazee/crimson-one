@@ -137,21 +137,31 @@ export class TrigramChainBuilder {
         let currentKey: string | undefined
         const result: string[] = []
 
-        if (seed && seed.length >= 2) {
-            const seedKey = `${seed[seed.length - 2]} ${seed[seed.length - 1]}`
-            if (this.chain.has(seedKey)) {
-                currentKey = seedKey
-                result.push(...seed)
+        if (seed && seed.length > 0) {
+            if (seed.length >= 2) {
+                const seedKey = `${seed[seed.length - 2]} ${seed[seed.length - 1]}`
+                if (this.chain.has(seedKey)) {
+                    currentKey = seedKey
+                    result.push(...seed)
+                }
+            } else { // seed.length === 1
+                const seedWord = seed[0]
+                const possibleKeys = Array.from(this.chain.keys()).filter(key => key.startsWith(`${seedWord} `))
+                if (possibleKeys.length > 0) {
+                    // Pick a random key that starts with the seed word
+                    currentKey = possibleKeys[Math.floor(Math.random() * possibleKeys.length)]
+                    // Start the result with the words from the chosen key
+                    result.push(...currentKey.split(' '))
+                }
             }
         }
 
         // If no valid key from seed, or no seed, we need a starting point.
         if (!currentKey) {
             const randomStarterKey = this.starters[Math.floor(Math.random() * this.starters.length)]
-            // If result is empty (meaning no valid seed was found), start with the random starter.
-            if (result.length === 0) {
-                result.push(...randomStarterKey.split(' '))
-            }
+            // Discard any previous result from a failed seed lookup and start fresh.
+            result.length = 0
+            result.push(...randomStarterKey.split(' '))
             currentKey = randomStarterKey
         }
 
