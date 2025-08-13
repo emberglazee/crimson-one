@@ -8,7 +8,6 @@ import path from 'path'
 
 interface InitializeTaskOptions {
     token: string
-    userToken?: string
 }
 
 interface CollectTaskOptions {
@@ -18,7 +17,6 @@ interface CollectTaskOptions {
     userId?: string
     limit?: number | 'entire'
     delayMs?: number
-    disableUserApiLookup?: boolean
     forceRescan?: boolean
 }
 
@@ -176,7 +174,7 @@ export class MarkovChat extends EventEmitter<{
         })
 
         // Send initialization message to worker
-        this.sendTask('initialize', { token: this.client!.token!, userToken: process.env.DISCORD_USER_TOKEN })
+        this.sendTask('initialize', { token: this.client!.token! })
     }
 
     private sendTask<T>(type: string, options: AllTaskOptions): Promise<T> {
@@ -200,7 +198,6 @@ export class MarkovChat extends EventEmitter<{
         userId?: string
         limit?: number | 'entire'
         delayMs?: number
-        disableUserApiLookup?: boolean
         forceRescan?: boolean
     } = {}): { taskId: string, completionPromise: Promise<number> } {
         if (!this.client) throw new Error('Client not set')
@@ -212,7 +209,7 @@ export class MarkovChat extends EventEmitter<{
             }
         }
 
-        const { user, userId, limit, delayMs, disableUserApiLookup, forceRescan } = options
+        const { user, userId, limit, delayMs, forceRescan } = options
 
         const taskId = `task-${this.taskIdCounter++}`
         const completionPromise = new Promise<number>((resolve, reject) => {
@@ -226,7 +223,6 @@ export class MarkovChat extends EventEmitter<{
                     userId,
                     limit,
                     delayMs,
-                    disableUserApiLookup,
                     forceRescan
                 },
                 taskId

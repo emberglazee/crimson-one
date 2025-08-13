@@ -2,10 +2,9 @@ import { parentPort, isMainThread } from 'worker_threads'
 import { Logger, red } from '../../util/logger'
 const logger = new Logger('MarkovChain | Worker')
 
-import { Client, Guild, Message as DiscordMessage, TextChannel, ChannelType, Collection, IntentsBitField, Partials, User } from 'discord.js'
+import { Client, Guild, Message as DiscordMessage, TextChannel, Collection, IntentsBitField, Partials, User } from 'discord.js'
 import { BigramChainBuilder, TrigramChainBuilder } from './entities/MarkovChain'
 import { MarkovDataSource } from './DataSource'
-import { getChannelMessageCount } from './DiscordUserApi'
 
 if (isMainThread) {
     throw new Error('This file is a worker and should not be run on the main thread.')
@@ -35,15 +34,12 @@ class MarkovEngine {
     private dataSource = MarkovDataSource.getInstance()
     private dbWriteQueue: Promise<void> = Promise.resolve()
 
-    async initialize(token: string, userToken?: string) {
+    async initialize(token: string) {
         if (this.client) return
         this.client = new Client({
             intents: [IntentsBitField.Flags.Guilds, IntentsBitField.Flags.GuildMessages],
             partials: [Partials.Channel]
         })
-        if (userToken) {
-            process.env.DISCORD_USER_TOKEN = userToken
-        }
         await this.client.login(token)
         await this.dataSource.init()
         logger.ok('Worker client and data source initialized.')
@@ -67,12 +63,11 @@ class MarkovEngine {
         userId?: string
         limit?: number | 'entire'
         delayMs?: number
-        disableUserApiLookup?: boolean
         forceRescan?: boolean
     }, taskId: string) {
         if (!this.client) throw new Error('Worker client not initialized')
 
-        const { guildId: _guildId, channelId, user, userId, limit = 1000, delayMs = 1000, disableUserApiLookup = false, forceRescan = false } = options
+        const { guildId: _guildId, channelId, user, userId, limit = 1000, delayMs = 1000, forceRescan = false } = options
 
         const channel = await this.client.channels.fetch(channelId) as TextChannel
         if (!channel) throw new Error(`Channel ${channelId} not found.`)
@@ -92,10 +87,7 @@ class MarkovEngine {
             existingMessageIds = await this.dataSource.getExistingMessageIds(channel.guild.id, channel.id)
         }
 
-        let totalMessageCount: number | null = null
-        if (isEntireChannel && !user && channel.type === ChannelType.GuildText && !disableUserApiLookup) {
-            totalMessageCount = await getChannelMessageCount(this.client, channel.guild.id, channel.id)
-        }
+        const totalMessageCount: number | null = null
 
         let lastId: string | undefined
         let batchCount = 0
@@ -313,8 +305,8 @@ const engine = new MarkovEngine()
 parentPort!.on('message', async (message: { type: string, options: unknown, taskId: string }) => {
     try {
         if (message.type === 'initialize') {
-            const { token, userToken } = message.options as { token: string, userToken?: string }
-            await engine.initialize(token, userToken)
+            const { token } = message.options as { token: string }
+            await engine.initialize(token)
             parentPort!.postMessage({ type: 'result', taskId: message.taskId, data: 'initialized' })
             return
         }
@@ -329,7 +321,6 @@ parentPort!.on('message', async (message: { type: string, options: unknown, task
                     userId?: string
                     limit?: number | 'entire'
                     delayMs?: number
-                    disableUserApiLookup?: boolean
                     forceRescan?: boolean
                 }, message.taskId)
                 break
