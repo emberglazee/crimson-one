@@ -29,6 +29,10 @@ async function randomProjectWingmanArticle(): Promise<string> {
         }
     })
 
+    if (articleLinks.length === 0) {
+        throw new Error('No articles found on the page.')
+    }
+
     const randomLink = getRandomElement(articleLinks)
     return randomLink
 }
