@@ -66,7 +66,9 @@ export default {
         if (theme === 'cascadia') {
             finalResponses = [...CASCADIA_RESPONSES, ...GENERIC_RESPONSES]
         } else {
-            finalResponses = [...FEDERATION_RESPONSES, ...GENERIC_RESPONSES]
+            if (theme === 'random')
+                finalResponses = [...CASCADIA_RESPONSES, ...FEDERATION_RESPONSES, ...GENERIC_RESPONSES]
+            else finalResponses = [...FEDERATION_RESPONSES, ...GENERIC_RESPONSES]
         }
 
         const randomIndex = randRange(0, finalResponses.length - 1)
