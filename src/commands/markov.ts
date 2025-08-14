@@ -415,9 +415,16 @@ export default {
                 // Clean up event listener in case of error
                 markov.removeAllListeners('generateProgress')
 
-                logger.warn(`Failed to generate message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+                logger.warn(`Failed to generate message: ${red(errorMessage)}`)
+
+                let userFriendlyError = `❌ Failed to generate message: ${errorMessage}`
+                if (errorMessage.includes('No messages found')) {
+                    userFriendlyError = '❌ No messages found for the selected filters. Try collecting some messages first!'
+                }
+
                 await context.editReply({
-                    content: `❌ Failed to generate message: ${error instanceof Error ? error.message : 'Unknown error'}`
+                    content: userFriendlyError
                 })
             }
 
@@ -543,9 +550,16 @@ export default {
                 // Clean up event listener in case of error
                 markov.removeAllListeners('infoProgress')
 
-                logger.warn(`Failed to get Markov info: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+                logger.warn(`Failed to get Markov info: ${red(errorMessage)}`)
+
+                let userFriendlyError = `❌ Failed to get info: ${errorMessage}`
+                if (errorMessage.includes('No messages found')) {
+                    userFriendlyError = '❌ No messages found for the selected filters. Try collecting some messages first!'
+                }
+
                 await context.editReply({
-                    content: `❌ Failed to get Markov info: ${error instanceof Error ? error.message : 'Unknown error'}`
+                    content: userFriendlyError
                 })
             }
 
@@ -610,12 +624,10 @@ export default {
                 const successfulChannels = results.filter(r => r.status === 'success').length
                 const failedChannels = results.filter(r => r.status === 'error')
 
-                let summary = `✅ Finished collecting from all channels and threads. Total messages collected: ${totalCollected}.
-`
-                summary += `Successfully collected from ${successfulChannels}/${allTargets.length} channels.`
+                let summary = `✅ Finished collecting from all channels and threads. Total messages collected: ${totalCollected}.`
+                summary += `\nSuccessfully collected from ${successfulChannels}/${allTargets.length} channels.`
                 if (failedChannels.length > 0) {
-                    summary += `
-❌ Failed to collect from ${failedChannels.length} channels: ${failedChannels.map(f => f.channel).join(', ')}`
+                    summary += `\n❌ Failed to collect from ${failedChannels.length} channels: ${failedChannels.map(f => f.channel).join(', ')}`
                 }
 
                 await context.followUp(summary)
@@ -638,10 +650,7 @@ export default {
                 return
             }
 
-            let replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'ALL' : limit} messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}...`
-            if (collectEntireChannel) {
-                replyContent += '\n💡 Using Discord User API to fetch the total message count.'
-            }
+            const replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'all available' : limit} messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}...`
 
             await context.reply(replyContent)
 
