@@ -11,7 +11,7 @@ const { symbols } = dlopen(libPath, {
     destroy_chain: {
         args: [FFIType.ptr]
     },
-    train_on_text: {
+    train_on_batch: {
         args: [FFIType.ptr, FFIType.cstring]
     },
     generate_text: {
@@ -33,13 +33,13 @@ export class RustMarkovChain {
         }
     }
 
-    public train(text: string): void {
+    public trainBatch(texts: string[]): void {
         if (!this.chainPtr) {
             throw new Error('Cannot train on a destroyed chain.')
         }
-        // The string must be converted to a null-terminated buffer to be passed as a cstring
-        const textBuffer = Buffer.from(text + '\0', 'utf8')
-        symbols.train_on_text(this.chainPtr, textBuffer)
+        const json = JSON.stringify(texts)
+        const textBuffer = Buffer.from(json + '\0', 'utf8')
+        symbols.train_on_batch(this.chainPtr, textBuffer)
     }
 
     public generate(maxWords: number = 30, mode: 'bigram' | 'trigram' = 'trigram', seed?: string): string {

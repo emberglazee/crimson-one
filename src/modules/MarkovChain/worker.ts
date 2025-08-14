@@ -215,10 +215,9 @@ class MarkovEngine {
             const CHUNK_SIZE = 1000
             for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
                 const chunk = messages.slice(i, i + CHUNK_SIZE)
-                for (const msg of chunk) {
-                    if (msg.text) {
-                        rustChain.train(msg.text)
-                    }
+                const texts = chunk.map(msg => msg.text).filter(Boolean)
+                if (texts.length > 0) {
+                    rustChain.trainBatch(texts)
                 }
                 parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'training', progress: Math.min(i + CHUNK_SIZE, messages.length), total: messages.length, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null } })
             }

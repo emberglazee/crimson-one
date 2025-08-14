@@ -1,6 +1,7 @@
 use fastrand::Rng;
 use lazy_static::lazy_static;
 use regex::Regex;
+use serde_json;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -82,44 +83,56 @@ pub extern "C" fn destroy_chain(ptr: *mut MarkovChain) {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn train_on_text(ptr: *mut MarkovChain, text_ptr: *const c_char) {
-    if ptr.is_null() || text_ptr.is_null() {
+pub extern "C" fn train_on_batch(ptr: *mut MarkovChain, texts_json_ptr: *const c_char) {
+    if ptr.is_null() || texts_json_ptr.is_null() {
         return;
     }
     let chain = unsafe { &*ptr };
-    let text = unsafe { CStr::from_ptr(text_ptr).to_str().unwrap() };
+    let texts_json = unsafe { CStr::from_ptr(texts_json_ptr).to_str().unwrap() };
 
-    let word_ids: Vec<u32> = TOKEN_REGEX
-        .find_iter(text)
-        .map(|mat| chain.intern_word_and_update_casing(mat.as_str()))
-        .collect();
+    let texts: Vec<String> = match serde_json::from_str(texts_json) {
+        Ok(texts) => texts,
+        Err(_) => return,
+    };
 
-    if word_ids.is_empty() {
-        return;
-    }
+    let mut bigram_chain = chain.bigram_chain.write().unwrap();
+    let mut trigram_chain = chain.trigram_chain.write().unwrap();
+    let mut bigram_starters = chain.bigram_starters.write().unwrap();
+    let mut trigram_starters = chain.trigram_starters.write().unwrap();
 
-    if word_ids.len() >= 2 {
-        let mut bigram_starters = chain.bigram_starters.write().unwrap();
-        let mut bigram_chain = chain.bigram_chain.write().unwrap();
-        bigram_starters.push(word_ids[0]);
-        for i in 0..(word_ids.len() - 1) {
-            bigram_chain
-                .entry(word_ids[i])
-                .or_default()
-                .push(word_ids[i + 1]);
+    for text in texts {
+        if text.is_empty() {
+            continue;
         }
-    }
+        
+        let word_ids: Vec<u32> = TOKEN_REGEX
+            .find_iter(&text)
+            .map(|mat| chain.intern_word_and_update_casing(mat.as_str()))
+            .collect();
 
-    if word_ids.len() >= 3 {
-        let mut trigram_starters = chain.trigram_starters.write().unwrap();
-        let mut trigram_chain = chain.trigram_chain.write().unwrap();
-        trigram_starters.push((word_ids[0], word_ids[1]));
-        for i in 0..(word_ids.len() - 2) {
-            let key = (word_ids[i], word_ids[i + 1]);
-            trigram_chain
-                .entry(key)
-                .or_default()
-                .push(word_ids[i + 2]);
+        if word_ids.is_empty() {
+            continue;
+        }
+
+        if word_ids.len() >= 2 {
+            bigram_starters.push(word_ids[0]);
+            for i in 0..(word_ids.len() - 1) {
+                bigram_chain
+                    .entry(word_ids[i])
+                    .or_default()
+                    .push(word_ids[i + 1]);
+            }
+        }
+
+        if word_ids.len() >= 3 {
+            trigram_starters.push((word_ids[0], word_ids[1]));
+            for i in 0..(word_ids.len() - 2) {
+                let key = (word_ids[i], word_ids[i + 1]);
+                trigram_chain
+                    .entry(key)
+                    .or_default()
+                    .push(word_ids[i + 2]);
+            }
         }
     }
 }
