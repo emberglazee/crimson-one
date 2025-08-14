@@ -18,8 +18,8 @@ export interface MarkovChainOptions {
  * @returns An array of tokens.
  */
 function tokenize(text: string): string[] {
-    // Regex to match URLs, words, and punctuation
-    const tokenRegex = /(https?:\/\/[^\s]+)|(\w+)|([.,!?;:"'()[\]{}])/g
+    // Regex to match URLs, words (with contractions), and individual punctuation
+    const tokenRegex = /(https?:\/\/[^\s]+)|(\w+('\w+)*)|([.,!?;:"'()[\]{}])/g
     return text.match(tokenRegex) || []
 }
 
@@ -54,7 +54,7 @@ function joinTokens(tokens: string[]): string {
         result += token
 
         // Add a space if the next token is not punctuation (or if it's a bracket)
-        if (nextToken && !/^[^\w\s]/.test(nextToken)) {
+        if (nextToken && !/^[.,!?;:"'()[\]{}]/.test(nextToken)) {
             result += ' '
         }
     }
