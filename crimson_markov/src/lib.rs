@@ -41,7 +41,7 @@ impl MarkovChain {
 
 lazy_static! {
     static ref TOKEN_REGEX: Regex =
-        Regex::new(r#"(https?://[^\s]+)|(\w+('\w+)*)|([.,!?;:"'()[\]{}])"#).unwrap();
+        Regex::new(r#"(https?://[^\s]+)|(\w+('\w+)*)|([.,!?;:"'()\[\]{}])"#).unwrap();
 }
 
 fn tokenize(text: &str) -> Vec<String> {
