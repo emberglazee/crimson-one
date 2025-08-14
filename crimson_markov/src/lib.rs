@@ -279,8 +279,7 @@ fn join_tokens(tokens: &[String]) -> String {
         return result;
     }
 
-    let punctuation_and_brackets = r#"^[.,!?;:\"'()[\]{}]"#;
-    let re = Regex::new(punctuation_and_brackets).unwrap();
+    let punctuation: &[char] = &['.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}'];
 
     for i in 0..tokens.len() {
         let token = &tokens[i];
@@ -288,8 +287,12 @@ fn join_tokens(tokens: &[String]) -> String {
 
         if i < tokens.len() - 1 {
             let next_token = &tokens[i + 1];
-            if !re.is_match(next_token) {
-                result.push(' ');
+            if let Some(first_char) = next_token.chars().next() {
+                if !punctuation.contains(&first_char) {
+                    result.push(' ');
+                }
+            } else {
+                result.push(' '); // space if next token is empty
             }
         }
     }
