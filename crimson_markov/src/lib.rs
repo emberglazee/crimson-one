@@ -273,6 +273,29 @@ fn generate_trigram(
         .collect()
 }
 
+fn join_tokens(tokens: &[String]) -> String {
+    let mut result = String::new();
+    if tokens.is_empty() {
+        return result;
+    }
+
+    let punctuation_and_brackets = r#"^[.,!?;:\"'()[\]{}]"#;
+    let re = Regex::new(punctuation_and_brackets).unwrap();
+
+    for i in 0..tokens.len() {
+        let token = &tokens[i];
+        result.push_str(token);
+
+        if i < tokens.len() - 1 {
+            let next_token = &tokens[i + 1];
+            if !re.is_match(next_token) {
+                result.push(' ');
+            }
+        }
+    }
+    result
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn generate_text(
     ptr: *mut MarkovChain,
@@ -304,9 +327,10 @@ pub extern "C" fn generate_text(
     if result_words.is_empty() {
         return null_mut();
     }
-    let result_str = result_words.join(" ");
+    let result_str = join_tokens(&result_words);
     CString::new(result_str).map_or(ptr::null_mut(), |s| s.into_raw())
 }
+
 
 #[unsafe(no_mangle)]
 pub extern "C" fn free_text(s: *mut c_char) {
