@@ -222,7 +222,7 @@ export default {
                 .setRequired(false)
             ).addIntegerOption(option => option
                 .setName('words')
-                .setDescription('How many words to generate (default: 20)')
+                .setDescription('How many words to generate (default: 30)')
                 .setRequired(false)
             ).addStringOption(option => option
                 .setName('seed')
@@ -348,9 +348,9 @@ export default {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const source = (context.getStringOption('source')) as Source
+            const source = (context.getStringOption('source', false, 'guild')) as Source
             const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined
-            const words = context.getIntegerOption('words', false, 20)
+            const words = context.getIntegerOption('words', false, 30)
             const seed = context.getStringOption('seed', false)
             const mode = context.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram'
 
@@ -396,7 +396,7 @@ export default {
                                 source === 'global' ? 'Global' : 'This server',
                                 channel ? `Channel: #${channel.name ?? channel.id}` : null,
                                 user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
-                                words !== 20 ? `Words: ${words}` : null,
+                                words !== 30 ? `Words: ${words}` : null,
                                 seed ? `Seed: "${seed}"` : null,
                                 `Mode: ${mode}`
                             ].filter(Boolean).join(', ') || 'None',
