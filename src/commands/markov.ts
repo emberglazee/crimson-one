@@ -372,7 +372,7 @@ export default {
                 })
 
                 const result = await handleLongRunningTask(context, markov, taskPromise, 'generateProgress', {
-                    initialMessage: '⏳ Generating message...', 
+                    initialMessage: '⏳ Generating message...',
                     formatProgress: (progress: any) => {
                         if (progress.step === 'training') {
                             const percent = ((progress.progress / progress.total) * 100).toFixed(1)
@@ -446,7 +446,7 @@ export default {
                 })
 
                 const stats = await handleLongRunningTask(context, markov, taskPromise, 'infoProgress', {
-                    initialMessage: '⏳ Gathering statistics...', 
+                    initialMessage: '⏳ Gathering statistics...',
                     formatProgress: (progress: any) => {
                         if (progress.step === 'processing') {
                             const percent = ((progress.progress / progress.total) * 100).toFixed(1)

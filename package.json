@@ -7,7 +7,8 @@
     "delete-commands": "bun src/deleteCommands.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "dashboard": "cd dashboard && tsx ui.tsx"
+    "dashboard": "cd dashboard && tsx ui.tsx",
+    "build:markov": "cd crimson_markov && cargo build --release"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",

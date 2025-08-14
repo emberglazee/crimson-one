@@ -5,7 +5,7 @@ import stylistic from '@stylistic/eslint-plugin'
 
 export default tseslint.config({
     ...tseslint.configs.recommended[0],
-    files: ['**/*.{js,mjs,cjs,ts}'],
+    files: ['src/**/*.{js,mjs,cjs,ts}'],
     languageOptions: {
         globals: globals.commonjs,
         parserOptions: {

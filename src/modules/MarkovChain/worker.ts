@@ -3,7 +3,7 @@ import { Logger, red } from '../../util/logger'
 const logger = new Logger('MarkovChain | Worker')
 
 import { Client, Guild, Message as DiscordMessage, TextChannel, Collection, IntentsBitField, Partials, User } from 'discord.js'
-import { BigramChainBuilder, TrigramChainBuilder } from './entities/MarkovChain'
+import { RustMarkovChain } from './RustChain'
 import { MarkovDataSource } from './DataSource'
 
 if (isMainThread) {
@@ -193,7 +193,6 @@ class MarkovEngine {
 
     public async generateMessage(options: GenerateOptions) {
         const startTime = Date.now()
-        const chain = options.mode === 'bigram' ? new BigramChainBuilder() : new TrigramChainBuilder()
 
         parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'querying', progress: 0, total: 1, elapsedTime: 0, estimatedTimeRemaining: null } })
 
@@ -211,24 +210,28 @@ class MarkovEngine {
 
         parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'training', progress: 0, total: messages.length, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null } })
 
-        const CHUNK_SIZE = 1000
-        for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
-            const chunk = messages.slice(i, i + CHUNK_SIZE)
-            for (const msg of chunk) {
-                chain.train(msg.text)
+        const rustChain = new RustMarkovChain()
+        try {
+            const CHUNK_SIZE = 1000
+            for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
+                const chunk = messages.slice(i, i + CHUNK_SIZE)
+                for (const msg of chunk) {
+                    if (msg.text) {
+                        rustChain.train(msg.text)
+                    }
+                }
+                parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'training', progress: Math.min(i + CHUNK_SIZE, messages.length), total: messages.length, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null } })
             }
-            parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'training', progress: Math.min(i + CHUNK_SIZE, messages.length), total: messages.length, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null } })
+
+            parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'generating', progress: 0, total: 1, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null } })
+
+            const result = rustChain.generate(options.words || 30, options.mode || 'trigram', options.seed)
+
+            return result
+        } finally {
+            // IMPORTANT: Clean up the memory used by the Rust chain
+            rustChain.destroy()
         }
-
-        parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'generating', progress: 0, total: 1, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null } })
-
-        const result = chain.generate({
-            minWords: Math.max(3, Math.floor((options.words || 20) * 0.8)),
-            maxWords: options.words || 20,
-            seed: options.seed ? options.seed.split(/\s+/) : []
-        })
-
-        return result
     }
 
     public async getMessageStats(options: MessageStatsOptions) {

@@ -1,3 +1,5 @@
+// Currently replaced in favor of RustChain.
+
 export interface MarkovNode {
     word: string
     next: Map<string, number>
