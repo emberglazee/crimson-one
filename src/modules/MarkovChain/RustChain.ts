@@ -1,4 +1,4 @@
-import { dlopen, FFIType, suffix, type Pointer, type CString } from 'bun:ffi'
+import { dlopen, FFIType, suffix, CString, type Pointer } from 'bun:ffi'
 import path from 'path'
 
 const libPath = path.join(__dirname, `../../../crimson_markov/target/release/libcrimson_markov.${suffix}`)
@@ -16,7 +16,7 @@ const { symbols } = dlopen(libPath, {
     },
     generate_text: {
         args: [FFIType.ptr, FFIType.i32, FFIType.u8, FFIType.cstring],
-        returns: FFIType.cstring
+        returns: FFIType.ptr
     },
     free_text: {
         args: [FFIType.ptr]
@@ -48,14 +48,14 @@ export class RustMarkovChain {
         }
         const modeId = mode === 'bigram' ? 0 : 1
         const seedBuffer = seed ? Buffer.from(seed + '\0', 'utf8') : null
-        const resultPtr: CString | null = symbols.generate_text(this.chainPtr, maxWords, modeId, seedBuffer)
+        const resultPtr: Pointer | null = symbols.generate_text(this.chainPtr, maxWords, modeId, seedBuffer)
 
         if (!resultPtr) {
             return '' // Or throw an error if generation fails
         }
 
-        const result = resultPtr.toString()
-        symbols.free_text(resultPtr) // free_text expects a Pointer, and CString is a Pointer
+        const result = new CString(resultPtr).toString()
+        symbols.free_text(resultPtr)
         return result
     }
 
