@@ -147,11 +147,48 @@ class InteractionMessageManager implements MessageUpdater {
             } catch (finalError) {
                 logger.warn(`Failed to send any completion message: ${red(finalError instanceof Error ? finalError.message : 'Unknown error')}`)
             }
-            // Why not `warn()` on the first fail, and `error()` on the second one?
-            // 1. At this point the operation itself is complete, so by extension any error after that is not critical;
-            // 2. We have a solid backup (`context.followUp()`) (implying the bot can still message in the channel).
-            // While we cannot work around the second fail, a `warn()` is sufficient at that point because it does not interrupt the workflow.
         }
+    }
+}
+
+async function handleLongRunningTask<T, P extends { step?: string, estimatedTimeRemaining?: number | null }>(context: CommandContext, markov: MarkovChat, taskPromise: Promise<T>, progressEventName: 'generateProgress' | 'infoProgress', options: { initialMessage: string, formatProgress: (progress: P) => string }): Promise<T> {
+    const messageManager = new InteractionMessageManager(context)
+    const interactionStartTime = process.hrtime()
+    let lastUpdateTime = 0
+    const UPDATE_INTERVAL = 5000 // 5 seconds
+
+    const progressListener = async (progress: P) => {
+        const now = process.hrtime(interactionStartTime)
+        const elapsedMs = now[0] * 1000 + now[1] / 1e6
+
+        if (elapsedMs < lastUpdateTime + UPDATE_INTERVAL) return
+        lastUpdateTime = elapsedMs
+
+        if (elapsedMs > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
+            logger.info(`Approaching interaction timeout (${yellow(elapsedMs)}ms elapsed). Switching to follow-up message.`)
+            messageManager.switchToFollowUp()
+        }
+
+        let progressMessage = `${options.initialMessage}\n`
+        if (progress.step) {
+            progressMessage += `📊 Step: ${progress.step}\n`
+        }
+        progressMessage += options.formatProgress(progress)
+
+        if (progress.estimatedTimeRemaining !== null && progress.estimatedTimeRemaining !== undefined) {
+            const etaString = formatTimeRemaining(progress.estimatedTimeRemaining)
+            progressMessage += `\n⏱️ ETA: ${etaString}`
+        }
+
+        await messageManager.updateMessage(progressMessage)
+    }
+
+    markov.on(progressEventName, progressListener as (event: any) => void)
+
+    try {
+        return await taskPromise
+    } finally {
+        markov.removeListener(progressEventName, progressListener as (event: any) => void)
     }
 }
 
@@ -323,51 +360,7 @@ export default {
                 logger.info(`Generating message with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
                 const timeStart = process.hrtime()
 
-                // Create message manager for handling progress updates
-                const messageManager = new InteractionMessageManager(context)
-
-                // Track the interaction start time to handle token expiration
-                const interactionStartTime = process.hrtime()
-                let lastUpdateTime = 0
-                let lastStep = ''
-                const UPDATE_INTERVAL = 5000 // 5 seconds
-
-                // Listen for progress updates
-                markov.on('generateProgress', async progress => {
-                    const now = process.hrtime(interactionStartTime)
-                    const nowMs = now[0] * 1000 + now[1] / 1e6
-                    const stepChanged = progress.step !== lastStep
-                    if (!stepChanged && nowMs - lastUpdateTime < UPDATE_INTERVAL) return
-
-                    lastUpdateTime = nowMs
-                    lastStep = progress.step
-
-                    // Check if we're approaching the interaction token timeout
-                    const elapsedSinceInteraction = nowMs
-
-                    // If we're reaching the timeout limit and haven't switched to follow-up message yet
-                    if (elapsedSinceInteraction > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
-                        logger.info(`Approaching interaction timeout (${yellow(elapsedSinceInteraction)}ms elapsed). Switching to follow-up message.`)
-                        messageManager.switchToFollowUp()
-                    }
-
-                    let progressMessage = '⏳ Generating message...\n'
-                    progressMessage += `📊 Step: ${progress.step}\n`
-
-                    if (progress.step === 'training') {
-                        const percent = ((progress.progress / progress.total) * 100).toFixed(1)
-                        progressMessage += `🔄 Training: ${progress.progress}/${progress.total} messages (${percent}%)\n`
-                    }
-
-                    if (progress.estimatedTimeRemaining !== null) {
-                        const etaString = formatTimeRemaining(progress.estimatedTimeRemaining)
-                        progressMessage += `⏱️ ETA: ${etaString}`
-                    }
-
-                    await messageManager.updateMessage(progressMessage)
-                })
-
-                const result = await markov.generateMessage({
+                const taskPromise = markov.generateMessage({
                     guild: source === 'guild' ? context.guild : undefined,
                     channel: channel,
                     user: user,
@@ -378,8 +371,16 @@ export default {
                     mode: mode
                 })
 
-                // Clean up event listener
-                markov.removeAllListeners('generateProgress')
+                const result = await handleLongRunningTask(context, markov, taskPromise, 'generateProgress', {
+                    initialMessage: '⏳ Generating message...', 
+                    formatProgress: (progress: any) => {
+                        if (progress.step === 'training') {
+                            const percent = ((progress.progress / progress.total) * 100).toFixed(1)
+                            return `🔄 Training: ${progress.progress}/${progress.total} messages (${percent}%)`
+                        }
+                        return ''
+                    }
+                })
 
                 const timeEnd = process.hrtime(timeStart)
                 const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6
@@ -404,7 +405,7 @@ export default {
                     )
                     .setTimestamp()
 
-                await messageManager.sendFinalMessage({
+                await new InteractionMessageManager(context).sendFinalMessage({
                     content: result,
                     embeds: [footerEmbed],
                     allowedMentions: {
@@ -412,9 +413,6 @@ export default {
                     }
                 })
             } catch (error) {
-                // Clean up event listener in case of error
-                markov.removeAllListeners('generateProgress')
-
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error'
                 logger.warn(`Failed to generate message: ${red(errorMessage)}`)
 
@@ -423,9 +421,7 @@ export default {
                     userFriendlyError = '❌ No messages found for the selected filters. Try collecting some messages first!'
                 }
 
-                await context.editReply({
-                    content: userFriendlyError
-                })
+                await context.editReply({ content: userFriendlyError })
             }
 
         } else if (subcommand === 'info') {
@@ -441,51 +437,7 @@ export default {
                 logger.info(`Getting Markov info with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}`)
                 const timeStart = process.hrtime()
 
-                // Create message manager for handling progress updates
-                const messageManager = new InteractionMessageManager(context)
-
-                // Track the interaction start time to handle token expiration
-                const interactionStartTime = process.hrtime()
-                let lastUpdateTime = 0
-                let lastStep = ''
-                const UPDATE_INTERVAL = 5000 // 5 seconds
-
-                // Listen for progress updates
-                markov.on('infoProgress', async progress => {
-                    const now = process.hrtime(interactionStartTime)
-                    const nowMs = now[0] * 1000 + now[1] / 1e6
-                    const stepChanged = progress.step !== lastStep
-                    if (!stepChanged && nowMs - lastUpdateTime < UPDATE_INTERVAL) return
-
-                    lastUpdateTime = nowMs
-                    lastStep = progress.step
-
-                    // Check if we're approaching the interaction token timeout
-                    const elapsedSinceInteraction = nowMs
-
-                    // If we're reaching the timeout limit and haven't switched to follow-up message yet
-                    if (elapsedSinceInteraction > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
-                        logger.info(`Approaching interaction timeout (${yellow(elapsedSinceInteraction)}ms elapsed). Switching to follow-up message.`)
-                        messageManager.switchToFollowUp()
-                    }
-
-                    let progressMessage = '⏳ Gathering statistics...\n'
-                    progressMessage += `📊 Step: ${progress.step}\n`
-
-                    if (progress.step === 'processing') {
-                        const percent = ((progress.progress / progress.total) * 100).toFixed(1)
-                        progressMessage += `🔄 Processing: ${progress.progress}/${progress.total} messages (${percent}%)\n`
-                    }
-
-                    if (progress.estimatedTimeRemaining !== null) {
-                        const etaString = formatTimeRemaining(progress.estimatedTimeRemaining)
-                        progressMessage += `⏱️ ETA: ${etaString}`
-                    }
-
-                    await messageManager.updateMessage(progressMessage)
-                })
-
-                const stats = await markov.getMessageStats({
+                const taskPromise = markov.getMessageStats({
                     guild: (source === 'guild' || (!source && !channel)) ? context.guild : undefined,
                     channel: channel ?? undefined,
                     user: user,
@@ -493,31 +445,26 @@ export default {
                     global: source === 'global'
                 })
 
-                // Clean up event listener
-                markov.removeAllListeners('infoProgress')
+                const stats = await handleLongRunningTask(context, markov, taskPromise, 'infoProgress', {
+                    initialMessage: '⏳ Gathering statistics...', 
+                    formatProgress: (progress: any) => {
+                        if (progress.step === 'processing') {
+                            const percent = ((progress.progress / progress.total) * 100).toFixed(1)
+                            return `🔄 Processing: ${progress.progress}/${progress.total} messages (${percent}%)`
+                        }
+                        return ''
+                    }
+                })
 
                 const timeEnd = process.hrtime(timeStart)
                 const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6
 
-                // Format timestamps to readable dates
-                const oldestDate = stats.oldestMessageTimestamp
-                    ? new Date(stats.oldestMessageTimestamp).toLocaleString('en-GB')
-                    : 'N/A'
-                const newestDate = stats.newestMessageTimestamp
-                    ? new Date(stats.newestMessageTimestamp).toLocaleString('en-GB')
-                    : 'N/A'
+                const oldestDate = stats.oldestMessageTimestamp ? new Date(stats.oldestMessageTimestamp).toLocaleString('en-GB') : 'N/A'
+                const newestDate = stats.newestMessageTimestamp ? new Date(stats.newestMessageTimestamp).toLocaleString('en-GB') : 'N/A'
 
-                const embedFields = [
-                    { name: 'Messages', value: stats.messageCount.toLocaleString(), inline: true }
-                ]
-
-                if (!user && !userId) {
-                    embedFields.push({ name: 'Unique Authors', value: stats.authorCount.toLocaleString(), inline: true })
-                }
-                if (!channel) {
-                    embedFields.push({ name: 'Channels', value: stats.channelCount.toLocaleString(), inline: true })
-                }
-
+                const embedFields = [{ name: 'Messages', value: stats.messageCount.toLocaleString(), inline: true }]
+                if (!user && !userId) embedFields.push({ name: 'Unique Authors', value: stats.authorCount.toLocaleString(), inline: true })
+                if (!channel) embedFields.push({ name: 'Channels', value: stats.channelCount.toLocaleString(), inline: true })
                 embedFields.push(
                     { name: 'Total Words', value: stats.totalWordCount.toLocaleString(), inline: true },
                     { name: 'Unique Words', value: stats.uniqueWordCount.toLocaleString(), inline: true },
@@ -532,35 +479,18 @@ export default {
                     .addFields(embedFields)
                     .setFooter({ text: `Generated in ${timeEndMs.toFixed(0)}ms` })
                     .setTimestamp()
-
-                // Add description with filter info
-                embed.setDescription(
-                    `**Filters Applied:**\n${[
-                        source === 'global' ? '🌐 Global' : !source && channel ? `📝 Channel: #${channel.name}` : '🏠 This server',
-                        user ? `👤 User: @${user.tag}` : userId ? `👤 User ID: ${userId}` : null
-                    ].filter(Boolean).join('\n')}`
-                )
+                    .setDescription(`**Filters Applied:**\n${[source === 'global' ? '🌐 Global' : !source && channel ? `📝 Channel: #${channel.name}` : '🏠 This server', user ? `👤 User: @${user.tag}` : userId ? `👤 User ID: ${userId}` : null].filter(Boolean).join('\n')}`)
 
                 logger.ok(`Generated Markov info in ${yellow(timeEndMs.toFixed(0))}ms`)
-                await messageManager.sendFinalMessage({
-                    content: '',
-                    embeds: [embed]
-                })
+                await new InteractionMessageManager(context).sendFinalMessage({ content: '', embeds: [embed] })
             } catch (error) {
-                // Clean up event listener in case of error
-                markov.removeAllListeners('infoProgress')
-
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error'
                 logger.warn(`Failed to get Markov info: ${red(errorMessage)}`)
-
                 let userFriendlyError = `❌ Failed to get info: ${errorMessage}`
                 if (errorMessage.includes('No messages found')) {
                     userFriendlyError = '❌ No messages found for the selected filters. Try collecting some messages first!'
                 }
-
-                await context.editReply({
-                    content: userFriendlyError
-                })
+                await context.editReply({ content: userFriendlyError })
             }
 
         } else if (subcommand === 'collect_all') {
@@ -581,8 +511,7 @@ export default {
                 await context.deferReply()
                 logger.info('{collect_all} Starting collection from all channels...')
 
-                const textChannels = (await context.guild.channels.fetch())
-                    .filter(c => c && (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) && c.viewable) as Map<string, TextChannel>
+                const textChannels = (await context.guild.channels.fetch()).filter(c => c && (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) && c.viewable) as Map<string, TextChannel>
                 logger.ok(`{collect_all} Fetched ${yellow(textChannels.size)} text channels`)
 
                 const threadPromises = [...textChannels.values()].map(async c => {

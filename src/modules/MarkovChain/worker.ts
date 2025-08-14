@@ -118,10 +118,10 @@ class MarkovEngine {
             if (!batch?.size) break
 
             let validMessages = user
-                ? batch.filter((msg: DiscordMessage) => msg.author.id === user.id && msg.content.length > 0)
+                ? batch.filter(msg => msg.author.id === user.id && msg.content.length > 0)
                 : userId
-                    ? batch.filter((msg: DiscordMessage) => msg.author.id === userId && msg.content.length > 0)
-                    : batch.filter((msg: DiscordMessage) => msg.content.length > 0)
+                    ? batch.filter(msg => msg.author.id === userId && msg.content.length > 0)
+                    : batch.filter(msg => msg.content.length > 0)
 
             if (wasFullyCollected) {
                 for (const [id] of validMessages) {

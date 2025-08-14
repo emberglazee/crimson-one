@@ -14,6 +14,7 @@ export class Message {
     text!: string
 
     @Column()
+    @Index()
     authorId!: string
 
     @Column()
