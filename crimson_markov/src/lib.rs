@@ -287,27 +287,48 @@ fn generate_trigram(
                         .map(|s| s.to_usize() as u32)
                 })
                 .collect();
-            if seed_ids.len() >= 2 {
-                let key = (
-                    seed_ids[seed_ids.len() - 2],
-                    seed_ids[seed_ids.len() - 1]
-                );
-                if trigram_chain.contains_key(&key) {
-                    result_ids = seed_ids;
-                    current_pair = key;
-                    seeded = true;
+
+            if !seed_ids.is_empty() {
+                // Try seeding with the last two words if possible
+                if seed_ids.len() >= 2 {
+                    let key = (
+                        seed_ids[seed_ids.len() - 2],
+                        seed_ids[seed_ids.len() - 1],
+                    );
+                    if trigram_chain.contains_key(&key) {
+                        result_ids = seed_ids.clone();
+                        current_pair = key;
+                        seeded = true;
+                    }
                 }
-            } else if seed_ids.len() == 1 {
-                let seed_id = seed_ids[0];
-                let possible_starters: Vec<&(u32, u32)> = trigram_chain
-                    .keys()
-                    .filter(|(id1, _)| *id1 == seed_id)
-                    .collect();
-                if !possible_starters.is_empty() {
-                    current_pair = *possible_starters[rng.usize(..possible_starters.len())];
-                    result_ids.push(current_pair.0);
-                    result_ids.push(current_pair.1);
-                    seeded = true;
+
+                // If seeding with two words failed or wasn't possible, try with the last word.
+                if !seeded {
+                    let last_seed_id = *seed_ids.last().unwrap();
+                    let possible_starters: Vec<&(u32, u32)> = trigram_chain
+                        .keys()
+                        .filter(|(id1, _)| *id1 == last_seed_id)
+                        .collect();
+
+                    if !possible_starters.is_empty() {
+                        let chosen_pair = *possible_starters[rng.usize(..possible_starters.len())];
+
+                        if seed_ids.len() == 1 {
+                            // If the original seed was just one word, the result starts with the new pair.
+                            result_ids.push(chosen_pair.0);
+                            result_ids.push(chosen_pair.1);
+                        } else {
+                            // Otherwise, append the next word to the original seed.
+                            result_ids = seed_ids.clone();
+                            result_ids.push(chosen_pair.1);
+                        }
+
+                        current_pair = (
+                            *result_ids.get(result_ids.len() - 2).unwrap(),
+                            *result_ids.last().unwrap(),
+                        );
+                        seeded = true;
+                    }
                 }
             }
         }
