@@ -1,6 +1,5 @@
 use fastrand::Rng;
 use lazy_static::lazy_static;
-use rayon::prelude::*;
 use regex::Regex;
 use serde_json;
 use std::collections::HashMap;
@@ -25,31 +24,25 @@ pub struct MarkovChain {
     rng: Mutex<Rng>,
 }
 
-#[derive(Default)]
-struct ParallelTrainingData {
-    bigram_starters: Vec<String>,
-    trigram_starters: Vec<(String, String)>,
-    bigrams: HashMap<String, Vec<String>>,
-    trigrams: HashMap<(String, String), Vec<String>>,
-    casing_prefs: HashMap<String, HashMap<String, usize>>,
-}
+impl MarkovChain {
+    fn intern_word_and_update_casing(&self, word: &str) -> u32 {
+        let lower_word = word.to_lowercase();
+        let mut words_to_ids = self.words_to_ids.write().unwrap();
+        let mut ids_to_words = self.ids_to_words.write().unwrap();
+        let mut cased_word_interner = self.cased_word_interner.write().unwrap();
+        let mut casing_map = self.casing_map.write().unwrap();
 
-impl ParallelTrainingData {
-    fn merge(&mut self, other: ParallelTrainingData) {
-        self.bigram_starters.extend(other.bigram_starters);
-        self.trigram_starters.extend(other.trigram_starters);
-        for (key, values) in other.bigrams {
-            self.bigrams.entry(key).or_default().extend(values);
-        }
-        for (key, values) in other.trigrams {
-            self.trigrams.entry(key).or_default().extend(values);
-        }
-        for (lower, other_case_map) in other.casing_prefs {
-            let self_case_map = self.casing_prefs.entry(lower).or_default();
-            for (original, count) in other_case_map {
-                *self_case_map.entry(original).or_default() += count;
-            }
-        }
+        let id = *words_to_ids.entry(lower_word.clone()).or_insert_with(|| {
+            let new_id = ids_to_words.len() as u32;
+            ids_to_words.push(lower_word);
+            new_id
+        });
+
+        let cased_id = cased_word_interner.get_or_intern(word);
+        let case_counts = casing_map.entry(id).or_default();
+        *case_counts.entry(cased_id).or_insert(0) += 1;
+
+        id
     }
 }
 
@@ -102,116 +95,45 @@ pub extern "C" fn train_on_batch(ptr: *mut MarkovChain, texts_json_ptr: *const c
         Err(_) => return,
     };
 
-    if texts.is_empty() {
-        return;
-    }
-
-    // 1. Process texts in parallel to collect string-based data
-    let batch_data = texts
-        .par_iter()
-        .map(|text| {
-            let mut data = ParallelTrainingData::default();
-            if text.is_empty() {
-                return data;
-            }
-
-            let words: Vec<String> = TOKEN_REGEX
-                .find_iter(text)
-                .map(|m| m.as_str().to_string())
-                .collect();
-            if words.is_empty() {
-                return data;
-            }
-
-            // Populate casing preferences
-            for word in &words {
-                let lower = word.to_lowercase();
-                *data
-                    .casing_prefs
-                    .entry(lower)
-                    .or_default()
-                    .entry(word.clone())
-                    .or_default() += 1;
-            }
-
-            // Create lowercase versions for chain keys/values
-            let lower_words: Vec<String> = words.iter().map(|w| w.to_lowercase()).collect();
-
-            if lower_words.len() >= 2 {
-                data.bigram_starters.push(lower_words[0].clone());
-                for i in 0..(lower_words.len() - 1) {
-                    data.bigrams
-                        .entry(lower_words[i].clone())
-                        .or_default()
-                        .push(lower_words[i + 1].clone());
-                }
-            }
-
-            if lower_words.len() >= 3 {
-                data.trigram_starters
-                    .push((lower_words[0].clone(), lower_words[1].clone()));
-                for i in 0..(lower_words.len() - 2) {
-                    let key = (lower_words[i].clone(), lower_words[i + 1].clone());
-                    data.trigrams
-                        .entry(key)
-                        .or_default()
-                        .push(lower_words[i + 2].clone());
-                }
-            }
-            data
-        })
-        .reduce(ParallelTrainingData::default, |mut acc, data| {
-            acc.merge(data);
-            acc
-        });
-
-    // 2. Now, acquire locks and update the main chain state
-    let mut words_to_ids = chain.words_to_ids.write().unwrap();
-    let mut ids_to_words = chain.ids_to_words.write().unwrap();
-    let mut cased_word_interner = chain.cased_word_interner.write().unwrap();
-    let mut casing_map = chain.casing_map.write().unwrap();
-
-    // Helper function to get or create word ID
-    let mut get_or_create_id = |word: &str| -> u32 {
-        *words_to_ids.entry(word.to_string()).or_insert_with(|| {
-            let new_id = ids_to_words.len() as u32;
-            ids_to_words.push(word.to_string());
-            new_id
-        })
-    };
-
-    // Update casing map and intern words
-    for (lower, case_map_update) in batch_data.casing_prefs {
-        let id = get_or_create_id(&lower);
-        let main_case_map = casing_map.entry(id).or_default();
-        for (original, count) in case_map_update {
-            let cased_id = cased_word_interner.get_or_intern(original);
-            *main_case_map.entry(cased_id).or_default() += count as u32;
-        }
-    }
-
-    // Update bigram chain
     let mut bigram_chain = chain.bigram_chain.write().unwrap();
-    let mut bigram_starters = chain.bigram_starters.write().unwrap();
-    for starter in batch_data.bigram_starters {
-        bigram_starters.push(get_or_create_id(&starter));
-    }
-    for (key, values) in batch_data.bigrams {
-        let key_id = get_or_create_id(&key);
-        let value_ids: Vec<u32> = values.iter().map(|v| get_or_create_id(v)).collect();
-        bigram_chain.entry(key_id).or_default().extend(value_ids);
-    }
-
-    // Update trigram chain
     let mut trigram_chain = chain.trigram_chain.write().unwrap();
+    let mut bigram_starters = chain.bigram_starters.write().unwrap();
     let mut trigram_starters = chain.trigram_starters.write().unwrap();
-    for (s1, s2) in batch_data.trigram_starters {
-        trigram_starters.push((get_or_create_id(&s1), get_or_create_id(&s2)));
-    }
-    for (key, values) in batch_data.trigrams {
-        let key_id = (get_or_create_id(&key.0), get_or_create_id(&key.1));
-        let value_ids: Vec<u32> = values.iter().map(|v| get_or_create_id(v)).collect();
-        trigram_chain.entry(key_id).or_default().extend(value_ids);
+
+    for text in texts {
+        if text.is_empty() {
+            continue;
+        }
+        
+        let word_ids: Vec<u32> = TOKEN_REGEX
+            .find_iter(&text)
+            .map(|mat| chain.intern_word_and_update_casing(mat.as_str()))
+            .collect();
+
+        if word_ids.is_empty() {
+            continue;
+        }
+
+        if word_ids.len() >= 2 {
+            bigram_starters.push(word_ids[0]);
+            for i in 0..(word_ids.len() - 1) {
+                bigram_chain
+                    .entry(word_ids[i])
+                    .or_default()
+                    .push(word_ids[i + 1]);
+            }
+        }
+
+        if word_ids.len() >= 3 {
+            trigram_starters.push((word_ids[0], word_ids[1]));
+            for i in 0..(word_ids.len() - 2) {
+                let key = (word_ids[i], word_ids[i + 1]);
+                trigram_chain
+                    .entry(key)
+                    .or_default()
+                    .push(word_ids[i + 2]);
+            }
+        }
     }
 }
 
