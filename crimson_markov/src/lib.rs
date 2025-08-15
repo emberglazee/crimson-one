@@ -1,13 +1,11 @@
 use fastrand::Rng;
-use lazy_static::lazy_static;
-use regex::Regex;
 use serde_json;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr::{self, null_mut};
 use std::sync::{Mutex, RwLock};
-use string_interner::{backend::StringBackend, StringInterner, symbol::SymbolUsize};
+use string_interner::{backend::StringBackend, StringInterner, symbol::SymbolUsize, Symbol};
 
 type BigramMap = HashMap<u32, Vec<u32>>;
 type TrigramMap = HashMap<(u32, u32), Vec<u32>>;
@@ -17,44 +15,80 @@ pub struct MarkovChain {
     trigram_chain: RwLock<TrigramMap>,
     bigram_starters: RwLock<Vec<u32>>,
     trigram_starters: RwLock<Vec<(u32, u32)>>,
-    words_to_ids: RwLock<HashMap<String, u32>>,
-    ids_to_words: RwLock<Vec<String>>,
+    lowercase_word_interner: RwLock<StringInterner<StringBackend<SymbolUsize>>>,
     cased_word_interner: RwLock<StringInterner<StringBackend<SymbolUsize>>>,
     casing_map: RwLock<HashMap<u32, HashMap<SymbolUsize, u32>>>,
-    rng: Mutex<Rng>,
+    rng: Mutex<Rng>
 }
 
-impl MarkovChain {
-    fn intern_word_and_update_casing(&self, word: &str) -> u32 {
-        let lower_word = word.to_lowercase();
-        let mut words_to_ids = self.words_to_ids.write().unwrap();
-        let mut ids_to_words = self.ids_to_words.write().unwrap();
-        let mut cased_word_interner = self.cased_word_interner.write().unwrap();
-        let mut casing_map = self.casing_map.write().unwrap();
+impl MarkovChain {} 
 
-        let id = *words_to_ids.entry(lower_word.clone()).or_insert_with(|| {
-            let new_id = ids_to_words.len() as u32;
-            ids_to_words.push(lower_word);
-            new_id
-        });
+/// A custom tokenizer that is faster than the regex-based one.
+/// It handles URLs, words (including contractions), and specific punctuation.
+fn custom_tokenize(text: &str) -> Vec<&str> {
+    let mut tokens = Vec::new();
+    let mut last_pos = 0;
 
-        let cased_id = cased_word_interner.get_or_intern(word);
-        let case_counts = casing_map.entry(id).or_default();
-        *case_counts.entry(cased_id).or_insert(0) += 1;
+    while last_pos < text.len() {
+        // Find the start of the next token (skip whitespace)
+        let start_pos = match text[last_pos..].find(|c: char| !c.is_whitespace()) {
+            Some(pos) => last_pos + pos,
+            None => break // No more non-whitespace characters
+        };
 
-        id
+        let remaining = &text[start_pos..];
+        let first_char = remaining.chars().next().unwrap();
+        let end_pos;
+
+        // URLs
+        if remaining.starts_with("http") {
+            end_pos = remaining
+                .find(char::is_whitespace)
+                .map_or(text.len(), |i| start_pos + i);
+        }
+        // Words
+        else if first_char.is_alphanumeric() {
+            let mut end_word_pos = 0;
+            let mut chars = remaining.char_indices().peekable();
+            while let Some((i, c)) = chars.next() {
+                if c.is_alphanumeric() {
+                    end_word_pos = i + c.len_utf8();
+                } else if c == '\'' {
+                    if let Some((_, next_c)) = chars.peek() {
+                        if next_c.is_alphanumeric() {
+                            // This is an apostrophe inside a word, continue
+                            continue;
+                        }
+                    }
+                    // Apostrophe at the end or followed by non-alphanumeric, break
+                    break;
+                } else {
+                    // Not part of a word
+                    break;
+                }
+            }
+            end_pos = start_pos + end_word_pos;
+        }
+        // Punctuation
+        else if ".,!?;:\"'()[]{}".contains(first_char) {
+            end_pos = start_pos + first_char.len_utf8();
+        }
+        // Unmatched character, skip it
+        else {
+            last_pos = start_pos + first_char.len_utf8();
+            continue;
+        }
+
+        tokens.push(&text[start_pos..end_pos]);
+        last_pos = end_pos;
     }
-}
-
-lazy_static! {
-    static ref TOKEN_REGEX: Regex =
-        Regex::new(r#"(https?://[^\s]+)|(\w+('\w+)*)|([.,!?;:"'()\[\]{}])"#).unwrap();
+    tokens
 }
 
 fn tokenize(text: &str) -> Vec<String> {
-    TOKEN_REGEX
-        .find_iter(text)
-        .map(|mat| mat.as_str().to_string())
+    custom_tokenize(text)
+        .into_iter()
+        .map(|s| s.to_string())
         .collect()
 }
 
@@ -65,11 +99,10 @@ pub extern "C" fn create_chain() -> *mut MarkovChain {
         trigram_chain: RwLock::new(HashMap::new()),
         bigram_starters: RwLock::new(Vec::new()),
         trigram_starters: RwLock::new(Vec::new()),
-        words_to_ids: RwLock::new(HashMap::new()),
-        ids_to_words: RwLock::new(Vec::new()),
+        lowercase_word_interner: RwLock::new(StringInterner::new()),
         cased_word_interner: RwLock::new(StringInterner::new()),
         casing_map: RwLock::new(HashMap::new()),
-        rng: Mutex::new(Rng::new()),
+        rng: Mutex::new(Rng::new())
     }))
 }
 
@@ -92,22 +125,38 @@ pub extern "C" fn train_on_batch(ptr: *mut MarkovChain, texts_json_ptr: *const c
 
     let texts: Vec<String> = match serde_json::from_str(texts_json) {
         Ok(texts) => texts,
-        Err(_) => return,
+        Err(_) => return
     };
 
+    // Acquire all locks at the beginning of the function
     let mut bigram_chain = chain.bigram_chain.write().unwrap();
     let mut trigram_chain = chain.trigram_chain.write().unwrap();
     let mut bigram_starters = chain.bigram_starters.write().unwrap();
     let mut trigram_starters = chain.trigram_starters.write().unwrap();
+    let mut lowercase_word_interner = chain.lowercase_word_interner.write().unwrap();
+    let mut cased_word_interner = chain.cased_word_interner.write().unwrap();
+    let mut casing_map = chain.casing_map.write().unwrap();
 
     for text in texts {
         if text.is_empty() {
             continue;
         }
-        
-        let word_ids: Vec<u32> = TOKEN_REGEX
-            .find_iter(&text)
-            .map(|mat| chain.intern_word_and_update_casing(mat.as_str()))
+
+        let word_ids: Vec<u32> = custom_tokenize(&text)
+            .into_iter()
+            .map(|word| {
+                // Inlined logic from intern_word_and_update_casing
+                let lower_word = word.to_lowercase();
+
+                let id_symbol = lowercase_word_interner.get_or_intern(lower_word.as_str());
+                let id = id_symbol.to_usize() as u32;
+
+                let cased_id = cased_word_interner.get_or_intern(word);
+                let case_counts = casing_map.entry(id).or_default();
+                *case_counts.entry(cased_id).or_insert(0) += 1;
+
+                id
+            })
             .collect();
 
         if word_ids.is_empty() {
@@ -147,17 +196,18 @@ fn get_preferred_casing(chain: &MarkovChain, id: u32) -> String {
             }
         }
     }
-    let ids_to_words = chain.ids_to_words.read().unwrap();
-    ids_to_words
-        .get(id as usize)
-        .cloned()
+    let lowercase_word_interner = chain.lowercase_word_interner.read().unwrap();
+    let symbol = SymbolUsize::try_from_usize(id as usize).unwrap();
+    lowercase_word_interner
+        .resolve(symbol)
+        .map(|s| s.to_string())
         .unwrap_or_default()
 }
 
 fn generate_bigram(
     chain: &MarkovChain,
     max_words: usize,
-    seed_words: Option<Vec<String>>,
+    seed_words: Option<Vec<String>>
 ) -> Vec<String> {
     let bigram_chain = chain.bigram_chain.read().unwrap();
     let bigram_starters = chain.bigram_starters.read().unwrap();
@@ -171,10 +221,14 @@ fn generate_bigram(
 
     if let Some(words) = seed_words {
         if !words.is_empty() {
-            let words_to_ids = chain.words_to_ids.read().unwrap();
+            let lowercase_word_interner = chain.lowercase_word_interner.read().unwrap();
             let seed_ids: Vec<u32> = words
                 .iter()
-                .filter_map(|word| words_to_ids.get(&word.to_lowercase()).cloned())
+                .filter_map(|word| {
+                    lowercase_word_interner
+                        .get(word.to_lowercase().as_str())
+                        .map(|s| s.to_usize() as u32)
+                })
                 .collect();
             if !seed_ids.is_empty() {
                 if let Some(last_seed_id) = seed_ids.last() {
@@ -216,7 +270,7 @@ fn generate_bigram(
 fn generate_trigram(
     chain: &MarkovChain,
     max_words: usize,
-    seed_words: Option<Vec<String>>,
+    seed_words: Option<Vec<String>>
 ) -> Vec<String> {
     let trigram_chain = chain.trigram_chain.read().unwrap();
     let trigram_starters = chain.trigram_starters.read().unwrap();
@@ -231,13 +285,20 @@ fn generate_trigram(
 
     if let Some(words) = seed_words {
         if !words.is_empty() {
-            let words_to_ids = chain.words_to_ids.read().unwrap();
+            let lowercase_word_interner = chain.lowercase_word_interner.read().unwrap();
             let seed_ids: Vec<u32> = words
                 .iter()
-                .filter_map(|word| words_to_ids.get(&word.to_lowercase()).cloned())
+                .filter_map(|word| {
+                    lowercase_word_interner
+                        .get(word.to_lowercase().as_str())
+                        .map(|s| s.to_usize() as u32)
+                })
                 .collect();
             if seed_ids.len() >= 2 {
-                let key = (seed_ids[seed_ids.len() - 2], seed_ids[seed_ids.len() - 1]);
+                let key = (
+                    seed_ids[seed_ids.len() - 2],
+                    seed_ids[seed_ids.len() - 1]
+                );
                 if trigram_chain.contains_key(&key) {
                     result_ids = seed_ids;
                     current_pair = key;
@@ -250,8 +311,7 @@ fn generate_trigram(
                     .filter(|(id1, _)| *id1 == seed_id)
                     .collect();
                 if !possible_starters.is_empty() {
-                    current_pair =
-                        *possible_starters[rng.usize(..possible_starters.len())];
+                    current_pair = *possible_starters[rng.usize(..possible_starters.len())];
                     result_ids.push(current_pair.0);
                     result_ids.push(current_pair.1);
                     seeded = true;
@@ -292,7 +352,9 @@ fn join_tokens(tokens: &[String]) -> String {
         return result;
     }
 
-    let punctuation: &[char] = &['.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}'];
+    let punctuation: &[char] = &[
+        '.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}'
+    ];
 
     for i in 0..tokens.len() {
         let token = &tokens[i];
@@ -317,8 +379,8 @@ pub extern "C" fn generate_text(
     ptr: *mut MarkovChain,
     max_words: usize,
     mode: u8,
-    seed_ptr: *const c_char,
-) -> *mut c_char { // Changed to return *mut c_char
+    seed_ptr: *const c_char
+) -> *mut c_char {
     if ptr.is_null() {
         return ptr::null_mut();
     }
@@ -346,7 +408,6 @@ pub extern "C" fn generate_text(
     let result_str = join_tokens(&result_words);
     CString::new(result_str).map_or(ptr::null_mut(), |s| s.into_raw())
 }
-
 
 #[unsafe(no_mangle)]
 pub extern "C" fn free_text(s: *mut c_char) {
