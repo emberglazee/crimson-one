@@ -1,5 +1,4 @@
 use fastrand::Rng;
-use serde_json;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -53,7 +52,7 @@ fn custom_tokenize(text: &str) -> Vec<&str> {
             while let Some((i, c)) = chars.next() {
                 if c.is_alphanumeric() {
                     end_word_pos = i + c.len_utf8();
-                } else if c == '\'' {
+                } else if c == '\'' { // please stop editing this, this is `char` (single quotes) not `&str` (double quotes)
                     if let Some((_, next_c)) = chars.peek() {
                         if next_c.is_alphanumeric() {
                             // This is an apostrophe inside a word, continue
@@ -116,17 +115,15 @@ pub extern "C" fn destroy_chain(ptr: *mut MarkovChain) {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn train_on_batch(ptr: *mut MarkovChain, texts_json_ptr: *const c_char) {
-    if ptr.is_null() || texts_json_ptr.is_null() {
+pub extern "C" fn train_on_batch(ptr: *mut MarkovChain, texts_ptr: *const c_char) {
+    if ptr.is_null() || texts_ptr.is_null() {
         return;
     }
     let chain = unsafe { &*ptr };
-    let texts_json = unsafe { CStr::from_ptr(texts_json_ptr).to_str().unwrap() };
+    let texts_str = unsafe { CStr::from_ptr(texts_ptr).to_str().unwrap() };
 
-    let texts: Vec<String> = match serde_json::from_str(texts_json) {
-        Ok(texts) => texts,
-        Err(_) => return
-    };
+    // Avoid JSON deserialization by splitting the string by null characters.
+    let texts = texts_str.split('\0').filter(|s| !s.is_empty());
 
     // Acquire all locks at the beginning of the function
     let mut bigram_chain = chain.bigram_chain.write().unwrap();
@@ -138,11 +135,7 @@ pub extern "C" fn train_on_batch(ptr: *mut MarkovChain, texts_json_ptr: *const c
     let mut casing_map = chain.casing_map.write().unwrap();
 
     for text in texts {
-        if text.is_empty() {
-            continue;
-        }
-
-        let word_ids: Vec<u32> = custom_tokenize(&text)
+        let word_ids: Vec<u32> = custom_tokenize(text)
             .into_iter()
             .map(|word| {
                 // Inlined logic from intern_word_and_update_casing
@@ -352,9 +345,7 @@ fn join_tokens(tokens: &[String]) -> String {
         return result;
     }
 
-    let punctuation: &[char] = &[
-        '.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}'
-    ];
+    let punctuation: &[char] = &['.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}'];
 
     for i in 0..tokens.len() {
         let token = &tokens[i];

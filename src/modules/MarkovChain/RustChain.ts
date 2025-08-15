@@ -37,8 +37,10 @@ export class RustMarkovChain {
         if (!this.chainPtr) {
             throw new Error('Cannot train on a destroyed chain.')
         }
-        const json = JSON.stringify(texts)
-        const textBuffer = Buffer.from(json + '\0', 'utf8')
+
+        // Skip JSON by splitting messages with null characters
+        const batchString = texts.join('\0')
+        const textBuffer = Buffer.from(batchString + '\0', 'utf8')
         symbols.train_on_batch(this.chainPtr, textBuffer)
     }
 
