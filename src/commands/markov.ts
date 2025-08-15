@@ -199,17 +199,13 @@ export default {
         .addSubcommand(subcommand => subcommand
             .setName('generate')
             .setDescription('Create a new message based on collected chat data')
-            .addStringOption(option => option
-                .setName('source')
-                .setDescription('Where to get messages from for generation')
+            .addBooleanOption(option => option
+                .setName('global')
+                .setDescription('Consider all messages from all servers (default: false - just this server)')
                 .setRequired(false)
-                .addChoices(
-                    { name: '🏠 This entire server', value: 'guild' },
-                    { name: '🌐 Global (all servers)', value: 'global' }
-                )
             ).addChannelOption(option => option
                 .setName('channel')
-                .setDescription('Specific channel to use for message generation')
+                .setDescription('Specific channel to use for message generation (ignored if global is true)')
                 .setRequired(false)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
             ).addUserOption(option => option
@@ -240,17 +236,13 @@ export default {
         ).addSubcommand(subcommand => subcommand
             .setName('info')
             .setDescription('View statistics about available message data')
-            .addStringOption(option => option
-                .setName('source')
-                .setDescription('Where to get message statistics from')
+            .addBooleanOption(option => option
+                .setName('global')
+                .setDescription('Consider all messages from all servers (default: false - just this server)')
                 .setRequired(false)
-                .addChoices(
-                    { name: '🏠 This entire server', value: 'guild' },
-                    { name: '🌐 Global (all servers)', value: 'global' }
-                )
             ).addChannelOption(option => option
                 .setName('channel')
-                .setDescription('Specific channel to view statistics for')
+                .setDescription('Specific channel to view statistics for (ignored if global is true)')
                 .setRequired(false)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
             ).addUserOption(option => option
@@ -348,27 +340,21 @@ export default {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const source = (context.getStringOption('source', false, 'guild')) as Source
-            const channel = source === null ? (await context.getChannelOption('channel')) as TextChannel | null ?? undefined : undefined
+            const global = context.getBooleanOption('global', false, false)
+            const channel = global ? undefined : (await context.getChannelOption('channel')) as TextChannel | null ?? undefined
             const words = context.getIntegerOption('words', false, 30)
-            const seed = context.getStringOption('seed', false)
+            const seed = context.getStringOption('seed', false) ?? undefined
             const mode = context.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram'
 
             await context.deferReply()
 
             try {
-                logger.info(`Generating message with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
+                logger.info(`Generating message with global: ${yellow(global)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
                 const timeStart = process.hrtime()
 
                 const taskPromise = markov.generateMessage({
-                    guild: source === 'guild' ? context.guild : undefined,
-                    channel: channel,
-                    user: user,
-                    userId: userId,
-                    words,
-                    seed: seed ?? undefined,
-                    global: source === 'global',
-                    mode: mode
+                    guild: !global ? context.guild : undefined,
+                    channel, user, userId, words, seed, global, mode
                 })
 
                 const result = await handleLongRunningTask(context, markov, taskPromise, 'generateProgress', {
@@ -393,7 +379,7 @@ export default {
                         {
                             name: 'Filters',
                             value: [
-                                source === 'global' ? 'Global' : 'This server',
+                                global ? 'Global' : 'This server',
                                 channel ? `Channel: #${channel.name ?? channel.id}` : null,
                                 user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
                                 words !== 30 ? `Words: ${words}` : null,
@@ -428,21 +414,21 @@ export default {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const source = (context.getStringOption('source')) as Source
-            const channel = (await context.getChannelOption('channel')) as TextChannel | null ?? undefined
+            const global = context.getBooleanOption('global', false, false)
+            const channel = global ? undefined : (await context.getChannelOption('channel')) as TextChannel | null ?? undefined
 
             await context.deferReply()
 
             try {
-                logger.info(`Getting Markov info with source: ${yellow(source)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}`)
+                logger.info(`Getting Markov info with global: ${yellow(global)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}`)
                 const timeStart = process.hrtime()
 
                 const taskPromise = markov.getMessageStats({
-                    guild: (source === 'guild' || (!source && !channel)) ? context.guild : undefined,
+                    guild: !global ? context.guild : undefined,
                     channel: channel ?? undefined,
                     user: user,
                     userId: userId,
-                    global: source === 'global'
+                    global: global
                 })
 
                 const stats = await handleLongRunningTask(context, markov, taskPromise, 'infoProgress', {
@@ -479,7 +465,7 @@ export default {
                     .addFields(embedFields)
                     .setFooter({ text: `Generated in ${timeEndMs.toFixed(0)}ms` })
                     .setTimestamp()
-                    .setDescription(`**Filters Applied:**\n${[source === 'global' ? '🌐 Global' : !source && channel ? `📝 Channel: #${channel.name}` : '🏠 This server', user ? `👤 User: @${user.tag}` : userId ? `👤 User ID: ${userId}` : null].filter(Boolean).join('\n')}`)
+                    .setDescription(`**Filters Applied:**\n${[global ? '🌐 Global' : channel ? `📝 Channel: #${channel.name}` : '🏠 This server', user ? `👤 User: @${user.tag}` : userId ? `👤 User ID: ${userId}` : null].filter(Boolean).join('\n')}`)
 
                 logger.ok(`Generated Markov info in ${yellow(timeEndMs.toFixed(0))}ms`)
                 await new InteractionMessageManager(context).sendFinalMessage({ content: '', embeds: [embed] })
@@ -718,5 +704,3 @@ export default {
         }
     }
 } satisfies SlashCommand
-
-type Source = 'guild' | 'global' | null
