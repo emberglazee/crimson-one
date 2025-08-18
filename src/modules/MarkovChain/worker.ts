@@ -1,6 +1,4 @@
 import { parentPort, isMainThread } from 'worker_threads'
-import { Logger, red } from '../../util/logger'
-const logger = new Logger('MarkovChain | Worker')
 
 import { Client, Guild, Message as DiscordMessage, TextChannel, Collection, IntentsBitField, Partials, User } from 'discord.js'
 import { RustMarkovChain } from './RustChain'
@@ -8,6 +6,13 @@ import { MarkovDataSource } from './DataSource'
 
 if (isMainThread) {
     throw new Error('This file is a worker and should not be run on the main thread.')
+}
+
+// Helper to send logs back to the main thread
+function log(level: 'debug' | 'info' | 'warn' | 'error', data: string) {
+    if (parentPort) {
+        parentPort.postMessage({ type: 'log', level, data });
+    }
 }
 
 interface GenerateOptions {
@@ -42,14 +47,14 @@ class MarkovEngine {
         })
         await this.client.login(token)
         await this.dataSource.init()
-        logger.ok('Worker client and data source initialized.')
+        log('info', 'Worker client and data source initialized.')
     }
 
     private addToDbWriteQueue(messages: DiscordMessage[], guild: Guild, fullyCollectedChannelId?: string, forceRescan?: boolean): Promise<void> {
         this.dbWriteQueue = this.dbWriteQueue
             .then(() => this.dataSource.addMessages(messages, guild, fullyCollectedChannelId, forceRescan))
             .catch(err => {
-                logger.error(`Database write operation failed: ${red(err.message)}`)
+                log('error', `Database write operation failed: ${(err as Error).message}`)
                 // Even if one write fails, we want the queue to continue with the next item.
                 // The error is logged, but the promise chain is not broken.
             })
@@ -338,7 +343,7 @@ parentPort!.on('message', async (message: { type: string, options: unknown, task
         parentPort!.postMessage({ type: 'result', taskId: message.taskId, data: result })
     } catch (e) {
         const error = e as Error
-        logger.error(`Error in worker task '${message.type}': ${red(error.stack ?? error.message)}`)
+        log('error', `Error in worker task '${message.type}': ${error.stack ?? error.message}`)
         parentPort!.postMessage({ type: 'error', taskId: message.taskId, error: error.message })
     }
 })

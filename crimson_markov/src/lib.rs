@@ -5,6 +5,8 @@ use std::os::raw::c_char;
 use std::ptr::{self, null_mut};
 use std::sync::{Mutex, RwLock};
 use string_interner::{backend::StringBackend, StringInterner, symbol::SymbolUsize, Symbol};
+use std::slice;
+use std::str;
 
 type BigramMap = HashMap<u32, Vec<u32>>;
 type TrigramMap = HashMap<(u32, u32), Vec<u32>>;
@@ -115,14 +117,18 @@ pub extern "C" fn destroy_chain(ptr: *mut MarkovChain) {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn train_on_batch(ptr: *mut MarkovChain, texts_ptr: *const c_char) {
+pub extern "C" fn train_on_batch(ptr: *mut MarkovChain, texts_ptr: *const u8, texts_len: usize) {
     if ptr.is_null() || texts_ptr.is_null() {
         return;
     }
     let chain = unsafe { &*ptr };
-    let texts_str = unsafe { CStr::from_ptr(texts_ptr).to_str().unwrap() };
+    
+    let texts_slice = unsafe { slice::from_raw_parts(texts_ptr, texts_len) };
+    let texts_str = match str::from_utf8(texts_slice) {
+        Ok(s) => s,
+        Err(_) => return, // Or handle error appropriately
+    };
 
-    // Avoid JSON deserialization by splitting the string by null characters.
     let texts = texts_str.split('\0').filter(|s| !s.is_empty());
 
     // Acquire all locks at the beginning of the function

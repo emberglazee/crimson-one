@@ -12,7 +12,7 @@ const { symbols } = dlopen(libPath, {
         args: [FFIType.ptr]
     },
     train_on_batch: {
-        args: [FFIType.ptr, FFIType.cstring]
+        args: [FFIType.ptr, FFIType.ptr, FFIType.u32]
     },
     generate_text: {
         args: [FFIType.ptr, FFIType.i32, FFIType.u8, FFIType.cstring],
@@ -29,19 +29,18 @@ export class RustMarkovChain {
     constructor() {
         this.chainPtr = symbols.create_chain()
         if (!this.chainPtr) {
-            throw new Error('Failed to create Rust Markov chain.')
+            throw new Error('Creating the chain failed, chain pointer is null.')
         }
     }
 
     public trainBatch(texts: string[]): void {
         if (!this.chainPtr) {
-            throw new Error('Cannot train on a destroyed chain.')
+            throw new Error('Chain pointer is null.')
         }
 
-        // Skip JSON by splitting messages with null characters
         const batchString = texts.join('\0')
-        const textBuffer = Buffer.from(batchString + '\0', 'utf8')
-        symbols.train_on_batch(this.chainPtr, textBuffer)
+        const textBuffer = Buffer.from(batchString, 'utf8') // No trailing null needed now
+        symbols.train_on_batch(this.chainPtr, textBuffer, textBuffer.byteLength)
     }
 
     public generate(maxWords: number = 30, mode: 'bigram' | 'trigram' = 'trigram', seed?: string): string {
@@ -53,7 +52,7 @@ export class RustMarkovChain {
         const resultPtr: Pointer | null = symbols.generate_text(this.chainPtr, maxWords, modeId, seedBuffer)
 
         if (!resultPtr) {
-            return '' // Or throw an error if generation fails
+            return ''
         }
 
         const result = new CString(resultPtr).toString()
@@ -64,7 +63,7 @@ export class RustMarkovChain {
     public destroy(): void {
         if (this.chainPtr) {
             symbols.destroy_chain(this.chainPtr)
-            this.chainPtr = null // Invalidate the pointer
+            this.chainPtr = null
         }
     }
 }
