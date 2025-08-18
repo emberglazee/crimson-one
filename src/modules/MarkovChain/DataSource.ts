@@ -134,7 +134,6 @@ export class MarkovDataSource {
                 'message.channelId',
                 'message.guildId'
             ])
-            .orderBy('message.timestamp', 'DESC')
 
         if (options.global) {
             // No guild/channel filters
