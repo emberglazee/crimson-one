@@ -1,7 +1,7 @@
 import { Logger, red, yellow } from '../util/logger'
 const logger = new Logger('/markov')
 
-import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message, type MessageEditOptions } from 'discord.js'
+import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message, type MessageEditOptions, InteractionContextType } from 'discord.js'
 
 import { formatTimeRemaining } from '../util/functions'
 import { SlashCommand } from '../types'
@@ -310,14 +310,8 @@ export default {
         ).addSubcommand(subcommand => subcommand
             .setName('help')
             .setDescription('Detailed information about the command.')
-        ),
-    async execute(context) {
-
-        if (!context.guild) {
-            logger.info('Command used outside of a server')
-            await context.reply('❌ This command can only be used in a server')
-            return
-        }
+        ).setContexts(InteractionContextType.Guild),
+    async execute(context: CommandContext<true>) {
 
         const subcommand = context.getSubcommand()
         const markov = MarkovChat.getInstance()
@@ -483,6 +477,22 @@ export default {
             }
 
         } else if (subcommand === 'help') {
+
+            type ChannelID = string & {}
+            type Timestamp = number & {}
+            const helpCooldowns = new Map<ChannelID, Timestamp>()
+            const COOLDOWN_TIME = 60 * 1000 // 1 minute
+
+            if (helpCooldowns.has(context.channel!.id)) {
+                const lastUsed = helpCooldowns.get(context.channel!.id)!
+                const remaining = COOLDOWN_TIME - (Date.now() - lastUsed)
+                if (remaining > 0) {
+                    await context.reply('❌ this command has a wall of text i get it you wanna spam it so chill out bro and try again in a minute 🥀')
+                    return
+                }
+            }
+
+            helpCooldowns.set(context.channel!.id, Date.now())
 
             const text = (
                 '## `/markov` command\n' +

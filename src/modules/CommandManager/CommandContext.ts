@@ -547,7 +547,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
 
 
 
-    public async getInstallationType(): Promise<BotInstallationType> {
+    public getInstallationType(): BotInstallationType {
         // Logic 1: Message Command -> Guaranteed Guild Install
         if (!this.isInteraction) {
             return BotInstallationType.GuildInstall

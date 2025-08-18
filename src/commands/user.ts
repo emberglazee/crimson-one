@@ -22,7 +22,7 @@ export const slashCommand = {
             // the indentation paradise
 
             const user = await context.getUserOption('user', false, context.user)
-            const installationType = await context.getInstallationType()
+            const installationType = context.getInstallationType()
 
             const usernameText = (
                 `${user.discriminator === '0'

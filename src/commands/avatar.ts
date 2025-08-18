@@ -57,7 +57,7 @@ export default {
         await context.deferReply()
 
         let avatar = ''
-        const installationType = await context.getInstallationType()
+        const installationType = context.getInstallationType()
         let footerNote: string | null = null
 
         if (guildOrGlobal === 'guild') {

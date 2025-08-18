@@ -40,7 +40,7 @@ export default {
             logger.debug(`  Message Channel ID (raw from message.channel): ${context.message.channel?.id || 'N/A (null)'}`)
         }
 
-        const installationType = await context.getInstallationType()
+        const installationType = context.getInstallationType()
         logger.debug(`Final determined installation type by \`context.getInstallationType()\`: ${installationType}`)
         logger.debug('--- END TEST COMMAND DEBUG ---')
 
