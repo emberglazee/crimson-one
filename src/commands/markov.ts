@@ -234,7 +234,7 @@ export default {
                 )
             )
         ).addSubcommand(subcommand => subcommand
-            .setName('info')
+            .setName('stats')
             .setDescription('View statistics about available message data')
             .addBooleanOption(option => option
                 .setName('global')
@@ -307,6 +307,9 @@ export default {
                 .setDescription('Force a full rescan, ignoring previously collected messages.')
                 .setRequired(false)
             )
+        ).addSubcommand(subcommand => subcommand
+            .setName('help')
+            .setDescription('Detailed information about the command.')
         ),
     async execute(context) {
 
@@ -410,7 +413,7 @@ export default {
                 await context.editReply({ content: userFriendlyError })
             }
 
-        } else if (subcommand === 'info') {
+        } else if (subcommand === 'stats') {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
@@ -478,6 +481,37 @@ export default {
                 }
                 await context.editReply({ content: userFriendlyError })
             }
+
+        } else if (subcommand === 'help') {
+
+            const text = (
+                '## `/markov` command\n' +
+                '- A (text-based) Markov chain is a model that predicts the next word in a sequence based on the words that came before it.\n' +
+                '- This bot uses the messages in servers to build a model and generate new sentences that try to mimic the style of the server members.\n' +
+                '### 1. Data Collection\n' +
+                '- The bot requires messages to generate sentences. More data equals more accurate and coherent generated sentences.\n' +
+                '  - `/markov collect`: Collects messages from a *single* specified channel;\n' +
+                '  - `/markov collect_all`: Collects messages from *all* channels accessible by the bot.\n' +
+                '- **Note**: both commands have extensive options, like only collecting from a certain user, or with a certain message cap (limit). You can view them all in the slash command option suggestions.\n' +
+                '### 2. Text Generation\n' +
+                '  - `/markov generate`: Generate a new sentence using the Markov chain model.\n' +
+                '- To support filters, the messages are stored inside a PostgreSQL database.\n' +
+                '- Everytime the generation command is called, messages are fetched from the database following the filters set.\n' +
+                '- Two modes of generation are supported:\n' +
+                '  1. `bigram`: uses only the last word as the context to determine the next word (less coherent, effective when there are not that many messages to work with);\n' +
+                '  2. `trigram` (default): uses the last two words instead (more coherent but only effective when there are many messages to work with, like over 5-10 thousand).\n' +
+                '### 3. Statistics\n' +
+                '  - `/markov stats`: Display a summary for the messages stored that match the filters (if provided).'
+            )
+            const followUpText = (
+                '### Privacy concerns?\n' +
+                '- The bot\'s code is fully open source: <https://github.com/emberglazee/crimson-one> ([my own model implementation in Rust](<https://github.com/emberglazee/crimson-one/blob/rocketman02/crimson_markov/src/lib.rs>), [this command](<https://github.com/emberglazee/crimson-one/blob/rocketman02/src/commands/markov.ts>), and [FFI and database handlers](<https://github.com/emberglazee/crimson-one/tree/rocketman02/src/modules/MarkovChain>)).\n' +
+                '- The messages in the database are never manually viewed or manipulated, unless it\'s crucial for debugging an issue with the model.\n' +
+                '- To request deleting specific data from the message database please send a Discord DM to `@emberglaze`, or an email to `emberglaze@emberglaze.ru`, with proof of server ownership, staff membership, or own account ownership (if requesting deletion for yourself).\n' +
+                '- Data deletion might be implemented as a bot command in the near future.'
+            )
+            await context.reply(text)
+            await context.followUp(followUpText)
 
         } else if (subcommand === 'collect_all') {
             if (isCollectingAll) {
