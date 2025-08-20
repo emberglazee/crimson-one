@@ -17,11 +17,7 @@ async function hasTagPermission(context: CommandContext<true>): Promise<boolean>
         return false
     }
 
-    const member = await context.member.fetch()
-    if (member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has administrator permission in guild ${context.guild.id}`)
-        return true
-    }
+    const member = context.member
 
     const hasPermission = guildConfig.tagCreatePermissions.some(p => member.permissions.has(p as PermissionResolvable))
     if (hasPermission) {
@@ -38,6 +34,11 @@ async function hasTagPermission(context: CommandContext<true>): Promise<boolean>
     const hasUser = guildConfig.tagCreateUsers.includes(member.id)
     if (hasUser) {
         logger.debug(`{hasTagPermission} ✅ Member ${member.id} is allowed in guild ${context.guild.id}`)
+        return true
+    }
+
+    if (member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has administrator permission in guild ${context.guild.id}`)
         return true
     }
 
