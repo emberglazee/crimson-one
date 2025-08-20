@@ -7,10 +7,12 @@ import GuildConfigManager from '../modules/GuildConfig'
 import { TagManager } from '../modules/TagSystem'
 import { relativeDiscordTimestamp } from '../util/functions'
 import { CommandContext } from '../modules/CommandManager/CommandContext'
+import { inspect } from 'bun'
 
 async function hasTagPermission(context: CommandContext<true>): Promise<boolean> {
     logger.debug(`{hasTagPermission} Getting configuration for guild ${context.guild.id}`)
     const guildConfig = await GuildConfigManager.getInstance().getConfig(context.guild.id)
+    logger.debug(`{hasTagPermission} GuildConfig for guild ${context.guild.id}:\n${inspect(guildConfig, { colors: true, depth: Infinity })}`)
 
     if (!guildConfig.tagSystemEnabled) {
         logger.debug(`{hasTagPermission} ❌ Tag system disabled for guild ${context.guild.id}`)
@@ -94,7 +96,9 @@ export default {
         const subcommand = context.getSubcommand(true)
         const guildConfigManager = GuildConfigManager.getInstance()
         const guildConfig = await guildConfigManager.getConfig(context.guild.id)
+        logger.debug(`Calling hasTagPermission(); user: ${context.member.id}, guild: ${context.guild.id}`)
         const hasPerms = await hasTagPermission(context)
+        logger.debug(`await hasTagPermission(context) -> ${hasPerms}`)
 
         if (!guildConfig.tagSystemEnabled) {
             await context.reply('The tag system is not enabled on this server. An admin can enable it via `/config tag enable true`.')
