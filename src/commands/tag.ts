@@ -94,7 +94,7 @@ export default {
                     await context.reply(tag.content)
                 } else {
                     logger.debug(`{get} Tag ${name} not found in guild ${context.guild.id}`)
-                    await context.reply({ content: 'Tag not found.', flags: MessageFlags.Ephemeral })
+                    await context.reply({ content: '❌ Tag not found.', flags: MessageFlags.Ephemeral })
                 }
                 break
             }
@@ -102,12 +102,12 @@ export default {
                 const name = context.getStringOption('name', true)
                 if (!await hasTagPermission(context)) {
                     logger.debug(`{create} User ${context.user.id} does not have permission to create tags in guild ${context.guild.id}`)
-                    await context.reply({ content: 'You do not have permission to create tags.', flags: MessageFlags.Ephemeral })
+                    await context.reply({ content: '❌ You do not have permission to create tags.', flags: MessageFlags.Ephemeral })
                     return
                 }
                 if (await tagManager.getTag(context.guild.id, name)) {
                     logger.debug(`{create} Tag ${name} already exists in guild ${context.guild.id}`)
-                    await context.reply({ content: 'Tag already exists.', flags: MessageFlags.Ephemeral })
+                    await context.reply({ content: '❌ Tag already exists.', flags: MessageFlags.Ephemeral })
                     return
                 }
                 const content = context.getStringOption('content', true)
@@ -115,9 +115,9 @@ export default {
                     logger.debug(`{create} Creating tag ${name} in guild ${context.guild.id}`)
                     await tagManager.createTag(context.guild.id, name, content, context.user.id)
                     logger.debug(`{create} Tag ${name} created in guild ${context.guild.id}`)
-                    await context.reply(`Tag \`${name}\` created.`)
+                    await context.reply(`✅ Tag \`${name}\` created.`)
                 } catch (error) {
-                    await context.reply({ content: (error as Error).message, flags: MessageFlags.Ephemeral })
+                    await context.reply({ content: `❌ ${(error as Error).message}`, flags: MessageFlags.Ephemeral })
                 }
                 break
             }
@@ -126,21 +126,21 @@ export default {
                 const tag = await tagManager.getTag(context.guild.id, name)
                 if (!tag) {
                     logger.debug(`{delete} Tag ${name} not found in guild ${context.guild.id}`)
-                    await context.reply({ content: 'Tag not found.', flags: MessageFlags.Ephemeral })
+                    await context.reply({ content: '❌ Tag not found.', flags: MessageFlags.Ephemeral })
                     return
                 }
 
                 const canDelete = await hasTagPermission(context) || tag.ownerId === context.user.id
                 if (!canDelete) {
                     logger.debug(`{delete} User ${context.user.id} has no permission to delete the tag ${name} in ${context.guild.id}`)
-                    await context.reply({ content: 'You do not have permission to delete this tag.', flags: MessageFlags.Ephemeral })
+                    await context.reply({ content: '❌ You do not have permission to delete this tag.', flags: MessageFlags.Ephemeral })
                     return
                 }
 
                 logger.debug(`{delete} Deleting tag ${name} in ${context.guild.id}`)
                 await tagManager.deleteTag(context.guild.id, name)
                 logger.debug(`{delete} Deleted tag ${name} in ${context.guild.id}`)
-                await context.reply(`Tag \`${name}\` deleted.`)
+                await context.reply(`✅ Tag \`${name}\` deleted.`)
                 break
             }
             case 'list': {
@@ -148,7 +148,7 @@ export default {
                 const tags = await tagManager.listTags(context.guild.id)
                 if (tags.length === 0) {
                     logger.debug(`{list} No tags found in guild ${context.guild.id}`)
-                    await context.reply('There are no tags on this server.')
+                    await context.reply('⚠️ There are no tags on this server.')
                     return
                 }
                 const embed = new EmbedBuilder()
@@ -164,7 +164,7 @@ export default {
                 const tag = await tagManager.getTag(context.guild.id, name)
                 if (!tag) {
                     logger.debug(`{info} Tag ${name} not found in guild ${context.guild.id}`)
-                    await context.reply({ content: 'Tag not found.', flags: MessageFlags.Ephemeral })
+                    await context.reply({ content: '❌ Tag not found.', flags: MessageFlags.Ephemeral })
                     return
                 }
                 const owner = await context.client.users.fetch(tag.ownerId).catch(() => null)
