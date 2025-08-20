@@ -93,7 +93,7 @@ export default {
         const subcommand = context.getSubcommand(true)
         const guildConfigManager = GuildConfigManager.getInstance()
         const guildConfig = await guildConfigManager.getConfig(context.guild.id)
-        const permission = await hasTagPermission(context)
+        const hasPerms = await hasTagPermission(context)
 
         if (!guildConfig.tagSystemEnabled) {
             await context.reply('The tag system is not enabled on this server. An admin can enable it via `/config tag enable true`.')
@@ -118,7 +118,7 @@ export default {
             }
             case 'create': {
                 const name = context.getStringOption('name', true)
-                if (!permission) {
+                if (!hasPerms) {
                     logger.debug(`{create} User ${context.user.id} does not have permission to create tags in guild ${context.guild.id}`)
                     await context.reply({ content: '❌ You do not have permission to create tags.', flags: MessageFlags.Ephemeral })
                     return
@@ -133,7 +133,7 @@ export default {
                     logger.debug(`{create} Creating tag ${name} in guild ${context.guild.id}`)
                     await tagManager.createTag(context.guild.id, name, content, context.user.id)
                     logger.debug(`{create} Tag ${name} created in guild ${context.guild.id}`)
-                    await context.reply(`✅ Tag \`${name}\` created.`)
+                    await context.reply(`✅ Tag ${name} created.`)
                 } catch (error) {
                     await context.reply({ content: `❌ ${(error as Error).message}`, flags: MessageFlags.Ephemeral })
                 }
@@ -148,7 +148,7 @@ export default {
                     return
                 }
 
-                const canDelete = permission || tag.ownerId === context.user.id
+                const canDelete = hasPerms || tag.ownerId === context.user.id
                 if (!canDelete) {
                     logger.debug(`{delete} User ${context.user.id} has no permission to delete the tag ${name} in ${context.guild.id}`)
                     await context.reply({ content: '❌ You do not have permission to delete this tag.', flags: MessageFlags.Ephemeral })
@@ -158,7 +158,7 @@ export default {
                 logger.debug(`{delete} Deleting tag ${name} in ${context.guild.id}`)
                 await tagManager.deleteTag(context.guild.id, name)
                 logger.debug(`{delete} Deleted tag ${name} in ${context.guild.id}`)
-                await context.reply(`✅ Tag \`${name}\` deleted.`)
+                await context.reply(`✅ Tag ${name} deleted.`)
                 break
             }
             case 'list': {
