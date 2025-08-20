@@ -8,12 +8,11 @@ import { TagManager } from '../modules/TagSystem'
 import { relativeDiscordTimestamp } from '../util/functions'
 import { CommandContext } from '../modules/CommandManager/CommandContext'
 
-// Helper function to check for tag management permissions
-async function hasTagPermission(context: any): Promise<boolean> {
+async function hasTagPermission(context: CommandContext<true>): Promise<boolean> {
     const guildConfig = await GuildConfigManager.getInstance().getConfig(context.guild.id)
     if (!guildConfig.tagSystemEnabled) return false
 
-    const member = context.member
+    const member = await context.member.fetch()
     if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return true
 
     const hasPermission = guildConfig.tagCreatePermissions.some(p => member.permissions.has(p as PermissionResolvable))
