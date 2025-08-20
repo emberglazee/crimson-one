@@ -9,21 +9,39 @@ import { relativeDiscordTimestamp } from '../util/functions'
 import { CommandContext } from '../modules/CommandManager/CommandContext'
 
 async function hasTagPermission(context: CommandContext<true>): Promise<boolean> {
+    logger.debug(`{hasTagPermission} Getting configuration for guild ${context.guild.id}`)
     const guildConfig = await GuildConfigManager.getInstance().getConfig(context.guild.id)
-    if (!guildConfig.tagSystemEnabled) return false
+
+    if (!guildConfig.tagSystemEnabled) {
+        logger.debug(`{hasTagPermission} ❌ Tag system disabled for guild ${context.guild.id}`)
+        return false
+    }
 
     const member = await context.member.fetch()
-    if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return true
+    if (member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has administrator permission in guild ${context.guild.id}`)
+        return true
+    }
 
     const hasPermission = guildConfig.tagCreatePermissions.some(p => member.permissions.has(p as PermissionResolvable))
-    if (hasPermission) return true
+    if (hasPermission) {
+        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has a permission required for guild ${context.guild.id}`)
+        return true
+    }
 
     const hasRole = guildConfig.tagCreateRoles.some(r => member.roles.cache.has(r))
-    if (hasRole) return true
+    if (hasRole) {
+        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has a role required for guild ${context.guild.id}`)
+        return true
+    }
 
     const hasUser = guildConfig.tagCreateUsers.includes(member.id)
-    if (hasUser) return true
+    if (hasUser) {
+        logger.debug(`{hasTagPermission} ✅ Member ${member.id} is allowed in guild ${context.guild.id}`)
+        return true
+    }
 
+    logger.debug(`{hasTagPermission} ❌ No match, no permission given to ${member.id} in guild ${context.guild.id}`)
     return false
 }
 
@@ -75,6 +93,7 @@ export default {
         const subcommand = context.getSubcommand(true)
         const guildConfigManager = GuildConfigManager.getInstance()
         const guildConfig = await guildConfigManager.getConfig(context.guild.id)
+        const permission = await hasTagPermission(context)
 
         if (!guildConfig.tagSystemEnabled) {
             await context.reply('The tag system is not enabled on this server. An admin can enable it via `/config tag enable true`.')
@@ -99,7 +118,7 @@ export default {
             }
             case 'create': {
                 const name = context.getStringOption('name', true)
-                if (!await hasTagPermission(context)) {
+                if (!permission) {
                     logger.debug(`{create} User ${context.user.id} does not have permission to create tags in guild ${context.guild.id}`)
                     await context.reply({ content: '❌ You do not have permission to create tags.', flags: MessageFlags.Ephemeral })
                     return
@@ -129,7 +148,7 @@ export default {
                     return
                 }
 
-                const canDelete = await hasTagPermission(context) || tag.ownerId === context.user.id
+                const canDelete = permission || tag.ownerId === context.user.id
                 if (!canDelete) {
                     logger.debug(`{delete} User ${context.user.id} has no permission to delete the tag ${name} in ${context.guild.id}`)
                     await context.reply({ content: '❌ You do not have permission to delete this tag.', flags: MessageFlags.Ephemeral })
