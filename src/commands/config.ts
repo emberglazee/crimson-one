@@ -113,6 +113,64 @@ export default {
                     const type = context.getStringOption('type', true)
                     const action = context.getStringOption('action', true)
                     const value = context.getStringOption('value', true)
+                    let id: string | undefined
+
+                    if (type === 'permission') {
+                        id = value
+                    } else if (type === 'role') {
+                        const roleMentionMatch = value.match(/^<@&(\d+)>$/)
+                        if (roleMentionMatch) {
+                            id = roleMentionMatch[1]
+                        } else if (/^\d+$/.test(value)) {
+                            const role = await context.guild.roles.fetch(value).catch(() => null)
+                            if (role) {
+                                id = role.id
+                            } else {
+                                await context.editReply(`❌ Role with ID \"${value}\" not found.`)
+                                return
+                            }
+                        } else {
+                            const role = context.guild.roles.cache.find(r => r.name.toLowerCase() === value.toLowerCase())
+                            if (role) {
+                                id = role.id
+                            } else {
+                                await context.editReply(`❌ Could not find a role with the name \"${value}\". Please use the role ID or mention.`)
+                                return
+                            }
+                        }
+                    } else if (type === 'user') {
+                        const userMentionMatch = value.match(/^<@!?(\d+)>$/)
+                        if (userMentionMatch) {
+                            id = userMentionMatch[1]
+                        } else if (/^\d+$/.test(value)) {
+                            const user = await context.client.users.fetch(value).catch(() => null)
+                            if (user) {
+                                id = user.id
+                            } else {
+                                await context.editReply(`❌ User with ID \`${value}\` not found.`)
+                                return
+                            }
+                        } else {
+                            try {
+                                const members = await context.guild.members.fetch({ query: value, limit: 1 })
+                                const member = members.first()
+                                if (member) {
+                                    id = member.id
+                                } else {
+                                    await context.editReply(`❌ Could not find a user with the name \`${value}\`. Please use the user ID or mention.`)
+                                    return
+                                }
+                            } catch (e) {
+                                await context.editReply(`❌ An error occurred while trying to find user \`${value}\`. Please use the user ID or mention.`)
+                                return
+                            }
+                        }
+                    }
+
+                    if (!id) {
+                        await context.editReply('❌ Invalid value specified.')
+                        return
+                    }
 
                     let targetArray: string[] | undefined
                     if (type === 'permission') targetArray = guildConfig.tagCreatePermissions
@@ -124,21 +182,23 @@ export default {
                         return
                     }
 
+                    const displayValue = type === 'user' ? `<@${id}>` : type === 'role' ? `<@&${id}>` : id
+
                     if (action === 'add') {
-                        if (!targetArray.includes(value)) {
-                            targetArray.push(value)
-                            await context.editReply(dontPing(`✅ Added ${value} to the list of allowed ${type}s.`))
+                        if (!targetArray.includes(id)) {
+                            targetArray.push(id)
+                            await context.editReply(dontPing(`✅ Added ${displayValue} to the list of allowed ${type}s.`))
                         } else {
-                            await context.editReply(dontPing(`❌ ${value} is already in the list of allowed ${type}s.`))
+                            await context.editReply(dontPing(`❌ ${displayValue} is already in the list of allowed ${type}s.`))
                             return
                         }
                     } else if (action === 'remove') {
-                        const index = targetArray.indexOf(value)
+                        const index = targetArray.indexOf(id)
                         if (index > -1) {
                             targetArray.splice(index, 1)
-                            await context.editReply(dontPing(`✅ Removed ${value} from the list of allowed ${type}s.`))
+                            await context.editReply(dontPing(`✅ Removed ${displayValue} from the list of allowed ${type}s.`))
                         } else {
-                            await context.editReply(dontPing(`❌ ${value} is not in the list of allowed ${type}s.`))
+                            await context.editReply(dontPing(`❌ ${displayValue} is not in the list of allowed ${type}s.`))
                             return
                         }
                     }
