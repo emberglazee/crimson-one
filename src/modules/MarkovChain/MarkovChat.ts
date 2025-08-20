@@ -122,7 +122,7 @@ export class MarkovChat extends EventEmitter<{
 
         this.worker.on('message', (message: { type: string, event: string, data: unknown, taskId: string, error: string, level: 'debug' | 'info' | 'warn' | 'error' }) => {
             if (message.type === 'log') {
-                logger[message.level](message.data as string);
+                logger[message.level](message.data as string)
             } else if (message.type === 'progress') {
                 const eventName = message.event as keyof MarkovChat['events']
                 if (typeof message.data === 'object' && message.data !== null) {

@@ -10,11 +10,10 @@ import { Message } from './entities/Message'
 import { Channel } from './entities/Channel'
 import { Guild } from './entities/Guild'
 import { User } from './entities/User'
-import { Tag } from './entities/Tag'
 
 export class MarkovDataSource {
     private static instance: MarkovDataSource
-    private orm!: ORMDataSource
+    public orm!: ORMDataSource
     private initialized = false
 
     private constructor() {}
@@ -37,8 +36,8 @@ export class MarkovDataSource {
                 username: process.env.POSTGRES_USER,
                 password: process.env.POSTGRES_PASSWORD,
                 database: process.env.POSTGRES_DB,
-                entities: [Channel, Message, Guild, User, Tag],
-                synchronize: true // Note: For production, consider using migrations instead.
+                entities: [Channel, Message, Guild, User],
+                synchronize: false
             })
 
             await this.orm.initialize()

@@ -1,6 +1,5 @@
-import { Column, Entity, Index, JoinTable, ManyToMany, ManyToOne, PrimaryColumn } from 'typeorm'
+import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm'
 
-import { Tag } from './Tag'
 import { User, type User as UserType } from './User'
 import { Channel, type Channel as ChannelType } from './Channel'
 import { Guild, type Guild as GuildType } from './Guild'
@@ -33,10 +32,6 @@ export class Message {
     @ManyToOne(() => Guild, guild => guild.messages)
     @Index()
     guild!: GuildType
-
-    @ManyToMany(() => Tag)
-    @JoinTable()
-    tags!: Tag[]
 
     @Column('bigint')
     timestamp!: number

@@ -11,7 +11,7 @@ if (isMainThread) {
 // Helper to send logs back to the main thread
 function log(level: 'debug' | 'info' | 'warn' | 'error', data: string) {
     if (parentPort) {
-        parentPort.postMessage({ type: 'log', level, data });
+        parentPort.postMessage({ type: 'log', level, data })
     }
 }
 

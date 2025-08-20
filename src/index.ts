@@ -21,6 +21,7 @@ import { QuoteImageFactory } from './modules/QuoteImageFactory'
 import CrimsonChat from './modules/CrimsonChat'
 import { DashboardServer } from './modules/DashboardServer'
 import { ModeManager } from './modules/ModeManager'
+import { TagManager } from './modules/TagSystem'
 
 const unreadyClient = new Client({
     intents: new IntentsBitField([
@@ -57,6 +58,7 @@ export const crimsonChat = CrimsonChat.getInstance()
 export const banishmentManager = BanishmentManager.getInstance().setClient(client)
 export const dashboardServer = DashboardServer.getInstance()
 export const modeManager = ModeManager.getInstance()
+export const tagManager = TagManager.getInstance()
 
 client.once('ready', async () => {
     logger.info(`Logged in as ${yellow(client.user.tag)}`)
@@ -75,6 +77,7 @@ client.once('ready', async () => {
     await guildConfigManager.init()
     await banishmentManager.init()
     await modeManager.init()
+    await tagManager.init()
 
     await commandManager.init()
 

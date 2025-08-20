@@ -26,6 +26,32 @@ export default {
         ).addSubcommand(subcommand => subcommand
             .setName('get')
             .setDescription('Get the current config for the server')
+        ).addSubcommandGroup(group => group
+            .setName('tag')
+            .setDescription('Configure the tag system')
+            .addSubcommand(subcommand => subcommand
+                .setName('enable')
+                .setDescription('Enable or disable the tag system')
+                .addBooleanOption(option => option.setName('enabled').setDescription('Whether to enable the tag system').setRequired(true))
+            ).addSubcommand(subcommand => subcommand
+                .setName('allow')
+                .setDescription('Allow a permission, role, or user to manage tags')
+                .addStringOption(option => option
+                    .setName('type')
+                    .setDescription('The type of entity to allow')
+                    .setRequired(true)
+                    .addChoices(
+                        { name: 'Permission', value: 'permission' },
+                        { name: 'Role', value: 'role' },
+                        { name: 'User', value: 'user' }
+                    )
+                )
+                .addStringOption(option => option.setName('action').setDescription('Whether to add or remove the permission').setRequired(true).addChoices({ name: 'add', value: 'add' }, { name: 'remove', value: 'remove' }))
+                .addStringOption(option => option.setName('value').setDescription('The permission name, role, or user to allow').setRequired(true))
+            ).addSubcommand(subcommand => subcommand
+                .setName('status')
+                .setDescription('Get the current tag system config')
+            )
         ).setContexts(InteractionContextType.Guild)
         .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild),
     async execute(context) {
@@ -71,6 +97,70 @@ export default {
                 `- Message trigger: ${boolToEmoji(guildConfig.messageTrigger)}`
             )
 
+        }
+
+        const subcommandGroup = context.getSubcommandGroup()
+        if (subcommandGroup === 'tag') {
+
+            const tagSubcommand = context.getSubcommand(true)
+            const guildConfig = await guildConfigManager.getConfig(guildId)
+
+            switch (tagSubcommand) {
+                case 'enable': {
+                    const enabled = context.getBooleanOption('enabled', true)
+                    guildConfig.tagSystemEnabled = enabled
+                    await guildConfigManager.setConfig(guildId, guildConfig)
+                    await context.editReply(`${boolToEmoji(enabled)} Tag system has been set to: ${enabled}`)
+                    break
+                }
+                case 'allow': {
+                    const type = context.getStringOption('type', true)
+                    const action = context.getStringOption('action', true)
+                    const value = context.getStringOption('value', true)
+
+                    let targetArray: string[] | undefined
+                    if (type === 'permission') targetArray = guildConfig.tagCreatePermissions
+                    if (type === 'role') targetArray = guildConfig.tagCreateRoles
+                    if (type === 'user') targetArray = guildConfig.tagCreateUsers
+
+                    if (!targetArray) {
+                        await context.editReply('❌ Invalid type specified.')
+                        return
+                    }
+
+                    if (action === 'add') {
+                        if (!targetArray.includes(value)) {
+                            targetArray.push(value)
+                            await context.editReply(`✅ Added ${value} to the list of allowed ${type}s.`)
+                        } else {
+                            await context.editReply(`❌ ${value} is already in the list of allowed ${type}s.`)
+                            return
+                        }
+                    } else if (action === 'remove') {
+                        const index = targetArray.indexOf(value)
+                        if (index > -1) {
+                            targetArray.splice(index, 1)
+                            await context.editReply(`✅ Removed ${value} from the list of allowed ${type}s.`)
+                        } else {
+                            await context.editReply(`❌ ${value} is not in the list of allowed ${type}s.`)
+                            return
+                        }
+                    }
+
+                    await guildConfigManager.setConfig(guildId, guildConfig)
+                    break
+                }
+                case 'status': {
+                    const { tagSystemEnabled, tagCreatePermissions, tagCreateRoles, tagCreateUsers } = guildConfig
+                    const status = `**Tag System Status for ${context.guild.name}**\n` +
+                        `Enabled: ${boolToEmoji(tagSystemEnabled)}\n` +
+                        `Allowed Permissions: ${tagCreatePermissions.length > 0 ? tagCreatePermissions.join(', ') : 'None'}` +
+                        `Allowed Roles: ${tagCreateRoles.length > 0 ? tagCreateRoles.map(r => `<@&${r}>`).join(', ') : 'None'}` +
+                        `Allowed Users: ${tagCreateUsers.length > 0 ? tagCreateUsers.map(u => `<@${u}>`).join(', ') : 'None'}`
+                    await context.editReply(status)
+                    break
+                }
+            }
         }
     }
 } satisfies SlashCommand

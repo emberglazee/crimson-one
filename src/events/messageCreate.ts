@@ -9,6 +9,7 @@ import CommandManager from '../modules/CommandManager/index'
 import { normalizeUrl } from '../modules/CrimsonChat/util/url-utils'
 import { parseMentions } from '../modules/CrimsonChat/util/formatters'
 import { evaluate } from 'mathjs'
+import { TagManager } from '../modules/TagSystem'
 
 export default async function onMessageCreate(client: Client<true>) {
     client.on('messageCreate', async message => {
@@ -16,33 +17,53 @@ export default async function onMessageCreate(client: Client<true>) {
             if (message.author === client.user) return // Only ignore itself
             if (await shapesInc.handlePotentialCookieDM(message)) return
 
-            // Math.js evaluation logic
-            if (message.content.startsWith('% ')) {
-                const expression = message.content.slice(2).trim()
-                if (!expression) return // Ignore empty expressions
+            // Prefixed commands: % for math and tags
+            if (message.content.startsWith('%')) {
+                // Math evaluation (e.g., "% 5+5")
+                if (message.content.startsWith('% ')) {
+                    const expression = message.content.slice(2).trim()
+                    if (!expression) return // Ignore empty expressions
 
-                try {
-                    const result = evaluate(expression)
-                    // Use math.js's own string formatting for complex types
-                    let resultString = ''
-                    if (typeof result === 'object' && result !== null && result.toString) {
-                        resultString = result.toString()
-                    } else if (typeof result === 'function') {
-                        resultString = 'Cannot display function definitions.'
-                    } else {
-                        resultString = String(result)
+                    try {
+                        const result = evaluate(expression)
+                        // Use math.js's own string formatting for complex types
+                        let resultString = ''
+                        if (typeof result === 'object' && result !== null && result.toString) {
+                            resultString = result.toString()
+                        } else if (typeof result === 'function') {
+                            resultString = 'Cannot display function definitions.'
+                        } else {
+                            resultString = String(result)
+                        }
+
+
+                        if (resultString.length > 1900) {
+                            resultString = resultString.substring(0, 1900) + '... (result truncated)'
+                        }
+
+                        await message.reply(`${expression} = ${resultString}`)
+                    } catch (error) {
+                        await message.reply(`❌ **Math Error:** ${(error as Error).message}`)
                     }
-
-
-                    if (resultString.length > 1900) {
-                        resultString = resultString.substring(0, 1900) + '... (result truncated)'
-                    }
-
-                    await message.reply(`\`\`\`\n${resultString}\n\`\`\``)
-                } catch (error) {
-                    await message.reply(`❌ **Math Error:**\n\`\`\`\n${(error as Error).message}\n\`\`\``)
+                    return
                 }
-                return // Stop further processing for this message
+                // Tag retrieval (e.g., "%tagname")
+                else {
+                    const tagName = message.content.slice(1).split(' ')[0]
+                    if (!tagName) return // Ignore if it's just "%"
+
+                    const guildConfig = await GuildConfigManager.getInstance().getConfig(message.guild?.id)
+                    if (!guildConfig.tagSystemEnabled) return // Silently fail if not enabled
+
+                    const tagManager = TagManager.getInstance()
+                    const tag = await tagManager.getTag(message.guild!.id, tagName)
+
+                    if (tag) {
+                        await message.reply(tag.content)
+                    }
+
+                    return
+                }
             }
 
 
