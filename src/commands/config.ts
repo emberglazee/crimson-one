@@ -212,8 +212,8 @@ export default {
                         `- Enabled: ${boolToEmoji(tagSystemEnabled)}\n` +
                         '- Allowed:\n' +
                         `  - Permissions: \`${tagCreatePermissions.length > 0 ? tagCreatePermissions.join(', ') : 'None'}\`\n` +
-                        `  - Roles: ${tagCreateRoles.length > 0 ? tagCreateRoles.join(', ') : 'None'}\n` +
-                        `  - Users: ${tagCreateUsers.length > 0 ? tagCreateUsers.join(', ') : 'None'}`
+                        `  - Roles: ${tagCreateRoles.length > 0 ? tagCreateRoles.map(id => `<@&${id}>`).join(', ') : 'None'}\n` +
+                        `  - Users: ${tagCreateUsers.length > 0 ? tagCreateUsers.map(id => `<@${id}>`).join(', ') : 'None'}`
                     await context.editReply(dontPing(status))
                     break
                 }
