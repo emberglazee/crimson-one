@@ -150,7 +150,7 @@ export default {
                     const { tagSystemEnabled, tagCreatePermissions, tagCreateRoles, tagCreateUsers } = guildConfig
                     const status = `## Tag System Status for \`${context.guild.name}\`\n` +
                         `- Enabled: ${boolToEmoji(tagSystemEnabled)}\n` +
-                        `- Allowed:\n` +
+                        '- Allowed:\n' +
                         `  - Permissions: \`${tagCreatePermissions.length > 0 ? tagCreatePermissions.join(', ') : 'None'}\`\n` +
                         `  - Roles: ${tagCreateRoles.length > 0 ? tagCreateRoles.join(', ') : 'None'}\n` +
                         `  - Users: ${tagCreateUsers.length > 0 ? tagCreateUsers.join(', ') : 'None'}`
