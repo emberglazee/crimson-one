@@ -2,6 +2,7 @@ import { InteractionContextType, PermissionsBitField, SlashCommandBuilder } from
 import { SlashCommand } from '../types'
 import GuildConfigManager from '../modules/GuildConfig'
 import { boolToEmoji } from '../util/functions'
+import { CommandContext } from '../modules/CommandManager/CommandContext'
 
 export default {
     data: new SlashCommandBuilder()
@@ -54,12 +55,7 @@ export default {
             )
         ).setContexts(InteractionContextType.Guild)
         .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild),
-    async execute(context) {
-        if (!context.guild || !context.member) {
-            await context.reply('This command can only be used in a server.')
-            return
-        }
-
+    async execute(context: CommandContext<true>) {
         const subcommand = context.getSubcommand(true)
 
         if (subcommand !== 'get' && !context.member?.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
@@ -131,18 +127,18 @@ export default {
                     if (action === 'add') {
                         if (!targetArray.includes(value)) {
                             targetArray.push(value)
-                            await context.editReply(`✅ Added ${value} to the list of allowed ${type}s.`)
+                            await context.editReply(dontPing(`✅ Added ${value} to the list of allowed ${type}s.`))
                         } else {
-                            await context.editReply(`❌ ${value} is already in the list of allowed ${type}s.`)
+                            await context.editReply(dontPing(`❌ ${value} is already in the list of allowed ${type}s.`))
                             return
                         }
                     } else if (action === 'remove') {
                         const index = targetArray.indexOf(value)
                         if (index > -1) {
                             targetArray.splice(index, 1)
-                            await context.editReply(`✅ Removed ${value} from the list of allowed ${type}s.`)
+                            await context.editReply(dontPing(`✅ Removed ${value} from the list of allowed ${type}s.`))
                         } else {
-                            await context.editReply(`❌ ${value} is not in the list of allowed ${type}s.`)
+                            await context.editReply(dontPing(`❌ ${value} is not in the list of allowed ${type}s.`))
                             return
                         }
                     }
@@ -152,15 +148,18 @@ export default {
                 }
                 case 'status': {
                     const { tagSystemEnabled, tagCreatePermissions, tagCreateRoles, tagCreateUsers } = guildConfig
-                    const status = `**Tag System Status for ${context.guild.name}**\n` +
-                        `Enabled: ${boolToEmoji(tagSystemEnabled)}\n` +
-                        `Allowed Permissions: ${tagCreatePermissions.length > 0 ? tagCreatePermissions.join(', ') : 'None'}` +
-                        `Allowed Roles: ${tagCreateRoles.length > 0 ? tagCreateRoles.map(r => `<@&${r}>`).join(', ') : 'None'}` +
-                        `Allowed Users: ${tagCreateUsers.length > 0 ? tagCreateUsers.map(u => `<@${u}>`).join(', ') : 'None'}`
-                    await context.editReply(status)
+                    const status = `## Tag System Status for \`${context.guild.name}\`\n` +
+                        `- Enabled: ${boolToEmoji(tagSystemEnabled)}\n` +
+                        `- Allowed:\n` +
+                        `  - Permissions: \`${tagCreatePermissions.length > 0 ? tagCreatePermissions.join(', ') : 'None'}\`\n` +
+                        `  - Roles: ${tagCreateRoles.length > 0 ? tagCreateRoles.join(', ') : 'None'}\n` +
+                        `  - Users: ${tagCreateUsers.length > 0 ? tagCreateUsers.join(', ') : 'None'}`
+                    await context.editReply(dontPing(status))
                     break
                 }
             }
         }
     }
 } satisfies SlashCommand
+
+const dontPing = (content: string) => ({ content, allowedMentions: { parse: [] } })
