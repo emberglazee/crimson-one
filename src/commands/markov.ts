@@ -451,10 +451,44 @@ export default {
                 embedFields.push(
                     { name: 'Total Words', value: stats.totalWordCount.toLocaleString(), inline: true },
                     { name: 'Unique Words', value: stats.uniqueWordCount.toLocaleString(), inline: true },
-                    { name: 'Words Per Message', value: stats.avgWordsPerMessage.toFixed(1), inline: true },
-                    { name: 'Oldest Message', value: oldestDate, inline: false },
-                    { name: 'Newest Message', value: newestDate, inline: false }
+                    { name: 'Words Per Message', value: stats.avgWordsPerMessage.toFixed(1), inline: true }
                 )
+
+                // --- Scoring System ---
+                const { messageCount, totalWordCount, uniqueWordCount } = stats
+                const MV = Math.min(1, Math.log10(messageCount) / Math.log10(50000))
+                const WV = Math.min(1, Math.log10(totalWordCount) / Math.log10(2000000))
+                const LD = totalWordCount > 0 ? Math.min(1, uniqueWordCount / Math.sqrt(totalWordCount)) : 0
+                const score = 0.4 * MV + 0.3 * WV + 0.3 * LD
+
+                const getScoreDetails = (s: number, type: 'bigram' | 'trigram') => {
+                    const thresholds = type === 'bigram'
+                        ? { excellent: 0.8, good: 0.6, ok: 0.4, poor: 0.2 }
+                        : { excellent: 0.9, good: 0.7, ok: 0.5, poor: 0.3 }
+
+                    if (s >= thresholds.excellent) return { emoji: '☑️', recommendation: 'Excellent' }
+                    if (s >= thresholds.good) return { emoji: '✅', recommendation: 'Good' }
+                    if (s >= thresholds.ok) return { emoji: 'ℹ️', recommendation: 'Okay' }
+                    if (s >= thresholds.poor) return { emoji: '⚠️', recommendation: 'Poor' }
+                    return { emoji: '❌', recommendation: 'Not Recommended' }
+                }
+
+                const bigramDetails = getScoreDetails(score, 'bigram')
+                const trigramDetails = getScoreDetails(score, 'trigram')
+
+                embedFields.push(
+                    { name: 'Oldest Message', value: oldestDate, inline: false },
+                    { name: 'Newest Message', value: newestDate, inline: false },
+                    {
+                        name: 'Model Quality Score',
+                        value: `**Score:** ${score.toFixed(3)} / 1.000\n\n` +
+                               `**Recommendations:**\n` +
+                               `${bigramDetails.emoji} **Bigram:** ${bigramDetails.recommendation}\n` +
+                               `${trigramDetails.emoji} **Trigram:** ${trigramDetails.recommendation}`,
+                        inline: false
+                    }
+                )
+                // --- End Scoring System ---
 
                 const embed = new EmbedBuilder()
                     .setTitle('Markov Chain Data Statistics')
