@@ -482,7 +482,7 @@ export default {
                     {
                         name: 'Model Quality Score',
                         value: `**Score:** ${score.toFixed(3)} / 1.000\n\n` +
-                               `**Recommendations:**\n` +
+                               '**Recommendations:**\n' +
                                `${bigramDetails.emoji} **Bigram:** ${bigramDetails.recommendation}\n` +
                                `${trigramDetails.emoji} **Trigram:** ${trigramDetails.recommendation}`,
                         inline: false
