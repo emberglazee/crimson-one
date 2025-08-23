@@ -9,6 +9,7 @@ import {
 import type { ExplicitAny } from '../types'
 import { randomInt } from 'crypto'
 import { distance } from 'fastest-levenshtein'
+import { load } from 'cheerio'
 
 // --- Randomization & Array Manipulation ---
 
@@ -284,3 +285,29 @@ export function parseNetscapeCookieFile(fileContent: string) {
     }
     return cookies
 }
+
+// --- Unsorted ---
+
+export async function randomProjectWingmanArticle(): Promise<string> {
+    const url = 'https://projectwingman.wiki.gg/wiki/Special:AllPages'
+    const res = await fetch(url)
+    const html = await res.text()
+    const $ = load(html)
+
+    // Select all the <a> tags within the list items.
+    const articleLinks: string[] = []
+    $('#mw-content-text > div.mw-allpages-body > ul > li > a').each((_, element) => {
+        const href = $(element).attr('href')
+        if (href && href.startsWith('/wiki/') && !href.includes(':')) {
+            articleLinks.push(`https://projectwingman.wiki.gg${href}`)
+        }
+    })
+
+    if (articleLinks.length === 0) {
+        throw new Error('No articles found on the page.')
+    }
+
+    const randomLink = getRandomElement(articleLinks)
+    return randomLink
+}
+

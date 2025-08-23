@@ -18,25 +18,25 @@ export default {
                 .setRequired(true)
             )
         ),
-    async execute(context) {
-        try { await context.assertEmbi() } catch { return }
+    async execute(ctx) {
+        try { await ctx.assertEmbi() } catch { return }
 
-        const subcommand = context.getSubcommand(true)
+        const subcommand = ctx.getSubcommand(true)
         const commandManager = CommandManager.getInstance()
 
-        await context.deferReply({ ephemeral: true })
+        await ctx.deferReply({ ephemeral: true })
 
         try {
             if (subcommand === 'all') {
                 await commandManager.init()
-                await context.editReply('✅ All commands have been reloaded.')
+                await ctx.editReply('✅ All commands have been reloaded.')
             } else if (subcommand === 'command') {
-                const commandName = context.getStringOption('name', true)
+                const commandName = ctx.getStringOption('name', true)
                 await commandManager.reloadCommand(commandName)
-                await context.editReply(`✅ Command '${commandName}' has been reloaded.`)
+                await ctx.editReply(`✅ Command '${commandName}' has been reloaded.`)
             }
         } catch (error) {
-            await context.editReply(`❌ Failed to reload commands: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            await ctx.editReply(`❌ Failed to reload commands: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
     }
 } satisfies SlashCommand

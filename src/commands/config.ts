@@ -55,64 +55,64 @@ export default {
             )
         ).setContexts(InteractionContextType.Guild)
         .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild),
-    async execute(context: CommandContext<true>) {
-        const subcommand = context.getSubcommand(true)
+    async execute(ctx: CommandContext<true>) {
+        const subcommand = ctx.getSubcommand(true)
 
-        if (subcommand !== 'get' && !context.member?.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
-            await context.reply('❌ You need the `Manage Server` permission to use this command.')
+        if (subcommand !== 'get' && !ctx.member?.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
+            await ctx.reply('❌ You need the `Manage Server` permission to use this command.')
             return
         }
 
-        await context.deferReply()
+        await ctx.deferReply()
 
         const guildConfigManager = GuildConfigManager.getInstance()
-        const guildId = context.guild.id
+        const guildId = ctx.guild.id
 
         if (subcommand === 'prefix') {
 
-            const prefix = context.getStringOption('prefix', true)
+            const prefix = ctx.getStringOption('prefix', true)
             const guildConfig = await guildConfigManager.getConfig(guildId)
             guildConfig.prefix = prefix
             await guildConfigManager.setConfig(guildId, guildConfig)
-            await context.editReply(`✅ Prefix changed to \`${prefix}\``)
+            await ctx.editReply(`✅ Prefix changed to \`${prefix}\``)
 
         } else if (subcommand === 'message-trigger') {
 
-            const enabled = context.getBooleanOption('enabled', true)
+            const enabled = ctx.getBooleanOption('enabled', true)
             const guildConfig = await guildConfigManager.getConfig(guildId)
             guildConfig.messageTrigger = enabled
             await guildConfigManager.setConfig(guildId, guildConfig)
-            await context.editReply(`${boolToEmoji(enabled)} Message trigger has been set to: ${enabled}`)
+            await ctx.editReply(`${boolToEmoji(enabled)} Message trigger has been set to: ${enabled}`)
 
         } else if (subcommand === 'get') {
 
             const guildConfig = await guildConfigManager.getConfig(guildId)
-            await context.editReply(
-                `Current config for **${context.guild.name}**:\n` +
+            await ctx.editReply(
+                `Current config for **${ctx.guild.name}**:\n` +
                 `- Prefix: \`${guildConfig.prefix}\`\n` +
                 `- Message trigger: ${boolToEmoji(guildConfig.messageTrigger)}`
             )
 
         }
 
-        const subcommandGroup = context.getSubcommandGroup()
+        const subcommandGroup = ctx.getSubcommandGroup()
         if (subcommandGroup === 'tag') {
 
-            const tagSubcommand = context.getSubcommand(true)
+            const tagSubcommand = ctx.getSubcommand(true)
             const guildConfig = await guildConfigManager.getConfig(guildId)
 
             switch (tagSubcommand) {
                 case 'enable': {
-                    const enabled = context.getBooleanOption('enabled', true)
+                    const enabled = ctx.getBooleanOption('enabled', true)
                     guildConfig.tagSystemEnabled = enabled
                     await guildConfigManager.setConfig(guildId, guildConfig)
-                    await context.editReply(`${boolToEmoji(enabled)} Tag system has been set to: ${enabled}`)
+                    await ctx.editReply(`${boolToEmoji(enabled)} Tag system has been set to: ${enabled}`)
                     break
                 }
                 case 'allow': {
-                    const type = context.getStringOption('type', true)
-                    const action = context.getStringOption('action', true)
-                    const value = context.getStringOption('value', true)
+                    const type = ctx.getStringOption('type', true)
+                    const action = ctx.getStringOption('action', true)
+                    const value = ctx.getStringOption('value', true)
                     let id: string | undefined
 
                     if (type === 'permission') {
@@ -122,19 +122,19 @@ export default {
                         if (roleMentionMatch) {
                             id = roleMentionMatch[1]
                         } else if (/^\d+$/.test(value)) {
-                            const role = await context.guild.roles.fetch(value).catch(() => null)
+                            const role = await ctx.guild.roles.fetch(value).catch(() => null)
                             if (role) {
                                 id = role.id
                             } else {
-                                await context.editReply(`❌ Role with ID \"${value}\" not found.`)
+                                await ctx.editReply(`❌ Role with ID \"${value}\" not found.`)
                                 return
                             }
                         } else {
-                            const role = context.guild.roles.cache.find(r => r.name.toLowerCase() === value.toLowerCase())
+                            const role = ctx.guild.roles.cache.find(r => r.name.toLowerCase() === value.toLowerCase())
                             if (role) {
                                 id = role.id
                             } else {
-                                await context.editReply(`❌ Could not find a role with the name \"${value}\". Please use the role ID or mention.`)
+                                await ctx.editReply(`❌ Could not find a role with the name \"${value}\". Please use the role ID or mention.`)
                                 return
                             }
                         }
@@ -143,32 +143,32 @@ export default {
                         if (userMentionMatch) {
                             id = userMentionMatch[1]
                         } else if (/^\d+$/.test(value)) {
-                            const user = await context.client.users.fetch(value).catch(() => null)
+                            const user = await ctx.client.users.fetch(value).catch(() => null)
                             if (user) {
                                 id = user.id
                             } else {
-                                await context.editReply(`❌ User with ID \`${value}\` not found.`)
+                                await ctx.editReply(`❌ User with ID \`${value}\` not found.`)
                                 return
                             }
                         } else {
                             try {
-                                const members = await context.guild.members.fetch({ query: value, limit: 1 })
+                                const members = await ctx.guild.members.fetch({ query: value, limit: 1 })
                                 const member = members.first()
                                 if (member) {
                                     id = member.id
                                 } else {
-                                    await context.editReply(`❌ Could not find a user with the name \`${value}\`. Please use the user ID or mention.`)
+                                    await ctx.editReply(`❌ Could not find a user with the name \`${value}\`. Please use the user ID or mention.`)
                                     return
                                 }
                             } catch (e) {
-                                await context.editReply(`❌ An error occurred while trying to find user \`${value}\`. Please use the user ID or mention.`)
+                                await ctx.editReply(`❌ An error occurred while trying to find user \`${value}\`. Please use the user ID or mention.`)
                                 return
                             }
                         }
                     }
 
                     if (!id) {
-                        await context.editReply('❌ Invalid value specified.')
+                        await ctx.editReply('❌ Invalid value specified.')
                         return
                     }
 
@@ -178,7 +178,7 @@ export default {
                     if (type === 'user') targetArray = guildConfig.tagCreateUsers
 
                     if (!targetArray) {
-                        await context.editReply('❌ Invalid type specified.')
+                        await ctx.editReply('❌ Invalid type specified.')
                         return
                     }
 
@@ -187,18 +187,18 @@ export default {
                     if (action === 'add') {
                         if (!targetArray.includes(id)) {
                             targetArray.push(id)
-                            await context.editReply(dontPing(`✅ Added ${displayValue} to the list of allowed ${type}s.`))
+                            await ctx.editReply(dontPing(`✅ Added ${displayValue} to the list of allowed ${type}s.`))
                         } else {
-                            await context.editReply(dontPing(`❌ ${displayValue} is already in the list of allowed ${type}s.`))
+                            await ctx.editReply(dontPing(`❌ ${displayValue} is already in the list of allowed ${type}s.`))
                             return
                         }
                     } else if (action === 'remove') {
                         const index = targetArray.indexOf(id)
                         if (index > -1) {
                             targetArray.splice(index, 1)
-                            await context.editReply(dontPing(`✅ Removed ${displayValue} from the list of allowed ${type}s.`))
+                            await ctx.editReply(dontPing(`✅ Removed ${displayValue} from the list of allowed ${type}s.`))
                         } else {
-                            await context.editReply(dontPing(`❌ ${displayValue} is not in the list of allowed ${type}s.`))
+                            await ctx.editReply(dontPing(`❌ ${displayValue} is not in the list of allowed ${type}s.`))
                             return
                         }
                     }
@@ -208,13 +208,13 @@ export default {
                 }
                 case 'status': {
                     const { tagSystemEnabled, tagCreatePermissions, tagCreateRoles, tagCreateUsers } = guildConfig
-                    const status = `## Tag System Status for \`${context.guild.name}\`\n` +
+                    const status = `## Tag System Status for \`${ctx.guild.name}\`\n` +
                         `- Enabled: ${boolToEmoji(tagSystemEnabled)}\n` +
                         '- Allowed:\n' +
                         `  - Permissions: \`${tagCreatePermissions.length > 0 ? tagCreatePermissions.join(', ') : 'None'}\`\n` +
                         `  - Roles: ${tagCreateRoles.length > 0 ? tagCreateRoles.map(id => `<@&${id}>`).join(', ') : 'None'}\n` +
                         `  - Users: ${tagCreateUsers.length > 0 ? tagCreateUsers.map(id => `<@${id}>`).join(', ') : 'None'}`
-                    await context.editReply(dontPing(status))
+                    await ctx.editReply(dontPing(status))
                     break
                 }
             }

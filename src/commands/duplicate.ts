@@ -27,47 +27,47 @@ export default {
                 .setRequired(true)
             )
         ).setContexts(InteractionContextType.Guild),
-    async execute(context) {
-        if (!context.guild || !context.member) {
-            await context.reply(`❌ Are you running the command outside of a server somehow? Please report this to ${PING_EMBI}.`)
+    async execute(ctx) {
+        if (!ctx.guild || !ctx.member) {
+            await ctx.reply(`❌ Are you running the command outside of a server somehow? Please report this to ${PING_EMBI}.`)
             return
         }
 
         // --- Permission Checks ---
-        if (!context.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-            await context.reply('❌ You do not have the `Manage Roles` permission to use this command.')
+        if (!ctx.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+            await ctx.reply('❌ You do not have the `Manage Roles` permission to use this command.')
             return
         }
 
-        const botMember = await context.guild.members.fetchMe()
+        const botMember = await ctx.guild.members.fetchMe()
         if (!botMember.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-            await context.reply('❌ I do not have the `Manage Roles` permission. I cannot create or manage roles.')
+            await ctx.reply('❌ I do not have the `Manage Roles` permission. I cannot create or manage roles.')
             return
         }
 
-        const originalRole = await context.getRoleOption('role', true)
-        const newRoleName = context.getStringOption('name', true)
-        const copyChannelPerms = context.getBooleanOption('copy_permissions', true)
+        const originalRole = await ctx.getRoleOption('role', true)
+        const newRoleName = ctx.getStringOption('name', true)
+        const copyChannelPerms = ctx.getBooleanOption('copy_permissions', true)
 
         // --- Sanity Checks ---
         if (originalRole.managed) {
-            await context.reply('❌ This role is managed by an integration and cannot be duplicated.')
+            await ctx.reply('❌ This role is managed by an integration and cannot be duplicated.')
             return
         }
 
         if (botMember.roles.highest.position <= originalRole.position) {
-            await context.reply(`❌ I cannot duplicate the ${roleMention(originalRole.id)} role because it is higher than or equal to my highest role.`)
+            await ctx.reply(`❌ I cannot duplicate the ${roleMention(originalRole.id)} role because it is higher than or equal to my highest role.`)
             return
         }
 
         if (copyChannelPerms && !botMember.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-            await context.reply('❌ I need the `Manage Channels` permission to copy channel-specific permissions.')
+            await ctx.reply('❌ I need the `Manage Channels` permission to copy channel-specific permissions.')
             return
         }
 
         try {
             // --- Role Creation ---
-            const newRole = await context.guild.roles.create({
+            const newRole = await ctx.guild.roles.create({
                 name: newRoleName,
                 color: originalRole.color,
                 hoist: originalRole.hoist,
@@ -76,12 +76,12 @@ export default {
                 icon: originalRole.iconURL(),
                 unicodeEmoji: originalRole.unicodeEmoji,
                 position: originalRole.position, // Set position during creation
-                reason: `Duplicated from role: ${originalRole.name} (${originalRole.id}) by ${context.user.tag}`
+                reason: `Duplicated from role: ${originalRole.name} (${originalRole.id}) by ${ctx.user.tag}`
             })
 
             // --- Channel Permission Copying ---
             if (copyChannelPerms) {
-                const channels = await context.guild.channels.fetch()
+                const channels = await ctx.guild.channels.fetch()
                 const permissionPromises = []
 
                 for (const channel of channels.values()) {
@@ -96,12 +96,12 @@ export default {
                 await Promise.all(permissionPromises)
             }
 
-            await context.editReply(`✅ Successfully duplicated the ${roleMention(originalRole.id)} role as ${roleMention(newRole.id)}.`)
+            await ctx.editReply(`✅ Successfully duplicated the ${roleMention(originalRole.id)} role as ${roleMention(newRole.id)}.`)
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error)
             logger.warn(`Error duplicating role: ${red(errorMessage)}`)
-            await context.editReply(`❌ Failed to duplicate role: \`${errorMessage}\``)
+            await ctx.editReply(`❌ Failed to duplicate role: \`${errorMessage}\``)
         }
     }
 } satisfies SlashCommand

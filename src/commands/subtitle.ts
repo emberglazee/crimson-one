@@ -65,14 +65,14 @@ export const slashCommand = {
             .setDescription('Convert <newline> tags into line breaks')
             .setRequired(false)
         ),
-    async execute(context) {
-        const style = (context.getStringOption('style', true)) as 'ac7' | 'pw' | 'acz' | 'hd2'
-        const speaker = context.getStringOption('speaker', true)
-        const text = context.getStringOption('text', true)
-        const gradient = (context.getStringOption('gradient', false, 'none')) as GradientType
-        const roleColor = context.getStringOption('role_color')
-        const plainColor = context.getStringOption('color')
-        const characterColor = context.getStringOption('character_color')
+    async execute(ctx) {
+        const style = (ctx.getStringOption('style', true)) as 'ac7' | 'pw' | 'acz' | 'hd2'
+        const speaker = ctx.getStringOption('speaker', true)
+        const text = ctx.getStringOption('text', true)
+        const gradient = (ctx.getStringOption('gradient', false, 'none')) as GradientType
+        const roleColor = ctx.getStringOption('role_color')
+        const plainColor = ctx.getStringOption('color')
+        const characterColor = ctx.getStringOption('character_color')
         const color = roleColor
             ? ROLE_COLORS.find(c => c.name === roleColor)?.hex ?? null
             : plainColor
@@ -80,27 +80,27 @@ export const slashCommand = {
                 : characterColor
                     ? CHARACTER_COLORS.find(c => c.name === characterColor)?.hex ?? null
                     : null
-        const stretchGradient = context.getBooleanOption('stretch', false)
-        const interpretNewlines = context.getBooleanOption('interpret_newlines', false)
+        const stretchGradient = ctx.getBooleanOption('stretch', false)
+        const interpretNewlines = ctx.getBooleanOption('interpret_newlines', false)
 
         if (!color && gradient === 'none') {
-            await context.reply('❌ You must provide either a color, role color, character color, or a gradient color')
+            await ctx.reply('❌ You must provide either a color, role color, character color, or a gradient color')
             return
         }
 
-        await context.deferReply()
+        await ctx.deferReply()
         const factory = QuoteImageFactory.getInstance()
-            .setGuild(context.guild!)
+            .setGuild(ctx.guild!)
         try {
             const result = await factory.createQuoteImage(speaker, text, color, gradient, stretchGradient ?? false, style, interpretNewlines ?? false)
-            await context.editReply({
+            await ctx.editReply({
                 files: [
                     new AttachmentBuilder(result.buffer)
                         .setName(`subtitle.${result.type === 'image/gif' ? 'gif' : 'png'}`)
                 ]
             })
         } catch (error) {
-            await context.editReply('❌ Failed to generate subtitle image: ' + (error instanceof Error ? error.message : 'Unknown error'))
+            await ctx.editReply('❌ Failed to generate subtitle image: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
 } satisfies SlashCommand

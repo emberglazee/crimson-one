@@ -36,28 +36,28 @@ export default {
             .setDescription('Should the response only show up for you?')
             .setRequired(false)
         ),
-    async execute(context) {
-        await context.deferReply({
-            flags: context.getBooleanOption('ephemeral', false) ? MessageFlags.Ephemeral : undefined
+    async execute(ctx) {
+        await ctx.deferReply({
+            flags: ctx.getBooleanOption('ephemeral', false) ? MessageFlags.Ephemeral : undefined
         })
 
-        const user = await context.getUserOption('user')
+        const user = await ctx.getUserOption('user')
 
-        const imageAttachment = context.getAttachmentOption('image')
-        const urlOption = context.getStringOption('url')
+        const imageAttachment = ctx.getAttachmentOption('image')
+        const urlOption = ctx.getStringOption('url')
 
-        const name = context.getStringOption('name', true)
-        const subtext = context.getStringOption('subtext')
-        const useFilter = context.getBooleanOption('filter', false)
+        const name = ctx.getStringOption('name', true)
+        const subtext = ctx.getStringOption('subtext')
+        const useFilter = ctx.getBooleanOption('filter', false)
 
         // Validate image source options
         const selectedOptions = [imageAttachment, urlOption, user].filter(Boolean).length
         if (selectedOptions === 0) {
-            await context.editReply('❌ Please provide either an image attachment, URL, or user mention.')
+            await ctx.editReply('❌ Please provide either an image attachment, URL, or user mention.')
             return
         }
         if (selectedOptions > 1) {
-            await context.editReply('❌ Please provide only one image source (attachment, URL, or user mention).')
+            await ctx.editReply('❌ Please provide only one image source (attachment, URL, or user mention).')
             return
         }
 
@@ -65,30 +65,30 @@ export default {
         if (imageAttachment) {
             imageUrl = imageAttachment.url
         } else if (user) {
-            imageUrl = context.getUserAvatar(user, context.guild, { size: 256, extension: 'png' })
+            imageUrl = ctx.getUserAvatar(user, ctx.guild, { size: 256, extension: 'png' })
         }
 
         if (!imageUrl) {
-            await context.editReply('❌ Invalid image URL provided.')
+            await ctx.editReply('❌ Invalid image URL provided.')
             return
         }
 
         try {
             const image = await loadImage(imageUrl)
             const canvas = createCanvas(290, 362)
-            const ctx = canvas.getContext('2d')
+            const cctx = canvas.getContext('2d')
 
             // Fill background with semi-transparent dark green
-            ctx.fillStyle = '#0e0f1a'
-            ctx.fillRect(0, 0, canvas.width, canvas.height)
+            cctx.fillStyle = '#0e0f1a'
+            cctx.fillRect(0, 0, canvas.width, canvas.height)
 
             // Draw the image centered at (20,18) with 250x250 dimensions
-            ctx.drawImage(image, 20, 18, 250, 250)
+            cctx.drawImage(image, 20, 18, 250, 250)
 
             // Apply VHS glitch effect if enabled
             if (useFilter) {
                 // Save the current image data
-                const imageData = ctx.getImageData(20, 18, 250, 250)
+                const imageData = cctx.getImageData(20, 18, 250, 250)
                 const data = imageData.data
 
                 // Apply color channel splitting
@@ -107,8 +107,8 @@ export default {
                 for (let y = 0; y < 250; y += 2) {
                     if (Math.random() < 0.1) {
                         const shift = Math.floor(Math.random() * 10) - 5
-                        const lineData = ctx.getImageData(20, 18 + y, 250, 1)
-                        ctx.putImageData(lineData, 20 + shift, 18 + y)
+                        const lineData = cctx.getImageData(20, 18 + y, 250, 1)
+                        cctx.putImageData(lineData, 20 + shift, 18 + y)
                     }
                 }
 
@@ -123,45 +123,45 @@ export default {
                 }
 
                 // Put the modified image data back
-                ctx.putImageData(imageData, 20, 18)
+                cctx.putImageData(imageData, 20, 18)
             }
 
             // Add name text
-            ctx.shadowBlur = 2
-            ctx.font = '24px Aces07'
+            cctx.shadowBlur = 2
+            cctx.font = '24px Aces07'
 
             // Draw name shadow
-            ctx.shadowColor = '#808080'
-            ctx.shadowOffsetX = -4
-            ctx.shadowOffsetY = 4
-            ctx.fillStyle = '#FFFFFF'
+            cctx.shadowColor = '#808080'
+            cctx.shadowOffsetX = -4
+            cctx.shadowOffsetY = 4
+            cctx.fillStyle = '#FFFFFF'
 
             // Draw each character with spacing
             let currentX = 20 // Fixed left position
             const chars = name.split('')
             chars.forEach(char => {
-                ctx.fillText(char, currentX, 18 + 250 + 32) // Added 16px
-                currentX += ctx.measureText(char).width
+                cctx.fillText(char, currentX, 18 + 250 + 32) // Added 16px
+                currentX += cctx.measureText(char).width
             })
 
             // Add subtext if provided
             if (subtext) {
-                ctx.font = '12px Aces07'
-                ctx.shadowColor = '#222c34'
-                ctx.shadowOffsetX = -4
-                ctx.shadowOffsetY = 4
-                ctx.fillStyle = '#627f80'
-                ctx.fillText(subtext, 20, 18 + 250 + 32 + 8 + 10) // Added 16px
+                cctx.font = '12px Aces07'
+                cctx.shadowColor = '#222c34'
+                cctx.shadowOffsetX = -4
+                cctx.shadowOffsetY = 4
+                cctx.fillStyle = '#627f80'
+                cctx.fillText(subtext, 20, 18 + 250 + 32 + 8 + 10) // Added 16px
             }
 
             const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'portrait.png' })
-            await context.editReply({
+            await ctx.editReply({
                 files: [attachment]
             })
         } catch (error) {
             const logger = new Logger('/ac7portrait')
             logger.error(`Failed to generate portrait: ${red(error instanceof Error ? error.message : String(error))}`)
-            await context.editReply(`❌ Failed to generate portrait: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            await ctx.editReply(`❌ Failed to generate portrait: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
     }
 } satisfies SlashCommand

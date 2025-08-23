@@ -9,42 +9,42 @@ import { relativeDiscordTimestamp } from '../util/functions'
 import { CommandContext } from '../modules/CommandManager/CommandContext'
 import { inspect } from 'bun'
 
-async function hasTagPermission(context: CommandContext<true>): Promise<boolean> {
-    logger.debug(`{hasTagPermission} Getting configuration for guild ${context.guild.id}`)
-    const guildConfig = await GuildConfigManager.getInstance().getConfig(context.guild.id)
-    logger.debug(`{hasTagPermission} GuildConfig for guild ${context.guild.id}:\n${inspect(guildConfig, { colors: true, depth: Infinity })}`)
+async function hasTagPermission(ctx: CommandContext<true>): Promise<boolean> {
+    logger.debug(`{hasTagPermission} Getting configuration for guild ${ctx.guild.id}`)
+    const guildConfig = await GuildConfigManager.getInstance().getConfig(ctx.guild.id)
+    logger.debug(`{hasTagPermission} GuildConfig for guild ${ctx.guild.id}:\n${inspect(guildConfig, { colors: true, depth: Infinity })}`)
 
     if (!guildConfig.tagSystemEnabled) {
-        logger.debug(`{hasTagPermission} ❌ Tag system disabled for guild ${context.guild.id}`)
+        logger.debug(`{hasTagPermission} ❌ Tag system disabled for guild ${ctx.guild.id}`)
         return false
     }
 
-    const member = context.member
+    const member = ctx.member
 
     const hasPermission = guildConfig.tagCreatePermissions.some(p => member.permissions.has(p as PermissionResolvable))
     if (hasPermission) {
-        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has a permission required for guild ${context.guild.id}`)
+        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has a permission required for guild ${ctx.guild.id}`)
         return true
     }
 
     const hasRole = guildConfig.tagCreateRoles.some(r => member.roles.cache.has(r))
     if (hasRole) {
-        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has a role required for guild ${context.guild.id}`)
+        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has a role required for guild ${ctx.guild.id}`)
         return true
     }
 
     const hasUser = guildConfig.tagCreateUsers.includes(member.id)
     if (hasUser) {
-        logger.debug(`{hasTagPermission} ✅ Member ${member.id} is allowed in guild ${context.guild.id}`)
+        logger.debug(`{hasTagPermission} ✅ Member ${member.id} is allowed in guild ${ctx.guild.id}`)
         return true
     }
 
     if (member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has administrator permission in guild ${context.guild.id}`)
+        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has administrator permission in guild ${ctx.guild.id}`)
         return true
     }
 
-    logger.debug(`{hasTagPermission} ❌ No match, no permission given to ${member.id} in guild ${context.guild.id}`)
+    logger.debug(`{hasTagPermission} ❌ No match, no permission given to ${member.id} in guild ${ctx.guild.id}`)
     return false
 }
 
@@ -92,16 +92,16 @@ export default {
                 .setRequired(true)
             )
         ).setContexts(InteractionContextType.Guild),
-    async execute(context: CommandContext<true>) {
-        const subcommand = context.getSubcommand(true)
+    async execute(ctx: CommandContext<true>) {
+        const subcommand = ctx.getSubcommand(true)
         const guildConfigManager = GuildConfigManager.getInstance()
-        const guildConfig = await guildConfigManager.getConfig(context.guild.id)
-        logger.debug(`Calling hasTagPermission(); user: ${context.member.id}, guild: ${context.guild.id}`)
-        const hasPerms = await hasTagPermission(context)
+        const guildConfig = await guildConfigManager.getConfig(ctx.guild.id)
+        logger.debug(`Calling hasTagPermission(); user: ${ctx.member.id}, guild: ${ctx.guild.id}`)
+        const hasPerms = await hasTagPermission(ctx)
         logger.debug(`await hasTagPermission(context) -> ${hasPerms}`)
 
         if (!guildConfig.tagSystemEnabled) {
-            await context.reply('The tag system is not enabled on this server. An admin can enable it via `/config tag enable true`.')
+            await ctx.reply('The tag system is not enabled on this server. An admin can enable it via `/config tag enable true`.')
             return
         }
 
@@ -109,88 +109,88 @@ export default {
 
         switch (subcommand) {
             case 'get': {
-                const name = context.getStringOption('name', true)
-                logger.debug(`{get} Getting tag ${name} in guild ${context.guild.id}`)
-                const tag = await tagManager.getTag(context.guild.id, name)
+                const name = ctx.getStringOption('name', true)
+                logger.debug(`{get} Getting tag ${name} in guild ${ctx.guild.id}`)
+                const tag = await tagManager.getTag(ctx.guild.id, name)
                 if (tag) {
-                    logger.debug(`{get} Found tag ${name} in guild ${context.guild.id}`)
-                    await context.reply(tag.content)
+                    logger.debug(`{get} Found tag ${name} in guild ${ctx.guild.id}`)
+                    await ctx.reply(tag.content)
                 } else {
-                    logger.debug(`{get} Tag ${name} not found in guild ${context.guild.id}`)
-                    await context.reply({ content: '❌ Tag not found.', flags: MessageFlags.Ephemeral })
+                    logger.debug(`{get} Tag ${name} not found in guild ${ctx.guild.id}`)
+                    await ctx.reply({ content: '❌ Tag not found.', flags: MessageFlags.Ephemeral })
                 }
                 break
             }
             case 'create': {
-                const name = context.getStringOption('name', true)
+                const name = ctx.getStringOption('name', true)
                 if (!hasPerms) {
-                    logger.debug(`{create} User ${context.user.id} does not have permission to create tags in guild ${context.guild.id}`)
-                    await context.reply({ content: '❌ You do not have permission to create tags.', flags: MessageFlags.Ephemeral })
+                    logger.debug(`{create} User ${ctx.user.id} does not have permission to create tags in guild ${ctx.guild.id}`)
+                    await ctx.reply({ content: '❌ You do not have permission to create tags.', flags: MessageFlags.Ephemeral })
                     return
                 }
-                if (await tagManager.getTag(context.guild.id, name)) {
-                    logger.debug(`{create} Tag ${name} already exists in guild ${context.guild.id}`)
-                    await context.reply({ content: '❌ Tag already exists.', flags: MessageFlags.Ephemeral })
+                if (await tagManager.getTag(ctx.guild.id, name)) {
+                    logger.debug(`{create} Tag ${name} already exists in guild ${ctx.guild.id}`)
+                    await ctx.reply({ content: '❌ Tag already exists.', flags: MessageFlags.Ephemeral })
                     return
                 }
-                const content = context.getStringOption('content', true)
+                const content = ctx.getStringOption('content', true)
                 try {
-                    logger.debug(`{create} Creating tag ${name} in guild ${context.guild.id}`)
-                    await tagManager.createTag(context.guild.id, name, content, context.user.id)
-                    logger.debug(`{create} Tag ${name} created in guild ${context.guild.id}`)
-                    await context.reply(`✅ Tag ${name} created.`)
+                    logger.debug(`{create} Creating tag ${name} in guild ${ctx.guild.id}`)
+                    await tagManager.createTag(ctx.guild.id, name, content, ctx.user.id)
+                    logger.debug(`{create} Tag ${name} created in guild ${ctx.guild.id}`)
+                    await ctx.reply(`✅ Tag ${name} created.`)
                 } catch (error) {
-                    await context.reply({ content: `❌ ${(error as Error).message}`, flags: MessageFlags.Ephemeral })
+                    await ctx.reply({ content: `❌ ${(error as Error).message}`, flags: MessageFlags.Ephemeral })
                 }
                 break
             }
             case 'delete': {
-                const name = context.getStringOption('name', true)
-                const tag = await tagManager.getTag(context.guild.id, name)
+                const name = ctx.getStringOption('name', true)
+                const tag = await tagManager.getTag(ctx.guild.id, name)
                 if (!tag) {
-                    logger.debug(`{delete} Tag ${name} not found in guild ${context.guild.id}`)
-                    await context.reply({ content: '❌ Tag not found.', flags: MessageFlags.Ephemeral })
+                    logger.debug(`{delete} Tag ${name} not found in guild ${ctx.guild.id}`)
+                    await ctx.reply({ content: '❌ Tag not found.', flags: MessageFlags.Ephemeral })
                     return
                 }
 
-                const canDelete = hasPerms || tag.ownerId === context.user.id
+                const canDelete = hasPerms || tag.ownerId === ctx.user.id
                 if (!canDelete) {
-                    logger.debug(`{delete} User ${context.user.id} has no permission to delete the tag ${name} in ${context.guild.id}`)
-                    await context.reply({ content: '❌ You do not have permission to delete this tag.', flags: MessageFlags.Ephemeral })
+                    logger.debug(`{delete} User ${ctx.user.id} has no permission to delete the tag ${name} in ${ctx.guild.id}`)
+                    await ctx.reply({ content: '❌ You do not have permission to delete this tag.', flags: MessageFlags.Ephemeral })
                     return
                 }
 
-                logger.debug(`{delete} Deleting tag ${name} in ${context.guild.id}`)
-                await tagManager.deleteTag(context.guild.id, name)
-                logger.debug(`{delete} Deleted tag ${name} in ${context.guild.id}`)
-                await context.reply(`✅ Tag ${name} deleted.`)
+                logger.debug(`{delete} Deleting tag ${name} in ${ctx.guild.id}`)
+                await tagManager.deleteTag(ctx.guild.id, name)
+                logger.debug(`{delete} Deleted tag ${name} in ${ctx.guild.id}`)
+                await ctx.reply(`✅ Tag ${name} deleted.`)
                 break
             }
             case 'list': {
-                logger.debug(`{list} Listing tags in guild ${context.guild.id}`)
-                const tags = await tagManager.listTags(context.guild.id)
+                logger.debug(`{list} Listing tags in guild ${ctx.guild.id}`)
+                const tags = await tagManager.listTags(ctx.guild.id)
                 if (tags.length === 0) {
-                    logger.debug(`{list} No tags found in guild ${context.guild.id}`)
-                    await context.reply('⚠️ There are no tags on this server.')
+                    logger.debug(`{list} No tags found in guild ${ctx.guild.id}`)
+                    await ctx.reply('⚠️ There are no tags on this server.')
                     return
                 }
                 const embed = new EmbedBuilder()
-                    .setTitle(`Tags for ${context.guild.name}`)
+                    .setTitle(`Tags for ${ctx.guild.name}`)
                     .setDescription(tags.map(t => `\`${t.name}\``).join(', '))
-                logger.debug(`{list} Sending list of tags in guild ${context.guild.id}`)
-                await context.reply({ embeds: [embed] })
+                logger.debug(`{list} Sending list of tags in guild ${ctx.guild.id}`)
+                await ctx.reply({ embeds: [embed] })
                 break
             }
             case 'info': {
-                const name = context.getStringOption('name', true)
-                logger.debug(`{info} Getting info for tag ${name} in guild ${context.guild.id}`)
-                const tag = await tagManager.getTag(context.guild.id, name)
+                const name = ctx.getStringOption('name', true)
+                logger.debug(`{info} Getting info for tag ${name} in guild ${ctx.guild.id}`)
+                const tag = await tagManager.getTag(ctx.guild.id, name)
                 if (!tag) {
-                    logger.debug(`{info} Tag ${name} not found in guild ${context.guild.id}`)
-                    await context.reply({ content: '❌ Tag not found.', flags: MessageFlags.Ephemeral })
+                    logger.debug(`{info} Tag ${name} not found in guild ${ctx.guild.id}`)
+                    await ctx.reply({ content: '❌ Tag not found.', flags: MessageFlags.Ephemeral })
                     return
                 }
-                const owner = await context.client.users.fetch(tag.ownerId).catch(() => null)
+                const owner = await ctx.client.users.fetch(tag.ownerId).catch(() => null)
                 const embed = new EmbedBuilder()
                     .setTitle(`Tag Info: ${tag.name}`)
                     .addFields(
@@ -198,8 +198,8 @@ export default {
                         { name: 'Owner', value: owner ? `${owner.tag} (${owner.id})` : tag.ownerId, inline: true },
                         { name: 'Created', value: relativeDiscordTimestamp(Math.floor(tag.createdAt.getTime() / 1000)), inline: true }
                     )
-                logger.debug(`{info} Sending info for tag ${name} in guild ${context.guild.id}`)
-                await context.reply({ embeds: [embed] })
+                logger.debug(`{info} Sending info for tag ${name} in guild ${ctx.guild.id}`)
+                await ctx.reply({ embeds: [embed] })
                 break
             }
         }

@@ -6,10 +6,10 @@ export default {
     data: new SlashCommandBuilder()
         .setName('debug')
         .setDescription('Toggle debug mode (owner only)'),
-    async execute(context) {
-        try { await context.assertEmbi() } catch { return }
+    async execute(ctx) {
+        try { await ctx.assertEmbi() } catch { return }
 
         const newDebugState = botSettings.toggleDebugMode()
-        await context.reply(`✅ Debug mode is now ${newDebugState ? 'ENABLED' : 'DISABLED'}.`)
+        await ctx.reply(`✅ Debug mode is now ${newDebugState ? 'ENABLED' : 'DISABLED'}.`)
     }
 } satisfies SlashCommand

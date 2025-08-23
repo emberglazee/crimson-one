@@ -10,12 +10,12 @@ export default {
             .setDescription('The role to get information about')
             .setRequired(true)
         ),
-    async execute(context) {
-        if (!context.guild) {
-            await context.reply('❌ This command can only be used in a server!')
+    async execute(ctx) {
+        if (!ctx.guild) {
+            await ctx.reply('❌ This command can only be used in a server!')
         }
 
-        const role = await context.getRoleOption('role', true)
+        const role = await ctx.getRoleOption('role', true)
 
         const embed = new EmbedBuilder()
             .setColor(role.color)
@@ -32,7 +32,7 @@ export default {
             )
             .setTimestamp()
 
-        await context.reply({
+        await ctx.reply({
             embeds: [embed]
         })
     }

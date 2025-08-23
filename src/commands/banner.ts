@@ -34,21 +34,21 @@ export default {
             .addChoices(...bannerSizeOptions)
             .setRequired(false)
         ),
-    async execute(context) {
-        const user = await context.getUserOption('user', false, context.author)
-        const raw = context.getBooleanOption('raw', false, false)
-        const ext = context.getStringOption('extension', false, 'png') as ImageExtension
-        const size = context.getIntegerOption('size', false, 1024) as ImageSize
+    async execute(ctx) {
+        const user = await ctx.getUserOption('user', false, ctx.author)
+        const raw = ctx.getBooleanOption('raw', false, false)
+        const ext = ctx.getStringOption('extension', false, 'png') as ImageExtension
+        const size = ctx.getIntegerOption('size', false, 1024) as ImageSize
 
         const fetchedUser = await user.fetch(true)
         const banner = fetchedUser.bannerURL ? fetchedUser.bannerURL({ extension: ext, size: size }) : null
         if (!banner) {
-            await context.reply({ content: 'User does not have a banner', flags: MessageFlags.Ephemeral })
+            await ctx.reply({ content: 'User does not have a banner', flags: MessageFlags.Ephemeral })
             return
         }
 
         if (raw) {
-            await context.reply(banner)
+            await ctx.reply(banner)
             return
         }
 
@@ -57,6 +57,6 @@ export default {
             .setDescription(`[Click here to view the banner](${banner})`)
             .setImage(banner)
 
-        await context.reply({ embeds: [embed] })
+        await ctx.reply({ embeds: [embed] })
     }
 } satisfies SlashCommand

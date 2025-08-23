@@ -89,22 +89,22 @@ export default {
             )
         ),
 
-    async execute(context) {
-        const isRoleAllowed = context.member?.roles.cache.has('958529446560808961') ?? false
-        if (!isRoleAllowed) try { await context.assertEmbi() } catch { return }
+    async execute(ctx) {
+        const isRoleAllowed = ctx.member?.roles.cache.has('958529446560808961') ?? false
+        if (!isRoleAllowed) try { await ctx.assertEmbi() } catch { return }
 
         const crimsonChat = CrimsonChat.getInstance()
-        const subcommand = context.getSubcommand()
+        const subcommand = ctx.getSubcommand()
 
         switch (subcommand) {
             case 'reset':
                 await crimsonChat.clearHistory()
-                await context.reply('✅ Chat history reset')
+                await ctx.reply('✅ Chat history reset')
                 break
 
             case 'updateprompt':
                 await crimsonChat.updateSystemPrompt()
-                await context.reply('✅ System prompt updated')
+                await ctx.reply('✅ System prompt updated')
                 crimsonChat.sendMessage(
                     'System prompt has been updated to latest version.',
                     { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: 'System prompt has been updated to latest version.' }
@@ -113,7 +113,7 @@ export default {
 
             case 'toggle':
                 await crimsonChat.setEnabled(!crimsonChat.isEnabled())
-                await context.reply(crimsonChat.isEnabled() ? '✅ CrimsonChat enabled' : '🔴 CrimsonChat disabled')
+                await ctx.reply(crimsonChat.isEnabled() ? '✅ CrimsonChat enabled' : '🔴 CrimsonChat disabled')
                 crimsonChat.sendMessage(
                     `Chat is now ${crimsonChat.isEnabled() ? 'enabled' : 'disabled'}`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `Chat is now ${crimsonChat.isEnabled() ? 'enabled' : 'disabled'}` }
@@ -122,53 +122,53 @@ export default {
 
             case 'forcebreak':
                 if (crimsonChat.isTestMode()) {
-                    await context.reply('❌ Breakdowns are disabled while in test mode.')
+                    await ctx.reply('❌ Breakdowns are disabled while in test mode.')
                     return
                 }
                 crimsonChat.setForceNextBreakdown(true)
-                await context.reply('✅ Mental breakdown will be triggered on next message')
+                await ctx.reply('✅ Mental breakdown will be triggered on next message')
                 break
 
             case 'berserk': {
                 if (crimsonChat.isTestMode()) {
-                    await context.reply('❌ Berserk mode is disabled while in test mode.')
+                    await ctx.reply('❌ Berserk mode is disabled while in test mode.')
                     return
                 }
                 const isEnabled = await crimsonChat.toggleBerserkMode()
                 const status = isEnabled ? 'ENABLED' : 'DISABLED'
-                await context.reply(`🚨 Berserk mode is now **${status}**. Maximum chaos protocol ${isEnabled ? 'engaged' : 'disengaged'}.`)
+                await ctx.reply(`🚨 Berserk mode is now **${status}**. Maximum chaos protocol ${isEnabled ? 'engaged' : 'disengaged'}.`)
                 crimsonChat.sendMessage(
-                    `System Alert: Berserk mode has been ${status.toLowerCase()} by ${context.user.username}.`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: Berserk mode has been ${status.toLowerCase()} by ${context.user.username}.` }
+                    `System Alert: Berserk mode has been ${status.toLowerCase()} by ${ctx.user.username}.`,
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: Berserk mode has been ${status.toLowerCase()} by ${ctx.user.username}.` }
                 )
                 break
             }
 
             case 'testmode': {
-                const enabled = context.getBooleanOption('enabled', true)
+                const enabled = ctx.getBooleanOption('enabled', true)
                 await crimsonChat.setTestMode(enabled)
                 const status = enabled ? 'ENABLED' : 'DISABLED'
-                await context.reply(`✅ Compliant test mode is now **${status}**.`)
+                await ctx.reply(`✅ Compliant test mode is now **${status}**.`)
                 crimsonChat.sendMessage(
-                    `System Alert: Compliant test mode has been ${status.toLowerCase()} by ${context.user.username}.`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: Compliant test mode has been ${status.toLowerCase()} by ${context.user.username}.` }
+                    `System Alert: Compliant test mode has been ${status.toLowerCase()} by ${ctx.user.username}.`,
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: Compliant test mode has been ${status.toLowerCase()} by ${ctx.user.username}.` }
                 )
                 break
             }
 
             case 'ignore': {
-                const user = await context.getUserOption('user')
-                const userId = context.getStringOption('userid')
+                const user = await ctx.getUserOption('user')
+                const userId = ctx.getStringOption('userid')
 
                 if (!user && !userId) {
-                    await context.reply('❌ You must provide either a user or a user ID')
+                    await ctx.reply('❌ You must provide either a user or a user ID')
                     return
                 }
 
                 const targetId = user?.id || userId
                 const username = user?.username || targetId
                 await crimsonChat.ignoreUser(targetId!)
-                await context.reply(`✅ ${username} is now ignored by CrimsonChat`)
+                await ctx.reply(`✅ ${username} is now ignored by CrimsonChat`)
                 crimsonChat.sendMessage(
                     `Now ignoring user ${username}, you are now unable to see their messages.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `Now ignoring user ${username}, you are now unable to see their messages.` }
@@ -177,18 +177,18 @@ export default {
             }
 
             case 'unignore': {
-                const user = await context.getUserOption('user')
-                const userId = context.getStringOption('userid')
+                const user = await ctx.getUserOption('user')
+                const userId = ctx.getStringOption('userid')
 
                 if (!user && !userId) {
-                    await context.reply('❌ You must provide either a user or a user ID')
+                    await ctx.reply('❌ You must provide either a user or a user ID')
                     return
                 }
 
                 const targetId = user?.id || userId
                 const username = user?.username || targetId
                 await crimsonChat.unignoreUser(targetId!)
-                await context.reply(`✅ CrimsonChat will no longer ignore ${username}`)
+                await ctx.reply(`✅ CrimsonChat will no longer ignore ${username}`)
                 crimsonChat.sendMessage(
                     `User ${username} has been unignored, you are now able to see their messages.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `User ${username} has been unignored, you are now able to see their messages.` }
@@ -199,11 +199,11 @@ export default {
             case 'ignorelist':
                 const ignoredUsers = crimsonChat.getIgnoredUsers()
                 if (ignoredUsers.length === 0) {
-                    await context.reply('✅ No users are ignored from CrimsonChat')
+                    await ctx.reply('✅ No users are ignored from CrimsonChat')
                     return
                 }
 
-                await context.deferReply()
+                await ctx.deferReply()
                 const ignoredUsernames = await Promise.all(ignoredUsers.map(async userId => {
                     try {
                         const user = await crimsonChat.client!.users.fetch(userId)
@@ -212,31 +212,31 @@ export default {
                         return userId
                     }
                 }))
-                await context.editReply(`✅ Users ignored by CrimsonChat: \`${ignoredUsernames.join(', ')}\``)
+                await ctx.editReply(`✅ Users ignored by CrimsonChat: \`${ignoredUsernames.join(', ')}\``)
                 break
 
             case 'model': {
-                const model = context.getStringOption('model', true)
-                await context.deferReply()
+                const model = ctx.getStringOption('model', true)
+                await ctx.deferReply()
                 await crimsonChat.setModel(model)
-                await context.editReply(`✅ CrimsonChat model switched to \`${model}\`.`)
+                await ctx.editReply(`✅ CrimsonChat model switched to \`${model}\`.`)
                 crimsonChat.sendMessage(
-                    `System Alert: Model has been switched to \`${model}\` by ${context.user.username}.`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: Model has been switched to \`${model}\` by ${context.user.username}.` }
+                    `System Alert: Model has been switched to \`${model}\` by ${ctx.user.username}.`,
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: Model has been switched to \`${model}\` by ${ctx.user.username}.` }
                 )
                 break
             }
 
             case 'limit': {
-                const mode = context.getStringOption('mode', true) as 'messages' | 'tokens'
-                const limit = context.getIntegerOption('limit', true)
+                const mode = ctx.getStringOption('mode', true) as 'messages' | 'tokens'
+                const limit = ctx.getIntegerOption('limit', true)
 
-                await context.deferReply()
+                await ctx.deferReply()
                 await crimsonChat.setHistoryLimit(mode, limit)
-                await context.editReply(`✅ CrimsonChat history limit set to \`${limit}\` ${mode}.`)
+                await ctx.editReply(`✅ CrimsonChat history limit set to \`${limit}\` ${mode}.`)
                 crimsonChat.sendMessage(
-                    `System Alert: History limit has been set to \`${limit}\` ${mode} by ${context.user.username}.`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: History limit has been set to \`${limit}\` ${mode} by ${context.user.username}.` }
+                    `System Alert: History limit has been set to \`${limit}\` ${mode} by ${ctx.user.username}.`,
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: History limit has been set to \`${limit}\` ${mode} by ${ctx.user.username}.` }
                 )
                 break
             }

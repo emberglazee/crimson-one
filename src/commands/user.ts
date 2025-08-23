@@ -15,14 +15,14 @@ export const slashCommand = {
                 .setRequired(false)
             )
         ),
-    async execute(context) {
-        const subcommand = context.getSubcommand()
+    async execute(ctx) {
+        const subcommand = ctx.getSubcommand()
 
         if (subcommand === 'info') {
             // the indentation paradise
 
-            const user = await context.getUserOption('user', false, context.user)
-            const installationType = context.getInstallationType()
+            const user = await ctx.getUserOption('user', false, ctx.user)
+            const installationType = ctx.getInstallationType()
 
             const usernameText = (
                 `${user.discriminator === '0'
@@ -119,10 +119,10 @@ export const slashCommand = {
                     .setDivider(true)
             ]
 
-            if (installationType === BotInstallationType.GuildInstall && context.guild) {
+            if (installationType === BotInstallationType.GuildInstall && ctx.guild) {
 
-                const member = context.guild.members.cache.get(user.id)
-                    || await context.guild.members.fetch(user.id).catch(() => null)
+                const member = ctx.guild.members.cache.get(user.id)
+                    || await ctx.guild.members.fetch(user.id).catch(() => null)
                 if (member) {
 
                     const joinedServerText = (
@@ -132,7 +132,7 @@ export const slashCommand = {
                     )
 
                     const memberRoleCount = member.roles.cache.size,
-                        guildRoleCount = context.guild.roles.cache.size
+                        guildRoleCount = ctx.guild.roles.cache.size
                     const roleCountText = (
                         `-# * 🎖️ ${Math.floor((memberRoleCount / guildRoleCount) * 100)}% of the roles on the server (${memberRoleCount} / ${guildRoleCount})`
                     )
@@ -155,7 +155,7 @@ export const slashCommand = {
                                     ).setThumbnailAccessory(
 
                                         new ThumbnailBuilder()
-                                            .setURL(getUserAvatar(user, context.guild, { size: 256 }))
+                                            .setURL(getUserAvatar(user, ctx.guild, { size: 256 }))
                                             .setDescription(`Server avatar for user \`${user.username}\``)
 
                                     )
@@ -203,7 +203,7 @@ export const slashCommand = {
 
                                 new TextDisplayBuilder()
                                     .setContent(member.roles.cache.size > 1
-                                        ? member.roles.cache.filter(role => role.id !== context.guild!.id).map(role => `<@&${role.id}>`).join(', ')
+                                        ? member.roles.cache.filter(role => role.id !== ctx.guild!.id).map(role => `<@&${role.id}>`).join(', ')
                                         : 'None'
                                     )
 
@@ -239,7 +239,7 @@ export const slashCommand = {
 
             }
 
-            await context.reply({
+            await ctx.reply({
                 components: userComponents,
                 flags: MessageFlags.IsComponentsV2
             })

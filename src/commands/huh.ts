@@ -5,9 +5,9 @@ export default {
     data: new SlashCommandBuilder()
         .setName('huh')
         .setDescription('"hUh?" - Dr. House'),
-    async execute(context) {
-        await context.deferReply()
-        await context.editReply({
+    async execute(ctx) {
+        await ctx.deferReply()
+        await ctx.editReply({
             files: [{
                 attachment: './data/huh.mov',
                 name: 'huh.mov'

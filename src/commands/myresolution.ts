@@ -5,8 +5,9 @@ export default {
     data: new SlashCommandBuilder()
         .setName('myresolution')
         .setDescription('Sends the "my resolution - airstrike" meme'),
-    async execute(context) {
-        await context.reply({
+    async execute(ctx) {
+        await ctx.deferReply()
+        await ctx.reply({
             files: [{
                 attachment: './data/my resolution.mp4',
                 name: 'my resolution.mp4'

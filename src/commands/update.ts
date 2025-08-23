@@ -5,16 +5,16 @@ export default {
     data: new SlashCommandBuilder()
         .setName('update')
         .setDescription('Pulls the latest commit and restarts the bot.'),
-    async execute(context) {
-        try { await context.assertEmbi() } catch { return }
+    async execute(ctx) {
+        try { await ctx.assertEmbi() } catch { return }
 
         // Check if the bot is managed by the guardian
         if (typeof process.send !== 'function') {
-            await context.reply('❌ The bot is not running under the guardian process. Update cannot be performed.')
+            await ctx.reply('❌ The bot is not running under the guardian process. Update cannot be performed.')
             return
         }
 
-        await context.reply('✅ Received update request. The guardian will now pull the latest changes and restart the bot...')
+        await ctx.reply('✅ Received update request. The guardian will now pull the latest changes and restart the bot...')
 
         // Send a message to the parent (guardian) process
         process.send({ type: 'UPDATE_REQUEST' })

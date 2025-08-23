@@ -11,18 +11,18 @@ export default {
             .setDescription('The code to evaluate')
             .setRequired(true)
         ),
-    async execute(context) {
-        try { await context.assertEmbi() } catch { return }
+    async execute(ctx) {
+        try { await ctx.assertEmbi() } catch { return }
 
-        await context.deferReply()
+        await ctx.deferReply()
 
         try {
-            const code = context.getStringOption('code', true)
+            const code = ctx.getStringOption('code', true)
             const result = eval(code)
             const output = typeof result === 'string' ? result : inspect(result)
-            await context.editReply(`\`\`\`js\n${output}\n\`\`\``)
+            await ctx.editReply(`\`\`\`js\n${output}\n\`\`\``)
         } catch (error) {
-            await context.editReply(`\`\`\`js\n${error}\n\`\`\``)
+            await ctx.editReply(`\`\`\`js\n${error}\n\`\`\``)
         }
     }
 } satisfies SlashCommand

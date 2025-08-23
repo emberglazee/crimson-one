@@ -311,20 +311,20 @@ export default {
             .setName('help')
             .setDescription('Detailed information about the command.')
         ).setContexts(InteractionContextType.Guild),
-    async execute(context: CommandContext<true>) {
+    async execute(ctx: CommandContext<true>) {
 
-        const subcommand = context.getSubcommand()
+        const subcommand = ctx.getSubcommand()
         const markov = MarkovChat.getInstance()
 
         // Helper to resolve user from picker or user_id
         async function resolveUserOrId() {
-            const user = await context.getUserOption('user', false, undefined)
-            const userId = context.getStringOption('user_id', false, undefined)
+            const user = await ctx.getUserOption('user', false, undefined)
+            const userId = ctx.getStringOption('user_id', false, undefined)
             if (user) return user
             if (userId) {
                 try {
                     // Try to fetch user from Discord (may fail if user is not cached)
-                    return await context.client.users.fetch(userId)
+                    return await ctx.client.users.fetch(userId)
                 } catch {
                     // If not found, just return the ID for DB filtering
                     return { id: userId }
@@ -337,24 +337,24 @@ export default {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const global = context.getBooleanOption('global', false, false)
-            const channel = global ? undefined : (await context.getChannelOption('channel')) as TextChannel | null ?? undefined
-            const words = context.getIntegerOption('words', false, 30)
-            const seed = context.getStringOption('seed', false) ?? undefined
-            const mode = context.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram'
+            const global = ctx.getBooleanOption('global', false, false)
+            const channel = global ? undefined : (await ctx.getChannelOption('channel')) as TextChannel | null ?? undefined
+            const words = ctx.getIntegerOption('words', false, 30)
+            const seed = ctx.getStringOption('seed', false) ?? undefined
+            const mode = ctx.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram'
 
-            await context.deferReply()
+            await ctx.deferReply()
 
             try {
                 logger.info(`Generating message with global: ${yellow(global)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
                 const timeStart = process.hrtime()
 
                 const taskPromise = markov.generateMessage({
-                    guild: !global ? context.guild : undefined,
+                    guild: !global ? ctx.guild : undefined,
                     channel, user, userId, words, seed, global, mode
                 })
 
-                const result = await handleLongRunningTask(context, markov, taskPromise, 'generateProgress', {
+                const result = await handleLongRunningTask(ctx, markov, taskPromise, 'generateProgress', {
                     initialMessage: '⏳ Generating message...',
                     formatProgress: (progress: any) => {
                         if (progress.step === 'training') {
@@ -388,7 +388,7 @@ export default {
                     )
                     .setTimestamp()
 
-                await new InteractionMessageManager(context).sendFinalMessage({
+                await new InteractionMessageManager(ctx).sendFinalMessage({
                     content: result,
                     embeds: [footerEmbed],
                     allowedMentions: {
@@ -404,31 +404,31 @@ export default {
                     userFriendlyError = '❌ No messages found for the selected filters. Try collecting some messages first!'
                 }
 
-                await context.editReply({ content: userFriendlyError })
+                await ctx.editReply({ content: userFriendlyError })
             }
 
         } else if (subcommand === 'stats') {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const global = context.getBooleanOption('global', false, false)
-            const channel = global ? undefined : (await context.getChannelOption('channel')) as TextChannel | null ?? undefined
+            const global = ctx.getBooleanOption('global', false, false)
+            const channel = global ? undefined : (await ctx.getChannelOption('channel')) as TextChannel | null ?? undefined
 
-            await context.deferReply()
+            await ctx.deferReply()
 
             try {
                 logger.info(`Getting Markov info with global: ${yellow(global)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}`)
                 const timeStart = process.hrtime()
 
                 const taskPromise = markov.getMessageStats({
-                    guild: !global ? context.guild : undefined,
+                    guild: !global ? ctx.guild : undefined,
                     channel: channel ?? undefined,
                     user: user,
                     userId: userId,
                     global: global
                 })
 
-                const stats = await handleLongRunningTask(context, markov, taskPromise, 'infoProgress', {
+                const stats = await handleLongRunningTask(ctx, markov, taskPromise, 'infoProgress', {
                     initialMessage: '⏳ Gathering statistics...',
                     formatProgress: (progress: any) => {
                         if (progress.step === 'processing') {
@@ -499,7 +499,7 @@ export default {
                     .setDescription(`**Filters Applied:**\n${[global ? '🌐 Global' : channel ? `📝 Channel: #${channel.name}` : '🏠 This server', user ? `👤 User: @${user.tag}` : userId ? `👤 User ID: ${userId}` : null].filter(Boolean).join('\n')}`)
 
                 logger.ok(`Generated Markov info in ${yellow(timeEndMs.toFixed(0))}ms`)
-                await new InteractionMessageManager(context).sendFinalMessage({ content: '', embeds: [embed] })
+                await new InteractionMessageManager(ctx).sendFinalMessage({ content: '', embeds: [embed] })
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error'
                 logger.warn(`Failed to get Markov info: ${red(errorMessage)}`)
@@ -507,7 +507,7 @@ export default {
                 if (errorMessage.includes('No messages found')) {
                     userFriendlyError = '❌ No messages found for the selected filters. Try collecting some messages first!'
                 }
-                await context.editReply({ content: userFriendlyError })
+                await ctx.editReply({ content: userFriendlyError })
             }
 
         } else if (subcommand === 'help') {
@@ -517,16 +517,16 @@ export default {
             const helpCooldowns = new Map<ChannelID, Timestamp>()
             const COOLDOWN_TIME = 60 * 1000 // 1 minute
 
-            if (helpCooldowns.has(context.channel!.id)) {
-                const lastUsed = helpCooldowns.get(context.channel!.id)!
+            if (helpCooldowns.has(ctx.channel!.id)) {
+                const lastUsed = helpCooldowns.get(ctx.channel!.id)!
                 const remaining = COOLDOWN_TIME - (Date.now() - lastUsed)
                 if (remaining > 0) {
-                    await context.reply('❌ this command has a wall of text i get it you wanna spam it so chill out bro and try again in a minute 🥀')
+                    await ctx.reply('❌ this command has a wall of text i get it you wanna spam it so chill out bro and try again in a minute 🥀')
                     return
                 }
             }
 
-            helpCooldowns.set(context.channel!.id, Date.now())
+            helpCooldowns.set(ctx.channel!.id, Date.now())
 
             const text = (
                 '## `/markov` command\n' +
@@ -554,12 +554,12 @@ export default {
                 '- To request deleting specific data from the message database please send a Discord DM to `@emberglaze`, or an email to `emberglaze@emberglaze.ru`, with proof of server ownership, staff membership, or own account ownership (if requesting deletion for yourself).\n' +
                 '- Data deletion might be implemented as a bot command in the near future.'
             )
-            await context.reply(text)
-            await context.followUp(followUpText)
+            await ctx.reply(text)
+            await ctx.followUp(followUpText)
 
         } else if (subcommand === 'collect_all') {
             if (isCollectingAll) {
-                await context.reply('❌ A `collect_all` operation is already in progress. Please wait for it to complete.')
+                await ctx.reply('❌ A `collect_all` operation is already in progress. Please wait for it to complete.')
                 return
             }
 
@@ -568,14 +568,14 @@ export default {
                 const userOrId = await resolveUserOrId()
                 const user = userOrId && 'tag' in userOrId ? userOrId : undefined
                 const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-                const collectEntireChannel = context.getBooleanOption('entire_channel', false)
-                const forceRescan = context.getBooleanOption('force_rescan', false, false)
-                const limit = collectEntireChannel ? 'entire' : context.getIntegerOption('limit')
+                const collectEntireChannel = ctx.getBooleanOption('entire_channel', false)
+                const forceRescan = ctx.getBooleanOption('force_rescan', false, false)
+                const limit = collectEntireChannel ? 'entire' : ctx.getIntegerOption('limit')
 
-                await context.deferReply()
+                await ctx.deferReply()
                 logger.info('{collect_all} Starting collection from all channels...')
 
-                const textChannels = (await context.guild.channels.fetch()).filter(c => c && (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) && c.viewable) as Map<string, TextChannel>
+                const textChannels = (await ctx.guild.channels.fetch()).filter(c => c && (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) && c.viewable) as Map<string, TextChannel>
                 logger.ok(`{collect_all} Fetched ${yellow(textChannels.size)} text channels`)
 
                 const threadPromises = [...textChannels.values()].map(async c => {
@@ -592,7 +592,7 @@ export default {
                 const allTargets = [...textChannels.values(), ...threads]
                 logger.info(`{collect_all} Total collection targets: ${yellow(allTargets.length)}`)
 
-                await context.editReply(`📡 Starting collection from **${allTargets.length} channels and threads**...`)
+                await ctx.editReply(`📡 Starting collection from **${allTargets.length} channels and threads**...`)
 
                 const collectionPromises = allTargets.map(targetChannel => (async () => {
                     try {
@@ -623,7 +623,7 @@ export default {
                     summary += `\n❌ Failed to collect from ${failedChannels.length} channels: ${failedChannels.map(f => f.channel).join(', ')}`
                 }
 
-                await context.followUp(summary)
+                await ctx.followUp(summary)
             } finally {
                 isCollectingAll = false
             }
@@ -632,20 +632,20 @@ export default {
             const userOrId = await resolveUserOrId()
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const collectEntireChannel = context.getBooleanOption('entire_channel', false)
-            const forceRescan = context.getBooleanOption('force_rescan', false)
-            const limit = collectEntireChannel ? 'entire' : context.getIntegerOption('limit')
+            const collectEntireChannel = ctx.getBooleanOption('entire_channel', false)
+            const forceRescan = ctx.getBooleanOption('force_rescan', false)
+            const limit = collectEntireChannel ? 'entire' : ctx.getIntegerOption('limit')
 
-            const channel = (await context.getChannelOption('channel')) as TextChannel
+            const channel = (await ctx.getChannelOption('channel')) as TextChannel
 
             if (!channel) {
-                await context.reply('❌ You must specify a channel.')
+                await ctx.reply('❌ You must specify a channel.')
                 return
             }
 
             const replyContent = `🔍 Starting to collect ${collectEntireChannel ? 'all available' : limit} messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}...`
 
-            await context.reply(replyContent)
+            await ctx.reply(replyContent)
 
             let operationTaskId: string | null = null
 
@@ -661,7 +661,7 @@ export default {
                 const interactionStartTime = process.hrtime()
 
                 // Create the message manager for handling follow-up messages
-                const messageManager = new InteractionMessageManager(context)
+                const messageManager = new InteractionMessageManager(ctx)
 
                 const progressHandler = async (progress: MarkovCollectProgressEvent) => {
                     if (progress.taskId !== operationTaskId) return
@@ -768,12 +768,12 @@ export default {
                 logger.warn(`Failed to collect messages: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
 
                 try {
-                    await context.editReply(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
+                    await ctx.editReply(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
                 } catch (replyError) {
                     // If editReply fails, the token might have expired, so try to send a follow-up
                     logger.warn(`Failed to edit reply with error message: ${red(replyError instanceof Error ? replyError.message : 'Unknown error')}`)
                     try {
-                        await context.followUp(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
+                        await ctx.followUp(`❌ Failed to collect messages: ${error instanceof Error ? error.message : 'Unknown error'}`)
                     } catch (finalError) {
                         logger.error(`Failed to send any error message: ${red(finalError instanceof Error ? finalError.message : 'Unknown error')}`)
                     }

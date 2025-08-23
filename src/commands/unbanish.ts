@@ -18,50 +18,50 @@ export default {
             .setRequired(false)
         )
         .setContexts(InteractionContextType.Guild),
-    async execute(context) {
-        if (!context.member.permissions.has('ManageRoles')) {
-            await context.reply('❌ You dont have permission to manage roles.')
+    async execute(ctx) {
+        if (!ctx.member.permissions.has('ManageRoles')) {
+            await ctx.reply('❌ You dont have permission to manage roles.')
             return
         }
 
-        const targetUser = await context.getUserOption('member', true)
-        const reason = context.getStringOption('reason') ?? 'No reason provided.'
+        const targetUser = await ctx.getUserOption('member', true)
+        const reason = ctx.getStringOption('reason') ?? 'No reason provided.'
 
-        const targetMember = await context.guild.members.fetch(targetUser).catch(() => null)
+        const targetMember = await ctx.guild.members.fetch(targetUser).catch(() => null)
         if (!targetMember) {
-            await context.reply('❌ Could not find the specified member.')
+            await ctx.reply('❌ Could not find the specified member.')
             return
         }
 
-        if (targetMember.id === context.user.id) {
-            await context.reply('how are you banished in the first place?')
+        if (targetMember.id === ctx.user.id) {
+            await ctx.reply('how are you banished in the first place?')
             return
         }
 
-        if (targetMember.id === context.client.user.id) {
-            await context.reply('...what')
+        if (targetMember.id === ctx.client.user.id) {
+            await ctx.reply('...what')
             return
         }
 
         if (!targetMember.manageable) {
-            await context.reply('❌ I cannot moderate this user. They may have a higher role than me or I may not have the necessary permissions.')
+            await ctx.reply('❌ I cannot moderate this user. They may have a higher role than me or I may not have the necessary permissions.')
             return
         }
 
-        if (context.member.roles.highest.position <= targetMember.roles.highest.position) {
-            await context.reply('❌ You cannot unbanish a member with an equal or higher role than you.')
+        if (ctx.member.roles.highest.position <= targetMember.roles.highest.position) {
+            await ctx.reply('❌ You cannot unbanish a member with an equal or higher role than you.')
             return
         }
 
         const banishmentManager = BanishmentManager.getInstance()
 
         try {
-            await context.deferReply()
-            await banishmentManager.unbanish(targetMember, context.user, 'command', reason)
-            await context.editReply(`✅ Successfully unbanished ${targetMember.user.username}.`)
+            await ctx.deferReply()
+            await banishmentManager.unbanish(targetMember, ctx.user, 'command', reason)
+            await ctx.editReply(`✅ Successfully unbanished ${targetMember.user.username}.`)
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.'
-            await context.editReply(`❌ Failed to unbanish member: ${errorMessage}`)
+            await ctx.editReply(`❌ Failed to unbanish member: ${errorMessage}`)
         }
     },
     guildId: SOLITARY_CONFINEMENT_GUILD_ID

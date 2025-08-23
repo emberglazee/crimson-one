@@ -5,9 +5,9 @@ export default {
     data: new SlashCommandBuilder()
         .setName('kill')
         .setDescription('"YES! KILL!" - Steve Harvey'),
-    async execute(context) {
-        await context.deferReply()
-        await context.editReply({
+    async execute(ctx) {
+        await ctx.deferReply()
+        await ctx.editReply({
             files: [{
                 attachment: './data/KILL.mov',
                 name: 'KILL.mov'

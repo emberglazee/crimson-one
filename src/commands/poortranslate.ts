@@ -21,11 +21,11 @@ export default {
             .setRequired(false)
         ),
 
-    async execute(context) {
+    async execute(ctx) {
         const time1 = process.hrtime()
-        const inputText = context.getStringOption('text', true)
-        const randomizeChain = context.getBooleanOption('randomize_chain', false)
-        const exitLang = context.getStringOption('exit_lang', false, 'en')
+        const inputText = ctx.getStringOption('text', true)
+        const randomizeChain = ctx.getBooleanOption('randomize_chain', false)
+        const exitLang = ctx.getStringOption('exit_lang', false, 'en')
 
         let languages = [
             'la', 'ja', 'lo', 'ko',
@@ -42,7 +42,7 @@ export default {
             if (languages[languages.length - 1] !== exitLang) languages.push(exitLang)
         }
 
-        await context.deferReply()
+        await ctx.deferReply()
 
         const totalSteps = languages.length
         let currentStep = 0
@@ -59,7 +59,7 @@ export default {
             if (currentStep > lastReportedStep) {
                 lastReportedStep = currentStep
                 const progressBar = createProgressBar(currentStep, totalSteps)
-                context.editReply(`Translating... ${progressBar} (${currentStep}/${totalSteps})`)
+                ctx.editReply(`Translating... ${progressBar} (${currentStep}/${totalSteps})`)
                     .catch(console.error)
             }
         }, 5000)
@@ -77,7 +77,7 @@ export default {
         } catch (error) {
             console.error('Translation error:', error)
             clearInterval(progressInterval)
-            context.editReply(`An error occurred during translation: ${error}`)
+            ctx.editReply(`An error occurred during translation: ${error}`)
             return
         }
 
@@ -85,6 +85,6 @@ export default {
         clearInterval(progressInterval)
         const time2 = process.hrtime(time1)
         const elapsedSeconds = (time2[0] + time2[1] / 1e9).toFixed(3)
-        context.editReply(`**Poorly translated:**\n${inputText}\n**into:**\n${translatedText}\n-# Time: ${elapsedSeconds}s`)
+        ctx.editReply(`**Poorly translated:**\n${inputText}\n**into:**\n${translatedText}\n-# Time: ${elapsedSeconds}s`)
     }
 } satisfies SlashCommand

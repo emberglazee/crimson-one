@@ -63,17 +63,17 @@ export default {
                 ).setRequired(false)
             )
         ),
-    async execute(context) {
-        const subcommand = context.getSubcommand()
+    async execute(ctx) {
+        const subcommand = ctx.getSubcommand()
         if (subcommand === 'info') {
-            await context.deferReply()
+            await ctx.deferReply()
             const { heapUsed, heapTotal, rss } = process.memoryUsage()
             const uptime = Math.floor(process.uptime())
             const uptimeStr = `${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`
-            const application = await context.client.application!.fetch()
+            const application = await ctx.client.application!.fetch()
             const ongoingOperations = operationTracker.getPendingOperations().length
 
-            await context.editReply({
+            await ctx.editReply({
                 embeds: [{
                     title: '🤖 Bot Information',
                     fields: [
@@ -89,64 +89,66 @@ export default {
             return
         }
 
-        if (subcommand !== 'info') try { await context.assertEmbi() } catch { return }
+        // Lock out everyone but me from the rest of the subcommands
+        try { await ctx.assertEmbi() } catch { return }
+
         if (subcommand === 'set_global_avatar') {
-            await context.deferReply()
-            const avatar = context.getAttachmentOption('avatar', true)
-            await context.client.user.setAvatar(avatar.url)
-            await context.editReply('✅ Avatar changed')
+            await ctx.deferReply()
+            const avatar = ctx.getAttachmentOption('avatar', true)
+            await ctx.client.user.setAvatar(avatar.url)
+            await ctx.editReply('✅ Avatar changed')
             return
         }
         if (subcommand === 'set_global_banner') {
-            await context.deferReply()
-            const banner = context.getAttachmentOption('banner', true)
-            await context.client.user.setBanner(banner.url)
-            await context.editReply('✅ Banner changed')
+            await ctx.deferReply()
+            const banner = ctx.getAttachmentOption('banner', true)
+            await ctx.client.user.setBanner(banner.url)
+            await ctx.editReply('✅ Banner changed')
             return
         }
         if (subcommand === 'set_global_username') {
             if (!canExecuteCommand(subcommand)) {
-                await context.reply(`❌ This command can only be ran ${USAGE_LIMIT} times every ${WINDOW_MINUTES} minutes, to avoid API rate limiting`)
+                await ctx.reply(`❌ This command can only be ran ${USAGE_LIMIT} times every ${WINDOW_MINUTES} minutes, to avoid API rate limiting`)
                 return
             }
-            await context.deferReply()
-            let username = context.getStringOption('username')
-            const shortcut = context.getStringOption('shortcut')
+            await ctx.deferReply()
+            let username = ctx.getStringOption('username')
+            const shortcut = ctx.getStringOption('shortcut')
             if (!username && !shortcut) {
-                await context.editReply('❌ You must provide either a username or a shortcut')
+                await ctx.editReply('❌ You must provide either a username or a shortcut')
                 return
             }
             if (shortcut === 'guild') {
-                if (!context.guild) {
-                    await context.editReply('❌ The `guild` shortcut can only be used in a guild channel')
+                if (!ctx.guild) {
+                    await ctx.editReply('❌ The `guild` shortcut can only be used in a guild channel')
                     return
                 }
-                username = context.guild.name
+                username = ctx.guild.name
             } else if (shortcut === 'user') {
-                username = context.user.username
+                username = ctx.user.username
             } else if (shortcut === 'guilduser') {
-                if (!context.guild) {
-                    await context.editReply('❌ The `guilduser` shortcut can only be used in a guild channel')
+                if (!ctx.guild) {
+                    await ctx.editReply('❌ The `guilduser` shortcut can only be used in a guild channel')
                     return
                 }
-                username = context.member!.user.username ?? context.user.username
+                username = ctx.member!.user.username ?? ctx.user.username
             }
             if (!username) {
-                await context.editReply('❌ Unexpected error: Username could not be determined')
+                await ctx.editReply('❌ Unexpected error: Username could not be determined')
                 return
             }
             try {
-                await context.client.user.setUsername(username)
+                await ctx.client.user.setUsername(username)
                 trackSuccessfulExecution(subcommand)
             } catch (e) {
                 if ((e as Error).message.includes('USERNAME_RATE_LIMIT')) {
-                    await context.editReply('❌ Hit the username change rate limit')
+                    await ctx.editReply('❌ Hit the username change rate limit')
                     return
                 }
-                await context.editReply(`❌ Error changing username: ${(e as Error).message}`)
+                await ctx.editReply(`❌ Error changing username: ${(e as Error).message}`)
                 return
             }
-            await context.editReply(`✅ Username changed to ${username}`)
+            await ctx.editReply(`✅ Username changed to ${username}`)
             return
         }
     }

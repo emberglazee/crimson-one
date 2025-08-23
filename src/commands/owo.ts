@@ -6,19 +6,19 @@ export default {
         .setName('owo')
         .setDescription('OwO-ify text')
         .addStringOption(option => option.setName('text').setDescription('Text to OwOify').setRequired(true)),
-    async execute(context) {
-        const inputText = context.getStringOption('text', true)
+    async execute(ctx) {
+        const inputText = ctx.getStringOption('text', true)
         const outputText = owoTranslate(inputText)
 
         if (outputText.length > 2000) {
             const buffer = Buffer.from(outputText, 'utf-8')
             const attachment = new AttachmentBuilder(buffer, { name: 'OwO.txt' })
 
-            await context.reply({
+            await ctx.reply({
                 files: [attachment]
             })
         } else {
-            await context.reply(outputText)
+            await ctx.reply(outputText)
         }
     }
 } satisfies SlashCommand

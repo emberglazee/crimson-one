@@ -11,26 +11,26 @@ export default {
     data: new SlashCommandBuilder()
         .setName('hoi4hours')
         .setDescription('Check the Steam API for embi\'s hours in HOI4'),
-    async execute(context) {
+    async execute(ctx) {
         if (!STEAM_API_KEY || !STEAM_ID) {
-            await context.reply('❌ Steam API key or ID is not configured for this bot. Please contact the bot owner.')
-            if (context.guild?.members.cache.has(EMBI_ID)) {
-                await context.followUp(
+            await ctx.reply('❌ Steam API key or ID is not configured for this bot. Please contact the bot owner.')
+            if (ctx.guild?.members.cache.has(EMBI_ID)) {
+                await ctx.followUp(
                     'nevermind ill do it myself,\n\n' +
-                    `${PING_EMBI} check the env.STEAM_API_KEY and env.STEAM_ID you dipshit`
+                    `${PING_EMBI} check \`env.STEAM_API_KEY\` and \`env.STEAM_ID\` you dipshit`
                 )
             }
             return
         }
 
-        await context.deferReply()
+        await ctx.deferReply()
 
         const hoi4AppId = 394360
 
         const games = await getOwnedGames(STEAM_ID!)
         const hoi4 = games.find(game => game.appid === hoi4AppId)
         if (!hoi4) {
-            await context.editReply(`❌ HOI4 not found in the list of games (did ${context.pingEmbi} finally touch grass? check his steam profile directly or something)`)
+            await ctx.editReply(`❌ HOI4 not found in the list of games (did ${ctx.pingEmbi} finally touch grass? check his steam profile directly or something)`)
             return
         }
 
@@ -51,7 +51,7 @@ export default {
         if (remainingHours > 0) timeString += `${remainingHours}h `
         if (remainingMinutes > 0) timeString += `${remainingMinutes}m`
 
-        await context.editReply(`${context.pingEmbi} has spent \`${hours}\` hours playing HOI4\nThat's approximately: \`${timeString.trim()}\``)
+        await ctx.editReply(`${ctx.pingEmbi} has spent \`${hours}\` hours playing HOI4\nThat's approximately: \`${timeString.trim()}\``)
     }
 } satisfies SlashCommand
 

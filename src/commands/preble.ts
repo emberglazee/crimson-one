@@ -5,9 +5,9 @@ export default {
     data: new SlashCommandBuilder()
         .setName('preble')
         .setDescription('Preble.'),
-    async execute(context) {
-        await context.deferReply()
-        await context.editReply({
+    async execute(ctx) {
+        await ctx.deferReply()
+        await ctx.editReply({
             files: [{
                 attachment: './data/preble.wav',
                 name: 'preble.wav'

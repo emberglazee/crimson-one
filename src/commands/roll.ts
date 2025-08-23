@@ -70,14 +70,14 @@ export default {
                 .setMaxValue(MAX_UNTIL_SIDES)
             )
         ),
-    async execute(context) {
-        const subcommand = context.getSubcommand(true)
+    async execute(ctx) {
+        const subcommand = ctx.getSubcommand(true)
         if (subcommand === 'until') {
             // /roll until logic
-            const targetNumber = context.getNumberOption('number', true)
-            const sides = context.getNumberOption('sides', true)
+            const targetNumber = ctx.getNumberOption('number', true)
+            const sides = ctx.getNumberOption('sides', true)
             if (targetNumber > sides) {
-                await context.reply(`❌ The target number (${targetNumber}) cannot be greater than the number of sides (${sides})!`)
+                await ctx.reply(`❌ The target number (${targetNumber}) cannot be greater than the number of sides (${sides})!`)
                 return
             }
             let rolls = 0
@@ -94,17 +94,17 @@ export default {
             const message = rolls === MAX_ITERATIONS
                 ? `🎲 Rolled ${rolls} times and never got ${targetNumber} on a d${sides} in ${duration}ms! Here are the last 10 rolls: ${rollHistory.slice(-10).join(', ')}`
                 : `🎲 Got ${targetNumber} on a d${sides} after ${rolls} rolls in ${duration}ms! Here are the last 10 rolls: ${rollHistory.slice(-10).join(', ')}`
-            await context.reply(message)
+            await ctx.reply(message)
             return
         }
-        const user = await context.getUserOption('user', false, context.author)
-        const rolls = context.getNumberOption('rolls', false, 1)
-        const action = context.getStringOption('action')
+        const user = await ctx.getUserOption('user', false, ctx.author)
+        const rolls = ctx.getNumberOption('rolls', false, 1)
+        const action = ctx.getStringOption('action')
 
         let sides: number
         switch (subcommand) {
             case 'custom':
-                sides = context.getNumberOption('sides', true)
+                sides = ctx.getNumberOption('sides', true)
                 break
             case 'd6':
                 sides = 6
@@ -127,6 +127,6 @@ export default {
             ? `${user} rolls ${rollText} (🎲 ${rolls}d${sides}) for ${action}`
             : `${user} rolls ${rollText} (🎲 ${rolls}d${sides})`
 
-        await context.reply(message)
+        await ctx.reply(message)
     }
 } satisfies SlashCommand

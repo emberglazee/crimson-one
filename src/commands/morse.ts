@@ -1,8 +1,10 @@
+import { Logger } from '../util/logger'
+const logger = new Logger('/morse')
+
 import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
-import { Logger } from '../util/logger'
 import { PING_EMBI } from '../util/constants'
-const logger = new Logger('/morse')
+import morse from 'morse'
 
 export default {
     data: new SlashCommandBuilder()
@@ -23,27 +25,26 @@ export default {
                 .setDescription('text to encode into morse code')
             )
         ),
-    async execute(context) {
+    async execute(ctx) {
         try {
-            const subcommand = context.getSubcommand(true)
-            const morse = await import('morse')
+            const subcommand = ctx.getSubcommand(true)
             let code, text = ''
             switch (subcommand) {
                 case 'decode':
-                    code = context.getStringOption('code', true)
+                    code = ctx.getStringOption('code', true)
                     text = morse.decode(code)
-                    await context.reply(text)
+                    await ctx.reply(text)
                     return
                 case 'encode':
-                    text = context.getStringOption('text', true)
+                    text = ctx.getStringOption('text', true)
                     code = morse.encode(text)
-                    await context.reply(code)
+                    await ctx.reply(code)
                     return
             }
         } catch (e) {
             const error = e as Error
             logger.warn(error.stack ?? error.message ?? error)
-            await context.reply(`${PING_EMBI} something went wrong with the morse command -> \`${error.message ?? error}\`\n-# check the full error stack in the console, nerd`)
+            await ctx.reply(`${PING_EMBI} something went wrong with the morse command -> \`${error.message ?? error}\`\n-# check the full error stack in the console, nerd`)
         }
     }
 } satisfies SlashCommand

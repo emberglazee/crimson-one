@@ -58,9 +58,9 @@ export default {
                 { name: 'Random', value: 'random' }
             )
         ),
-    async execute(context) {
-        const question = context.getStringOption('question', true)
-        const theme = context.getStringOption('theme', false)
+    async execute(ctx) {
+        const question = ctx.getStringOption('question', true)
+        const theme = ctx.getStringOption('theme', false)
 
         let finalResponses: string[] = []
         if (theme === 'cascadia') {
@@ -74,12 +74,12 @@ export default {
         const randomIndex = randRange(0, finalResponses.length - 1)
         const response = finalResponses[randomIndex]
 
-        const msgPrefix = `💬 ${context.user}: *${question}*\n`
+        const msgPrefix = `💬 ${ctx.user}: *${question}*\n`
         const msgAnswer = `🎱 **8ball says:** ${response}`
         const msgLoading = '🔮 *Shaking the magic 8ball...*'
 
-        await context.reply(msgPrefix + msgLoading)
+        await ctx.reply(msgPrefix + msgLoading)
         await sleep(randRange(600, 3000))
-        await context.editReply(msgPrefix + msgAnswer)
+        await ctx.editReply(msgPrefix + msgAnswer)
     }
 } satisfies SlashCommand

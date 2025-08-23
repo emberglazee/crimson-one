@@ -47,24 +47,24 @@ export default {
             ).setRequired(false)
         ),
 
-    async execute(context) {
-        const user = await context.getUserOption('user', false, context.author)
-        const raw = context.getBooleanOption('raw', false, false)
-        const ext = context.getStringOption('extension', false, 'png') as ImageExtension
-        const size = context.getIntegerOption('size', false, 1024) as ImageSize
-        const guildOrGlobal = context.getStringOption('serverorglobal', false, 'guild')
+    async execute(ctx) {
+        const user = await ctx.getUserOption('user', false, ctx.author)
+        const raw = ctx.getBooleanOption('raw', false, false)
+        const ext = ctx.getStringOption('extension', false, 'png') as ImageExtension
+        const size = ctx.getIntegerOption('size', false, 1024) as ImageSize
+        const guildOrGlobal = ctx.getStringOption('serverorglobal', false, 'guild')
 
-        await context.deferReply()
+        await ctx.deferReply()
 
         let avatar = ''
-        const installationType = context.getInstallationType()
+        const installationType = ctx.getInstallationType()
         let footerNote: string | null = null
 
         if (guildOrGlobal === 'guild') {
             if (installationType === BotInstallationType.GuildInstall || installationType === BotInstallationType.UserInstallGuild) {
-                if (context.guild) {
+                if (ctx.guild) {
                     try {
-                        const member = await context.guild.members.fetch(user.id)
+                        const member = await ctx.guild.members.fetch(user.id)
                         avatar = member.displayAvatarURL({ extension: ext, size: size })
                     } catch {
                         avatar = user.displayAvatarURL({ extension: ext, size: size })
@@ -92,7 +92,7 @@ export default {
         }
 
         if (raw) {
-            await context.reply(response)
+            await ctx.reply(response)
             return
         }
 
@@ -110,7 +110,7 @@ export default {
             embed.setFooter({ text: footerNote })
         }
 
-        await context.reply({
+        await ctx.reply({
             embeds: [embed]
         })
     }

@@ -7,31 +7,31 @@ export default {
         .setDescription('Generate a link to jump to a specific message')
         .addStringOption(option => option
             .setName('message_id')
-            .setDescription('The ID of the message to link to')
+            .setDescription('The ID of the message to link to. (CHECK OTHER OPTIONS)')
             .setRequired(true)
         ).addStringOption(option => option
             .setName('channel_id')
-            .setDescription('The ID of the channel containing the message (defaults to current channel)')
+            .setDescription('The ID of the channel containing the message. (defaults to current channel)')
             .setRequired(false)
         ).addStringOption(option => option
             .setName('guild_id')
-            .setDescription('The ID of the guild containing the message (defaults to current guild)')
+            .setDescription('The ID of the guild containing the message. (defaults to current guild)')
             .setRequired(false)
         ).addBooleanOption(option => option
             .setName('is_dm')
-            .setDescription('Whether this is a DM message (uses @me instead of guild ID)')
+            .setDescription('Whether this is a DM message. (uses @me instead of guild ID)')
             .setRequired(false)
         ),
-    async execute(context) {
-        await context.deferReply({ flags: MessageFlags.Ephemeral })
+    async execute(ctx) {
+        await ctx.deferReply({ flags: MessageFlags.Ephemeral })
 
-        const messageId = context.getStringOption('message_id', true)
-        const isDm = context.getBooleanOption('is_dm', false, context.channel?.isDMBased() ?? false)
-        const targetChannelId = context.getStringOption('channel_id', false, context.channel?.id)
-        const targetGuildId = context.getStringOption('guild_id', false, context.guild?.id)
+        const messageId = ctx.getStringOption('message_id', true)
+        const isDm = ctx.getBooleanOption('is_dm', false, ctx.channel?.isDMBased() ?? false)
+        const targetChannelId = ctx.getStringOption('channel_id', false, ctx.channel?.id)
+        const targetGuildId = ctx.getStringOption('guild_id', false, ctx.guild?.id)
 
         if (!targetChannelId) {
-            await context.reply('No channel ID provided')
+            await ctx.reply('No channel ID provided')
             return
         }
 
@@ -39,6 +39,6 @@ export default {
             ? `https://discord.com/channels/@me/${targetChannelId}/${messageId}`
             : `https://discord.com/channels/${targetGuildId}/${targetChannelId}/${messageId}`
 
-        await context.reply(`Here's your message link: ${messageLink}`)
+        await ctx.reply(`Here's your message link: ${messageLink}`)
     }
 } satisfies SlashCommand
