@@ -2,18 +2,19 @@ import { green, Logger, red, yellow } from '../../util/logger'
 const logger = new Logger('CrimsonChat')
 
 import { Client, TextChannel, Message, ChatInputCommandInteraction, EmbedBuilder, type MessageReplyOptions, type HexColorString } from 'discord.js'
-import type { UserMessageOptions, SlashCommand, ExplicitAny } from '../../types'
+import type { UserMessageOptions, SlashCommand } from '../../types'
 import type { CommandContext } from '../CommandManager/CommandContext'
 import { MessageQueue } from './MessageQueue'
 import { CrimsonChatState, type HistoryLimitMode } from './memory'
 import { usernamesToMentions } from './util/formatters'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST_PROMPT } from '../../util/constants'
 import { ImageProcessor } from './ImageProcessor'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { type ModelMessage, type TextPart, type ImagePart, type ToolCallPart, type ToolResultPart, generateText } from 'ai'
 import { loadTools } from './tools'
 
 import { EventEmitter } from 'tseep'
+import { inspect } from 'bun'
 
 const ASSISTANT_RESPONSE_TIMEOUT_MS = 60000
 
@@ -32,10 +33,11 @@ export default class CrimsonChat extends EventEmitter<{
     public channelId = '1335992675459141632'
     private imageProcessor = new ImageProcessor()
 
-    private genAI = createGoogleGenerativeAI({
-        apiKey: process.env.GEMINI_API_KEY,
-        baseURL: process.env.GEMINI_BASE_URL
-    })
+    private lmstudio = createOpenAICompatible({
+        name: 'lmstudio',
+        baseURL: 'http://localhost:1234/v1', // lm studio
+        apiKey: process.env.OPENAI_API_KEY ?? 'lm-studio', // lm studio wants an api key, but it can be anything
+    });
     public state = new CrimsonChatState()
 
     private forceNextBreakdown = false
@@ -78,7 +80,7 @@ export default class CrimsonChat extends EventEmitter<{
             logger.info(`Triggering ${this.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
             const result = await generateText({
-                model: this.genAI(this.state.modelName),
+                model: this.lmstudio(this.state.modelName),
                 prompt: CRIMSON_BREAKDOWN_PROMPT
             })
             const breakdown = result.text
@@ -190,23 +192,26 @@ export default class CrimsonChat extends EventEmitter<{
 
             const rawResult = await Promise.race([
                 generateText({
-                    model: this.genAI(this.state.modelName),
+                    model: this.lmstudio(this.state.modelName),
                     system: state.systemPrompt,
-                    messages: messages,
+                    messages: messages.map(msg => ({ role: msg.role, content: msg.content })) as ModelMessage[],
                     tools: Object.keys(tools).length > 0 ? tools : undefined,
                     temperature: this.state.berserkMode ? 2.0 : 0.8,
                     topP: this.state.berserkMode ? 1.0 : 0.95,
                     maxRetries: 10
                 }),
                 timeoutPromise
-            ])
+            ]).catch(e => {
+                logger.warn(`generateText promise rejected: ${e instanceof Error ? e.stack ?? e.message : String(e)}`)
+                return null
+            })
 
-            // The custom fetch wrapper for the Code Assist API returns a nested response object.
-            // Using `ExplicitAny` here is a deliberate choice to unwrap this specific, non-standard
-            // structure without creating a complex, one-off type definition.
-            const result = (rawResult as ExplicitAny).response ?? rawResult
+            if (!rawResult) {
+                logger.warn('generateText returned null or was rejected.')
+                return null
+            }
 
-            const { text, toolCalls, toolResults, usage } = result
+            const { text, toolCalls, toolResults, usage } = rawResult
 
             const newMessages: ModelMessage[] = [userMessage]
             if (toolCalls && toolCalls.length > 0) {
@@ -225,8 +230,14 @@ export default class CrimsonChat extends EventEmitter<{
                 }
             }
             if (toolResults && toolResults.length > 0) {
-                newMessages.push({ role: 'tool', content: toolResults })
-                for (const result of toolResults as ToolResultPart[]) {
+                const toolResultParts: ToolResultPart[] = toolResults.map(result => ({
+                    type: 'tool-result',
+                    toolCallId: result.toolCallId,
+                    toolName: result.toolName,
+                    output: result.output
+                }))
+                newMessages.push({ role: 'tool', content: toolResultParts })
+                for (const result of toolResults) {
                     const resultString = typeof result.output === 'string'
                         ? result.output
                         : JSON.stringify(result.output, null, 2)
@@ -263,7 +274,7 @@ export default class CrimsonChat extends EventEmitter<{
                         .setTitle(embedTitle)
                         .addFields(
                             { name: 'Tool', value: `\`${result.toolName}\``, inline: true },
-                            { name: 'Message', value: `\`\`\`\n${parsedResult ? parsedResult.message : resultString.substring(0, 1000)}\n\`\`\`` }
+                            { name: 'Message', value: `\`\`\`\n${parsedResult ? parsedResult.message : resultString.substring(0, 1000)}\n\`\`\`}` }
                         )
                         .setFooter({ text: `Call ID: ${result.toolCallId}` })
                         .setTimestamp()
@@ -274,7 +285,10 @@ export default class CrimsonChat extends EventEmitter<{
                 newMessages.push({ role: 'assistant', content: text })
             }
 
-            await this.state.addMessages(newMessages, usage)
+            await this.state.addMessages(newMessages, {
+                promptTokens: usage.inputTokens!,
+                completionTokens: usage.outputTokens!
+            })
 
             return text
         } catch (e) {

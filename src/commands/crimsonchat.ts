@@ -58,18 +58,11 @@ export default {
             .setDescription('List all ignored users')
         ).addSubcommand(subcommand => subcommand
             .setName('model')
-            .setDescription('Switch the Gemini model used for responses')
+            .setDescription('Switch the model used for responses')
             .addStringOption(option => option
                 .setName('model')
                 .setDescription('The model to switch to')
                 .setRequired(true)
-                .addChoices(
-                    { name: 'Gemini 2.5 Pro',        value: 'gemini-2.5-pro' },
-                    { name: 'Gemini 2.5 Flash',      value: 'gemini-2.5-flash' },
-                    { name: 'Gemini 2.5 Flash Lite (Default)', value: 'gemini-2.5-flash-lite-preview-06-17' },
-                    { name: 'Gemini 2.0 Flash',      value: 'gemini-2.0-flash' },
-                    { name: 'Gemini 2.0 Flash Lite', value: 'gemini-2.0-flash-lite' }
-                )
             )
         ).addSubcommand(subcommand => subcommand
             .setName('limit')

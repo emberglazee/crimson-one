@@ -6,7 +6,7 @@ import path from 'path'
 import {
     getCrimsonChatHistoryFoundation,
     CRIMSON_CHAT_SYSTEM_PROMPT,
-    DEFAULT_GEMINI_MODEL
+    DEFAULT_OPENAI_MODEL
 } from '../../util/constants'
 import type { ModelMessage, FilePart, ImagePart, TextPart, ToolResultPart, ToolCallPart } from 'ai'
 import { Buffer } from 'buffer'
@@ -67,7 +67,7 @@ export class CrimsonChatState {
     public tokenLimit = 32768
     public currentTokenCount = 0
     public enabled = true
-    public modelName: string = DEFAULT_GEMINI_MODEL
+    public modelName: string = DEFAULT_OPENAI_MODEL
     public berserkMode = false
     public testMode = false
     public ignoredUsers: string[] = []
@@ -161,7 +161,7 @@ export class CrimsonChatState {
             this.messageLimit = savedData.messageLimit || 100
             this.tokenLimit = savedData.tokenLimit || 30000
             this.enabled = savedData.enabled ?? true
-            this.modelName = savedData.modelName || DEFAULT_GEMINI_MODEL
+            this.modelName = savedData.modelName || DEFAULT_OPENAI_MODEL
             this.berserkMode = savedData.berserkMode ?? false
             this.testMode = savedData.testMode ?? false
             this.ignoredUsers = savedData.ignoredUsers || []
