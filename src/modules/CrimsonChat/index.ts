@@ -193,7 +193,7 @@ export default class CrimsonChat extends EventEmitter<{
                 generateText({
                     model: this.lmstudio(this.state.modelName),
                     system: state.systemPrompt,
-                    messages: messages.map(msg => ({ role: msg.role, content: msg.content })) as ModelMessage[],
+                    messages,
                     tools: Object.keys(tools).length > 0 ? tools : undefined,
                     temperature: this.state.berserkMode ? 2.0 : 0.8,
                     topP: this.state.berserkMode ? 1.0 : 0.95,
