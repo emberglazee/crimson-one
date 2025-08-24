@@ -10,11 +10,10 @@ import { usernamesToMentions } from './util/formatters'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST_PROMPT } from '../../util/constants'
 import { ImageProcessor } from './ImageProcessor'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { type ModelMessage, type TextPart, type ImagePart, type ToolCallPart, type ToolResultPart, generateText } from 'ai'
+import type { ModelMessage, TextPart, ImagePart, ToolCallPart, ToolResultPart } from 'ai'
+import { generateText } from 'ai'
 import { loadTools } from './tools'
-
 import { EventEmitter } from 'tseep'
-import { inspect } from 'bun'
 
 const ASSISTANT_RESPONSE_TIMEOUT_MS = 60000
 
@@ -99,7 +98,7 @@ export default class CrimsonChat extends EventEmitter<{
         if (!this.channel || !this.state.enabled) return
 
         this.messageBuffer.push({ content, options, originalMessage })
-        logger.info(`Message from ${yellow(options.username)} buffered. Buffer size: ${yellow(this.messageBuffer.length)}`)
+        logger.debug(`Message from ${yellow(options.username)} buffered. Buffer size: ${yellow(this.messageBuffer.length)}`)
 
         if (!this.isGenerating) {
             setImmediate(() => this._processQueue())
@@ -110,13 +109,13 @@ export default class CrimsonChat extends EventEmitter<{
         if (this.isGenerating || this.messageBuffer.length === 0) return
 
         this.isGenerating = true
-        logger.info('Starting message processing queue.')
+        logger.debug('Starting message processing queue.')
 
         const messagesToProcess = [...this.messageBuffer]
         this.messageBuffer = []
 
         try {
-            logger.info(`Processing a batch of ${yellow(messagesToProcess.length)} messages.`)
+            logger.debug(`Processing a batch of ${yellow(messagesToProcess.length)} messages.`)
             const lastMessage = messagesToProcess[messagesToProcess.length - 1]
             const response = await this._generateResponse(messagesToProcess)
 
@@ -128,10 +127,10 @@ export default class CrimsonChat extends EventEmitter<{
             logger.error(`An error occurred in the processing queue: ${red(error instanceof Error ? error.stack ?? error.message : String(error))}`)
         } finally {
             this.isGenerating = false
-            logger.info('Finished message processing queue.')
+            logger.debug('Finished message processing queue.')
 
             if (this.messageBuffer.length > 0) {
-                logger.info('New messages arrived during processing. Restarting queue.')
+                logger.debug('New messages arrived during processing. Restarting queue.')
                 setImmediate(() => this._processQueue())
             }
         }
@@ -142,7 +141,7 @@ export default class CrimsonChat extends EventEmitter<{
     ): Promise<string | null> {
         const lastMessage = bufferedMessages[bufferedMessages.length - 1]
         const targetChannel = lastMessage.options.targetChannel || this.channel!
-        logger.info(`Generating response for a batch of ${yellow(bufferedMessages.length)} messages...`)
+        logger.debug(`Generating response for a batch of ${yellow(bufferedMessages.length)} messages...`)
 
         targetChannel.sendTyping().catch(e => logger.warn(`Typing indicator failed: ${e.message}`))
 

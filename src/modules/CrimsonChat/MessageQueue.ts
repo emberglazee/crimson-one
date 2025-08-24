@@ -33,7 +33,7 @@ export class MessageQueue {
         reply?: Message
     ): void {
         this.queue.push({ content, channel, reply })
-        logger.info(`Message queued. Queue length: ${yellow(this.queue.length)}`)
+        logger.debug(`Message queued. Queue length: ${yellow(this.queue.length)}`)
     }
 
     private async startProcessing(): Promise<void> {
