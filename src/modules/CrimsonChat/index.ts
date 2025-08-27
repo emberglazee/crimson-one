@@ -9,11 +9,12 @@ import { CrimsonChatState, type HistoryLimitMode } from './memory'
 import { usernamesToMentions } from './util/formatters'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST_PROMPT } from '../../util/constants'
 import { ImageProcessor } from './ImageProcessor'
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
+import { createOpenAI } from '@ai-sdk/openai'
 import type { ModelMessage, TextPart, ImagePart, ToolCallPart, ToolResultPart } from 'ai'
 import { generateText } from 'ai'
 import { loadTools } from './tools'
 import { EventEmitter } from 'tseep'
+import { inspect } from 'bun'
 
 const ASSISTANT_RESPONSE_TIMEOUT_MS = 60000
 
@@ -32,10 +33,10 @@ export default class CrimsonChat extends EventEmitter<{
     public channelId = '1335992675459141632'
     private imageProcessor = new ImageProcessor()
 
-    private lmstudio = createOpenAICompatible({
-        name: 'lmstudio',
-        baseURL: 'http://localhost:1234/v1', // lm studio
-        apiKey: process.env.OPENAI_API_KEY ?? 'lm-studio', // lm studio wants an api key, but it can be anything
+    private voidai = createOpenAI({
+        name: 'voidai',
+        baseURL: 'https://api.voidai.app/v1',
+        apiKey: process.env.OPENAI_API_KEY
     });
     public state = new CrimsonChatState()
 
@@ -79,7 +80,7 @@ export default class CrimsonChat extends EventEmitter<{
             logger.info(`Triggering ${this.forceNextBreakdown ? 'forced' : 'random'} Crimson 1 breakdown`)
             this.forceNextBreakdown = false
             const result = await generateText({
-                model: this.lmstudio(this.state.modelName),
+                model: this.voidai(this.state.modelName),
                 prompt: CRIMSON_BREAKDOWN_PROMPT
             })
             const breakdown = result.text
@@ -191,10 +192,10 @@ export default class CrimsonChat extends EventEmitter<{
 
             const rawResult = await Promise.race([
                 generateText({
-                    model: this.lmstudio(this.state.modelName),
+                    model: this.voidai(this.state.modelName),
                     system: state.systemPrompt,
                     messages,
-                    tools: Object.keys(tools).length > 0 ? tools : undefined,
+                    // tools: Object.keys(tools).length > 0 ? tools : undefined,
                     temperature: this.state.berserkMode ? 2.0 : 0.8,
                     topP: this.state.berserkMode ? 1.0 : 0.95,
                     maxRetries: 10
@@ -202,6 +203,7 @@ export default class CrimsonChat extends EventEmitter<{
                 timeoutPromise
             ]).catch(e => {
                 logger.warn(`generateText promise rejected: ${e instanceof Error ? e.stack ?? e.message : String(e)}`)
+                console.log(inspect(e, { depth: Infinity, colors: true }))
                 return null
             })
 
