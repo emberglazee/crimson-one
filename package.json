@@ -24,7 +24,7 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.22",
+    "@ai-sdk/openai-compatible": "^1.0.13",
     "@types/ws": "^8.18.1",
     "ai": "^5.0.19",
     "canvas": "^3.2.0",
