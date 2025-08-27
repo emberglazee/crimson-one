@@ -214,10 +214,9 @@ export class QuoteImageFactory {
         gradient: GradientType,
         stretchGradient = false,
         style: QuoteStyle = 'pw',
-        interpretNewlines = false
+        interpretNewlines = false,
+        continuousGradient = false
     ): Promise<QuoteImageResult> {
-        logger.info(`Creating quote image with params:\n${yellow(speaker)}\n${yellow(quote)}\n${yellow(color)}\n${yellow(gradient)}\n${yellow(stretchGradient)}\n${yellow(style)}\n${yellow(interpretNewlines)}`)
-
         // Process newlines before continuing
         if (interpretNewlines) {
             quote = quote.replace(/<newline>/g, '\n')
@@ -772,23 +771,59 @@ export class QuoteImageFactory {
                         y += lineHeight
                     }
                 } else {
-                    for (const line of speakerLines) {
-                        speakerLineWidths.push(ctx.measureText(line).width)
-                        let x = width / 2 - ctx.measureText(line).width / 2
-                        for (let i = 0; i < line.length; i++) {
-                            const char = line[i]
-                            const colorIndex = stretchGradient
-                                ? Math.floor((i / line.length) * gradientColors.length)
-                                : i % gradientColors.length
-                            ctx.fillStyle = gradientColors[colorIndex]
-                            ctx.textAlign = 'left'
-                            const charWidth = ctx.measureText(char).width
-                            ctx.fillText(char, x, y)
-                            x += charWidth
+                    // When stretching, we use a smooth CanvasGradient for the best effect.
+                    // When not stretching, we use character-by-character coloring to create a repeating pattern.
+                    if (stretchGradient) {
+                        ctx.textAlign = 'center'
+                        const lineMetrics = speakerLines.map(line => ({
+                            line,
+                            width: ctx.measureText(line).width
+                        }))
+                        const maxLineWidth = Math.max(0, ...lineMetrics.map(m => m.width))
+
+                        if (maxLineWidth > 0) {
+                            const x_start = width / 2 - maxLineWidth / 2
+                            const x_end = width / 2 + maxLineWidth / 2
+                            const gradientFill = ctx.createLinearGradient(x_start, 0, x_end, 0)
+
+                            gradientColors.forEach((color, index) => {
+                                const offset = gradientColors.length > 1
+                                    ? index / (gradientColors.length - 1)
+                                    : 0.5
+                                gradientFill.addColorStop(offset, color)
+                            })
+                            ctx.fillStyle = gradientFill
                         }
-                        y += lineHeight
+
+                        for (const metrics of lineMetrics) {
+                            speakerLineWidths.push(metrics.width)
+                            ctx.fillText(metrics.line, width / 2, y)
+                            y += lineHeight
+                        }
+                    } else {
+                        // Use character-by-character coloring for a repeating (non-stretched) gradient effect.
+                        const totalChars = continuousGradient ? speakerLines.reduce((sum, line) => sum + line.length, 0) : 0
+                        let charCount = 0
+
+                        for (const line of speakerLines) {
+                            speakerLineWidths.push(ctx.measureText(line).width)
+                            let x = width / 2 - ctx.measureText(line).width / 2
+                            for (let i = 0; i < line.length; i++) {
+                                const char = line[i]
+                                const position = continuousGradient ? charCount : i
+                                const colorIndex = position % gradientColors.length
+
+                                ctx.fillStyle = gradientColors[colorIndex]
+                                ctx.textAlign = 'left'
+                                const charWidth = ctx.measureText(char).width
+                                ctx.fillText(char, x, y)
+                                x += charWidth
+                                charCount++
+                            }
+                            y += lineHeight
+                        }
+                        ctx.textAlign = 'center'
                     }
-                    ctx.textAlign = 'center'
                 }
 
                 if (style === 'acz') {

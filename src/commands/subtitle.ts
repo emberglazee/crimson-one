@@ -61,6 +61,10 @@ export const slashCommand = {
             .setDescription('Stretch the gradient across the entire name instead of repeating it')
             .setRequired(false)
         ).addBooleanOption(option => option
+            .setName('continuous_gradient')
+            .setDescription('Make the gradient continuous across multiple lines of the speaker\'s name')
+            .setRequired(false)
+        ).addBooleanOption(option => option
             .setName('interpret_newlines')
             .setDescription('Convert <newline> tags into line breaks')
             .setRequired(false)
@@ -81,6 +85,7 @@ export const slashCommand = {
                     ? CHARACTER_COLORS.find(c => c.name === characterColor)?.hex ?? null
                     : null
         const stretchGradient = ctx.getBooleanOption('stretch', false)
+        const continuousGradient = ctx.getBooleanOption('continuous_gradient', false)
         const interpretNewlines = ctx.getBooleanOption('interpret_newlines', false)
 
         if (!color && gradient === 'none') {
@@ -92,7 +97,7 @@ export const slashCommand = {
         const factory = QuoteImageFactory.getInstance()
             .setGuild(ctx.guild!)
         try {
-            const result = await factory.createQuoteImage(speaker, text, color, gradient, stretchGradient ?? false, style, interpretNewlines ?? false)
+            const result = await factory.createQuoteImage(speaker, text, color, gradient, stretchGradient ?? false, style, interpretNewlines ?? false, continuousGradient ?? false)
             await ctx.editReply({
                 files: [
                     new AttachmentBuilder(result.buffer)
