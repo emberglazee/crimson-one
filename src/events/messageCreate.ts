@@ -53,18 +53,29 @@ export default async function onMessageCreate(client: Client<true>) {
                 const tagManager = TagManager.getInstance()
 
                 const guildConfig = await GuildConfigManager.getInstance().getConfig(message.guild?.id)
-                if (!guildConfig.tagSystemEnabled) return // Silently fail if not enabled
+                if (!guildConfig.tagSystemEnabled) return // Silently ignore if not enabled
+
+                const tagName = content.slice(1).split(' ')[0]
+                if (!tagName) return // Silently ignore, maybe it wasn't intended as a tag call
 
                 // Tag creation (e.g., "%=tagname tag content here")
                 if (content.startsWith('%=')) {
-                    const tagName = content.slice(2).split(' ')[0]
-                    if (!tagName) return // Ignore if it's just "%="
-
                     const tagContent = content.slice(2 + tagName.length + 1)
-                    if (!tagContent) return // Ignore if there's no content
+                    if (!tagContent) {
+                        await message.reply('❌ Tag content cannot be empty.\n-# ❕ If you want an image as the tag, copy the link to the image.')
+                        return
+                    }
 
                     const hasPerms = await tagManager.canModerateTags(message)
-                    if (!hasPerms) return // Ignore if no permission
+                    if (!hasPerms) {
+                        await message.reply('❌ You do not have permission to moderate tags.')
+                        return
+                    }
+
+                    if (await tagManager.getTag(message.guild!.id, tagName)) {
+                        await message.reply(`❌ Tag \`${tagName}\` already exists.`)
+                        return
+                    }
 
                     await tagManager.createTag(message.guild!.id, tagName, tagContent, message.author.id)
                     await message.reply(`✅ Tag ${tagName} created.`)
@@ -72,14 +83,17 @@ export default async function onMessageCreate(client: Client<true>) {
                 }
                 // Tag deletion (e.g., "%-tagname")
                 else if (content.startsWith('%-')) {
-                    const tagName = content.slice(2).split(' ')[0]
-                    if (!tagName) return // Ignore if it's just "%-"
-
                     const hasPerms = await tagManager.canModerateTags(message)
-                    if (!hasPerms) return // Ignore if no permission
+                    if (!hasPerms) {
+                        await message.reply('❌ You do not have permission to moderate tags.')
+                        return
+                    }
 
                     const tag = await tagManager.getTag(message.guild!.id, tagName)
-                    if (!tag) return // Ignore if tag doesn't exist
+                    if (!tag) {
+                        await message.reply(`❌ Tag \`${tagName}\` not found.`)
+                        return
+                    }
 
                     await tagManager.deleteTag(message.guild!.id, tagName)
                     await message.reply(`✅ Tag ${tagName} deleted.`)
@@ -87,14 +101,14 @@ export default async function onMessageCreate(client: Client<true>) {
                 }
                 // Tag retrieval (e.g., "%tagname")
                 else {
-                    const tagName = content.slice(1).split(' ')[0]
-                    if (!tagName) return // Ignore if it's just "%"
-
                     const tag = await tagManager.getTag(message.guild!.id, tagName)
 
-                    if (tag) {
-                        await message.reply(tag.content)
+                    if (!tag) {
+                        await message.reply(`❌ Tag ${tagName} not found.`)
+                        return
                     }
+
+                    await message.reply(tag.content)
 
                     return
                 }
