@@ -17,11 +17,12 @@ export default async function onMessageCreate(client: Client<true>) {
             if (message.author === client.user) return // Only ignore itself
             if (await shapesInc.handlePotentialCookieDM(message)) return
 
+            const { content } = message
             // Prefixed commands: % for math and tags
-            if (message.content.startsWith('%')) {
+            if (content.startsWith('%')) {
                 // Math evaluation (e.g., "% 5+5")
-                if (message.content.startsWith('% ')) {
-                    const expression = message.content.slice(2).trim()
+                if (content.startsWith('% ')) {
+                    const expression = content.slice(2).trim()
                     if (!expression) return // Ignore empty expressions
 
                     try {
@@ -47,15 +48,48 @@ export default async function onMessageCreate(client: Client<true>) {
                     }
                     return
                 }
+
+                // The rest is tag related
+                const tagManager = TagManager.getInstance()
+
+                const guildConfig = await GuildConfigManager.getInstance().getConfig(message.guild?.id)
+                if (!guildConfig.tagSystemEnabled) return // Silently fail if not enabled
+
+                // Tag creation (e.g., "%=tagname tag content here")
+                if (content.startsWith('%=')) {
+                    const tagName = content.slice(2).split(' ')[0]
+                    if (!tagName) return // Ignore if it's just "%="
+
+                    const tagContent = content.slice(2 + tagName.length + 1)
+                    if (!tagContent) return // Ignore if there's no content
+
+                    const hasPerms = await tagManager.canModerateTags(message)
+                    if (!hasPerms) return // Ignore if no permission
+
+                    await tagManager.createTag(message.guild!.id, tagName, tagContent, message.author.id)
+                    await message.reply(`✅ Tag ${tagName} created.`)
+                    return
+                }
+                // Tag deletion (e.g., "%-tagname")
+                else if (content.startsWith('%-')) {
+                    const tagName = content.slice(2).split(' ')[0]
+                    if (!tagName) return // Ignore if it's just "%-"
+
+                    const hasPerms = await tagManager.canModerateTags(message)
+                    if (!hasPerms) return // Ignore if no permission
+
+                    const tag = await tagManager.getTag(message.guild!.id, tagName)
+                    if (!tag) return // Ignore if tag doesn't exist
+
+                    await tagManager.deleteTag(message.guild!.id, tagName)
+                    await message.reply(`✅ Tag ${tagName} deleted.`)
+                    return
+                }
                 // Tag retrieval (e.g., "%tagname")
                 else {
-                    const tagName = message.content.slice(1).split(' ')[0]
+                    const tagName = content.slice(1).split(' ')[0]
                     if (!tagName) return // Ignore if it's just "%"
 
-                    const guildConfig = await GuildConfigManager.getInstance().getConfig(message.guild?.id)
-                    if (!guildConfig.tagSystemEnabled) return // Silently fail if not enabled
-
-                    const tagManager = TagManager.getInstance()
                     const tag = await tagManager.getTag(message.guild!.id, tagName)
 
                     if (tag) {

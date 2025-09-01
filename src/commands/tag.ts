@@ -1,52 +1,12 @@
 import { Logger } from '../util/logger'
 const logger = new Logger('/tag')
 
-import { SlashCommandBuilder, PermissionsBitField, EmbedBuilder, type PermissionResolvable, InteractionContextType, MessageFlags } from 'discord.js'
+import { SlashCommandBuilder, EmbedBuilder, InteractionContextType, MessageFlags } from 'discord.js'
 import { SlashCommand } from '../types'
 import GuildConfigManager from '../modules/GuildConfig'
 import { TagManager } from '../modules/TagSystem'
 import { relativeDiscordTimestamp } from '../util/functions'
 import { CommandContext } from '../modules/CommandManager/CommandContext'
-import { inspect } from 'bun'
-
-async function hasTagPermission(ctx: CommandContext<true>): Promise<boolean> {
-    logger.debug(`{hasTagPermission} Getting configuration for guild ${ctx.guild.id}`)
-    const guildConfig = await GuildConfigManager.getInstance().getConfig(ctx.guild.id)
-    logger.debug(`{hasTagPermission} GuildConfig for guild ${ctx.guild.id}:\n${inspect(guildConfig, { colors: true, depth: Infinity })}`)
-
-    if (!guildConfig.tagSystemEnabled) {
-        logger.debug(`{hasTagPermission} ❌ Tag system disabled for guild ${ctx.guild.id}`)
-        return false
-    }
-
-    const member = ctx.member
-
-    const hasPermission = guildConfig.tagCreatePermissions.some(p => member.permissions.has(p as PermissionResolvable))
-    if (hasPermission) {
-        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has a permission required for guild ${ctx.guild.id}`)
-        return true
-    }
-
-    const hasRole = guildConfig.tagCreateRoles.some(r => member.roles.cache.has(r))
-    if (hasRole) {
-        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has a role required for guild ${ctx.guild.id}`)
-        return true
-    }
-
-    const hasUser = guildConfig.tagCreateUsers.includes(member.id)
-    if (hasUser) {
-        logger.debug(`{hasTagPermission} ✅ Member ${member.id} is allowed in guild ${ctx.guild.id}`)
-        return true
-    }
-
-    if (member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        logger.debug(`{hasTagPermission} ✅ Member ${member.id} has administrator permission in guild ${ctx.guild.id}`)
-        return true
-    }
-
-    logger.debug(`{hasTagPermission} ❌ No match, no permission given to ${member.id} in guild ${ctx.guild.id}`)
-    return false
-}
 
 export default {
     data: new SlashCommandBuilder()
@@ -102,18 +62,19 @@ export default {
         ).setContexts(InteractionContextType.Guild),
     async execute(ctx: CommandContext<true>) {
         const subcommand = ctx.getSubcommand(true)
+
         const guildConfigManager = GuildConfigManager.getInstance()
         const guildConfig = await guildConfigManager.getConfig(ctx.guild.id)
+
+        const tagManager = TagManager.getInstance()
         logger.debug(`Calling hasTagPermission(); user: ${ctx.member.id}, guild: ${ctx.guild.id}`)
-        const hasPerms = await hasTagPermission(ctx)
-        logger.debug(`await hasTagPermission(context) -> ${hasPerms}`)
+        const hasPerms = await tagManager.canModerateTags(ctx)
+        logger.debug(`await tagManager.hasTagPermission(context) -> ${hasPerms}`)
 
         if (!guildConfig.tagSystemEnabled) {
             await ctx.reply('The tag system is not enabled on this server. An admin can enable it via `/config tag enable true`.')
             return
         }
-
-        const tagManager = TagManager.getInstance()
 
         switch (subcommand) {
             case 'get': {

@@ -1,5 +1,13 @@
+import { Logger } from '../../util/logger'
+const logger = new Logger('TagManager')
+
+import { type CommandContext } from '../CommandManager/CommandContext'
+import { inspect } from 'bun'
+import GuildConfigManager from '../GuildConfig'
+
 import { TagDataSource } from './DataSource'
 import { Tag } from './entities/Tag'
+import { Message, PermissionsBitField, type PermissionResolvable } from 'discord.js'
 
 export class TagManager {
     private static instance: TagManager
@@ -45,5 +53,53 @@ export class TagManager {
 
     public async listTags(guildId: string): Promise<Tag[]> {
         return this.repository.find({ where: { guildId } })
+    }
+
+    public async canModerateTags(ctx: CommandContext | Message): Promise<boolean> {
+        if (!ctx.guild) {
+            logger.debug('{canModerateTags} CommandContext or Message is not in a guild.')
+            return false
+        }
+
+        logger.debug(`{canModerateTags} Getting configuration for guild ${ctx.guild.id}`)
+        const guildConfig = await GuildConfigManager.getInstance().getConfig(ctx.guild.id)
+        logger.debug(`{canModerateTags} GuildConfig for guild ${ctx.guild.id}:\n${inspect(guildConfig, { colors: true, depth: Infinity })}`)
+
+        if (!guildConfig.tagSystemEnabled) {
+            logger.debug(`{canModerateTags} ❌ Tag system disabled for guild ${ctx.guild.id}`)
+            return false
+        }
+
+        const member = ctx.member
+        if (!member) {
+            logger.debug(`{canModerateTags} ❌ No member found for guild ${ctx.guild.id}`)
+            return false
+        }
+
+        const hasPermission = guildConfig.tagCreatePermissions.some(p => member.permissions.has(p as PermissionResolvable))
+        if (hasPermission) {
+            logger.debug(`{canModerateTags} ✅ Member ${member.id} has a permission required for guild ${ctx.guild.id}`)
+            return true
+        }
+
+        const hasRole = guildConfig.tagCreateRoles.some(r => member.roles.cache.has(r))
+        if (hasRole) {
+            logger.debug(`{canModerateTags} ✅ Member ${member.id} has a role required for guild ${ctx.guild.id}`)
+            return true
+        }
+
+        const hasUser = guildConfig.tagCreateUsers.includes(member.id)
+        if (hasUser) {
+            logger.debug(`{canModerateTags} ✅ Member ${member.id} is allowed in guild ${ctx.guild.id}`)
+            return true
+        }
+
+        if (member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            logger.debug(`{canModerateTags} ✅ Member ${member.id} has administrator permission in guild ${ctx.guild.id}`)
+            return true
+        }
+
+        logger.debug(`{canModerateTags} ❌ No match, no permission given to ${member.id} in guild ${ctx.guild.id}`)
+        return false
     }
 }
