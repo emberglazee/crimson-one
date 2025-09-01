@@ -81,6 +81,14 @@ export default {
                 .setRequired(true)
             )
         ).addSubcommand(subcommand => subcommand
+            .setName('remove')
+            .setDescription('Alias for `/tag delete`')
+            .addStringOption(option => option
+                .setName('name')
+                .setDescription('The name of the tag')
+                .setRequired(true)
+            )
+        ).addSubcommand(subcommand => subcommand
             .setName('list')
             .setDescription('List all tags in the server')
         ).addSubcommand(subcommand => subcommand
@@ -144,6 +152,7 @@ export default {
                 }
                 break
             }
+            case 'remove':
             case 'delete': {
                 const name = ctx.getStringOption('name', true)
                 const tag = await tagManager.getTag(ctx.guild.id, name)
