@@ -1,7 +1,8 @@
-import { Logger, yellow, red } from './Logger'
+import { Logger } from './Logger'
+import { yellow, red } from '../util/colors'
 const logger = new Logger('GracefulShutdown')
 
-import { operationTracker } from './OperationTracker'
+import { OperationTracker } from './'
 import { Client } from 'discord.js'
 import { DashboardServer } from './DashboardServer'
 
@@ -46,8 +47,7 @@ export class GracefulShutdown {
             logger.warn(`Could not update bot status: ${red(error instanceof Error ? error.message : String(error))}`)
         }
 
-        await operationTracker.executeShutdown()
-
+        await OperationTracker.getInstance().executeShutdown()
         DashboardServer.getInstance().stop()
 
         try {
@@ -68,5 +68,3 @@ export class GracefulShutdown {
         process.on('SIGUSR2', () => this.shutdown('SIGUSR2'))
     }
 }
-
-export const gracefulShutdown = GracefulShutdown.getInstance()

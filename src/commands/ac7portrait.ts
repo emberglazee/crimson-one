@@ -1,6 +1,9 @@
+import { Logger } from '../modules'
+import { red } from '../util/colors'
+const logger = new Logger('/ac7portrait')
+
 import { SlashCommand } from '../types'
 import { SlashCommandBuilder, AttachmentBuilder, MessageFlags } from 'discord.js'
-import { Logger, red } from '../modules/Logger'
 import { createCanvas, loadImage } from 'canvas'
 
 export default {
@@ -159,7 +162,6 @@ export default {
                 files: [attachment]
             })
         } catch (error) {
-            const logger = new Logger('/ac7portrait')
             logger.error(`Failed to generate portrait: ${red(error instanceof Error ? error.message : String(error))}`)
             await ctx.editReply(`❌ Failed to generate portrait: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }

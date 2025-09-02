@@ -1,4 +1,7 @@
-import { SlashCommandBuilder, MessageFlags, SeparatorBuilder, SeparatorSpacingSize, TextDisplayBuilder, ThumbnailBuilder, SectionBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, ContextMenuCommandBuilder, InteractionContextType, ApplicationCommandType, EmbedBuilder } from 'discord.js'
+import {
+    SlashCommandBuilder, MessageFlags, SeparatorBuilder, SeparatorSpacingSize, TextDisplayBuilder, ThumbnailBuilder, SectionBuilder,
+    ButtonBuilder, ButtonStyle, ContainerBuilder, ContextMenuCommandBuilder, InteractionContextType, ApplicationCommandType, EmbedBuilder
+} from 'discord.js'
 import { SlashCommand, BotInstallationType, ContextMenuCommand } from '../types'
 import { absoluteDiscordTimestamp, getUserAvatar, relativeDiscordTimestamp } from '../util/functions'
 

@@ -96,7 +96,7 @@ export class TextCommandParser {
         reconstructedArgs.push(...flaggedTokens)
 
         return reconstructedArgs
-            .map(arg => (/\s/).test(arg) ? `"${arg.replace(/"/g, '"')}"` : arg)
+            .map(arg => (/S/).test(arg) ? `"${arg.replace(/"/g, '"')}"` : arg)
             .join(' ')
     }
 
@@ -146,7 +146,7 @@ export class TextCommandParser {
         }
     }
 
-    private static buildYargsOptions(yargsInstance: Argv, options: Readonly<APIApplicationCommandOption[]>) {
+    private static buildYargsOptions(yargsInstance: Argv, options: Readonly<APIApplicationCommandOption[]>): void {
         for (const option of options) {
             const opt = option
             const yargsOptConfig: YargsOptions = {

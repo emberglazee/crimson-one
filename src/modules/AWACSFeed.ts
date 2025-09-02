@@ -9,7 +9,7 @@ import { BanishmentManager, type BanishmentEvent, type UnbanishmentEvent } from 
 
 import { EventEmitter } from 'tseep'
 
-const NO_IFF_DATA = '\\\\ NO IFF DATA \\\\'
+const NO_IFF_DATA = '\\ NO IFF DATA \\'
 const BANISHED_ROLE_ID = '1331170880591757434'
 
 type EventHandler<T extends keyof ClientEvents> = {

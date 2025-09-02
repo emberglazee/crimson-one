@@ -1,9 +1,8 @@
 import { SlashCommandBuilder } from 'discord.js'
-import { SlashCommand } from '../types'
-import fs from 'fs/promises'
+import { SlashCommand, type Emojis } from '../types'
+import { readFile } from 'fs/promises'
 import { getRandomElement } from '../util/functions'
 import { join } from 'path'
-import type { Emojis } from '../types'
 
 let emojis: string[] = []
 
@@ -17,7 +16,7 @@ export default {
             await ctx.deferReply()
             deferred = true
             const json = JSON.parse(
-                await fs.readFile(join(__dirname, '../../data/emojis.json'), 'utf-8')
+                await readFile(join(__dirname, '../../data/emojis.json'), 'utf-8')
             ) as Emojis
             emojis = json.billy
         }

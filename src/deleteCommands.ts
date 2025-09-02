@@ -1,8 +1,8 @@
-import { Logger, yellow, red } from './modules/Logger'
+import { Logger, CommandManager } from './modules'
+import { yellow, red } from './util/colors'
 const logger = new Logger('DeleteCommands')
 
 import { ActivityType, Client, IntentsBitField } from 'discord.js'
-import CommandManager from './modules/CommandManager'
 
 // Create a minimal client with only the necessary intents
 const client = new Client({

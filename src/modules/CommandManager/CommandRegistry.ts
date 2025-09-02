@@ -1,4 +1,5 @@
-import { green, Logger, yellow } from '../Logger'
+import { Logger } from '../Logger'
+import { green, yellow } from '../../util/colors'
 const logger = new Logger('CommandRegistry')
 
 import { SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandOptionType, ApplicationCommandType, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder, ChannelType } from 'discord.js'

@@ -1,4 +1,5 @@
-import { Logger, yellow, red } from '../Logger'
+import { Logger } from '../Logger'
+import { red, yellow } from '../../util/colors'
 const logger = new Logger('CommandManager')
 
 import { Message, PermissionsBitField, GuildChannel, MessageFlags } from 'discord.js'
@@ -8,20 +9,23 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 import { getUserAvatar } from '../../util/functions'
-import { operationTracker } from '../OperationTracker'
+import { OperationTracker } from '../'
 
 import { ClassNotInitializedError, MissingPermissionsError } from '../../types'
 import type { SlashCommand, ContextMenuCommand, OldSlashCommandHelpers, GuildOnlyCommandContext } from '../../types'
 
 import { EMBI_ID, PING_EMBI } from '../../util/constants'
-import { crimsonChat } from '../..'
+
 import { CommandContext } from './CommandContext'
 import { CommandRegistry } from './CommandRegistry'
 import { TextCommandParser } from './TextCommandParser'
 import { CommandDeployer } from './CommandDeployer'
 import { CommandHotReloader } from './CommandHotReloader'
 
-export default class CommandManager {
+import { CrimsonChat } from '../'
+const crimsonChat = CrimsonChat.getInstance()
+
+export class CommandManager {
     private static instance: CommandManager
 
     private initialized = false
@@ -173,7 +177,9 @@ export default class CommandManager {
                 const finalArgsString = TextCommandParser._reconstructArgumentsForYargs(rawArgsString, command)
                 const yargsParser = TextCommandParser._buildYargsParserForCommand(command, message, finalArgsString, prefix)
                 const helpText = await yargsParser.getHelp()
-                await message.reply(`\`\`\`\n${helpText.trim()}\n\`\`\``)
+                await message.reply(`
+${helpText.trim()}
+`)
                 return
             }
 
@@ -206,7 +212,7 @@ export default class CommandManager {
             ? command.data.name
             : 'unknown_command'
 
-        return operationTracker.track(
+        return OperationTracker.getInstance().track(
             `command:${commandIdentifier}`,
             context.isInteraction ? 'SLASH_COMMAND' : 'TEXT_COMMAND',
             async () => {
@@ -256,10 +262,16 @@ export default class CommandManager {
 
     private handleError(e: Error, source: CommandInteraction | ContextMenuCommandInteraction | Message, cmdName?: string, prefix?: string): void {
         const commandName = cmdName || ((source instanceof Message) ? source.content.split(' ')[0].slice(prefix!.length) : (source as CommandInteraction).commandName)
-        let replyMessage = `❌ Error executing \`${commandName}\`: \`${e.message}\``
+        let replyMessage = `❌ Error executing 
+${commandName}
+: 
+${e.message}`
 
         if (e instanceof MissingPermissionsError) {
-            replyMessage = `🚫 You don't have the required permissions for \`${commandName}\`. Missing: \`${e.permissions.join(', ')}\``
+            replyMessage = `🚫 You don't have the required permissions for 
+${commandName}
+. Missing: 
+${e.permissions.join(', ')}`
         }
 
         logger.warn(`{handleError} Error in ${yellow(commandName)}: ${red(e.message)}`)

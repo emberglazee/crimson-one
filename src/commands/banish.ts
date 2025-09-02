@@ -1,6 +1,6 @@
 import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { GuildSlashCommand } from '../types'
-import { BanishmentManager } from '../modules/BanishmentManager'
+import { BanishmentManager } from '../modules'
 import { parseDuration } from '../util/functions'
 import { SOLITARY_CONFINEMENT_GUILD_ID } from '../util/constants'
 

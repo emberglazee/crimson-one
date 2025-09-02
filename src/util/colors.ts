@@ -1,11 +1,11 @@
 import type { HexColorString } from 'discord.js'
 
-type BasicColorDefinition = {
+type BasicSubtitleColorDefinition = {
     name: string
     hex: HexColorString
 }
 
-const basicColors: BasicColorDefinition[] = [
+const basicSubtitleColors: BasicSubtitleColorDefinition[] = [
     { name: 'Red', hex: '#FF5555' },
     { name: 'Orange', hex: '#FFA500' },
     { name: 'Yellow', hex: '#FFFF55' },
@@ -22,7 +22,7 @@ const basicColors: BasicColorDefinition[] = [
     { name: 'White', hex: '#FFFFFF' }
 ]
 
-const basicRoleColors: BasicColorDefinition[] = [
+const basicSubtitleRoleColors: BasicSubtitleColorDefinition[] = [
     { name: 'Priority Red', hex: '#FF0000' },
     { name: 'Hostile Red', hex:'#e74c3c' },
     { name: 'Peacekeeper Red', hex: '#992D22' },
@@ -44,7 +44,7 @@ const basicRoleColors: BasicColorDefinition[] = [
     { name: 'Potato Brown', hex: '#c8a186' }
 ]
 
-const basicCharacterColors: BasicColorDefinition[] = [
+const basicSubtitleCharacterColors: BasicSubtitleColorDefinition[] = [
     { name: 'Ikuyo Red', hex: '#d8615d' },
     { name: 'Nijika Yellow', hex: '#f8dc88' },
     { name: 'Bocchi Pink', hex: '#f5b2c4' },
@@ -52,20 +52,28 @@ const basicCharacterColors: BasicColorDefinition[] = [
     { name: 'Ryo Blue', hex: '#5378af' }
 ]
 
-export type ColorName = typeof basicColors[number]['name'] | typeof basicRoleColors[number]['name'] | typeof basicCharacterColors[number]['name']
+export type SubtitleColorName = typeof basicSubtitleColors[number]['name'] | typeof basicSubtitleRoleColors[number]['name'] | typeof basicSubtitleCharacterColors[number]['name']
 
-export interface ColorDefinition {
-    name: ColorName
+export interface SubtitleColorDefinition {
+    name: SubtitleColorName
     hex: HexColorString
 }
 
-export const COLORS = basicColors as ColorDefinition[]
-export const ROLE_COLORS = basicRoleColors as ColorDefinition[]
-export const CHARACTER_COLORS = basicCharacterColors as ColorDefinition[]
+export const SUBTITLE_COLORS = basicSubtitleColors as SubtitleColorDefinition[]
+export const SUBTITLE_ROLE_COLORS = basicSubtitleRoleColors as SubtitleColorDefinition[]
+export const SUBTITLE_CHARACTER_COLORS = basicSubtitleCharacterColors as SubtitleColorDefinition[]
 
-export type GradientType = 'none' | 'trans' | 'rainbow' | 'italian'
+export type SubtitleGradientType = 'none' | 'trans' | 'rainbow' | 'italian'
 
-export const TRANS_COLORS = ['#55CDFC', '#F7A8B8', '#FFFFFF', '#F7A8B8', '#55CDFC']
-export const RAINBOW_COLORS = ['#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3']
-export const ITALIAN_COLORS = ['#009246', '#FFFFFF', '#CE2B37']
-export const FRENCH_COLORS = ['#0055A4', '#FFFFFF', '#EF4135']
+export const SUBTITLE_GRADIENTS = {
+    TRANS_COLORS: ['#55CDFC', '#F7A8B8', '#FFFFFF', '#F7A8B8', '#55CDFC'],
+    RAINBOW_COLORS: ['#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'],
+    ITALIAN_COLORS: ['#009246', '#FFFFFF', '#CE2B37'],
+    FRENCH_COLORS: ['#0055A4', '#FFFFFF', '#EF4135']
+}
+
+// Chalk color exports
+import chalk from 'chalk'
+export const { yellow, red, cyan, green, blue } = chalk
+// Forcibly enable chalk colors
+chalk.level = 2

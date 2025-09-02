@@ -1,5 +1,5 @@
 import {
-    AttachmentBuilder, Guild, GuildMember,
+    AttachmentBuilder, Client, Guild, GuildMember,
     PermissionFlagsBits, PermissionOverwrites, User,
     type APIInteractionDataResolvedGuildMember,
     type APIInteractionGuildMember,
@@ -311,3 +311,30 @@ export async function randomProjectWingmanArticle(): Promise<string> {
     return randomLink
 }
 
+interface SingletonClass<T> {
+    getInstance(): T
+}
+interface DiscordClass {
+    setClient(client: Client): void
+}
+
+/**
+ * Calls `getInstance()` on all given singleton classes
+ */
+export function getInstances<
+    const Classes extends readonly SingletonClass<any>[]
+>(...classes: Classes): {
+    [K in keyof Classes]: Classes[K] extends SingletonClass<infer I> ? I : never
+} {
+    return classes.map(cls => cls.getInstance()) as any
+}
+/**
+ * Calls `setClient(client)` on all given classes
+ */
+export function setClients<
+    const Classes extends readonly DiscordClass[]
+>(client: Client, ...classes: Classes): void {
+    classes.forEach(cls => cls.setClient(client))
+}
+
+export { sleep } from 'bun'

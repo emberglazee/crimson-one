@@ -1,12 +1,9 @@
-import { Logger } from '../modules/Logger'
+import { Logger, GuildConfigManager, TagManager, CommandContext } from '../modules'
 const logger = new Logger('/tag')
 
 import { SlashCommandBuilder, EmbedBuilder, InteractionContextType, MessageFlags } from 'discord.js'
 import { SlashCommand } from '../types'
-import GuildConfigManager from '../modules/GuildConfig'
-import { TagManager } from '../modules/TagSystem'
 import { relativeDiscordTimestamp } from '../util/functions'
-import { CommandContext } from '../modules/CommandManager/CommandContext'
 
 export default {
     data: new SlashCommandBuilder()

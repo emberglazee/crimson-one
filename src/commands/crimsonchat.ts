@@ -1,6 +1,6 @@
 import { SlashCommand } from '../types'
 import { SlashCommandBuilder } from 'discord.js'
-import CrimsonChat from '../modules/CrimsonChat'
+import { CrimsonChat } from '../modules'
 
 export default {
     data: new SlashCommandBuilder()

@@ -3,7 +3,7 @@ const logger = new Logger('TagManager')
 
 import { type CommandContext } from '../CommandManager/CommandContext'
 import { inspect } from 'bun'
-import GuildConfigManager from '../GuildConfig'
+import { GuildConfigManager } from '../GuildConfig'
 
 import { TagDataSource } from './DataSource'
 import { Tag } from './entities/Tag'
@@ -13,7 +13,7 @@ export class TagManager {
     private static instance: TagManager
     private dataSource = TagDataSource.getInstance()
 
-    private constructor() { }
+    private constructor() {}
 
     public static getInstance(): TagManager {
         if (!TagManager.instance) {

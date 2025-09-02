@@ -1,5 +1,5 @@
 import { Client, Message } from 'discord.js'
-import CrimsonChat from '../modules/CrimsonChat'
+import { CrimsonChat } from '../modules'
 
 export default function onMessageDelete(client: Client) {
     client.on('messageDelete', async message => {
@@ -10,14 +10,12 @@ export default function onMessageDelete(client: Client) {
         if (!message.partial) {
             const deletedMessage = message as Message
 
-            // Send deletion notification through CrimsonChat
-            const chatInstance = CrimsonChat.getInstance()
             const content = `Message Delete Event\n\`\`\`json\n${JSON.stringify({
                 type: 'messageDelete',
                 author: deletedMessage.author.username,
                 content: deletedMessage.content
             }, null, 2)}\n\`\`\``
-            chatInstance.sendMessage(content, {
+            CrimsonChat.getInstance().sendMessage(content, {
                 username: 'System',
                 displayName: 'Message Delete',
                 serverDisplayName: 'Message Delete',

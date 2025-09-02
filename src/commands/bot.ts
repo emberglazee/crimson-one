@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 import { formatBytes } from '../util/functions'
-import { operationTracker } from '../modules/OperationTracker'
+import { OperationTracker } from '../modules'
 
 const usageTracker = new Map<string, number[]>()
 const USAGE_LIMIT = 2
@@ -71,7 +71,8 @@ export default {
             const uptime = Math.floor(process.uptime())
             const uptimeStr = `${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`
             const application = await ctx.client.application!.fetch()
-            const ongoingOperations = operationTracker.getPendingOperations().length
+
+            const ongoingOperations = OperationTracker.getInstance().getPendingOperations().length
 
             await ctx.editReply({
                 embeds: [{

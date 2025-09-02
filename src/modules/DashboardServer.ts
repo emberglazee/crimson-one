@@ -1,14 +1,22 @@
-import { Logger, red, yellow, type LogPayload } from './Logger'
+import { Logger } from './Logger'
+import { OperationTracker } from './OperationTracker'
+import { AWACSFeed } from './AWACSFeed'
+import { CrimsonChat } from './CrimsonChat'
+import type { LogPayload } from '../types'
+import { red, yellow } from '../util/colors'
 const logger = new Logger('DashboardServer')
 
 import { WebSocketServer, WebSocket } from 'ws'
-import { client, crimsonChat } from '..'
-import { OperationTracker } from './OperationTracker'
-import { AWACSFeed } from './AWACSFeed'
+import type { Client } from 'discord.js'
+
+const operationTracker = OperationTracker.getInstance()
+const awacsFeed = AWACSFeed.getInstance()
+const crimsonChat = CrimsonChat.getInstance()
 
 export class DashboardServer {
     private static instance: DashboardServer
     private wss: WebSocketServer | null = null
+    client!: Client
 
     private constructor() {}
 
@@ -17,6 +25,10 @@ export class DashboardServer {
             DashboardServer.instance = new DashboardServer()
         }
         return DashboardServer.instance
+    }
+
+    public setClient(client: Client) {
+        this.client = client
     }
 
     public start(port: number) {
@@ -45,13 +57,10 @@ export class DashboardServer {
         // Listen for events to broadcast
         Logger.events.on('log', (payload: LogPayload) => this.broadcastLog(payload))
 
-        const operationTracker = OperationTracker.getInstance()
         operationTracker.on('operationStart', () => this.sendOperations())
         operationTracker.on('operationEnd', () => this.sendOperations())
 
-        const awacsFeed = AWACSFeed.getInstance()
         awacsFeed.on('awacsEvent', message => this.sendAwacsEvent(message))
-
         crimsonChat.on('statusChange', () => this.sendCrimsonChatStatus())
 
         logger.ok(`Dashboard WebSocket server started on port ${yellow(port)}`)
@@ -60,7 +69,7 @@ export class DashboardServer {
     private sendStats() {
         const { heapUsed, heapTotal, rss } = process.memoryUsage()
         const uptime = Math.floor(process.uptime())
-        const application = client.application!
+        const application = this.client.application!
 
         this.broadcast({
             type: 'stats',

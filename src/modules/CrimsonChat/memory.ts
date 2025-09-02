@@ -1,4 +1,5 @@
-import { Logger, red, yellow } from '../Logger'
+import { Logger } from '../Logger'
+import { red, yellow } from '../../util/colors'
 const logger = new Logger('CrimsonChat | State')
 
 import { promises as fs } from 'fs'

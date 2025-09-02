@@ -1,4 +1,5 @@
-import { Logger, yellow } from '../modules/Logger'
+import { Logger } from '../modules'
+import { yellow } from '../util/colors'
 const logger = new Logger('event.rateLimited')
 
 import type { Client } from 'discord.js'

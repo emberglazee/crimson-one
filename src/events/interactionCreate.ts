@@ -1,8 +1,9 @@
-import { Logger, red } from '../modules/Logger'
+import { Logger } from '../modules'
+import { red } from '../util/colors'
 const logger = new Logger('event.interactionCreate')
 
 import type { Client } from 'discord.js'
-import CommandManager from '../modules/CommandManager/index'
+import { CommandManager } from '../modules'
 
 export default function onInteractionCreate(client: Client) {
     client.on('interactionCreate', async interaction => {

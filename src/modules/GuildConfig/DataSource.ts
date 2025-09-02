@@ -1,9 +1,11 @@
+import { Logger } from '../Logger'
+import { red } from '../../util/colors'
+const logger = new Logger('GuildConfig | DataSource')
+
 import { DataSource } from 'typeorm'
 import { GuildConfig } from './entities/GuildConfig'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
-import { Logger, red } from '../Logger'
-const logger = new Logger('GuildConfig | DataSource')
 
 // export const guildConfigDataSource = new DataSource({
 //     type: 'sqlite',

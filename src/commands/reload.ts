@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
-import CommandManager from '../modules/CommandManager'
+import { CommandManager } from '../modules'
 
 export default {
     data: new SlashCommandBuilder()

@@ -20,5 +20,3 @@ export class BotSettingsManager {
         return this._debugMode
     }
 }
-
-export const botSettings = BotSettingsManager.getInstance()

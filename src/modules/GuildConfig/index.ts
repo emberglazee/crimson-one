@@ -1,12 +1,12 @@
+import { Logger } from '../Logger'
+const logger = new Logger('GuildConfigManager')
+
 import { GuildConfigDataSource } from './DataSource'
 import { EventEmitter } from 'tseep'
 import { GuildConfig } from './entities/GuildConfig'
-import { Logger } from '../Logger'
 import type { GuildId } from '../../types' // cosmetic type for clarity
 
-const logger = new Logger('GuildConfigManager')
-
-export default class GuildConfigManager extends EventEmitter<{
+export class GuildConfigManager extends EventEmitter<{
     configUpdate: (guildId: GuildId, config: GuildConfig) => void
 }> {
     private static instance: GuildConfigManager

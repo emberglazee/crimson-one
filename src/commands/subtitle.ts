@@ -1,7 +1,7 @@
 import { AttachmentBuilder, SlashCommandBuilder, ContextMenuCommandBuilder, InteractionContextType, ApplicationCommandType } from 'discord.js'
 import { SlashCommand, ContextMenuCommand } from '../types'
-import { QuoteImageFactory } from '../modules/QuoteImageFactory'
-import { type GradientType, COLORS, ROLE_COLORS, CHARACTER_COLORS } from '../util/colors'
+import { QuoteImageFactory } from '../modules'
+import { type SubtitleGradientType, SUBTITLE_COLORS, SUBTITLE_ROLE_COLORS, SUBTITLE_CHARACTER_COLORS } from '../util/colors'
 
 export const slashCommand = {
     data: new SlashCommandBuilder()
@@ -30,21 +30,21 @@ export const slashCommand = {
             .setDescription('The color of the speaker\'s name')
             .setRequired(false)
             .setChoices(
-                COLORS.map(color => ({ name: color.name, value: color.name }))
+                SUBTITLE_COLORS.map(color => ({ name: color.name, value: color.name }))
             )
         ).addStringOption(option => option
             .setName('role_color')
             .setDescription('Use a Discord role color for the speaker\'s name')
             .setRequired(false)
             .setChoices(
-                ROLE_COLORS.map(color => ({ name: color.name, value: color.name }))
+                SUBTITLE_ROLE_COLORS.map(color => ({ name: color.name, value: color.name }))
             )
         ).addStringOption(option => option
             .setName('character_color')
             .setDescription('Use a character color for the speaker\'s name')
             .setRequired(false)
             .setChoices(
-                CHARACTER_COLORS.map(color => ({ name: color.name, value: color.name }))
+                SUBTITLE_CHARACTER_COLORS.map(color => ({ name: color.name, value: color.name }))
             )
         ).addStringOption(option => option
             .setName('gradient')
@@ -73,16 +73,16 @@ export const slashCommand = {
         const style = (ctx.getStringOption('style', true)) as 'ac7' | 'pw' | 'acz' | 'hd2'
         const speaker = ctx.getStringOption('speaker', true)
         const text = ctx.getStringOption('text', true)
-        const gradient = (ctx.getStringOption('gradient', false, 'none')) as GradientType
+        const gradient = (ctx.getStringOption('gradient', false, 'none')) as SubtitleGradientType
         const roleColor = ctx.getStringOption('role_color')
         const plainColor = ctx.getStringOption('color')
         const characterColor = ctx.getStringOption('character_color')
         const color = roleColor
-            ? ROLE_COLORS.find(c => c.name === roleColor)?.hex ?? null
+            ? SUBTITLE_ROLE_COLORS.find(c => c.name === roleColor)?.hex ?? null
             : plainColor
-                ? COLORS.find(c => c.name === plainColor)?.hex ?? null
+                ? SUBTITLE_COLORS.find(c => c.name === plainColor)?.hex ?? null
                 : characterColor
-                    ? CHARACTER_COLORS.find(c => c.name === characterColor)?.hex ?? null
+                    ? SUBTITLE_CHARACTER_COLORS.find(c => c.name === characterColor)?.hex ?? null
                     : null
         const stretchGradient = ctx.getBooleanOption('stretch', false)
         const continuousGradient = ctx.getBooleanOption('continuous_gradient', false)

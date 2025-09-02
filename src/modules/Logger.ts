@@ -1,25 +1,14 @@
-import chalk from 'chalk'
-// Force colors to be enabled
-chalk.level = 2
-// Shortcut for using chalk colors alongside logger
-export const { yellow, red, cyan, green, blue } = chalk
+import { BotSettingsManager } from './BotSettingsManager' // Break the circular dependency
 
-import { botSettings } from './BotSettings'
-import type { JSONResolvable } from '../types'
+import type { JSONResolvable, LogLevel, LogPayload } from '../types'
 import { EventEmitter } from 'tseep'
 import fs from 'fs'
 import path from 'path'
 import url from 'url'
 
+import { blue, cyan, green, red, yellow } from '../util/colors'
 
 const esmodules = !!import.meta.url
-
-export type LogLevel = 'error' | 'warn' | 'info' | 'ok' | 'debug'
-export interface LogPayload {
-    level: LogLevel
-    message: string
-    module?: string
-}
 
 const staticEventEmitter = new EventEmitter<{
     log: (payload: LogPayload) => void
@@ -51,7 +40,7 @@ export class Logger extends EventEmitter<{
 
         staticEventEmitter.emit('log', { level, message, module: this.module })
 
-        if (level === 'debug' && !botSettings.isDebugModeEnabled()) {
+        if (level === 'debug' && !BotSettingsManager.getInstance().isDebugModeEnabled()) {
             // Debug mode is off, so only write to file
             this.writeLogLine(logoutput(level, data, this.module))
             return

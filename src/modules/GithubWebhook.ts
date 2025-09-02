@@ -1,4 +1,5 @@
-import { Logger, yellow } from './Logger'
+import { Logger } from './Logger'
+import { yellow } from '../util/colors'
 const logger = new Logger('GithubWebhook')
 
 import { EventEmitter } from 'tseep'
@@ -8,8 +9,8 @@ import crypto from 'crypto'
 import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
 import type { WebhookEvents } from '../types'
 
-export class GithubWebhook extends EventEmitter<WebhookEvents> {
-    private static instance: GithubWebhook
+export class GithubWebhookManager extends EventEmitter<WebhookEvents> {
+    private static instance: GithubWebhookManager
     private server: Server
     private secret: string = ''
     private port: number = 3000
@@ -21,14 +22,14 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
         this.server = createServer(this.handleRequest.bind(this))
     }
 
-    public static getInstance(): GithubWebhook {
-        if (!GithubWebhook.instance) {
-            GithubWebhook.instance = new GithubWebhook()
+    public static getInstance(): GithubWebhookManager {
+        if (!GithubWebhookManager.instance) {
+            GithubWebhookManager.instance = new GithubWebhookManager()
         }
-        return GithubWebhook.instance
+        return GithubWebhookManager.instance
     }
 
-    public setClient(client: Client): GithubWebhook {
+    public setClient(client: Client): GithubWebhookManager {
         this.client = client
         return this
     }
@@ -36,7 +37,7 @@ export class GithubWebhook extends EventEmitter<WebhookEvents> {
     public setWebhookOptions(options: {
         port: number
         secret: string
-    }): GithubWebhook {
+    }): GithubWebhookManager {
         this.port = options.port
         this.secret = options.secret
         return this

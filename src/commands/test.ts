@@ -1,4 +1,4 @@
-import { Logger } from '../modules/Logger'
+import { Logger } from '../modules'
 const logger = new Logger('/test')
 
 import { SlashCommandBuilder, ApplicationIntegrationType } from 'discord.js'

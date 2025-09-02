@@ -1,27 +1,18 @@
-import { BanishmentManager } from './modules/BanishmentManager'
-import { Logger, yellow, red } from './modules/Logger'
+import { Logger } from './modules'
+import { yellow, red } from './util/colors'
 const logger = new Logger()
 logger.info('Starting bot')
+
+import {
+    QuoteImageFactory, QuoteFactory, MessageTrigger, GracefulShutdown, TagManager, DashboardServer,
+    CrimsonChat, GuildConfigManager, MarkovChat, GithubWebhookManager, CommandManager, BanishmentManager
+} from './modules'
 
 import { readdir } from 'fs/promises'
 import path from 'path'
 import { Client, IntentsBitField, Partials } from 'discord.js'
+import { getInstances, setClients } from './util/functions'
 import type { DiscordEventListener } from './types'
-
-import CommandManager from './modules/CommandManager'
-import QuoteFactory from './modules/QuoteFactory'
-import ShapesInc from './modules/ShapesInc'
-import { GithubWebhook } from './modules/GithubWebhook'
-import { MarkovChat } from './modules/MarkovChain/MarkovChat'
-import { AWACSFeed } from './modules/AWACSFeed'
-import { MessageTrigger } from './modules/MessageTrigger'
-import { gracefulShutdown } from './modules/GracefulShutdown'
-import GuildConfigManager from './modules/GuildConfig'
-import { QuoteImageFactory } from './modules/QuoteImageFactory'
-import CrimsonChat from './modules/CrimsonChat'
-import { DashboardServer } from './modules/DashboardServer'
-import { ModeManager } from './modules/ModeManager'
-import { TagManager } from './modules/TagSystem'
 
 const unreadyClient = new Client({
     intents: new IntentsBitField([
@@ -51,47 +42,35 @@ logger.ok('Logged in')
 export const quoteFactory = new QuoteFactory(client)
 export const messageTrigger = new MessageTrigger()
 
-export const guildConfigManager = GuildConfigManager.getInstance()
-export const awacsFeed = AWACSFeed.getInstance().setClient(client)
-export const shapesInc = ShapesInc.getInstance(client, '1335992675459141632')
-export const crimsonChat = CrimsonChat.getInstance()
-export const banishmentManager = BanishmentManager.getInstance().setClient(client)
-export const dashboardServer = DashboardServer.getInstance()
-export const modeManager = ModeManager.getInstance()
-export const tagManager = TagManager.getInstance()
+const [
+    guildConfigManager, crimsonChat, banishmentManager, dashboardServer, tagManager, gracefulShutdown, quoteImageFactory, markovChat, commandManager, githubWebhookManager
+] = getInstances(
+    GuildConfigManager, CrimsonChat, BanishmentManager, DashboardServer, TagManager, GracefulShutdown, QuoteImageFactory, MarkovChat, CommandManager, GithubWebhookManager
+)
 
 client.once('ready', async () => {
     logger.info(`Logged in as ${yellow(client.user.tag)}`)
     client.user.setStatus('dnd')
-    gracefulShutdown.setClient(client)
-    gracefulShutdown.registerShutdownHandlers()
 
-    const commandManager = CommandManager.getInstance().setClient(client)
+    setClients(client,
+        quoteImageFactory, markovChat, banishmentManager, crimsonChat, commandManager, gracefulShutdown, githubWebhookManager, dashboardServer
+    )
+
+    gracefulShutdown.registerShutdownHandlers()
 
     dashboardServer.start(Number(process.env.DASHBOARD_PORT) || 9826)
 
-    QuoteImageFactory.getInstance().setClient(client)
-
-    MarkovChat.getInstance().setClient(client)
-
     await guildConfigManager.init()
-    await banishmentManager.init()
-    await modeManager.init()
-    await tagManager.init()
-
     await commandManager.init()
-
-    await shapesInc.init()
-
-    crimsonChat.setClient(client)
+    await banishmentManager.init()
+    await tagManager.init()
     await crimsonChat.init()
 
-    const webhook = GithubWebhook.getInstance()
+    const webhook = githubWebhookManager
         .setWebhookOptions({
             port: Number(process.env.GITHUB_WEBHOOK_PORT) || 3000,
             secret: process.env.GITHUB_WEBHOOK_SECRET!
         })
-        .setClient(client)
     await webhook.init()
 
     await quoteFactory.init()

@@ -1,4 +1,5 @@
-import { Logger, yellow, red } from './Logger'
+import { Logger } from './Logger'
+import { red, yellow } from '../util/colors'
 const logger = new Logger('QuoteImageFactory')
 
 import { createCanvas, loadImage, registerFont } from 'canvas'
@@ -7,7 +8,7 @@ import { spawn } from 'child_process'
 import fs from 'fs/promises'
 import os from 'os'
 import path from 'path'
-import { TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS, type GradientType } from '../util/colors'
+import { SUBTITLE_GRADIENTS, type SubtitleGradientType } from '../util/colors'
 import { type Client, type Guild } from 'discord.js'
 
 registerFont(path.join(__dirname, '../../data/Roboto.ttf'), { family: 'Roboto' }) // Project Wingman
@@ -211,7 +212,7 @@ export class QuoteImageFactory {
         speaker: string,
         quote: string,
         color: string | null,
-        gradient: GradientType,
+        gradient: SubtitleGradientType,
         stretchGradient = false,
         style: QuoteStyle = 'pw',
         interpretNewlines = false,
@@ -607,6 +608,7 @@ export class QuoteImageFactory {
                 }
 
                 const speakerColor = color || '#FFFFFF'
+                const { TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS } = SUBTITLE_GRADIENTS
                 const gradientColors = gradient === 'trans' ? TRANS_COLORS
                     : gradient === 'rainbow' ? RAINBOW_COLORS
                     : ITALIAN_COLORS
@@ -802,7 +804,7 @@ export class QuoteImageFactory {
                         }
                     } else {
                         // Use character-by-character coloring for a repeating (non-stretched) gradient effect.
-                        const totalChars = continuousGradient ? speakerLines.reduce((sum, line) => sum + line.length, 0) : 0
+                        // const totalChars = continuousGradient ? speakerLines.reduce((sum, line) => sum + line.length, 0) : 0 // This isn't actually used
                         let charCount = 0
 
                         for (const line of speakerLines) {

@@ -1,8 +1,7 @@
 import { Message, SlashCommandBuilder } from 'discord.js'
 import type { SlashCommand } from '../types'
-import type { CommandContext } from '../modules/CommandManager/CommandContext'
-import { sleep } from 'bun'
-import { chance, getRandomElement } from '../util/functions'
+import type { CommandContext } from '../modules'
+import { chance, getRandomElement, sleep } from '../util/functions'
 
 export default {
     data: new SlashCommandBuilder()

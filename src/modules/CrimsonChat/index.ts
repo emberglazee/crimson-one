@@ -1,9 +1,10 @@
-import { green, Logger, red, yellow } from '../Logger'
+import { Logger } from '../Logger'
+import { green, yellow, red } from '../../util/colors'
 const logger = new Logger('CrimsonChat')
 
 import { Client, TextChannel, Message, ChatInputCommandInteraction, EmbedBuilder, type MessageReplyOptions, type HexColorString } from 'discord.js'
 import type { UserMessageOptions, SlashCommand } from '../../types'
-import type { CommandContext } from '../CommandManager/CommandContext'
+import type { CommandContext } from '../'
 import { MessageQueue } from './MessageQueue'
 import { CrimsonChatState, type HistoryLimitMode } from './memory'
 import { usernamesToMentions } from './util/formatters'
@@ -23,7 +24,7 @@ interface BufferedMessage {
     originalMessage?: Message
 }
 
-export default class CrimsonChat extends EventEmitter<{
+export class CrimsonChat extends EventEmitter<{
     statusChange: () => void
 }> {
     private static instance: CrimsonChat
@@ -34,9 +35,9 @@ export default class CrimsonChat extends EventEmitter<{
 
     private voidai = createOpenAICompatible({
         name: 'voidai',
-        baseURL: 'https://api.voidai.app/v1', 
+        baseURL: 'https://api.voidai.app/v1',
         apiKey: process.env.OPENAI_API_KEY
-    });
+    })
     public state = new CrimsonChatState()
 
     private forceNextBreakdown = false

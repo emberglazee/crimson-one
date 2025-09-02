@@ -1,13 +1,11 @@
-import { Logger, red, yellow } from '../modules/Logger'
+import { Logger, MarkovChat, type CommandContext } from '../modules'
+import { yellow, red } from '../util/colors'
 const logger = new Logger('/markov')
 
 import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message, type MessageEditOptions, InteractionContextType } from 'discord.js'
 
 import { formatTimeRemaining } from '../util/functions'
 import { SlashCommand } from '../types'
-import { MarkovChat } from '../modules/MarkovChain/MarkovChat'
-
-import type { CommandContext } from '../modules/CommandManager/CommandContext'
 
 // To prevent multiple concurrent collections
 let isCollectingAll = false

@@ -1,4 +1,5 @@
-import { Logger, yellow, red } from '../Logger'
+import { Logger } from '../Logger'
+import { yellow, red } from '../../util/colors'
 const logger = new Logger('CommandDeployer')
 
 import { Routes, ApplicationCommandOptionType, ApplicationCommandType, REST } from 'discord.js'

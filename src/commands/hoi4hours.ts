@@ -1,4 +1,5 @@
-import { Logger, red } from '../modules/Logger'
+import { Logger } from '../modules'
+import { red } from '../util/colors'
 const logger = new Logger('/hoi4hours')
 
 import { SlashCommandBuilder } from 'discord.js'

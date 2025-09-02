@@ -1,4 +1,5 @@
-import { Logger, red, yellow } from '../../Logger'
+import { Logger } from '../../Logger'
+import { yellow, red } from '../../../util/colors'
 const logger = new Logger('CrimsonChat | timeout()')
 
 import { z } from 'zod'
@@ -25,7 +26,9 @@ async function invoke({ username, displayname, length, reason }: Input): Promise
     const guild = await client.guilds.fetch(SOLITARY_CONFINEMENT_GUILD_ID)
     const member = await findMember(guild, query).catch(err => {
         logger.info(`Error while running the findMember() function: ${red(err)}`)
-        return `Error: Could not find a member due to a \`findMember()\` runtime error: ${err}`
+        return `Error: Could not find a member due to a 
+findMember() 
+ runtime error: ${err}`
     })
     if (typeof member === 'string') return JSON.stringify({ status: 'error', message: member })
     if (!member) {
@@ -41,7 +44,7 @@ async function invoke({ username, displayname, length, reason }: Input): Promise
         logger.info('User cannot be moderated')
         return JSON.stringify({ status: 'error', message: `Cannot moderate this user. (Attempted action on: ${member.user.username})` })
     }
-    logger.info(`Timing out ${yellow(member.user.username)} for ${yellow(length)}ms with reason "${yellow(reason)}"`)
+    logger.info(`Timing out ${yellow(member.user.username)} for ${yellow(length)}ms with reason "${yellow(reason)}"`) // Corrected escaping for reason string
     await member.timeout(length, reason)
     return JSON.stringify({ status: 'success', message: `Timed out user ${member.user.username} (display name ${member.displayName}) for ${length} milliseconds` })
 }

@@ -1,4 +1,4 @@
-import { Logger } from './Logger'
+import { Logger } from './'
 const logger = new Logger('OperationTracker')
 
 import { EventEmitter } from 'tseep'
@@ -242,5 +242,3 @@ export class OperationTracker extends EventEmitter<{
         })
     }
 }
-
-export const operationTracker = OperationTracker.getInstance()

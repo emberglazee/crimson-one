@@ -1,8 +1,8 @@
 import { InteractionContextType, PermissionsBitField, SlashCommandBuilder } from 'discord.js'
+import { GuildConfigManager, CommandContext } from '../modules'
+
 import { SlashCommand } from '../types'
-import GuildConfigManager from '../modules/GuildConfig'
 import { boolToEmoji } from '../util/functions'
-import { CommandContext } from '../modules/CommandManager/CommandContext'
 
 export default {
     data: new SlashCommandBuilder()
@@ -160,7 +160,7 @@ export default {
                                     await ctx.editReply(`❌ Could not find a user with the name \`${value}\`. Please use the user ID or mention.`)
                                     return
                                 }
-                            } catch (e) {
+                            } catch {
                                 await ctx.editReply(`❌ An error occurred while trying to find user \`${value}\`. Please use the user ID or mention.`)
                                 return
                             }

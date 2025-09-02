@@ -1,7 +1,6 @@
 import { SlashCommand } from '../types'
 import { SlashCommandBuilder } from 'discord.js'
-import { sleep } from 'bun'
-import { randRange } from '../util/functions'
+import { randRange, sleep } from '../util/functions'
 
 const CASCADIA_RESPONSES = [
     'As certain as Cascadia\'s victory.',

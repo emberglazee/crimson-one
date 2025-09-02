@@ -1,9 +1,9 @@
 import { AttachmentBuilder, type Client, type ThreadChannel } from 'discord.js'
-import { QuoteImageFactory } from './QuoteImageFactory'
+import { QuoteImageFactory } from './'
 import { readFile } from 'fs/promises'
 import path from 'path'
 
-export default class QuoteFactory {
+export class QuoteFactory {
     client: Client
     threadId = '1331682390392967329'
     thread: ThreadChannel | null = null

@@ -1,5 +1,5 @@
 import { Client, Message } from 'discord.js'
-import CrimsonChat from '../modules/CrimsonChat'
+import { CrimsonChat } from '../modules'
 
 export default function onMessageUpdate(client: Client) {
     client.on('messageUpdate', async (oldMessage, newMessage) => {
@@ -14,15 +14,13 @@ export default function onMessageUpdate(client: Client) {
             // Skip if content hasn't changed
             if (old.content === current.content) return
 
-            // Send edit notification through CrimsonChat
-            const chatInstance = CrimsonChat.getInstance()
             const content = `Message Edit Event\n\`\`\`json\n${JSON.stringify({
                 type: 'messageEdit',
                 author: current.author.username,
                 before: old.content,
                 after: current.content
             }, null, 2)}\n\`\`\``
-            chatInstance.sendMessage(content, {
+            CrimsonChat.getInstance().sendMessage(content, {
                 username: 'System',
                 displayName: 'Message Edit',
                 serverDisplayName: 'Message Edit',

@@ -1,4 +1,5 @@
-import { Logger, red, yellow } from '../../Logger'
+import { Logger } from '../../Logger'
+import { yellow, red } from '../../../util/colors'
 const logger = new Logger('CrimsonChat | send_embed()')
 
 import { z } from 'zod'

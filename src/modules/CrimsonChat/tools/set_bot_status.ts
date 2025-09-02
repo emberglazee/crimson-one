@@ -1,10 +1,11 @@
+import { Logger } from '../../Logger'
+import { yellow, red } from '../../../util/colors'
+const logger = new Logger('CrimsonChat | set_bot_status()')
+
 import { z } from 'zod'
 import { tool } from 'ai'
-import { Logger, yellow, red } from '../../Logger'
-import { client as client } from '../../..'
+import { client } from '../../..'
 import { ActivityType, type PresenceStatusData } from 'discord.js'
-
-const logger = new Logger('CrimsonChat | set_bot_status()')
 
 const schema = z.object({
     status: z.enum(['online', 'idle', 'dnd', 'invisible']).optional(),
