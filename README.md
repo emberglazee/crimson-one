@@ -21,7 +21,7 @@ This directory contains the core features of the bot, each encapsulated in its o
 - **`CrimsonChat`**: The primary personality of the bot, powered by the Google Gemini API. It functions as an AI chat assistant in the persona of "Crimson 1" from *Project Wingman*. It can use tools to perform actions like moderation and sending embeds.
 - **`MarkovChain`**: A module to generate new messages based on text collected from server chat history. The performance-critical chain-building logic is written in Rust and integrated via Bun's FFI for maximum speed. It can be trained on data from specific users, channels, or an entire server.
 - **`BanishmentManager`**: Implements a custom "banishment" system that assigns a specific role to users, with support for timed durations.
-- **`QuoteImageFactory`**: Generates images styled as subtitles from games like *Ace Combat 7*, *Project Wingman*, and *Helldivers 2*.
+- **`SubtitleGenerator`**: Generates images styled as subtitles from games like *Ace Combat 7*, *Project Wingman*, and *Helldivers 2*.
 - **`AWACSFeed`**: Logs server events (member joins/leaves, bans, role changes) to a dedicated channel with a thematic "AWACS" flair.
 - **`GuildConfig`**: Manages server-specific configurations, such as command prefixes and feature toggles, stored in a SQLite database.
 - **Other Modules**: Includes a `DashboardServer` for a web-based monitoring interface, a `GithubWebhook` handler, and an `OperationTracker` for monitoring long-running tasks.

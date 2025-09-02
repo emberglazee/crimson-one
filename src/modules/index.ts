@@ -1,4 +1,4 @@
-export { QuoteImageFactory } from './QuoteImageFactory'
+export { SubtitleGenerator } from './SubtitleGenerator'
 export { QuoteFactory } from './QuoteFactory'
 
 export { OperationTracker } from './OperationTracker'

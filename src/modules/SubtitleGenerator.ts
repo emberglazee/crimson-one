@@ -1,7 +1,7 @@
 import { singleton, inject } from 'tsyringe'
 import { Logger } from './Logger'
 import { red, yellow } from '../util/colors'
-const logger = new Logger('QuoteImageFactory')
+const logger = new Logger('SubtitleGenerator')
 
 import { createCanvas, loadImage, registerFont } from 'canvas'
 import { Buffer } from 'buffer'
@@ -17,16 +17,16 @@ registerFont(path.join(__dirname, '../../data/Aces07.ttf'), { family: 'Aces07' }
 registerFont(path.join(__dirname, '../../data/Frutiger.ttf'), { family: 'Frutiger' }) // Ace Combat Zero
 registerFont(path.join(__dirname, '../../data/FSSinclairRegular.otf'), { family: 'FSSinclair' }) // Helldivers 2
 
-export type QuoteImageResult = {
+export type SubtitleImageResult = {
     buffer: Buffer
     type: 'image/gif' | 'image/png'
 }
 
 /** Subtitle style: Project Wingman, Ace Combat 7, Ace Combat Zero, or Helldivers 2 */
-export type QuoteStyle = 'pw' | 'ac7' | 'acz' | 'hd2'
+export type SubtitleStyle = 'pw' | 'ac7' | 'acz' | 'hd2'
 
 @singleton()
-export class QuoteImageFactory {
+export class SubtitleGenerator {
     private usernames: Map<string, string>
 
     public constructor(@inject('Client') private client: Client) {
@@ -74,7 +74,7 @@ export class QuoteImageFactory {
     }
 
     private async createTempDir(): Promise<string> {
-        const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'quote-'))
+        const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'subtitle-'))
         return tmpDir
     }
 
@@ -206,21 +206,20 @@ export class QuoteImageFactory {
         })
     }
 
-    public async createQuoteImage(
+    public async createSubtitleImage(
         guild: Guild,
         speaker: string,
         quote: string,
         color: string | null,
         gradient: SubtitleGradientType,
         stretchGradient = false,
-        style: QuoteStyle = 'pw',
+        style: SubtitleStyle = 'pw',
         interpretNewlines = false,
         continuousGradient = false
-    ): Promise<QuoteImageResult> {
-        // Process newlines before continuing
+    ): Promise<SubtitleImageResult> {
         if (interpretNewlines) {
-            quote = quote.replace(/<newline>/g, '\n')
             speaker = speaker.replace(/<newline>/g, '\n')
+            quote = quote.replace(/<newline>/g, '\n')
         }
 
         const fontSize = 48
@@ -847,7 +846,7 @@ export class QuoteImageFactory {
                 }
                 y += 2
 
-                if (style === 'hd2' as QuoteStyle) {
+                if (style === 'hd2' as SubtitleStyle) {
                     // Calculate total width needed for speaker name and text
                     const speakerWidth = ctx.measureText(speaker).width
                     const maxTextWidth = Math.max(...quoteLines.map(line => ctx.measureText(line).width))
@@ -1048,7 +1047,7 @@ export class QuoteImageFactory {
                 }
             }
         } catch (error) {
-            logger.error('Error creating quote image: ' + error)
+            logger.error('Error creating subtitle image: ' + error)
             throw error
         }
     }

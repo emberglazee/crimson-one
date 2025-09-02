@@ -1,6 +1,6 @@
 import { singleton, inject } from 'tsyringe'
 import { AttachmentBuilder, type Client, type ThreadChannel } from 'discord.js'
-import { QuoteImageFactory } from './'
+import { SubtitleGenerator } from './'
 import { readFile } from 'fs/promises'
 import path from 'path'
 
@@ -8,10 +8,10 @@ import path from 'path'
 export class QuoteFactory {
     threadId = '1331682390392967329'
     thread: ThreadChannel | null = null
-    
+
     public constructor(
         @inject('Client') private client: Client,
-        private quoteImageFactory: QuoteImageFactory
+        private subtitleGenerator: SubtitleGenerator
     ) {}
 
     async init() {
@@ -27,7 +27,7 @@ export class QuoteFactory {
                 const color = message.member!.displayHexColor
                 const gradient = 'none'
                 const stretchGradient = false
-                const result = await this.quoteImageFactory.createQuoteImage(message.guild!, speaker, quote, color, gradient, stretchGradient, 'pw', false)
+                const result = await this.subtitleGenerator.createSubtitleImage(message.guild!, speaker, quote, color, gradient, stretchGradient, 'pw', false)
                 const image = new AttachmentBuilder(result.buffer)
                     .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
 
