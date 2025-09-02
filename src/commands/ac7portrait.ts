@@ -1,6 +1,6 @@
 import { SlashCommand } from '../types'
 import { SlashCommandBuilder, AttachmentBuilder, MessageFlags } from 'discord.js'
-import { Logger, red } from '../util/logger'
+import { Logger, red } from '../modules/Logger'
 import { createCanvas, loadImage } from 'canvas'
 
 export default {

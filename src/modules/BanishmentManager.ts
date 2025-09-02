@@ -1,4 +1,4 @@
-import { Logger } from '../util/logger'
+import { Logger } from './Logger'
 const logger = new Logger('BanishmentManager')
 
 import { EventEmitter } from 'tseep'

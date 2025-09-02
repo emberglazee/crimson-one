@@ -1,4 +1,4 @@
-import { Logger } from '../util/logger'
+import { Logger } from '../modules/Logger'
 const logger = new Logger('/tag')
 
 import { SlashCommandBuilder, EmbedBuilder, InteractionContextType, MessageFlags } from 'discord.js'

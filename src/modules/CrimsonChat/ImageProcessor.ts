@@ -1,4 +1,4 @@
-import { Logger, red } from '../../util/logger'
+import { Logger, red } from '../Logger'
 const logger = new Logger('CrimsonChat | ImageProcessor')
 
 import { normalizeUrl, cleanImageUrl } from './util/url-utils'

@@ -1,4 +1,4 @@
-import { Logger, yellow, red } from './util/logger'
+import { Logger, yellow, red } from './modules/Logger'
 const logger = new Logger('DeleteCommands')
 
 import { ActivityType, Client, IntentsBitField } from 'discord.js'

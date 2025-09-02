@@ -1,4 +1,4 @@
-import { Logger, red, yellow } from '../../../util/logger'
+import { Logger, red, yellow } from '../../Logger'
 const logger = new Logger('CrimsonChat | end_poll()')
 
 import { z } from 'zod'

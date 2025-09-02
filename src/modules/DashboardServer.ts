@@ -1,4 +1,4 @@
-import { Logger, red, yellow, type LogPayload } from '../util/logger'
+import { Logger, red, yellow, type LogPayload } from './Logger'
 const logger = new Logger('DashboardServer')
 
 import { WebSocketServer, WebSocket } from 'ws'

@@ -1,5 +1,5 @@
 import { BanishmentManager } from './modules/BanishmentManager'
-import { Logger, yellow, red } from './util/logger'
+import { Logger, yellow, red } from './modules/Logger'
 const logger = new Logger()
 logger.info('Starting bot')
 

@@ -1,4 +1,4 @@
-import { green, Logger, red, yellow } from '../../util/logger'
+import { green, Logger, red, yellow } from '../Logger'
 const logger = new Logger('CrimsonChat')
 
 import { Client, TextChannel, Message, ChatInputCommandInteraction, EmbedBuilder, type MessageReplyOptions, type HexColorString } from 'discord.js'

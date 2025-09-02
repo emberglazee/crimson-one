@@ -1,4 +1,4 @@
-import { Logger } from '../util/logger'
+import { Logger } from './Logger'
 const logger = new Logger('AWACSFeed')
 
 import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember, User, GuildBan, Role } from 'discord.js'

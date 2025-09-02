@@ -4,7 +4,7 @@ chalk.level = 2
 // Shortcut for using chalk colors alongside logger
 export const { yellow, red, cyan, green, blue } = chalk
 
-import { botSettings } from '../modules/BotSettings'
+import { botSettings } from './BotSettings'
 import type { JSONResolvable } from '../types'
 import { EventEmitter } from 'tseep'
 import fs from 'fs'

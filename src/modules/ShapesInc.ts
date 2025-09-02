@@ -1,5 +1,5 @@
 // connect the web interface of shapes.inc (fancier version of character.ai) with the discord bot
-import { Logger } from '../util/logger'
+import { Logger } from './Logger'
 const logger = new Logger('ShapesInc')
 
 import { inspect } from 'util'

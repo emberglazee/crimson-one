@@ -1,4 +1,4 @@
-import { Logger, yellow } from '../util/logger'
+import { Logger, yellow } from './Logger'
 const logger = new Logger('GithubWebhook')
 
 import { EventEmitter } from 'tseep'

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { tool } from 'ai'
-import { Logger, yellow, red } from '../../../util/logger'
+import { Logger, yellow, red } from '../../Logger'
 import { client as client } from '../../..'
 import { ActivityType, type PresenceStatusData } from 'discord.js'
 

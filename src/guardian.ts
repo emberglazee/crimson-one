@@ -1,4 +1,4 @@
-import { Logger, red, yellow } from './util/logger'
+import { Logger, red, yellow } from './modules/Logger'
 const logger = new Logger('Guardian')
 
 import { spawn } from 'bun'

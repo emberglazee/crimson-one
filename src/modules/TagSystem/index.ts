@@ -1,4 +1,4 @@
-import { Logger } from '../../util/logger'
+import { Logger } from '../Logger'
 const logger = new Logger('TagManager')
 
 import { type CommandContext } from '../CommandManager/CommandContext'

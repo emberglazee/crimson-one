@@ -1,4 +1,4 @@
-import { Logger, yellow, red } from '../util/logger'
+import { Logger, yellow, red } from './Logger'
 const logger = new Logger('GracefulShutdown')
 
 import { operationTracker } from './OperationTracker'

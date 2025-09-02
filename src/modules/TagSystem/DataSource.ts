@@ -2,7 +2,7 @@ import { DataSource } from 'typeorm'
 import { Tag } from './entities/Tag'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
-import { Logger, red } from '../../util/logger'
+import { Logger, red } from '../Logger'
 const logger = new Logger('TagSystem | DataSource')
 
 export class TagDataSource {

@@ -1,4 +1,4 @@
-import { Logger, red, yellow } from '../util/logger'
+import { Logger, red, yellow } from '../modules/Logger'
 const logger = new Logger('/markov')
 
 import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message, type MessageEditOptions, InteractionContextType } from 'discord.js'

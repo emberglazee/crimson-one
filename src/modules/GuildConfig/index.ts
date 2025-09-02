@@ -1,7 +1,7 @@
 import { GuildConfigDataSource } from './DataSource'
 import { EventEmitter } from 'tseep'
 import { GuildConfig } from './entities/GuildConfig'
-import { Logger } from '../../util/logger'
+import { Logger } from '../Logger'
 import type { GuildId } from '../../types' // cosmetic type for clarity
 
 const logger = new Logger('GuildConfigManager')

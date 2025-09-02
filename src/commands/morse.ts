@@ -1,4 +1,4 @@
-import { Logger } from '../util/logger'
+import { Logger } from '../modules/Logger'
 const logger = new Logger('/morse')
 
 import { SlashCommandBuilder } from 'discord.js'
