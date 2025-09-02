@@ -61,13 +61,17 @@ export default {
         const question = ctx.getStringOption('question', true)
         const theme = ctx.getStringOption('theme', false)
 
-        let finalResponses: string[] = []
-        if (theme === 'cascadia') {
-            finalResponses = [...CASCADIA_RESPONSES, ...GENERIC_RESPONSES]
-        } else {
-            if (theme === 'random')
+        let finalResponses: string[]
+        switch (theme) {
+            case 'cascadia':
+                finalResponses = [...CASCADIA_RESPONSES, ...GENERIC_RESPONSES]
+                break
+            case 'random':
                 finalResponses = [...CASCADIA_RESPONSES, ...FEDERATION_RESPONSES, ...GENERIC_RESPONSES]
-            else finalResponses = [...FEDERATION_RESPONSES, ...GENERIC_RESPONSES]
+                break
+            default:
+                finalResponses = [...FEDERATION_RESPONSES, ...GENERIC_RESPONSES]
+                break
         }
 
         const randomIndex = randRange(0, finalResponses.length - 1)
