@@ -1,11 +1,11 @@
 import { singleton, inject } from 'tsyringe'
 import { AttachmentBuilder, type Client, type ThreadChannel } from 'discord.js'
-import { SubtitleGenerator } from './'
+import { SubtitleGenerator } from '.'
 import { readFile } from 'fs/promises'
 import path from 'path'
 
 @singleton()
-export class QuoteFactory {
+export class SubtitleThreadManager {
     threadId = '1331682390392967329'
     thread: ThreadChannel | null = null
 

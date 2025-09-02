@@ -6,7 +6,7 @@ const logger = new Logger()
 logger.info('Starting bot')
 
 import {
-    QuoteFactory, GracefulShutdown, TagManager, DashboardServer, CrimsonChat,
+    SubtitleThreadManager, GracefulShutdown, TagManager, DashboardServer, CrimsonChat,
     GuildConfigManager, GithubWebhookManager, CommandManager, BanishmentManager
 } from './modules'
 
@@ -46,9 +46,9 @@ container.register<Client>('Client', { useValue: client })
 
 // Resolve all services from the container
 const [
-    commandManager, gracefulShutdown, dashboardServer, guildConfigManager, banishmentManager, tagManager, crimsonChat, githubWebhookManager, quoteFactory, messageTrigger
+    commandManager, gracefulShutdown, dashboardServer, guildConfigManager, banishmentManager, tagManager, crimsonChat, githubWebhookManager, subtitleThreadManager, messageTrigger
 ] = resolveServices(container,
-    CommandManager, GracefulShutdown, DashboardServer, GuildConfigManager, BanishmentManager, TagManager, CrimsonChat, GithubWebhookManager, QuoteFactory, MessageTrigger
+    CommandManager, GracefulShutdown, DashboardServer, GuildConfigManager, BanishmentManager, TagManager, CrimsonChat, GithubWebhookManager, SubtitleThreadManager, MessageTrigger
 )
 
 client.once('ready', async () => {
@@ -72,7 +72,7 @@ client.once('ready', async () => {
         })
     await webhook.init()
 
-    await quoteFactory.init()
+    await subtitleThreadManager.init()
 
     const eventFiles = await readdir(path.join(__dirname, 'events'))
     for (const file of eventFiles) {

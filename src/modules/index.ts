@@ -1,5 +1,5 @@
 export { SubtitleGenerator } from './SubtitleGenerator'
-export { QuoteFactory } from './QuoteFactory'
+export { SubtitleThreadManager } from './SubtitleThreadManager'
 
 export { OperationTracker } from './OperationTracker'
 export { GracefulShutdown } from './GracefulShutdown'
