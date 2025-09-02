@@ -238,8 +238,7 @@ export class QuoteImageFactory {
 
         // Updated helper function to detect and parse both Discord and Unicode emoji
         const parseEmojis = (text: string) => {
-            logger.info(`Parsing emojis from text of length ${yellow(text.length)}
-`)
+            logger.debug(`Parsing emojis from text of length ${yellow(text.length)}`)
             const results: Array<{
                 full: string
                 id?: string
@@ -287,8 +286,7 @@ export class QuoteImageFactory {
                 url: `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${this.toCodePoint(match[0])}.png`
             })))
 
-            logger.info(`Found ${yellow(results.length)} emojis/pings: ${yellow(results.map(e => e.full).join(', '))}
-`)
+            logger.debug(`Found ${yellow(results.length)} emojis/pings: ${yellow(results.map(e => e.full).join(', '))}`)
             return results
         }
 
@@ -313,17 +311,15 @@ export class QuoteImageFactory {
             const allEmojis = [...speakerEmojis, ...quoteEmojis]
 
             const hasAnimatedEmojis = allEmojis.some(e => e.animated)
-            logger.info(`Animation status: ${yellow(hasAnimatedEmojis ? 'Animated' : 'Static')}
-`)
+            logger.debug(`Animation status: ${yellow(hasAnimatedEmojis ? 'Animated' : 'Static')}`)
 
             // Load emoji frames
-            logger.info('Loading emoji images...\n')
+            logger.debug('Loading emoji images...\n')
             const emojiImages = await Promise.all(
                 allEmojis.map(async (emoji, index) => {
                     try {
                         if (emoji.animated) {
-                            logger.info(`Loading animated emoji ${yellow(index + 1)}/${yellow(allEmojis.length)}: ${yellow(emoji.name || emoji.id)}
-`)
+                            logger.debug(`Loading animated emoji ${yellow(index + 1)}/${yellow(allEmojis.length)}: ${yellow(emoji.name || emoji.id)}`)
                             const tmpDir = await this.createTempDir()
                             try {
                                 if (emoji.url) {
@@ -342,8 +338,7 @@ export class QuoteImageFactory {
                                 await this.cleanupTempDir(tmpDir)
                             }
                         } else {
-                            logger.info(`Loading static emoji ${yellow(index + 1)}/${yellow(allEmojis.length)}
-`)
+                            logger.debug(`Loading static emoji ${yellow(index + 1)}/${yellow(allEmojis.length)}`)
                             return {
                                 ...emoji,
                                 image: emoji.url ? await loadImage(emoji.url) : null
@@ -351,15 +346,12 @@ export class QuoteImageFactory {
                         }
                     } catch (e) {
                         const error = e as Error
-                        logger.error(`Failed to load emoji: ${yellow(emoji.name || emoji.id)}
-${red(error.message)}
-${yellow(emoji.url)}
-`)
+                        logger.error(`Failed to load emoji ${yellow(emoji.name || emoji.id)}: ${red(error.message)} (${yellow(emoji.url)})`)
                         return { ...emoji, image: null }
                     }
                 })
             )
-            logger.ok('Finished loading emoji images\n')
+            logger.debug('Finished loading emoji images\n')
 
             const measureWordWidth = (word: string, startIndex: number, emojis: ReturnType<typeof parseEmojis>) => {
                 let width = measureCtx.measureText(word).width
@@ -553,8 +545,7 @@ ${yellow(emoji.url)}
             const height = 50 + speakerHeight + 2 + (quoteLines.length * lineHeight) + padding
 
             const renderFrame = async (frameIndex: number) => {
-                logger.info(`Rendering frame ${yellow(frameIndex + 1)}
-`)
+                logger.debug(`Rendering frame ${yellow(frameIndex + 1)}`)
                 const startTime = performance.now()
 
                 // Create canvas and context for this frame
@@ -1018,7 +1009,7 @@ ${yellow(emoji.url)}
                 }
 
                 const maxFrames = Math.max(...animatedEmojis.map(e => e.frames.length))
-                logger.info(`Creating animated image with ${yellow(maxFrames)} frames at ${yellow(targetFramerate)}fps\n`)
+                logger.debug(`Creating animated image with ${yellow(maxFrames)} frames at ${yellow(targetFramerate)}fps\n`)
 
                 const tmpDir = await this.createTempDir()
                 const outputPath = path.join(tmpDir, 'output.gif')
@@ -1032,15 +1023,14 @@ ${yellow(emoji.url)}
 
                         if (i % 10 === 0) {
                             const progress = ((i + 1) / maxFrames * 100).toFixed(1)
-                            logger.debug(`Frame progress: ${progress}% (${i + 1}/${maxFrames})
-`)
+                            logger.debug(`Frame progress: ${progress}% (${i + 1}/${maxFrames})`)
                         }
                     }
 
                     // Create GIF using FFmpeg with detected framerate
-                    logger.info(`Creating GIF with FFmpeg at ${yellow(targetFramerate)}fps...\n`)
+                    logger.debug(`Creating GIF with FFmpeg at ${yellow(targetFramerate)}fps...`)
                     const buffer = await this.ffmpegCreateGif(tmpDir, outputPath, targetFramerate)
-                    logger.ok(`GIF generation complete. Final size: ${yellow((buffer.length / 1024).toFixed(2))}KB\n`)
+                    logger.debug(`GIF generation complete. Final size: ${yellow((buffer.length / 1024).toFixed(2))}KB\n`)
 
                     return {
                         buffer,
@@ -1050,7 +1040,7 @@ ${yellow(emoji.url)}
                     await this.cleanupTempDir(tmpDir)
                 }
             } else {
-                logger.info('Generating static image\n')
+                logger.debug('Generating static image')
                 const canvas = await renderFrame(0)
                 return {
                     buffer: canvas.toBuffer(),
