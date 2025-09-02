@@ -76,7 +76,7 @@ export default async function onMessageCreate(client: Client<true>, services: Me
                     }
 
                     if (await tagManager.getTag(message.guild!.id, tagName)) {
-                        await message.reply(`❌ Tag 	este${tagName}	este" already exists.`)
+                        await message.reply(`❌ Tag "${tagName}" already exists.`)
                         return
                     }
 
@@ -94,7 +94,7 @@ export default async function onMessageCreate(client: Client<true>, services: Me
 
                     const tag = await tagManager.getTag(message.guild!.id, tagName)
                     if (!tag) {
-                        await message.reply(`❌ Tag 	este${tagName}	este" not found.`)
+                        await message.reply(`❌ Tag "${tagName}" not found.`)
                         return
                     }
 
