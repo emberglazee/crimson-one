@@ -1,4 +1,4 @@
-import { Logger, MarkovChat, type CommandContext } from '../modules'
+import { Logger, type CommandContext, type MarkovChat } from '../modules'
 import { yellow, red } from '../util/colors'
 const logger = new Logger('/markov')
 
@@ -312,7 +312,7 @@ export default {
     async execute(ctx: CommandContext<true>) {
 
         const subcommand = ctx.getSubcommand()
-        const markov = MarkovChat.getInstance()
+        const markov = ctx.markovChat
 
         // Helper to resolve user from picker or user_id
         async function resolveUserOrId() {

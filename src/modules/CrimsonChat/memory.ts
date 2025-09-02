@@ -1,3 +1,4 @@
+import { singleton } from 'tsyringe'
 import { Logger } from '../Logger'
 import { red, yellow } from '../../util/colors'
 const logger = new Logger('CrimsonChat | State')
@@ -57,6 +58,7 @@ function isSerializableImagePart(part: unknown): part is SerializableImagePart {
     )
 }
 
+@singleton()
 export class CrimsonChatState {
     private statePath = path.join(process.cwd(), 'data/crimsonchat_state.json')
     public history: MessageWithUsage[] = []
@@ -72,6 +74,10 @@ export class CrimsonChatState {
     public berserkMode = false
     public testMode = false
     public ignoredUsers: string[] = []
+
+    public constructor() {
+        this.loadStateFromFile()
+    }
 
     private async updateTotalTokenCount(): Promise<void> {
         if (this.limitMode !== 'tokens') {

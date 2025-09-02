@@ -1,3 +1,4 @@
+import { singleton } from 'tsyringe'
 import { Logger } from '../Logger'
 import { yellow, red } from '../../util/colors'
 const logger = new Logger('CommandHotReloader')
@@ -8,16 +9,16 @@ import { CommandRegistry } from './CommandRegistry'
 import { CommandDeployer } from './CommandDeployer'
 import { SlashCommand, ContextMenuCommand, GuildSlashCommand } from '../../types'
 
+@singleton()
 export class CommandHotReloader {
     private watcher: fs.FSWatcher | null = null
     private commandDir: string
-    private registry: CommandRegistry
-    private deployer: CommandDeployer
     private debounceTimeout: NodeJS.Timeout | null = null
 
-    constructor(registry: CommandRegistry, deployer: CommandDeployer) {
-        this.registry = registry
-        this.deployer = deployer
+    constructor(
+        private registry: CommandRegistry,
+        private deployer: CommandDeployer
+    ) {
         this.commandDir = path.join(__dirname, '../../commands')
     }
 

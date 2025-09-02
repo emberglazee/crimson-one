@@ -1,3 +1,4 @@
+import { singleton, inject } from 'tsyringe'
 import { Logger } from '../Logger'
 const logger = new Logger('MarkovChain | Chat')
 
@@ -87,31 +88,19 @@ interface MarkovCollectCompleteEvent {
     taskId: string
 }
 
+@singleton()
 export class MarkovChat extends EventEmitter<{
     collectProgress: (event: MarkovCollectProgressEvent) => void
     collectComplete: (event: MarkovCollectCompleteEvent) => void
     generateProgress: (event: MarkovGenerateProgressEvent) => void
     infoProgress: (event: MarkovInfoProgressEvent) => void
 }> {
-    private static instance: MarkovChat
-    private client: Client | null = null
     private worker: Worker | null = null
     private taskIdCounter = 0
     private pendingTasks = new Map<string, { resolve: (value: unknown) => void, reject: (reason?: unknown) => void }>()
 
-    private constructor() {
+    public constructor(@inject('Client') private client: Client) {
         super()
-    }
-
-    public static getInstance(): MarkovChat {
-        if (!MarkovChat.instance) {
-            MarkovChat.instance = new MarkovChat()
-        }
-        return MarkovChat.instance
-    }
-
-    public setClient(client: Client) {
-        this.client = client
         this.initializeWorker()
     }
 

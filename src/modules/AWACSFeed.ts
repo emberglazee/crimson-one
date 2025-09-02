@@ -1,3 +1,4 @@
+import { singleton, inject } from 'tsyringe'
 import { Logger } from './Logger'
 const logger = new Logger('AWACSFeed')
 
@@ -18,11 +19,11 @@ type EventHandler<T extends keyof ClientEvents> = {
     messages: ((...params: string[]) => string)[]
 }
 
+@singleton()
 export class AWACSFeed extends EventEmitter<{
     awacsEvent: (message: string) => void
 }> {
     private awacsChannel: TextChannel | undefined
-    private banishmentManager = BanishmentManager.getInstance()
 
     private static readonly IGNORED_ROLE_IDS = [
         '1371101530819657759',
@@ -203,23 +204,12 @@ export class AWACSFeed extends EventEmitter<{
         }
     ]
 
-    private static instance: AWACSFeed
-    private client!: Client
-    private constructor() {
+    public constructor(
+        @inject('Client') private client: Client,
+        private banishmentManager: BanishmentManager
+    ) {
         super()
-    }
-
-    public static getInstance(): AWACSFeed {
-        if (!AWACSFeed.instance) {
-            AWACSFeed.instance = new AWACSFeed()
-        }
-        return AWACSFeed.instance
-    }
-
-    public setClient(client: Client): this {
-        this.client = client
         this.initializeListeners()
-        return this
     }
 
     private isTargetGuild(guildId: string): boolean {

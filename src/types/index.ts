@@ -26,7 +26,7 @@ export type ChannelIdResolvable = GuildChannel | Message | CommandInteraction |
 export type AtleastOne<T, U = { [K in keyof T]: Pick<T, K> }> = Partial<T> & U[keyof U]
 
 export interface DiscordEventListener {
-    default: (client: Client) => void
+    default: (client: Client, ...args: any[]) => void
 }
 
 export type Emoji = string

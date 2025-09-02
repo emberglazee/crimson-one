@@ -1,3 +1,4 @@
+import { singleton } from 'tsyringe'
 import { Logger } from '../Logger'
 import { yellow, red } from '../../util/colors'
 const logger = new Logger('MarkovChain | DataSource')
@@ -12,19 +13,10 @@ import { Channel } from './entities/Channel'
 import { Guild } from './entities/Guild'
 import { User } from './entities/User'
 
+@singleton()
 export class MarkovDataSource {
-    private static instance: MarkovDataSource
     public orm!: ORMDataSource
     private initialized = false
-
-    private constructor() {}
-
-    public static getInstance(): MarkovDataSource {
-        if (!MarkovDataSource.instance) {
-            MarkovDataSource.instance = new MarkovDataSource()
-        }
-        return MarkovDataSource.instance
-    }
 
     public async init() {
         if (this.initialized) return

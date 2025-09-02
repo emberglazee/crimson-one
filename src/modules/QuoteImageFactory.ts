@@ -1,3 +1,4 @@
+import { singleton, inject } from 'tsyringe'
 import { Logger } from './Logger'
 import { red, yellow } from '../util/colors'
 const logger = new Logger('QuoteImageFactory')
@@ -24,32 +25,20 @@ export type QuoteImageResult = {
 /** Subtitle style: Project Wingman, Ace Combat 7, Ace Combat Zero, or Helldivers 2 */
 export type QuoteStyle = 'pw' | 'ac7' | 'acz' | 'hd2'
 
+@singleton()
 export class QuoteImageFactory {
-    private static instance: QuoteImageFactory
-    private client: Client | null = null
-    private guild: Guild | null = null
     private usernames: Map<string, string>
 
-    private constructor() {
+    public constructor(@inject('Client') private client: Client) {
         this.usernames = new Map()
     }
 
-    public setClient(client: Client): QuoteImageFactory {
-        this.client = client
-        return this
-    }
-
-    public setGuild(guild: Guild): QuoteImageFactory {
-        this.guild = guild
-        return this
-    }
-
-    private async fetchUsername(id: string): Promise<string> {
+    private async fetchUsername(id: string, guild: Guild | null): Promise<string> {
         if (!this.client) return id
         try {
-            if (this.guild) {
+            if (guild) {
                 // Try to get member from guild first
-                const member = await this.guild.members.fetch(id)
+                const member = await guild.members.fetch(id)
                 if (member) {
                     return member.displayName
                 }
@@ -59,16 +48,10 @@ export class QuoteImageFactory {
             return user.displayName
         } catch (e) {
             const error = e as Error
-            logger.error(`Failed to fetch username for ${yellow(id)}: ${red(error)}`)
+            logger.error(`Failed to fetch username for ${yellow(id)}: ${red(error)}
+`)
             return id
         }
-    }
-
-    static getInstance(): QuoteImageFactory {
-        if (!QuoteImageFactory.instance) {
-            QuoteImageFactory.instance = new QuoteImageFactory()
-        }
-        return QuoteImageFactory.instance
     }
 
     private toCodePoint(unicodeSurrogates: string): string {
@@ -100,16 +83,20 @@ export class QuoteImageFactory {
             await fs.rm(dir, { recursive: true, force: true })
         } catch (e) {
             const error = e as Error
-            logger.error(`Failed to cleanup temp dir: ${red(error.message)}`)
+            logger.error(`Failed to cleanup temp dir: ${red(error.message)}
+`)
         }
     }
 
     private async ffmpegCreateGif(framesDir: string, outputPath: string, fps: number): Promise<Buffer> {
         return new Promise((resolve, reject) => {
             const ffmpeg = spawn('ffmpeg', [
-                '-framerate', fps.toString(),
-                '-i', path.join(framesDir, 'frame-%d.png'),
-                '-filter_complex', '[0:v] split [a][b];[a] palettegen=reserve_transparent=on:transparency_color=000000 [p];[b][p] paletteuse',
+                '-framerate',
+                fps.toString(),
+                '-i',
+                path.join(framesDir, 'frame-%d.png'),
+                '-filter_complex',
+                '[0:v] split [a][b];[a] palettegen=reserve_transparent=on:transparency_color=000000 [p];[b][p] paletteuse',
                 '-y',
                 outputPath
             ])
@@ -149,20 +136,28 @@ export class QuoteImageFactory {
 
             // Extract frame information
             const ffprobe = spawn('ffprobe', [
-                '-v', 'quiet',
-                '-select_streams', 'v:0',
-                '-show_entries', 'stream=nb_frames',
-                '-of', 'default=nokey=1:noprint_wrappers=1',
+                '-v',
+                'quiet',
+                '-select_streams',
+                'v:0',
+                '-show_entries',
+                'stream=nb_frames',
+                '-of',
+                'default=nokey=1:noprint_wrappers=1',
                 gifPath
             ])
             await new Promise(resolve => ffprobe.on('close', resolve))
 
             // Get frame durations using ffprobe
             const ffprobeDurations = spawn('ffprobe', [
-                '-v', 'quiet',
-                '-select_streams', 'v:0',
-                '-show_entries', 'frame=pkt_duration_time',
-                '-of', 'csv=p=0',
+                '-v',
+                'quiet',
+                '-select_streams',
+                'v:0',
+                '-show_entries',
+                'frame=pkt_duration_time',
+                '-of',
+                'csv=p=0',
                 gifPath
             ])
             let durationsStr = ''
@@ -176,9 +171,12 @@ export class QuoteImageFactory {
 
             // Extract frames and their timestamps
             const ffmpeg = spawn('ffmpeg', [
-                '-i', gifPath,
-                '-vsync', '0',
-                '-frame_pts', '1',
+                '-i',
+                gifPath,
+                '-vsync',
+                '0',
+                '-frame_pts',
+                '1',
                 path.join(outputDir, 'frame-%d.png')
             ])
             let stderr = ''
@@ -209,6 +207,7 @@ export class QuoteImageFactory {
     }
 
     public async createQuoteImage(
+        guild: Guild,
         speaker: string,
         quote: string,
         color: string | null,
@@ -239,7 +238,8 @@ export class QuoteImageFactory {
 
         // Updated helper function to detect and parse both Discord and Unicode emoji
         const parseEmojis = (text: string) => {
-            logger.info(`Parsing emojis from text of length ${yellow(text.length)}`)
+            logger.info(`Parsing emojis from text of length ${yellow(text.length)}
+`)
             const results: Array<{
                 full: string
                 id?: string
@@ -287,7 +287,8 @@ export class QuoteImageFactory {
                 url: `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${this.toCodePoint(match[0])}.png`
             })))
 
-            logger.info(`Found ${yellow(results.length)} emojis/pings: ${yellow(results.map(e => e.full).join(', '))}`)
+            logger.info(`Found ${yellow(results.length)} emojis/pings: ${yellow(results.map(e => e.full).join(', '))}
+`)
             return results
         }
 
@@ -299,7 +300,7 @@ export class QuoteImageFactory {
         const usernames = new Map(
             await Promise.all(
                 [...new Set(allPings)].map(async id =>
-                    [id, await this.fetchUsername(id)] as [string, string]
+                    [id, await this.fetchUsername(id, guild)] as [string, string]
                 )
             )
         )
@@ -312,15 +313,17 @@ export class QuoteImageFactory {
             const allEmojis = [...speakerEmojis, ...quoteEmojis]
 
             const hasAnimatedEmojis = allEmojis.some(e => e.animated)
-            logger.info(`Animation status: ${yellow(hasAnimatedEmojis ? 'Animated' : 'Static')}`)
+            logger.info(`Animation status: ${yellow(hasAnimatedEmojis ? 'Animated' : 'Static')}
+`)
 
             // Load emoji frames
-            logger.info('Loading emoji images...')
+            logger.info('Loading emoji images...\n')
             const emojiImages = await Promise.all(
                 allEmojis.map(async (emoji, index) => {
                     try {
                         if (emoji.animated) {
-                            logger.info(`Loading animated emoji ${yellow(index + 1)}/${yellow(allEmojis.length)}: ${yellow(emoji.name || emoji.id)}`)
+                            logger.info(`Loading animated emoji ${yellow(index + 1)}/${yellow(allEmojis.length)}: ${yellow(emoji.name || emoji.id)}
+`)
                             const tmpDir = await this.createTempDir()
                             try {
                                 if (emoji.url) {
@@ -339,7 +342,8 @@ export class QuoteImageFactory {
                                 await this.cleanupTempDir(tmpDir)
                             }
                         } else {
-                            logger.info(`Loading static emoji ${yellow(index + 1)}/${yellow(allEmojis.length)}`)
+                            logger.info(`Loading static emoji ${yellow(index + 1)}/${yellow(allEmojis.length)}
+`)
                             return {
                                 ...emoji,
                                 image: emoji.url ? await loadImage(emoji.url) : null
@@ -347,12 +351,15 @@ export class QuoteImageFactory {
                         }
                     } catch (e) {
                         const error = e as Error
-                        logger.error(`Failed to load emoji: ${yellow(emoji.name || emoji.id)}\n${red(error.message)}\n${yellow(emoji.url)}`)
+                        logger.error(`Failed to load emoji: ${yellow(emoji.name || emoji.id)}
+${red(error.message)}
+${yellow(emoji.url)}
+`)
                         return { ...emoji, image: null }
                     }
                 })
             )
-            logger.ok('Finished loading emoji images')
+            logger.ok('Finished loading emoji images\n')
 
             const measureWordWidth = (word: string, startIndex: number, emojis: ReturnType<typeof parseEmojis>) => {
                 let width = measureCtx.measureText(word).width
@@ -546,7 +553,8 @@ export class QuoteImageFactory {
             const height = 50 + speakerHeight + 2 + (quoteLines.length * lineHeight) + padding
 
             const renderFrame = async (frameIndex: number) => {
-                logger.info(`Rendering frame ${yellow(frameIndex + 1)}`)
+                logger.info(`Rendering frame ${yellow(frameIndex + 1)}
+`)
                 const startTime = performance.now()
 
                 // Create canvas and context for this frame
@@ -992,7 +1000,7 @@ export class QuoteImageFactory {
                 }
 
                 const endTime = performance.now()
-                logger.debug(`Frame ${yellow(frameIndex + 1)} rendered in ${yellow((endTime - startTime).toFixed(2))}ms`)
+                logger.debug(`Frame ${yellow(frameIndex + 1)} rendered in ${yellow((endTime - startTime).toFixed(2))}ms\n`)
                 return canvas
             }
 
@@ -1010,7 +1018,7 @@ export class QuoteImageFactory {
                 }
 
                 const maxFrames = Math.max(...animatedEmojis.map(e => e.frames.length))
-                logger.info(`Creating animated image with ${yellow(maxFrames)} frames at ${yellow(targetFramerate)}fps`)
+                logger.info(`Creating animated image with ${yellow(maxFrames)} frames at ${yellow(targetFramerate)}fps\n`)
 
                 const tmpDir = await this.createTempDir()
                 const outputPath = path.join(tmpDir, 'output.gif')
@@ -1024,14 +1032,15 @@ export class QuoteImageFactory {
 
                         if (i % 10 === 0) {
                             const progress = ((i + 1) / maxFrames * 100).toFixed(1)
-                            logger.debug(`Frame progress: ${progress}% (${i + 1}/${maxFrames})`)
+                            logger.debug(`Frame progress: ${progress}% (${i + 1}/${maxFrames})
+`)
                         }
                     }
 
                     // Create GIF using FFmpeg with detected framerate
-                    logger.info(`Creating GIF with FFmpeg at ${yellow(targetFramerate)}fps...`)
+                    logger.info(`Creating GIF with FFmpeg at ${yellow(targetFramerate)}fps...\n`)
                     const buffer = await this.ffmpegCreateGif(tmpDir, outputPath, targetFramerate)
-                    logger.ok(`GIF generation complete. Final size: ${yellow((buffer.length / 1024).toFixed(2))}KB`)
+                    logger.ok(`GIF generation complete. Final size: ${yellow((buffer.length / 1024).toFixed(2))}KB\n`)
 
                     return {
                         buffer,
@@ -1041,7 +1050,7 @@ export class QuoteImageFactory {
                     await this.cleanupTempDir(tmpDir)
                 }
             } else {
-                logger.info('Generating static image')
+                logger.info('Generating static image\n')
                 const canvas = await renderFrame(0)
                 return {
                     buffer: canvas.toBuffer(),

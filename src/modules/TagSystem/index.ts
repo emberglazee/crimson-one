@@ -1,3 +1,4 @@
+import { singleton } from 'tsyringe'
 import { Logger } from '../Logger'
 const logger = new Logger('TagManager')
 
@@ -9,18 +10,12 @@ import { TagDataSource } from './DataSource'
 import { Tag } from './entities/Tag'
 import { Message, PermissionsBitField, type PermissionResolvable } from 'discord.js'
 
+@singleton()
 export class TagManager {
-    private static instance: TagManager
-    private dataSource = TagDataSource.getInstance()
-
-    private constructor() {}
-
-    public static getInstance(): TagManager {
-        if (!TagManager.instance) {
-            TagManager.instance = new TagManager()
-        }
-        return TagManager.instance
-    }
+    public constructor(
+        private dataSource: TagDataSource,
+        private guildConfigManager: GuildConfigManager
+    ) {}
 
     public async init() {
         await this.dataSource.init()
@@ -62,7 +57,7 @@ export class TagManager {
         }
 
         logger.debug(`{canModerateTags} Getting configuration for guild ${ctx.guild.id}`)
-        const guildConfig = await GuildConfigManager.getInstance().getConfig(ctx.guild.id)
+        const guildConfig = await this.guildConfigManager.getConfig(ctx.guild.id)
         logger.debug(`{canModerateTags} GuildConfig for guild ${ctx.guild.id}:\n${inspect(guildConfig, { colors: true, depth: Infinity })}`)
 
         if (!guildConfig.tagSystemEnabled) {

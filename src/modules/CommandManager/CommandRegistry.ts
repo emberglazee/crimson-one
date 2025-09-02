@@ -1,3 +1,4 @@
+import { singleton } from 'tsyringe'
 import { Logger } from '../Logger'
 import { green, yellow } from '../../util/colors'
 const logger = new Logger('CommandRegistry')
@@ -12,6 +13,7 @@ import type { SlashCommand, GuildSlashCommand, ContextMenuCommand, ExplicitAny, 
 
 type CommandBuilderWithOptions = SlashCommandBuilder | SlashCommandSubcommandBuilder | SlashCommandSubcommandGroupBuilder
 
+@singleton()
 export class CommandRegistry {
     public readonly globalCommands: Map<string, SlashCommand> = new Map()
     public readonly guildCommands: Map<GuildId, Map<string, GuildSlashCommand>> = new Map()

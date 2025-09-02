@@ -1,4 +1,4 @@
-import { Logger, GuildConfigManager, TagManager, CommandContext } from '../modules'
+import { Logger, CommandContext } from '../modules'
 const logger = new Logger('/tag')
 
 import { SlashCommandBuilder, EmbedBuilder, InteractionContextType, MessageFlags } from 'discord.js'
@@ -60,10 +60,9 @@ export default {
     async execute(ctx: CommandContext<true>) {
         const subcommand = ctx.getSubcommand(true)
 
-        const guildConfigManager = GuildConfigManager.getInstance()
-        const guildConfig = await guildConfigManager.getConfig(ctx.guild.id)
+        const guildConfig = await ctx.guildConfigManager.getConfig(ctx.guild.id)
 
-        const tagManager = TagManager.getInstance()
+        const tagManager = ctx.tagManager
         logger.debug(`Calling hasTagPermission(); user: ${ctx.member.id}, guild: ${ctx.guild.id}`)
         const hasPerms = await tagManager.canModerateTags(ctx)
         logger.debug(`await tagManager.hasTagPermission(context) -> ${hasPerms}`)

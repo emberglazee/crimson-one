@@ -1,3 +1,4 @@
+import 'reflect-metadata'
 import { Logger } from './modules'
 import { yellow, red } from './util/colors'
 const logger = new Logger('Guardian')

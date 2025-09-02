@@ -1,3 +1,4 @@
+import { singleton } from 'tsyringe'
 import type { Message } from 'discord.js'
 import type { MessageTriggerEntry as MessageTriggers } from '../types'
 import { chance, getRandomElement } from '../util/functions'
@@ -5,6 +6,7 @@ import { EMBI_ID, PING_EMBI, SOLITARY_CONFINEMENT_GUILD_ID } from '../util/const
 import { sleep } from 'bun'
 import type { GuildMember } from 'discord.js'
 
+@singleton()
 export class MessageTrigger {
     triggers: MessageTriggers[] = [
         {

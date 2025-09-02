@@ -1,3 +1,4 @@
+import { singleton } from 'tsyringe'
 import { Logger } from './'
 const logger = new Logger('OperationTracker')
 
@@ -16,29 +17,22 @@ interface Operation {
     refable?: { ref(): void, unref(): void }
 }
 
+@singleton()
 export class OperationTracker extends EventEmitter<{
     operationStart: (operation: Operation) => void
     operationEnd: (operation: Operation) => void
 }> {
-    private static instance: OperationTracker
     private operations = new Map<string, Operation>()
     private shuttingDown = false
     private shutdownCallbacks: (() => Promise<void>)[] = []
     private shutdownPromise: Promise<void> | null = null
     private resolveShutdown: (() => void) | null = null
 
-    private constructor() {
+    public constructor() {
         super()
         this.shutdownPromise = new Promise(resolve => {
             this.resolveShutdown = resolve
         })
-    }
-
-    public static getInstance(): OperationTracker {
-        if (!OperationTracker.instance) {
-            OperationTracker.instance = new OperationTracker()
-        }
-        return OperationTracker.instance
     }
 
     public async track<T>(

@@ -1,8 +1,10 @@
+import 'reflect-metadata'
 import { parentPort, isMainThread } from 'worker_threads'
 
 import { Client, Guild, Message as DiscordMessage, TextChannel, Collection, IntentsBitField, Partials, User } from 'discord.js'
 import { RustMarkovChain } from './RustChain'
 import { MarkovDataSource } from './DataSource'
+import { container } from 'tsyringe'
 
 if (isMainThread) {
     throw new Error('This file is a worker and should not be run on the main thread.')
@@ -36,7 +38,7 @@ interface MessageStatsOptions {
 
 class MarkovEngine {
     private client: Client | null = null
-    private dataSource = MarkovDataSource.getInstance()
+    private dataSource = container.resolve(MarkovDataSource)
     private dbWriteQueue: Promise<void> = Promise.resolve()
 
     async initialize(token: string) {

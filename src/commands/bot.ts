@@ -1,7 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 import { formatBytes } from '../util/functions'
-import { OperationTracker } from '../modules'
 
 const usageTracker = new Map<string, number[]>()
 const USAGE_LIMIT = 2
@@ -72,15 +71,17 @@ export default {
             const uptimeStr = `${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`
             const application = await ctx.client.application!.fetch()
 
-            const ongoingOperations = OperationTracker.getInstance().getPendingOperations().length
+            const ongoingOperations = ctx.operationTracker.getPendingOperations().length
 
             await ctx.editReply({
                 embeds: [{
                     title: '🤖 Bot Information',
                     fields: [
-                        { name: 'Memory Usage', value: `Heap: ${formatBytes(heapUsed)}/${formatBytes(heapTotal)}\nRSS: ${formatBytes(rss)}`, inline: true },
+                        { name: 'Memory Usage', value: `Heap: ${formatBytes(heapUsed)}/${formatBytes(heapTotal)}
+RSS: ${formatBytes(rss)}`, inline: true },
                         { name: 'Process Uptime', value: uptimeStr, inline: true },
-                        { name: '~ Installation Stats', value: `Servers: ${application.approximateGuildCount ?? 'N/A'}\nUsers: ${application.approximateUserInstallCount ?? 'N/A'}`, inline: true },
+                        { name: '~ Installation Stats', value: `Servers: ${application.approximateGuildCount ?? 'N/A'}
+Users: ${application.approximateUserInstallCount ?? 'N/A'}`, inline: true },
                         { name: 'Ongoing Operations', value: `${ongoingOperations}`, inline: true }
                     ],
                     color: 0x2B2D31,

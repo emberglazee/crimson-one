@@ -1,3 +1,4 @@
+import { singleton } from 'tsyringe'
 import { Logger } from '../Logger'
 const logger = new Logger('GuildConfigManager')
 
@@ -6,21 +7,14 @@ import { EventEmitter } from 'tseep'
 import { GuildConfig } from './entities/GuildConfig'
 import type { GuildId } from '../../types' // cosmetic type for clarity
 
+@singleton()
 export class GuildConfigManager extends EventEmitter<{
     configUpdate: (guildId: GuildId, config: GuildConfig) => void
 }> {
-    private static instance: GuildConfigManager
-    private dataSource = GuildConfigDataSource.getInstance()
     private configCache: Map<GuildId, GuildConfig> = new Map()
-    private constructor() {
-        super()
-    }
 
-    public static getInstance(): GuildConfigManager {
-        if (!this.instance) {
-            this.instance = new GuildConfigManager()
-        }
-        return this.instance
+    public constructor(private dataSource: GuildConfigDataSource) {
+        super()
     }
 
     public async init() {

@@ -1,3 +1,4 @@
+import { singleton } from 'tsyringe'
 import { Logger } from '../Logger'
 import { yellow, red } from '../../util/colors'
 const logger = new Logger('CrimsonChat | MessageQueue')
@@ -10,22 +11,15 @@ interface QueuedMessage {
     reply?: Message
 }
 
+@singleton()
 export class MessageQueue {
-    private static instance: MessageQueue
     private queue: QueuedMessage[] = []
     private isProcessing: boolean = false
     private readonly DELAY_MS = 1000
     private lastMessageTime = 0
 
-    private constructor() {
+    public constructor() {
         this.startProcessing()
-    }
-
-    public static getInstance(): MessageQueue {
-        if (!MessageQueue.instance) {
-            MessageQueue.instance = new MessageQueue()
-        }
-        return MessageQueue.instance
     }
 
     public queueMessage(

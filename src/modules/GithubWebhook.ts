@@ -1,3 +1,4 @@
+import { singleton, inject } from 'tsyringe'
 import { Logger } from './Logger'
 import { yellow } from '../util/colors'
 const logger = new Logger('GithubWebhook')
@@ -9,29 +10,16 @@ import crypto from 'crypto'
 import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
 import type { WebhookEvents } from '../types'
 
+@singleton()
 export class GithubWebhookManager extends EventEmitter<WebhookEvents> {
-    private static instance: GithubWebhookManager
     private server: Server
     private secret: string = ''
     private port: number = 3000
-    private client: Client | null = null
     private channel: TextChannel | null = null
 
-    private constructor() {
+    public constructor(@inject('Client') private client: Client) {
         super()
         this.server = createServer(this.handleRequest.bind(this))
-    }
-
-    public static getInstance(): GithubWebhookManager {
-        if (!GithubWebhookManager.instance) {
-            GithubWebhookManager.instance = new GithubWebhookManager()
-        }
-        return GithubWebhookManager.instance
-    }
-
-    public setClient(client: Client): GithubWebhookManager {
-        this.client = client
-        return this
     }
 
     public setWebhookOptions(options: {

@@ -1,3 +1,4 @@
+import { singleton, inject } from 'tsyringe'
 import { Logger } from './Logger'
 const logger = new Logger('BanishmentManager')
 
@@ -33,29 +34,16 @@ export interface UnbanishmentEvent {
     reason?: string
 }
 
+@singleton()
 export class BanishmentManager extends EventEmitter<{
     userBanished: (data: BanishmentEvent) => void
     userUnbanished: (data: UnbanishmentEvent) => void
 }> {
-    private static instance: BanishmentManager
-    private client!: Client<true>
     private activeTimeouts = new Map<string, NodeJS.Timeout>()
     private actionsInProgress = new Set<string>() // Key: userId
 
-    private constructor() {
+    public constructor(@inject('Client') private client: Client<true>) {
         super()
-    }
-
-    public static getInstance(): BanishmentManager {
-        if (!BanishmentManager.instance) {
-            BanishmentManager.instance = new BanishmentManager()
-        }
-        return BanishmentManager.instance
-    }
-
-    public setClient(client: Client<true>): this {
-        this.client = client
-        return this
     }
 
     public async init() {

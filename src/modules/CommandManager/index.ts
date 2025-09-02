@@ -1,3 +1,4 @@
+import { singleton, inject } from 'tsyringe'
 import { Logger } from '../Logger'
 import { red, yellow } from '../../util/colors'
 const logger = new Logger('CommandManager')
@@ -22,38 +23,28 @@ import { TextCommandParser } from './TextCommandParser'
 import { CommandDeployer } from './CommandDeployer'
 import { CommandHotReloader } from './CommandHotReloader'
 
-import { CrimsonChat } from '../'
-const crimsonChat = CrimsonChat.getInstance()
+import { CrimsonChat, BotSettingsManager, BanishmentManager, GuildConfigManager, MarkovChat, TagManager } from '..'
 
+@singleton()
 export class CommandManager {
-    private static instance: CommandManager
-
     private initialized = false
-    private client: Client | null = null
-    private registry: CommandRegistry | null = null
-    private deployer: CommandDeployer | null = null
-    private hotReloader: CommandHotReloader | null = null
 
-    private constructor() {}
-
-    public static getInstance(): CommandManager {
-        if (!CommandManager.instance) {
-            CommandManager.instance = new CommandManager()
-        }
-        return CommandManager.instance
-    }
-
-    public setClient(client: Client): CommandManager {
-        this.client = client
-        this.registry = new CommandRegistry()
-        this.deployer = new CommandDeployer(client, this.registry)
-        this.hotReloader = new CommandHotReloader(this.registry, this.deployer)
-        return this
-    }
+    public constructor(
+        // @ts-ignore - ts(6138) -> `client` is "unused"
+        @inject('Client') private client: Client,
+        private registry: CommandRegistry,
+        private deployer: CommandDeployer,
+        private hotReloader: CommandHotReloader,
+        private operationTracker: OperationTracker,
+        private crimsonChat: CrimsonChat,
+        private botSettingsManager: BotSettingsManager,
+        private banishmentManager: BanishmentManager,
+        private guildConfigManager: GuildConfigManager,
+        private markovChat: MarkovChat,
+        private tagManager: TagManager
+    ) {}
 
     public async init() {
-        if (!this.client || !this.registry) throw new Error('Client not set. Call setClient() first.')
-
         logger.info('{init} Initializing...')
         const initStartTime = process.hrtime.bigint()
 
@@ -63,7 +54,7 @@ export class CommandManager {
         await this.refreshGlobalCommands()
         await this.refreshAllGuildCommands()
 
-        this.hotReloader!.start()
+        this.hotReloader.start()
 
         this.initialized = true
 
@@ -73,32 +64,27 @@ export class CommandManager {
     }
 
     public async refreshGlobalCommands(): Promise<void> {
-        if (!this.deployer) throw new ClassNotInitializedError()
         await this.deployer.refreshGlobalCommands()
     }
 
     public async refreshAllGuildCommands(): Promise<void> {
-        if (!this.deployer) throw new ClassNotInitializedError()
         await this.deployer.refreshAllGuildCommands()
     }
 
     public async deleteAllGlobalCommands(): Promise<void> {
-        if (!this.deployer) throw new ClassNotInitializedError()
         await this.deployer.deleteAllGlobalCommands()
     }
 
     public async deleteAllRegisteredGuildCommands(): Promise<void> {
-        if (!this.deployer) throw new ClassNotInitializedError()
         await this.deployer.deleteAllRegisteredGuildCommands()
     }
 
     public async reloadCommand(commandName: string): Promise<void> {
-        if (!this.hotReloader) throw new ClassNotInitializedError()
         await this.hotReloader.reloadCommand(commandName)
     }
 
     public async handleInteraction(interaction: CommandInteraction | ContextMenuCommandInteraction): Promise<void> {
-        if (!this.initialized || !this.registry) throw new ClassNotInitializedError()
+        if (!this.initialized) throw new ClassNotInitializedError()
         if (!interaction.isChatInputCommand() && !interaction.isContextMenuCommand()) return
 
         const commandName = interaction.commandName
@@ -121,7 +107,16 @@ export class CommandManager {
 
         try {
             if (interaction.isChatInputCommand() && (this.registry.isGlobalSlashCommand(command) || this.registry.isGuildSlashCommand(command))) {
-                const context = new CommandContext(interaction)
+                const context = new CommandContext(interaction, {
+                    banishmentManager: this.banishmentManager,
+                    crimsonChat: this.crimsonChat,
+                    guildConfigManager: this.guildConfigManager,
+                    markovChat: this.markovChat,
+                    tagManager: this.tagManager,
+                    operationTracker: this.operationTracker,
+                    botSettingsManager: this.botSettingsManager,
+                    commandManager: this
+                })
                 await this.executeUnifiedCommand(command, context)
             } else if (interaction.isContextMenuCommand() && this.registry.isContextMenuCommand(command)) {
                 const helpersForContextMenu: OldSlashCommandHelpers = {
@@ -151,7 +146,7 @@ export class CommandManager {
     }
 
     public async handleMessageCommand(message: Message, prefix: string): Promise<void> {
-        if (!this.initialized || !this.registry || !message.content.startsWith(prefix) || message.author.bot) return
+        if (!this.initialized || !message.content.startsWith(prefix) || message.author.bot) return
 
         if (message.channel instanceof GuildChannel) {
             const me = await message.guild?.members.fetchMe()
@@ -171,7 +166,16 @@ export class CommandManager {
         }
 
         try {
-            const context = await TextCommandParser.createContextForMessageCommand(message, command, rawArgsString, prefix)
+            const context = await TextCommandParser.createContextForMessageCommand(message, command, rawArgsString, prefix, {
+                banishmentManager: this.banishmentManager,
+                crimsonChat: this.crimsonChat,
+                guildConfigManager: this.guildConfigManager,
+                markovChat: this.markovChat,
+                tagManager: this.tagManager,
+                operationTracker: this.operationTracker,
+                botSettingsManager: this.botSettingsManager,
+                commandManager: this
+            })
 
             if (context.parsedArgs?.h === true || context.parsedArgs?.help === true) {
                 const finalArgsString = TextCommandParser._reconstructArgumentsForYargs(rawArgsString, command)
@@ -212,7 +216,7 @@ ${helpText.trim()}
             ? command.data.name
             : 'unknown_command'
 
-        return OperationTracker.getInstance().track(
+        return this.operationTracker.track(
             `command:${commandIdentifier}`,
             context.isInteraction ? 'SLASH_COMMAND' : 'TEXT_COMMAND',
             async () => {
@@ -244,8 +248,8 @@ ${helpText.trim()}
                         await command.execute(context)
                     }
 
-                    if (context.channel?.id === crimsonChat.channelId) {
-                        await crimsonChat.logCommandExecution(command, context)
+                    if (context.channel?.id === this.crimsonChat.channelId) {
+                        await this.crimsonChat.logCommandExecution(command, context)
                     }
                 } catch (err) {
                     const error = err as Error

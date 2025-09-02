@@ -1,18 +1,20 @@
-import { Logger } from './modules'
+import 'reflect-metadata' // Guardian might get skipped so import it here too just in case
+import { container } from 'tsyringe'
+import { Logger, MessageTrigger } from './modules'
 import { yellow, red } from './util/colors'
 const logger = new Logger()
 logger.info('Starting bot')
 
 import {
-    QuoteImageFactory, QuoteFactory, MessageTrigger, GracefulShutdown, TagManager, DashboardServer,
-    CrimsonChat, GuildConfigManager, MarkovChat, GithubWebhookManager, CommandManager, BanishmentManager
+    QuoteFactory, GracefulShutdown, TagManager, DashboardServer, CrimsonChat,
+    GuildConfigManager, GithubWebhookManager, CommandManager, BanishmentManager
 } from './modules'
 
 import { readdir } from 'fs/promises'
 import path from 'path'
 import { Client, IntentsBitField, Partials } from 'discord.js'
-import { getInstances, setClients } from './util/functions'
 import type { DiscordEventListener } from './types'
+import { resolveServices } from './util/functions'
 
 const unreadyClient = new Client({
     intents: new IntentsBitField([
@@ -39,22 +41,19 @@ await unreadyClient.login(process.env.DISCORD_TOKEN)
 export const client = unreadyClient as Client<true>
 logger.ok('Logged in')
 
-export const quoteFactory = new QuoteFactory(client)
-export const messageTrigger = new MessageTrigger()
+// Register the client instance for injection
+container.register<Client>('Client', { useValue: client })
 
+// Resolve all services from the container
 const [
-    guildConfigManager, crimsonChat, banishmentManager, dashboardServer, tagManager, gracefulShutdown, quoteImageFactory, markovChat, commandManager, githubWebhookManager
-] = getInstances(
-    GuildConfigManager, CrimsonChat, BanishmentManager, DashboardServer, TagManager, GracefulShutdown, QuoteImageFactory, MarkovChat, CommandManager, GithubWebhookManager
+    commandManager, gracefulShutdown, dashboardServer, guildConfigManager, banishmentManager, tagManager, crimsonChat, githubWebhookManager, quoteFactory, messageTrigger
+] = resolveServices(container,
+    CommandManager, GracefulShutdown, DashboardServer, GuildConfigManager, BanishmentManager, TagManager, CrimsonChat, GithubWebhookManager, QuoteFactory, MessageTrigger
 )
 
 client.once('ready', async () => {
     logger.info(`Logged in as ${yellow(client.user.tag)}`)
     client.user.setStatus('dnd')
-
-    setClients(client,
-        quoteImageFactory, markovChat, banishmentManager, crimsonChat, commandManager, gracefulShutdown, githubWebhookManager, dashboardServer
-    )
 
     gracefulShutdown.registerShutdownHandlers()
 
@@ -78,7 +77,17 @@ client.once('ready', async () => {
     const eventFiles = await readdir(path.join(__dirname, 'events'))
     for (const file of eventFiles) {
         const event = await import(path.join(__dirname, `events/${file}`)) as DiscordEventListener
-        event.default(client)
+        if (file === 'messageCreate.ts') {
+            event.default(client, { tagManager, guildConfigManager, commandManager, crimsonChat, messageTrigger })
+        } else if (file === 'interactionCreate.ts') {
+            event.default(client, commandManager)
+        } else if (file === 'messageDelete.ts') {
+            event.default(client, crimsonChat)
+        } else if (file === 'messageUpdate.ts') {
+            event.default(client, crimsonChat)
+        } else {
+            event.default(client)
+        }
     }
 
     logger.ok('Commands initialized, bot ready')

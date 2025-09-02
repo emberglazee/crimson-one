@@ -1,15 +1,19 @@
+import { singleton, inject } from 'tsyringe'
 import { AttachmentBuilder, type Client, type ThreadChannel } from 'discord.js'
 import { QuoteImageFactory } from './'
 import { readFile } from 'fs/promises'
 import path from 'path'
 
+@singleton()
 export class QuoteFactory {
-    client: Client
     threadId = '1331682390392967329'
     thread: ThreadChannel | null = null
-    constructor(client: Client) {
-        this.client = client
-    }
+    
+    public constructor(
+        @inject('Client') private client: Client,
+        private quoteImageFactory: QuoteImageFactory
+    ) {}
+
     async init() {
         this.thread = await this.client.channels.fetch(this.threadId) as ThreadChannel
         this.client.on('messageCreate', async message => {
@@ -23,9 +27,7 @@ export class QuoteFactory {
                 const color = message.member!.displayHexColor
                 const gradient = 'none'
                 const stretchGradient = false
-                const factory = QuoteImageFactory.getInstance()
-                    .setGuild(message.guild!)
-                const result = await factory.createQuoteImage(speaker, quote, color, gradient, stretchGradient, 'pw', false)
+                const result = await this.quoteImageFactory.createQuoteImage(message.guild!, speaker, quote, color, gradient, stretchGradient, 'pw', false)
                 const image = new AttachmentBuilder(result.buffer)
                     .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
 

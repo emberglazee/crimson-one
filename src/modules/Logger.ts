@@ -1,4 +1,5 @@
-import { BotSettingsManager } from './BotSettingsManager' // Break the circular dependency
+import { container } from 'tsyringe'
+import { BotSettingsManager } from './BotSettingsManager'
 
 import type { JSONResolvable, LogLevel, LogPayload } from '../types'
 import { EventEmitter } from 'tseep'
@@ -40,7 +41,8 @@ export class Logger extends EventEmitter<{
 
         staticEventEmitter.emit('log', { level, message, module: this.module })
 
-        if (level === 'debug' && !BotSettingsManager.getInstance().isDebugModeEnabled()) {
+        const botSettingsManager = container.resolve(BotSettingsManager)
+        if (level === 'debug' && !botSettingsManager.isDebugModeEnabled()) {
             // Debug mode is off, so only write to file
             this.writeLogLine(logoutput(level, data, this.module))
             return

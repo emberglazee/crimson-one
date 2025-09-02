@@ -6,16 +6,16 @@ import type { APIApplicationCommandOption, APIApplicationCommandSubcommandGroupO
 import type { SlashCommand, JSONResolvable } from '../../types'
 import type { ArgumentsCamelCase, Argv, Options as YargsOptions } from 'yargs'
 import yargs from 'yargs'
-import { CommandContext } from './CommandContext'
+import { CommandContext, type CommandContextServices } from './CommandContext'
 
 export class TextCommandParser {
-    public static async createContextForMessageCommand(message: Message, command: SlashCommand, rawArgsString: string, prefix: string): Promise<CommandContext> {
+    public static async createContextForMessageCommand(message: Message, command: SlashCommand, rawArgsString: string, prefix: string, services: CommandContextServices): Promise<CommandContext> {
         const finalArgsString = this._reconstructArgumentsForYargs(rawArgsString, command)
         const yargsParser = this._buildYargsParserForCommand(command, message, finalArgsString, prefix)
 
         const parsedYargsArgs = await yargsParser.parseAsync()
 
-        const context = new CommandContext(message, rawArgsString.split(/ +/))
+        const context = new CommandContext(message, services, rawArgsString.split(/ +/))
         context.parsedArgs = parsedYargsArgs as ArgumentsCamelCase<{ [key: string]: JSONResolvable }>
 
         this._setSubcommandContextFromArgs(context, parsedYargsArgs, command.data.toJSON())

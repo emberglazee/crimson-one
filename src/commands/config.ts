@@ -1,5 +1,5 @@
 import { InteractionContextType, PermissionsBitField, SlashCommandBuilder } from 'discord.js'
-import { GuildConfigManager, CommandContext } from '../modules'
+import { CommandContext } from '../modules'
 
 import { SlashCommand } from '../types'
 import { boolToEmoji } from '../util/functions'
@@ -65,7 +65,7 @@ export default {
 
         await ctx.deferReply()
 
-        const guildConfigManager = GuildConfigManager.getInstance()
+        const guildConfigManager = ctx.guildConfigManager
         const guildId = ctx.guild.id
 
         if (subcommand === 'prefix') {
@@ -74,7 +74,9 @@ export default {
             const guildConfig = await guildConfigManager.getConfig(guildId)
             guildConfig.prefix = prefix
             await guildConfigManager.setConfig(guildId, guildConfig)
-            await ctx.editReply(`✅ Prefix changed to \`${prefix}\``)
+            await ctx.editReply(`✅ Prefix changed to 
+${prefix}
+`)
 
         } else if (subcommand === 'message-trigger') {
 
@@ -89,7 +91,9 @@ export default {
             const guildConfig = await guildConfigManager.getConfig(guildId)
             await ctx.editReply(
                 `Current config for **${ctx.guild.name}**:\n` +
-                `- Prefix: \`${guildConfig.prefix}\`\n` +
+                `- Prefix: 
+${guildConfig.prefix}
+` +
                 `- Message trigger: ${boolToEmoji(guildConfig.messageTrigger)}`
             )
 

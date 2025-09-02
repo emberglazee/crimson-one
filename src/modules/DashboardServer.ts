@@ -1,3 +1,4 @@
+import { singleton, inject } from 'tsyringe'
 import { Logger } from './Logger'
 import { OperationTracker } from './OperationTracker'
 import { AWACSFeed } from './AWACSFeed'
@@ -9,27 +10,16 @@ const logger = new Logger('DashboardServer')
 import { WebSocketServer, WebSocket } from 'ws'
 import type { Client } from 'discord.js'
 
-const operationTracker = OperationTracker.getInstance()
-const awacsFeed = AWACSFeed.getInstance()
-const crimsonChat = CrimsonChat.getInstance()
-
+@singleton()
 export class DashboardServer {
-    private static instance: DashboardServer
     private wss: WebSocketServer | null = null
-    client!: Client
 
-    private constructor() {}
-
-    public static getInstance(): DashboardServer {
-        if (!DashboardServer.instance) {
-            DashboardServer.instance = new DashboardServer()
-        }
-        return DashboardServer.instance
-    }
-
-    public setClient(client: Client) {
-        this.client = client
-    }
+    public constructor(
+        @inject('Client') private client: Client,
+        private operationTracker: OperationTracker,
+        private awacsFeed: AWACSFeed,
+        private crimsonChat: CrimsonChat
+    ) {}
 
     public start(port: number) {
         if (this.wss) {
@@ -57,11 +47,11 @@ export class DashboardServer {
         // Listen for events to broadcast
         Logger.events.on('log', (payload: LogPayload) => this.broadcastLog(payload))
 
-        operationTracker.on('operationStart', () => this.sendOperations())
-        operationTracker.on('operationEnd', () => this.sendOperations())
+        this.operationTracker.on('operationStart', () => this.sendOperations())
+        this.operationTracker.on('operationEnd', () => this.sendOperations())
 
-        awacsFeed.on('awacsEvent', message => this.sendAwacsEvent(message))
-        crimsonChat.on('statusChange', () => this.sendCrimsonChatStatus())
+        this.awacsFeed.on('awacsEvent', message => this.sendAwacsEvent(message))
+        this.crimsonChat.on('statusChange', () => this.sendCrimsonChatStatus())
 
         logger.ok(`Dashboard WebSocket server started on port ${yellow(port)}`)
     }
@@ -92,27 +82,26 @@ export class DashboardServer {
             type: 'crimsonchat_status',
             timestamp: new Date().toISOString(),
             payload: {
-                enabled: crimsonChat.state.enabled,
-                model: crimsonChat.state.modelName,
+                enabled: this.crimsonChat.state.enabled,
+                model: this.crimsonChat.state.modelName,
                 history: {
-                    mode: crimsonChat.state.limitMode,
-                    count: crimsonChat.state.history.length,
-                    limit: crimsonChat.state.limitMode === 'messages' ? crimsonChat.state.messageLimit : crimsonChat.state.tokenLimit
+                    mode: this.crimsonChat.state.limitMode,
+                    count: this.crimsonChat.state.history.length,
+                    limit: this.crimsonChat.state.limitMode === 'messages' ? this.crimsonChat.state.messageLimit : this.crimsonChat.state.tokenLimit
                 },
                 modes: [
-                    crimsonChat.state.berserkMode ? 'BERSERK' : null,
-                    crimsonChat.state.testMode ? 'TEST MODE' : null
+                    this.crimsonChat.state.berserkMode ? 'BERSERK' : null,
+                    this.crimsonChat.state.testMode ? 'TEST MODE' : null
                 ].filter(Boolean)
             }
         })
     }
 
     private sendOperations() {
-        const operationTracker = OperationTracker.getInstance()
         this.broadcast({
             type: 'operations_update',
             timestamp: new Date().toISOString(),
-            payload: operationTracker.getPendingOperations().map(op => ({
+            payload: this.operationTracker.getPendingOperations().map(op => ({
                 id: op.id,
                 name: op.name,
                 startTime: op.start.toISOString()

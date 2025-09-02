@@ -1,3 +1,4 @@
+import { singleton, inject } from 'tsyringe'
 import { Logger } from '../Logger'
 import { yellow, red } from '../../util/colors'
 const logger = new Logger('CommandDeployer')
@@ -7,10 +8,14 @@ import type { RESTPostAPIChatInputApplicationCommandsJSONBody, RESTPostAPIContex
 import type { SlashCommand, ContextMenuCommand, ExplicitAny } from '../../types'
 import { CommandRegistry } from './CommandRegistry'
 
+@singleton()
 export class CommandDeployer {
     private rest: REST
 
-    constructor(private client: Client, private registry: CommandRegistry) {
+    constructor(
+        @inject('Client') private client: Client,
+        private registry: CommandRegistry
+    ) {
         this.rest = new REST().setToken(client.token!)
     }
 

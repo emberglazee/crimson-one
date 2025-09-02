@@ -1,5 +1,5 @@
 import {
-    AttachmentBuilder, Client, Guild, GuildMember,
+    AttachmentBuilder, Guild, GuildMember,
     PermissionFlagsBits, PermissionOverwrites, User,
     type APIInteractionDataResolvedGuildMember,
     type APIInteractionGuildMember,
@@ -10,6 +10,7 @@ import type { ExplicitAny } from '../types'
 import { randomInt } from 'crypto'
 import { distance } from 'fastest-levenshtein'
 import { load } from 'cheerio'
+import type { DependencyContainer } from 'tsyringe'
 
 // --- Randomization & Array Manipulation ---
 
@@ -311,30 +312,21 @@ export async function randomProjectWingmanArticle(): Promise<string> {
     return randomLink
 }
 
-interface SingletonClass<T> {
-    getInstance(): T
-}
-interface DiscordClass {
-    setClient(client: Client): void
-}
-
-/**
- * Calls `getInstance()` on all given singleton classes
- */
-export function getInstances<
-    const Classes extends readonly SingletonClass<any>[]
->(...classes: Classes): {
-    [K in keyof Classes]: Classes[K] extends SingletonClass<infer I> ? I : never
-} {
-    return classes.map(cls => cls.getInstance()) as any
-}
-/**
- * Calls `setClient(client)` on all given classes
- */
-export function setClients<
-    const Classes extends readonly DiscordClass[]
->(client: Client, ...classes: Classes): void {
-    classes.forEach(cls => cls.setClient(client))
-}
-
 export { sleep } from 'bun'
+
+interface ServiceClass<T> {
+    new (...args: any[]): T
+}
+
+/**
+ * Resolves multiple services from the container at once.
+ * @param container The tsyringe container.
+ * @param services An array of service classes to resolve.
+ * @returns An array of resolved service instances, maintaining tuple order.
+ */
+export function resolveServices<T extends readonly ServiceClass<any>[]>(
+    container: DependencyContainer,
+    ...services: T
+): { [K in keyof T]: T[K] extends ServiceClass<infer I> ? I : never } {
+    return services.map(service => container.resolve(service)) as any
+}

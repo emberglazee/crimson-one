@@ -1,7 +1,7 @@
 import { Client, Message } from 'discord.js'
 import { CrimsonChat } from '../modules'
 
-export default function onMessageUpdate(client: Client) {
+export default function onMessageUpdate(client: Client, crimsonChat: CrimsonChat) {
     client.on('messageUpdate', async (oldMessage, newMessage) => {
         // Check if message is in CrimsonChat channel
         if (newMessage.channel.id !== '1335992675459141632') return
@@ -20,7 +20,7 @@ export default function onMessageUpdate(client: Client) {
                 before: old.content,
                 after: current.content
             }, null, 2)}\n\`\`\``
-            CrimsonChat.getInstance().sendMessage(content, {
+            crimsonChat.sendMessage(content, {
                 username: 'System',
                 displayName: 'Message Edit',
                 serverDisplayName: 'Message Edit',

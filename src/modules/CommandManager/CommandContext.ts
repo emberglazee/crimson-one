@@ -23,6 +23,18 @@ import { BotInstallationType, type JSONResolvable } from '../../types'
 
 import { EMBI_ID, PING_EMBI, TYPING_EMOJI } from '../../util/constants'
 import type { ArgumentsCamelCase } from 'yargs'
+import type { BanishmentManager, BotSettingsManager, CrimsonChat, GuildConfigManager, MarkovChat, OperationTracker, TagManager, CommandManager } from '..'
+
+export interface CommandContextServices {
+    banishmentManager: BanishmentManager
+    crimsonChat: CrimsonChat
+    guildConfigManager: GuildConfigManager
+    markovChat: MarkovChat
+    tagManager: TagManager
+    operationTracker: OperationTracker
+    botSettingsManager: BotSettingsManager
+    commandManager: CommandManager
+}
 
 export class CommandContext<InGuild extends boolean = boolean> {
     private originalMessageReply: Message | null = null
@@ -42,9 +54,30 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public readonly guild: InGuild extends true ? Guild : Guild | null
     public readonly member: InGuild extends true ? GuildMember : GuildMember | null
 
+    // Services
+    public readonly banishmentManager: BanishmentManager
+    public readonly crimsonChat: CrimsonChat
+    public readonly guildConfigManager: GuildConfigManager
+    public readonly markovChat: MarkovChat
+    public readonly tagManager: TagManager
+    public readonly operationTracker: OperationTracker
+    public readonly botSettingsManager: BotSettingsManager
+    public readonly commandManager: CommandManager
 
-    constructor(source: ChatInputCommandInteraction | Message, rawArgs?: string[]) {
+
+    constructor(source: ChatInputCommandInteraction | Message, services: CommandContextServices, rawArgs?: string[]) {
         this.client = source.client
+
+        // Inject services
+        this.banishmentManager = services.banishmentManager
+        this.crimsonChat = services.crimsonChat
+        this.guildConfigManager = services.guildConfigManager
+        this.markovChat = services.markovChat
+        this.tagManager = services.tagManager
+        this.operationTracker = services.operationTracker
+        this.botSettingsManager = services.botSettingsManager
+        this.commandManager = services.commandManager
+
         if (source instanceof Message) {
             this.message = source
             this.interaction = null

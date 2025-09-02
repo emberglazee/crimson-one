@@ -1,3 +1,4 @@
+import { singleton } from 'tsyringe'
 import { Logger } from '../Logger'
 import { red } from '../../util/colors'
 const logger = new Logger('GuildConfig | DataSource')
@@ -7,27 +8,11 @@ import { GuildConfig } from './entities/GuildConfig'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 
-// export const guildConfigDataSource = new DataSource({
-//     type: 'sqlite',
-//     database: join(process.cwd(), 'data/guild-config.sqlite'),
-//     entities: [GuildConfig],
-//     synchronize: true
-// })
-
+@singleton()
 export class GuildConfigDataSource {
-    private static instance: GuildConfigDataSource
-    private orm!: DataSource
+    public orm!: DataSource
     private initialized = false
     private readonly databasePath = join(process.cwd(), 'data/guild-config.sqlite')
-
-    private constructor() {}
-
-    public static getInstance(): GuildConfigDataSource {
-        if (!GuildConfigDataSource.instance) {
-            GuildConfigDataSource.instance = new GuildConfigDataSource()
-        }
-        return GuildConfigDataSource.instance
-    }
 
     private ensureDataDirectory() {
         const dataDir = join(process.cwd(), 'data')

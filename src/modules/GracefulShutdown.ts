@@ -1,3 +1,4 @@
+import { singleton, inject } from 'tsyringe'
 import { Logger } from './Logger'
 import { yellow, red } from '../util/colors'
 const logger = new Logger('GracefulShutdown')
@@ -6,27 +7,19 @@ import { OperationTracker } from './'
 import { Client } from 'discord.js'
 import { DashboardServer } from './DashboardServer'
 
+@singleton()
 export class GracefulShutdown {
-    private static instance: GracefulShutdown
-    private client: Client | null = null
     private refable = {
         ref() { },
         unref() { }
     }
 
-    private constructor() {
+    public constructor(
+        @inject('Client') private client: Client,
+        private operationTracker: OperationTracker,
+        private dashboardServer: DashboardServer
+    ) {
         process.ref(this.refable)
-    }
-
-    public static getInstance(): GracefulShutdown {
-        if (!GracefulShutdown.instance) {
-            GracefulShutdown.instance = new GracefulShutdown()
-        }
-        return GracefulShutdown.instance
-    }
-
-    public setClient(client: Client): void {
-        this.client = client
     }
 
     public async shutdown(signal: string): Promise<void> {
@@ -47,8 +40,8 @@ export class GracefulShutdown {
             logger.warn(`Could not update bot status: ${red(error instanceof Error ? error.message : String(error))}`)
         }
 
-        await OperationTracker.getInstance().executeShutdown()
-        DashboardServer.getInstance().stop()
+        await this.operationTracker.executeShutdown()
+        this.dashboardServer.stop()
 
         try {
             this.client.destroy()

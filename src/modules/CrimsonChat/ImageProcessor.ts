@@ -1,3 +1,4 @@
+import { singleton } from 'tsyringe'
 import { Logger } from '../Logger'
 import { red } from '../../util/colors'
 const logger = new Logger('CrimsonChat | ImageProcessor')
@@ -10,6 +11,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import os from 'os'
 
+@singleton()
 export class ImageProcessor {
     public normalizeUrl = normalizeUrl
     public cleanImageUrl = cleanImageUrl

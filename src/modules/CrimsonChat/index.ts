@@ -1,3 +1,4 @@
+import { singleton, inject } from 'tsyringe'
 import { Logger } from '../Logger'
 import { green, yellow, red } from '../../util/colors'
 const logger = new Logger('CrimsonChat')
@@ -24,21 +25,18 @@ interface BufferedMessage {
     originalMessage?: Message
 }
 
+@singleton()
 export class CrimsonChat extends EventEmitter<{
     statusChange: () => void
 }> {
-    private static instance: CrimsonChat
-    public client!: Client
     public channel: TextChannel | null = null
     public channelId = '1335992675459141632'
-    private imageProcessor = new ImageProcessor()
 
     private voidai = createOpenAICompatible({
         name: 'voidai',
         baseURL: 'https://api.voidai.app/v1',
         apiKey: process.env.OPENAI_API_KEY
     })
-    public state = new CrimsonChatState()
 
     private forceNextBreakdown = false
     private readonly BREAKDOWN_CHANCE = 0.01
@@ -46,30 +44,22 @@ export class CrimsonChat extends EventEmitter<{
     private isGenerating = false
     private messageBuffer: BufferedMessage[] = []
 
-    private constructor() {
+    public constructor(
+        @inject('Client') private client: Client,
+        public state: CrimsonChatState,
+        private imageProcessor: ImageProcessor,
+        private messageQueue: MessageQueue
+    ) {
         super()
     }
 
-    public static getInstance(): CrimsonChat {
-        if (!CrimsonChat.instance) {
-            CrimsonChat.instance = new CrimsonChat()
-        }
-        return CrimsonChat.instance
-    }
-
-    public setClient(client: Client) {
-        this.client = client
-    }
-
     public async init(): Promise<void> {
-        if (!this.client) throw new Error('Client not set. Call setClient() first.')
-
         logger.info('Initializing CrimsonChat...')
         this.channel = (await this.client.channels.fetch(this.channelId)) as TextChannel
         if (!this.channel) {
             throw new Error(`Could not find text channel ${this.channelId}`)
         }
-        await this.state.loadStateFromFile()
+        // State is loaded in its own constructor now
         logger.ok('CrimsonChat initialized successfully')
     }
 
@@ -222,7 +212,8 @@ export class CrimsonChat extends EventEmitter<{
                         .setTitle('⚙️ Tool Call')
                         .addFields(
                             { name: 'Tool', value: `\`${call.toolName}\``, inline: true },
-                            { name: 'Arguments', value: `\`\`\`json\n${JSON.stringify(call.input, null, 2)}\n\`\`\`` }
+                            { name: 'Arguments', value: `\`\`\`json\n${JSON.stringify(call.input, null, 2)}
+\`\`\`` }
                         )
                         .setFooter({ text: `Call ID: ${call.toolCallId}` })
                         .setTimestamp()
@@ -274,7 +265,8 @@ export class CrimsonChat extends EventEmitter<{
                         .setTitle(embedTitle)
                         .addFields(
                             { name: 'Tool', value: `\`${result.toolName}\``, inline: true },
-                            { name: 'Message', value: `\`\`\`\n${parsedResult ? parsedResult.message : resultString.substring(0, 1000)}\n\`\`\`}` }
+                            { name: 'Message', value: `\`\`\`\n${parsedResult ? parsedResult.message : resultString.substring(0, 1000)}
+\`\`\`}` }
                         )
                         .setFooter({ text: `Call ID: ${result.toolCallId}` })
                         .setTimestamp()
@@ -304,7 +296,6 @@ export class CrimsonChat extends EventEmitter<{
 
     private async sendResponseToDiscord(response: string | MessageReplyOptions, targetChannel: TextChannel, originalMessage?: Message): Promise<void> {
         if (!this.client) throw new Error('Client not set')
-        const messageQueue = MessageQueue.getInstance()
 
         if (typeof response === 'string') {
             const finalContent = await usernamesToMentions(this.client, response)
@@ -313,12 +304,12 @@ export class CrimsonChat extends EventEmitter<{
             let isFirst = true
             for (const message of messages) {
                 const replyTo = isFirst ? originalMessage : undefined
-                messageQueue.queueMessage({ content: message, allowedMentions: { repliedUser: !!replyTo } }, targetChannel, replyTo)
+                this.messageQueue.queueMessage({ content: message, allowedMentions: { repliedUser: !!replyTo } }, targetChannel, replyTo)
                 isFirst = false
             }
         } else {
             const replyTo = originalMessage
-            messageQueue.queueMessage({ ...response, allowedMentions: { repliedUser: !!replyTo, parse: [] } }, targetChannel, replyTo)
+            this.messageQueue.queueMessage({ ...response, allowedMentions: { repliedUser: !!replyTo, parse: [] } }, targetChannel, replyTo)
         }
     }
 

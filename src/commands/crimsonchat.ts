@@ -1,6 +1,5 @@
 import { SlashCommand } from '../types'
 import { SlashCommandBuilder } from 'discord.js'
-import { CrimsonChat } from '../modules'
 
 export default {
     data: new SlashCommandBuilder()
@@ -86,7 +85,7 @@ export default {
         const isRoleAllowed = ctx.member?.roles.cache.has('958529446560808961') ?? false
         if (!isRoleAllowed) try { await ctx.assertEmbi() } catch { return }
 
-        const crimsonChat = CrimsonChat.getInstance()
+        const crimsonChat = ctx.crimsonChat
         const subcommand = ctx.getSubcommand()
 
         switch (subcommand) {
@@ -205,17 +204,33 @@ export default {
                         return userId
                     }
                 }))
-                await ctx.editReply(`✅ Users ignored by CrimsonChat: \`${ignoredUsernames.join(', ')}\``)
+                await ctx.editReply(`✅ Users ignored by CrimsonChat: 
+
+${ignoredUsernames.join(', ')}
+
+`)
                 break
 
             case 'model': {
                 const model = ctx.getStringOption('model', true)
                 await ctx.deferReply()
                 await crimsonChat.setModel(model)
-                await ctx.editReply(`✅ CrimsonChat model switched to \`${model}\`.`)
+                await ctx.editReply(`✅ CrimsonChat model switched to 
+
+${model}
+
+.`).catch(console.error)
                 crimsonChat.sendMessage(
-                    `System Alert: Model has been switched to \`${model}\` by ${ctx.user.username}.`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: Model has been switched to \`${model}\` by ${ctx.user.username}.` }
+                    `System Alert: Model has been switched to 
+
+${model}
+
+ by ${ctx.user.username}.`,
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: Model has been switched to 
+
+${model}
+
+ by ${ctx.user.username}.` }
                 )
                 break
             }
@@ -226,10 +241,22 @@ export default {
 
                 await ctx.deferReply()
                 await crimsonChat.setHistoryLimit(mode, limit)
-                await ctx.editReply(`✅ CrimsonChat history limit set to \`${limit}\` ${mode}.`)
+                await ctx.editReply(`✅ CrimsonChat history limit set to 
+
+${limit}
+
+ ${mode}.`)
                 crimsonChat.sendMessage(
-                    `System Alert: History limit has been set to \`${limit}\` ${mode} by ${ctx.user.username}.`,
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: History limit has been set to \`${limit}\` ${mode} by ${ctx.user.username}.` }
+                    `System Alert: History limit has been set to 
+
+${limit}
+
+ ${mode} by ${ctx.user.username}.`,
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: History limit has been set to 
+
+${limit}
+
+ ${mode} by ${ctx.user.username}.` }
                 )
                 break
             }

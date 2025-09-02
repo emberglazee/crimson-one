@@ -1,6 +1,5 @@
 import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { GuildSlashCommand } from '../types'
-import { BanishmentManager } from '../modules'
 import { parseDuration } from '../util/functions'
 import { SOLITARY_CONFINEMENT_GUILD_ID } from '../util/constants'
 
@@ -60,8 +59,6 @@ export default {
             return
         }
 
-        const banishmentManager = BanishmentManager.getInstance()
-
         try {
             const durationSec = duration ? parseDuration(duration) : null
             if (durationSec !== null) {
@@ -78,7 +75,7 @@ export default {
             }
 
             await ctx.deferReply()
-            await banishmentManager.banish(targetMember, ctx.user, 'command', duration, reason)
+            await ctx.banishmentManager.banish(targetMember, ctx.user, 'command', duration, reason)
             await ctx.editReply(`✅ Successfully banished ${targetMember.user.username}.`)
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.'

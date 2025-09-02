@@ -1,3 +1,4 @@
+import { singleton } from 'tsyringe'
 import { Logger } from '../Logger'
 import { red } from '../../util/colors'
 const logger = new Logger('TagSystem | DataSource')
@@ -7,20 +8,11 @@ import { Tag } from './entities/Tag'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 
+@singleton()
 export class TagDataSource {
-    private static instance: TagDataSource
     public orm!: DataSource
     private initialized = false
     private readonly databasePath = join(process.cwd(), 'data/tag-system.sqlite')
-
-    private constructor() {}
-
-    public static getInstance(): TagDataSource {
-        if (!TagDataSource.instance) {
-            TagDataSource.instance = new TagDataSource()
-        }
-        return TagDataSource.instance
-    }
 
     private ensureDataDirectory() {
         const dataDir = join(process.cwd(), 'data')

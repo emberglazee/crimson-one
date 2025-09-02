@@ -1,16 +1,23 @@
-import { Logger, TagManager, GuildConfigManager, CommandManager, CrimsonChat } from '../modules'
+import { Logger, TagManager, GuildConfigManager, CommandManager, CrimsonChat, MessageTrigger } from '../modules'
 const logger = new Logger('event.messageCreate')
 
 import util from 'util'
 import { type Client, TextChannel } from 'discord.js'
-import { messageTrigger } from '..'
 import { normalizeUrl } from '../modules/CrimsonChat/util/url-utils'
 import { parseMentions } from '../modules/CrimsonChat/util/formatters'
 import { evaluate } from 'mathjs'
 
-const crimsonChat = CrimsonChat.getInstance()
+interface MessageCreateServices {
+    tagManager: TagManager
+    guildConfigManager: GuildConfigManager
+    commandManager: CommandManager
+    crimsonChat: CrimsonChat
+    messageTrigger: MessageTrigger
+}
 
-export default async function onMessageCreate(client: Client<true>) {
+export default async function onMessageCreate(client: Client<true>, services: MessageCreateServices) {
+    const { tagManager, guildConfigManager, commandManager, crimsonChat, messageTrigger } = services
+
     client.on('messageCreate', async message => {
         try {
             if (message.author === client.user) return // Only ignore itself
@@ -48,9 +55,7 @@ export default async function onMessageCreate(client: Client<true>) {
                 }
 
                 // The rest is tag related
-                const tagManager = TagManager.getInstance()
-
-                const guildConfig = await GuildConfigManager.getInstance().getConfig(message.guild?.id)
+                const guildConfig = await guildConfigManager.getConfig(message.guild?.id)
                 if (!guildConfig.tagSystemEnabled) return // Silently ignore if not enabled
 
                 const tagName = content.slice(1).split(' ')[0]
@@ -71,7 +76,7 @@ export default async function onMessageCreate(client: Client<true>) {
                     }
 
                     if (await tagManager.getTag(message.guild!.id, tagName)) {
-                        await message.reply(`❌ Tag \`${tagName}\` already exists.`)
+                        await message.reply(`❌ Tag 	este${tagName}	este" already exists.`)
                         return
                     }
 
@@ -89,7 +94,7 @@ export default async function onMessageCreate(client: Client<true>) {
 
                     const tag = await tagManager.getTag(message.guild!.id, tagName)
                     if (!tag) {
-                        await message.reply(`❌ Tag \`${tagName}\` not found.`)
+                        await message.reply(`❌ Tag 	este${tagName}	este" not found.`)
                         return
                     }
 
@@ -113,9 +118,9 @@ export default async function onMessageCreate(client: Client<true>) {
             }
 
 
-            const guildConfig = await GuildConfigManager.getInstance().getConfig(message.guild?.id)
+            const guildConfig = await guildConfigManager.getConfig(message.guild?.id)
             if (message.content.startsWith(guildConfig.prefix)) {
-                await CommandManager.getInstance().handleMessageCommand(message, guildConfig.prefix)
+                await commandManager.handleMessageCommand(message, guildConfig.prefix)
             }
             if (guildConfig.messageTrigger) {
                 await messageTrigger.processMessage(message)
@@ -185,7 +190,7 @@ export default async function onMessageCreate(client: Client<true>) {
                     content += `\n< sticker: ${message.stickers.first()!.name} >`
                 }
                 if (message.embeds.length > 0) {
-                    content += `\n< embed: ${JSON.stringify(message.embeds[0].toJSON())} >`
+                    content += `\n< embed: ${JSON.stringify(message.embeds[0].toJSON())}>`
                 }
 
                 // Parse Discord mentions into our required JSON format

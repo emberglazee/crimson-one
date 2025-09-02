@@ -1,6 +1,5 @@
 import { SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
-import { CommandManager } from '../modules'
 
 export default {
     data: new SlashCommandBuilder()
@@ -22,17 +21,16 @@ export default {
         try { await ctx.assertEmbi() } catch { return }
 
         const subcommand = ctx.getSubcommand(true)
-        const commandManager = CommandManager.getInstance()
 
         await ctx.deferReply({ ephemeral: true })
 
         try {
             if (subcommand === 'all') {
-                await commandManager.init()
+                await ctx.commandManager.init()
                 await ctx.editReply('✅ All commands have been reloaded.')
             } else if (subcommand === 'command') {
                 const commandName = ctx.getStringOption('name', true)
-                await commandManager.reloadCommand(commandName)
+                await ctx.commandManager.reloadCommand(commandName)
                 await ctx.editReply(`✅ Command '${commandName}' has been reloaded.`)
             }
         } catch (error) {
