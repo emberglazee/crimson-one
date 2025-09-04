@@ -211,6 +211,12 @@ export class MessageTrigger {
                 await sleep(60 * 1000)
                 await message.member.setNickname(originalNickname)
             }
+        },
+        {
+            pattern: [/twink/gmi],
+            async action(message) {
+                await message.reply('https://cdn.discordapp.com/attachments/1261829304271245463/1413087375105724507/r9rgr1evtph91.png?ex=68baa7ac&is=68b9562c&hm=f58001e1a1b88211e0f7449320883aa6114c406b809d23c84a3f2732c259fb8b&')
+            }
         }
     ]
     async processMessage(message: Message) {
