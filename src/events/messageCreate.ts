@@ -58,11 +58,11 @@ export default async function onMessageCreate(client: Client<true>, services: Me
                 const guildConfig = await guildConfigManager.getConfig(message.guild?.id)
                 if (!guildConfig.tagSystemEnabled) return // Silently ignore if not enabled
 
-                const tagName = content.slice(1).split(' ')[0]
-                if (!tagName) return // Silently ignore, maybe it wasn't intended as a tag call
-
                 // Tag creation (e.g., "%=tagname tag content here")
                 if (content.startsWith('%=')) {
+                    const tagName = content.slice(2).split(' ')[0]
+                    if (!tagName) return // Silently ignore, maybe it wasn't intended as a tag call
+
                     const tagContent = content.slice(2 + tagName.length + 1)
                     if (!tagContent) {
                         await message.reply('❌ Tag content cannot be empty.\n-# ❕ If you want an image as the tag, copy the link to the image.')
@@ -86,6 +86,9 @@ export default async function onMessageCreate(client: Client<true>, services: Me
                 }
                 // Tag deletion (e.g., "%-tagname")
                 else if (content.startsWith('%-')) {
+                    const tagName = content.slice(2).split(' ')[0]
+                    if (!tagName) return // Silently ignore, maybe it wasn't intended as a tag call
+
                     const hasPerms = await tagManager.canModerateTags(message)
                     if (!hasPerms) {
                         await message.reply('❌ You do not have permission to moderate tags.')
@@ -104,6 +107,9 @@ export default async function onMessageCreate(client: Client<true>, services: Me
                 }
                 // Tag retrieval (e.g., "%tagname")
                 else {
+                    const tagName = content.slice(1).split(' ')[0]
+                    if (!tagName) return // Silently ignore, maybe it wasn't intended as a tag call
+
                     const tag = await tagManager.getTag(message.guild!.id, tagName)
 
                     if (!tag) {
