@@ -141,7 +141,8 @@ export class MessageTrigger {
                     'https://tenor.com/view/fish-gas-station-you-know-what-that-means-gif-1113666392679473186',
                     'https://tenor.com/view/fish-meme-you-know-what-that-means-gif-12503956388971591256',
                     'https://cdn.discordapp.com/attachments/1331556083776487444/1350097724204122212/caption.gif?ex=67e2aefd&is=67e15d7d&hm=aad1f8a3b156e93e539c279544f985eab49277c6100c4104ccaf3a7151cb325d&',
-                    'https://tenor.com/view/funny-fish-launch-gif-14878073'
+                    'https://tenor.com/view/funny-fish-launch-gif-14878073',
+                    'https://tenor.com/view/salmon-cannon-new-military-weapon-salmon-gun-the-salmon-cannon-meme-gif-22114966'
                 ]))
             }
         },
