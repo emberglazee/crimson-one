@@ -67,9 +67,10 @@ export default {
                     return
                 }
 
-                const unbanishTimestamp = BigInt(Date.now()) + durationSec * 1000n
-                if (unbanishTimestamp > 8.64e15) {
-                    await ctx.reply('❌ Calculated unbanishment date is beyond `13th of September, year 275760, 12:00:00.000 AM`. why are you like this')
+                const unbanishTimestamp = BigInt(Date.now()) + (durationSec * 1000n)
+                const maxTimestamp = BigInt(8.64e15) // `Date` cannot handle anything beyond this timestamp.
+                if (unbanishTimestamp > maxTimestamp) {
+                    await ctx.reply('❌ Unbanishment date cannot be past `13th of September, year 275760, 12:00:00.000 AM` (8.64e15 milliseconds since 1970), this is a limitation of JavaScript\'s `Date` object. also, just, why? why did you just try that?')
                     return
                 }
             }
