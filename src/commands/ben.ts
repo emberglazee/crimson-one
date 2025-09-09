@@ -6,8 +6,22 @@ import { chance, getRandomElement, sleep } from '../util/functions'
 export default {
     data: new SlashCommandBuilder()
         .setName('ben')
-        .setDescription('Talking Ben on Discord'),
+        .setDescription('Talking Ben on Discord')
+        .addSubcommand(subcommand => subcommand
+            .setName('hangup')
+            .setDescription('End the current call')
+        ),
     async execute(ctx) {
+        const subcommand = ctx.getSubcommand()
+        if (subcommand === 'hangup') {
+            if (!activeCalls.has(ctx.channel!.id)) {
+                await ctx.reply({ content: 'Ben is not currently on a call in this channel.', ephemeral: true })
+                return
+            }
+            activeCalls.delete(ctx.channel!.id)
+            await ctx.reply('*hangs up*')
+            return
+        }
         await new TalkingBen(ctx).call()
     }
 } satisfies SlashCommand
