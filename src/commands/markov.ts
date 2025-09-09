@@ -453,11 +453,14 @@ export default {
                 )
 
                 // --- Scoring System ---
+                const messageCap = 50000
+                const wordCap = 2000000
                 const { messageCount, totalWordCount, uniqueWordCount } = stats
-                const MV = Math.min(1, Math.log10(messageCount) / Math.log10(50000))
-                const WV = Math.min(1, Math.log10(totalWordCount) / Math.log10(2000000))
-                const LD = totalWordCount > 0 ? Math.min(1, uniqueWordCount / Math.sqrt(totalWordCount)) : 0
-                const score = 0.4 * MV + 0.3 * WV + 0.3 * LD
+
+                const messageVolume = Math.min(1, Math.log10(messageCount) / Math.log10(messageCap))
+                const wordVolume = Math.min(1, Math.log10(totalWordCount) / Math.log10(wordCap))
+                const lexicalDiversity = totalWordCount > 0 ? Math.min(1, uniqueWordCount / Math.sqrt(totalWordCount)) : 0
+                const score = 0.4 * messageVolume + 0.3 * wordVolume + 0.3 * lexicalDiversity
 
                 const getScoreDetails = (s: number, type: 'bigram' | 'trigram') => {
                     const thresholds = type === 'bigram'
