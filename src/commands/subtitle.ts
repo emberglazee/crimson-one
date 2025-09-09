@@ -78,7 +78,7 @@ export const slashCommand = {
         const roleColor = ctx.getStringOption('role_color')
         const plainColor = ctx.getStringOption('color')
         const characterColor = ctx.getStringOption('character_color')
-        const color = roleColor
+        let color = roleColor
             ? SUBTITLE_ROLE_COLORS.find(c => c.name === roleColor)?.hex ?? null
             : plainColor
                 ? SUBTITLE_COLORS.find(c => c.name === plainColor)?.hex ?? null
@@ -89,10 +89,7 @@ export const slashCommand = {
         const continuousGradient = ctx.getBooleanOption('continuous_gradient', false)
         const interpretNewlines = ctx.getBooleanOption('interpret_newlines', false)
 
-        if (!color && gradient === 'none') {
-            await ctx.reply('❌ You must provide either a color, role color, character color, or a gradient color')
-            return
-        }
+        if (!color && gradient === 'none') color = '#3498db'
 
         await ctx.deferReply()
         const subtitleGenerator = container.resolve(SubtitleGenerator)
