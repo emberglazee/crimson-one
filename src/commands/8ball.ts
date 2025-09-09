@@ -1,6 +1,6 @@
 import { SlashCommand } from '../types'
 import { SlashCommandBuilder } from 'discord.js'
-import { randRange, sleep } from '../util/functions'
+import { getRandomElement, randRange, sleep } from '../util/functions'
 
 const CASCADIA_RESPONSES = [
     'As certain as Cascadia\'s victory.',
@@ -74,8 +74,7 @@ export default {
                 break
         }
 
-        const randomIndex = randRange(0, finalResponses.length - 1)
-        const response = finalResponses[randomIndex]
+        const response = getRandomElement(finalResponses)
 
         const msgPrefix = `💬 ${ctx.user}: *${question}*\n`
         const msgAnswer = `🎱 **8ball says:** ${response}`
