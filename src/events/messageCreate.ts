@@ -5,7 +5,8 @@ import util from 'util'
 import { type Client, TextChannel } from 'discord.js'
 import { normalizeUrl } from '../modules/CrimsonChat/util/url-utils'
 import { parseMentions } from '../modules/CrimsonChat/util/formatters'
-import { evaluate } from 'mathjs'
+import { create, all } from 'mathjs'
+import { toFeetInches } from '../util/functions'
 
 interface MessageCreateServices {
     tagManager: TagManager
@@ -18,43 +19,75 @@ interface MessageCreateServices {
 export default async function onMessageCreate(client: Client<true>, services: MessageCreateServices) {
     const { tagManager, guildConfigManager, commandManager, crimsonChat, messageTrigger } = services
 
+    const math = create(all)
+
     client.on('messageCreate', async message => {
         try {
             if (message.author === client.user) return // Only ignore itself
-
             const { content } = message
-            // Prefixed commands: % for math and tags
+
+            // --- "%" Commands ---
             if (content.startsWith('%')) {
                 // Math evaluation (e.g., "% 5+5")
                 if (content.startsWith('% ')) {
+
                     const expression = content.slice(2).trim()
                     if (!expression) return // Ignore empty expressions
 
                     try {
-                        const result = evaluate(expression)
-                        // Use math.js's own string formatting for complex types
+
+                        math.createUnit({
+                            embil: {
+                                baseName: 'length',
+                                definition: '165 cm',
+                                aliases: ['embi_length', 'embi_height']
+                            },
+                            embim: {
+                                baseName: 'mass',
+                                definition: '50 kg',
+                                aliases: ['embi_weight', 'embi_mass']
+                            },
+                            ly: {
+                                baseName: 'length',
+                                definition: '9460730472580.8 km',
+                                aliases: ['light_year']
+                            },
+                            au: {
+                                baseName: 'length',
+                                definition: '149597870.69 km',
+                                aliases: ['astronomical_unit']
+                            },
+                            c0: {
+                                baseName: 'length',
+                                definition: '299792458 m/s',
+                                aliases: ['light_speed']
+                            }
+                        }, { override: true, prefixes: 'long' })
+
+                        const result = math.evaluate(expression, { toFeetInches })
+
                         let resultString = ''
-                        if (typeof result === 'object' && result !== null && result.toString) {
+                        if ((typeof result === 'object' || typeof result === 'function') && result !== null && result.toString)
                             resultString = result.toString()
-                        } else if (typeof result === 'function') {
-                            resultString = 'Cannot display function definitions.'
-                        } else {
+                        else
                             resultString = String(result)
-                        }
 
+                        if (expression.replace(/\s+/g, '') === '9+10')
+                            resultString = '21'
 
-                        if (resultString.length > 1900) {
+                        if (resultString.length > 1900)
                             resultString = resultString.substring(0, 1900) + '... (result truncated)'
-                        }
 
-                        await message.reply(`${expression} = ${resultString}`)
+                        await message.reply(`\`${expression}\` = \`${resultString}\``)
+
                     } catch (error) {
-                        await message.reply(`❌ **Math Error:** ${(error as Error).message}`)
+                        await message.reply(`❌ **Math.js Error:** \`${(error as Error).message}\``)
                     }
                     return
                 }
 
-                // The rest is tag related
+
+                // --- Tag handling ---
                 const guildConfig = await guildConfigManager.getConfig(message.guild?.id)
                 if (!guildConfig.tagSystemEnabled) return // Silently ignore if not enabled
 
@@ -124,6 +157,8 @@ export default async function onMessageCreate(client: Client<true>, services: Me
             }
 
 
+
+            // --- CrimsonChat handling ---
             const guildConfig = await guildConfigManager.getConfig(message.guild?.id)
             if (message.content.startsWith(guildConfig.prefix)) {
                 await commandManager.handleMessageCommand(message, guildConfig.prefix)

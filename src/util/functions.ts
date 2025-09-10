@@ -11,6 +11,7 @@ import { randomInt } from 'crypto'
 import { distance } from 'fastest-levenshtein'
 import { load } from 'cheerio'
 import type { DependencyContainer } from 'tsyringe'
+import { unit } from 'mathjs'
 
 // --- Randomization & Array Manipulation ---
 
@@ -329,4 +330,11 @@ export function resolveServices<T extends readonly ServiceClass<any>[]>(
     ...services: T
 ): { [K in keyof T]: T[K] extends ServiceClass<infer I> ? I : never } {
     return services.map(service => container.resolve(service)) as any
+}
+
+export function toFeetInches(value: any): `${number}'${number}` {
+    const inches = unit(value).toNumber('inch')
+    const feet = Math.floor(inches / 12)
+    const remainingInches = inches % 12
+    return `${feet}'${remainingInches}`
 }
