@@ -25,7 +25,7 @@ export class MessageTrigger {
             }
         },
         {
-            pattern: [/invisible/gmi, /big boss/gmi, /solid snake/gmi],
+            pattern: [/invisible/gmi, /big boss/gmi, /solid snake/gmi, /phantom pain/gmi],
             async action(message) {
                 await message.reply(getRandomElement([
                     'https://tenor.com/view/mgs-metal-gear-solid-phantom-pain-venom-snake-gif-5631901306578330322',
@@ -33,7 +33,8 @@ export class MessageTrigger {
                     'https://tenor.com/view/metal-gear-venom-snake-gif-26285931',
                     'https://tenor.com/view/metal-gear-solid-snake-big-boss-gif-12248663',
                     'https://tenor.com/view/metal-gear-solid-phantom-pain-metal-gear-solid-v-snake-big-boss-gif-6526414909388443363',
-                    'https://tenor.com/view/mgs-mgsv-metal-gear-solid-big-boss-gif-27478240'
+                    'https://tenor.com/view/mgs-mgsv-metal-gear-solid-big-boss-gif-27478240',
+                    'https://tenor.com/view/mgsv-mgs5-mgs-metal-gear-solid-metal-gear-solid-5-gif-7889838534933531334'
                 ]))
             }
         },
