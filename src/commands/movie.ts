@@ -17,7 +17,7 @@ interface TmdbSearchResult {
 
 // Function to generate n-grams
 function getNgrams(text: string, minSize: number, maxSize: number): string[] {
-    const words = text.split(' ')
+    const words = text.split(' ').filter(w => w.length > 0)
     const ngrams: string[] = []
     for (let n = maxSize; n >= minSize; n--) {
         for (let i = 0; i <= words.length - n; i++) {
@@ -34,7 +34,6 @@ async function searchTmdb(query: string): Promise<TmdbMovie[]> {
     const url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`
     const response = await fetch(url)
     if (!response.ok) {
-        // handle error
         return []
     }
     const data: TmdbSearchResult = await response.json()
@@ -42,64 +41,83 @@ async function searchTmdb(query: string): Promise<TmdbMovie[]> {
 }
 
 async function findAndReplaceMovies(text: string): Promise<string> {
-    if (!text.trim()) {
-        return text
-    }
+    if (!text.trim()) return text
 
     const words = text.split(' ')
-    // Limit n-gram size for performance on long inputs, e.g., max 5 words
     const maxNgramSize = Math.min(words.length, 5)
-    const ngrams = getNgrams(text, 1, maxNgramSize)
 
-    let bestMatch = {
-        score: -1,
-        movie: null as TmdbMovie | null,
-        ngram: ''
+    // --- Pass 1: Find best EXACT match ---
+    const ngramsExact = getNgrams(text, 1, maxNgramSize)
+    let bestExactMatch: { movie: TmdbMovie, ngram: string } | null = null
+
+    for (const ngram of ngramsExact) {
+        const movies = await searchTmdb(ngram)
+        const exactMatchMovie = movies.find(movie => movie.title.toLowerCase() === ngram.toLowerCase())
+        if (exactMatchMovie) {
+            bestExactMatch = { movie: exactMatchMovie, ngram }
+            break // Since ngrams are longest to shortest, first exact match is the best one.
+        }
     }
 
-    for (const ngram of ngrams) {
-        const movies = await searchTmdb(ngram)
-        if (movies.length > 0) {
-            for (const movie of movies) {
-                if (!movie.title) continue
-                const d = distance(ngram.toLowerCase(), movie.title.toLowerCase())
-                const score = (ngram.length ** 2) / (d + 1)
+    if (bestExactMatch) {
+        const { movie, ngram } = bestExactMatch
+        const year = movie.release_date ? ` (${movie.release_date.substring(0, 4)})` : ''
+        const replacement = `${movie.title}${year}`
+        const matchIndex = text.toLowerCase().indexOf(ngram.toLowerCase())
+        const beforeText = text.substring(0, matchIndex)
+        const afterText = text.substring(matchIndex + ngram.length)
 
-                if (score > bestMatch.score) {
-                    bestMatch = { score, movie, ngram }
-                }
+        return (await findAndReplaceMovies(beforeText)) + replacement + (await findAndReplaceMovies(afterText))
+    }
+
+    // --- Pass 2: Find best FUZZY match (if no exact match found) ---
+    const ngramsFuzzy = getNgrams(text, 2, maxNgramSize) // Only use n-grams of 2 or more words for fuzzy
+    let bestFuzzyMatch: { movie: TmdbMovie, ngram: string, distance: number } | null = null
+    let lowestDistance = Infinity
+
+    for (const ngram of ngramsFuzzy) {
+        const movies = await searchTmdb(ngram)
+        if (movies.length === 0) continue
+
+        for (const movie of movies) {
+            if (!movie.title) continue
+
+            const ngramWords = ngram.split(' ').length
+            const titleWords = movie.title.split(' ').length
+            if (Math.abs(ngramWords - titleWords) > 1) continue // Word count must be close
+
+            const currentDistance = distance(ngram.toLowerCase(), movie.title.toLowerCase())
+
+            if (currentDistance < lowestDistance) {
+                lowestDistance = currentDistance
+                bestFuzzyMatch = { movie, ngram, distance: currentDistance }
             }
         }
     }
 
-    // Threshold for a confident match
-    const SCORE_THRESHOLD = 10
+    // Check if the best fuzzy match is good enough
+    if (bestFuzzyMatch) {
+        const { movie, ngram, distance } = bestFuzzyMatch
 
-    if (bestMatch.movie && bestMatch.score > SCORE_THRESHOLD) {
-        const movie = bestMatch.movie
-        const year = movie.release_date ? ` (${movie.release_date.substring(0, 4)})` : ''
-        const replacement = `${movie.title}${year}`
+        const isGoodFuzzyMatch =
+            (ngram.length > 8 && distance <= 2) ||
+            (ngram.length > 4 && distance <= 1)
 
-        const matchIndex = text.indexOf(bestMatch.ngram)
+        if (isGoodFuzzyMatch) {
+            const year = movie.release_date ? ` (${movie.release_date.substring(0, 4)})` : ''
+            const replacement = `${movie.title}${year}`
+            const matchIndex = text.indexOf(ngram)
+            const beforeText = text.substring(0, matchIndex)
+            const afterText = text.substring(matchIndex + ngram.length)
 
-        if (matchIndex === -1) {
-            // Should not happen if ngram is from text, but as a safeguard
-            return text
+            return (await findAndReplaceMovies(beforeText)) + replacement + (await findAndReplaceMovies(afterText))
         }
-
-        const beforeText = text.substring(0, matchIndex)
-        const afterText = text.substring(matchIndex + bestMatch.ngram.length)
-
-        // Recursively process the parts before and after the matched ngram
-        const processedBeforeText = await findAndReplaceMovies(beforeText)
-        const processedAfterText = await findAndReplaceMovies(afterText)
-
-        return processedBeforeText + replacement + processedAfterText
-    } else {
-        // No confident match found in this segment
-        return text
     }
+
+    // No good matches found
+    return text
 }
+
 
 export default {
     data: new SlashCommandBuilder()
