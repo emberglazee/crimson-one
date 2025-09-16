@@ -41,6 +41,66 @@ async function searchTmdb(query: string): Promise<TmdbMovie[]> {
     return data.results
 }
 
+async function findAndReplaceMovies(text: string): Promise<string> {
+    if (!text.trim()) {
+        return text
+    }
+
+    const words = text.split(' ')
+    // Limit n-gram size for performance on long inputs, e.g., max 5 words
+    const maxNgramSize = Math.min(words.length, 5)
+    const ngrams = getNgrams(text, 1, maxNgramSize)
+
+    let bestMatch = {
+        score: -1,
+        movie: null as TmdbMovie | null,
+        ngram: ''
+    }
+
+    for (const ngram of ngrams) {
+        const movies = await searchTmdb(ngram)
+        if (movies.length > 0) {
+            for (const movie of movies) {
+                if (!movie.title) continue
+                const d = distance(ngram.toLowerCase(), movie.title.toLowerCase())
+                const score = (ngram.length ** 2) / (d + 1)
+
+                if (score > bestMatch.score) {
+                    bestMatch = { score, movie, ngram }
+                }
+            }
+        }
+    }
+
+    // Threshold for a confident match
+    const SCORE_THRESHOLD = 10
+
+    if (bestMatch.movie && bestMatch.score > SCORE_THRESHOLD) {
+        const movie = bestMatch.movie
+        const year = movie.release_date ? ` (${movie.release_date.substring(0, 4)})` : ''
+        const replacement = `${movie.title}${year}`
+
+        const matchIndex = text.indexOf(bestMatch.ngram)
+
+        if (matchIndex === -1) {
+            // Should not happen if ngram is from text, but as a safeguard
+            return text
+        }
+
+        const beforeText = text.substring(0, matchIndex)
+        const afterText = text.substring(matchIndex + bestMatch.ngram.length)
+
+        // Recursively process the parts before and after the matched ngram
+        const processedBeforeText = await findAndReplaceMovies(beforeText)
+        const processedAfterText = await findAndReplaceMovies(afterText)
+
+        return processedBeforeText + replacement + processedAfterText
+    } else {
+        // No confident match found in this segment
+        return text
+    }
+}
+
 export default {
     data: new SlashCommandBuilder()
         .setName('movie')
@@ -59,41 +119,13 @@ export default {
         await ctx.deferReply()
 
         const inputText = ctx.getStringOption('text', true)
-        const words = inputText.split(' ')
-        const ngrams = getNgrams(inputText, 1, words.length)
 
-        let bestMatch = {
-            score: -1,
-            movie: null as TmdbMovie | null,
-            ngram: ''
-        }
+        const correctedText = await findAndReplaceMovies(inputText)
 
-        for (const ngram of ngrams) {
-            const movies = await searchTmdb(ngram)
-            if (movies.length > 0) {
-                for (const movie of movies) {
-                    const d = distance(ngram.toLowerCase(), movie.title.toLowerCase())
-                    // Score prioritizes longer ngrams and lower distance
-                    const score = (ngram.length ** 2) / (d + 1)
-
-                    if (score > bestMatch.score) {
-                        bestMatch = { score, movie, ngram }
-                    }
-                }
-            }
-        }
-
-        // Set a threshold for what a "good" score is.
-        // A perfect match (distance 0) for an 8-char ngram has score 64.
-        // A distance 2 match for an 8-char ngram has score 64/3 = 21.
-        // Let's say a score > 10 is a decent match.
-        if (bestMatch.movie && bestMatch.score > 10) {
-            const movie = bestMatch.movie
-            const year = movie.release_date ? ` (${movie.release_date.substring(0, 4)})` : ''
-            const correctedText = inputText.replace(bestMatch.ngram, `${movie.title}${year}`)
-            await ctx.editReply(correctedText)
+        if (inputText === correctedText) {
+            await ctx.editReply(`Could not find any confident movie matches in "${inputText}".`)
         } else {
-            await ctx.editReply(`Could not find a confident movie match in "${inputText}".`)
+            await ctx.editReply(correctedText)
         }
     }
 } satisfies SlashCommand
