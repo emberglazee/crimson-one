@@ -1,18 +1,14 @@
-import { Logger, type CommandContext, type MarkovChat } from '../modules'
+import { Logger, type CommandContext, ProgressTracker, InteractionMessageManager } from '../modules'
 import { yellow, red } from '../util/colors'
 const logger = new Logger('/markov')
 
-import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Message, type MessageEditOptions, InteractionContextType } from 'discord.js'
+import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, InteractionContextType } from 'discord.js'
 
 import { formatTimeRemaining } from '../util/functions'
 import { SlashCommand } from '../types'
 
 // To prevent multiple concurrent collections
 let isCollectingAll = false
-
-// Discord interaction tokens expire after 15 minutes
-const INTERACTION_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes in milliseconds
-const SAFETY_MARGIN_MS = 1 * 60 * 1000 // Switch to new message 1 minute before expiry (at 14 minutes)
 
 // Markov event types
 interface MarkovCollectProgressEvent {
@@ -36,158 +32,6 @@ interface MarkovCollectCompleteEvent {
     newMessagesOnly: boolean
     totalMessageCount?: number
     taskId: string
-}
-
-// Helper interface to manage message updates
-interface MessageUpdater {
-    updateMessage(content: string): Promise<void>
-}
-
-// Class to handle message updating with fallback support
-class InteractionMessageManager implements MessageUpdater {
-    private context: CommandContext
-    private followUpMessagePromise: Promise<Message | null> | null = null
-    private followUpMessage: Message | null = null
-    private useFollowUp = false
-
-    constructor(context: CommandContext) {
-        this.context = context
-    }
-
-    // Switch to using follow-up message
-    public switchToFollowUp(): void {
-        if (this.useFollowUp) return
-        this.useFollowUp = true
-        this.followUpMessagePromise = this.createFollowUpMessage()
-    }
-
-    private async createFollowUpMessage(): Promise<Message | null> {
-        try {
-            // First update the original message to inform users
-            await this.context.editReply(
-                '⏳ Operation in progress...\n' +
-                '⚠️ *This is taking longer than 14 minutes. Real-time updates will continue in a follow-up message.*'
-            ).catch((err: Error) => {
-                logger.warn(`Failed to update original message about timeout: ${red(err.message)}`)
-            })
-
-            // Create a follow-up message that we'll update from now on
-            const followUp = await this.context.followUp('🔄 Continuing operation...\nUpdates will now appear in this message.')
-
-            // If followUp returns void (text command), just return null
-            if (!followUp || typeof followUp !== 'object' || !('edit' in followUp)) {
-                logger.warn('Follow-up message could not be created (likely a text command).')
-                return null
-            }
-
-            this.followUpMessage = followUp as Message
-            logger.ok(`Created follow-up message with ID ${yellow((followUp as Message).id)}`)
-            return followUp as Message
-        } catch (error) {
-            logger.warn(`Failed to create follow-up message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
-            return null
-        }
-    }
-
-    public async updateMessage(content: string): Promise<void> {
-        try {
-            if (this.useFollowUp) {
-                // Make sure we have a follow-up message
-                if (this.followUpMessagePromise && !this.followUpMessage) {
-                    this.followUpMessage = await this.followUpMessagePromise
-                }
-
-                if (this.followUpMessage) {
-                    await this.followUpMessage.edit(content)
-                } else {
-                    // Fallback if follow-up message creation failed (e.g., text command)
-                    await this.context.editReply(content).catch(() => {})
-                }
-            } else {
-                await this.context.editReply(content)
-            }
-        } catch (error) {
-            logger.warn(`Failed to update message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
-        }
-    }
-
-    public get isUsingFollowUp(): boolean {
-        return this.useFollowUp
-    }
-
-    public async sendFinalMessage(options: MessageEditOptions): Promise<void> {
-        try {
-            if (this.useFollowUp) {
-                // Ensure we have the follow-up message before trying to edit it
-                if (this.followUpMessagePromise && !this.followUpMessage) {
-                    this.followUpMessage = await this.followUpMessagePromise
-                }
-
-                if (this.followUpMessage) {
-                    await this.followUpMessage.edit(options)
-                } else {
-                    // This case means we intended to use a follow-up, but it failed to create.
-                    // The original interaction is likely expired, so we throw to trigger the catch block's follow-up.
-                    throw new Error('Follow-up message not available for final update.')
-                }
-            } else {
-                await this.context.editReply(options)
-            }
-        } catch (error) {
-            // If both methods fail, try to send a new follow-up message with the results
-            logger.debug(`Failed to send final message, attempting follow-up final message: ${red(error instanceof Error ? error.message : 'Unknown error')}`)
-            try {
-                await this.context.followUp({
-                    content: options.content ?? undefined,
-                    embeds: options.embeds,
-                    allowedMentions: options.allowedMentions
-                })
-            } catch (finalError) {
-                logger.warn(`Failed to send any completion message: ${red(finalError instanceof Error ? finalError.message : 'Unknown error')}`)
-            }
-        }
-    }
-}
-
-async function handleLongRunningTask<T, P extends { step?: string, estimatedTimeRemaining?: number | null }>(context: CommandContext, markov: MarkovChat, taskPromise: Promise<T>, progressEventName: 'generateProgress' | 'infoProgress', options: { initialMessage: string, formatProgress: (progress: P) => string }): Promise<T> {
-    const messageManager = new InteractionMessageManager(context)
-    const interactionStartTime = process.hrtime()
-    let lastUpdateTime = 0
-    const UPDATE_INTERVAL = 5000 // 5 seconds
-
-    const progressListener = async (progress: P) => {
-        const now = process.hrtime(interactionStartTime)
-        const elapsedMs = now[0] * 1000 + now[1] / 1e6
-
-        if (elapsedMs < lastUpdateTime + UPDATE_INTERVAL) return
-        lastUpdateTime = elapsedMs
-
-        if (elapsedMs > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
-            logger.info(`Approaching interaction timeout (${yellow(elapsedMs)}ms elapsed). Switching to follow-up message.`)
-            messageManager.switchToFollowUp()
-        }
-
-        let progressMessage = `${options.initialMessage}\n`
-        if (progress.step) {
-            progressMessage += `📊 Step: ${progress.step}\n`
-        }
-        progressMessage += options.formatProgress(progress)
-
-        if (progress.estimatedTimeRemaining !== null && progress.estimatedTimeRemaining !== undefined) {
-            const etaString = formatTimeRemaining(progress.estimatedTimeRemaining)
-            progressMessage += `\n⏱️ ETA: ${etaString}`
-        }
-
-        await messageManager.updateMessage(progressMessage)
-    }
-
-    markov.on(progressEventName, progressListener as (event: any) => void)
-
-    try {
-        return await taskPromise
-    } finally {
-        markov.removeListener(progressEventName, progressListener as (event: any) => void)
-    }
 }
 
 export default {
@@ -347,21 +191,22 @@ export default {
                 logger.info(`Generating message with global: ${yellow(global)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
                 const timeStart = process.hrtime()
 
-                const taskPromise = markov.generateMessage({
+                const progressTracker = new ProgressTracker(ctx, 'Generating message...')
+                markov.on('generateProgress', (progress: any) => {
+                    if (progress.step === 'training') {
+                        progressTracker.update({
+                            current: progress.progress,
+                            total: progress.total,
+                            statusText: 'Training model...'
+                        })
+                    }
+                })
+
+                const result = await markov.generateMessage({
                     guild: !global ? ctx.guild : undefined,
                     channel, user, userId, words, seed, global, mode
                 })
-
-                const result = await handleLongRunningTask(ctx, markov, taskPromise, 'generateProgress', {
-                    initialMessage: '⏳ Generating message...',
-                    formatProgress: (progress: any) => {
-                        if (progress.step === 'training') {
-                            const percent = ((progress.progress / progress.total) * 100).toFixed(1)
-                            return `🔄 Training: ${progress.progress}/${progress.total} messages (${percent}%)`
-                        }
-                        return ''
-                    }
-                })
+                markov.removeAllListeners('generateProgress')
 
                 const timeEnd = process.hrtime(timeStart)
                 const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6
@@ -386,7 +231,7 @@ export default {
                     )
                     .setTimestamp()
 
-                await new InteractionMessageManager(ctx).sendFinalMessage({
+                await progressTracker.finish({
                     content: result,
                     embeds: [footerEmbed],
                     allowedMentions: {
@@ -418,24 +263,25 @@ export default {
                 logger.info(`Getting Markov info with global: ${yellow(global)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}`)
                 const timeStart = process.hrtime()
 
-                const taskPromise = markov.getMessageStats({
+                const progressTracker = new ProgressTracker(ctx, 'Gathering statistics...')
+                markov.on('infoProgress', (progress: any) => {
+                    if (progress.step === 'processing') {
+                        progressTracker.update({
+                            current: progress.progress,
+                            total: progress.total,
+                            statusText: 'Processing messages...'
+                        })
+                    }
+                })
+
+                const stats = await markov.getMessageStats({
                     guild: !global ? ctx.guild : undefined,
                     channel: channel ?? undefined,
                     user: user,
                     userId: userId,
                     global: global
                 })
-
-                const stats = await handleLongRunningTask(ctx, markov, taskPromise, 'infoProgress', {
-                    initialMessage: '⏳ Gathering statistics...',
-                    formatProgress: (progress: any) => {
-                        if (progress.step === 'processing') {
-                            const percent = ((progress.progress / progress.total) * 100).toFixed(1)
-                            return `🔄 Processing: ${progress.progress}/${progress.total} messages (${percent}%)`
-                        }
-                        return ''
-                    }
-                })
+                markov.removeAllListeners('infoProgress')
 
                 const timeEnd = process.hrtime(timeStart)
                 const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6
@@ -656,66 +502,29 @@ export default {
                 // Setup progress updates
                 let totalMessageCount: number | null = null
                 let newMessagesOnly = false
-                let percentCompleteEmoji = '⏳'
 
-                // Track the interaction start time to handle token expiration
-                const interactionStartTime = process.hrtime()
-
-                // Create the message manager for handling follow-up messages
-                const messageManager = new InteractionMessageManager(ctx)
+                const progressTracker = new ProgressTracker(ctx, `Collecting messages from ${channel}`)
 
                 const progressHandler = async (progress: MarkovCollectProgressEvent) => {
                     if (progress.taskId !== operationTaskId) return
 
-                    // Update every 10 batches
-                    if (progress.batchNumber % 10 === 0 || progress.batchNumber === 1) {
-                        logger.ok(`[#${progress.channelName}] Progress update: ${yellow(progress.batchNumber)} batches, ${yellow(progress.totalCollected)}/${yellow(progress.limit === 'entire' ? 'ALL' : progress.limit)} messages (${yellow(progress.limit === 'entire' ? '...' : progress.percentComplete.toFixed(1) + '%' )})`)
+                    const eta = progress.estimatedTimeRemaining ? formatTimeRemaining(progress.estimatedTimeRemaining) : undefined
+                    const statusText = newMessagesOnly ? 'Only collecting new messages since last collection.' : undefined
 
-                        // Check if we're approaching the interaction token timeout
-                        const elapsedSinceInteractionArr = process.hrtime(interactionStartTime)
-                        const elapsedSinceInteraction = elapsedSinceInteractionArr[0] * 1000 + elapsedSinceInteractionArr[1] / 1e6
-
-                        // If we're reaching the timeout limit and haven't switched to follow-up message yet
-                        if (elapsedSinceInteraction > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !messageManager.isUsingFollowUp) {
-                            logger.info(`Approaching interaction timeout (${yellow(elapsedSinceInteraction)}ms elapsed). Switching to follow-up message.`)
-                            messageManager.switchToFollowUp()
-                        }
-
-                        // Update emoji based on progress percentage
-                        if (progress.percentComplete > 0) {
-                            if (progress.percentComplete < 25) percentCompleteEmoji = '🟢'
-                            else if (progress.percentComplete < 50) percentCompleteEmoji = '🟡'
-                            else if (progress.percentComplete < 75) percentCompleteEmoji = '🟠'
-                            else percentCompleteEmoji = '🔴'
-                        }
-
-                        let progressMessage = `⏳ Collecting messages from ${channel}${user ? ` by ${user}` : userId ? ` by user ID ${userId}` : ''}...\n`
-
-                        // Show different progress info depending on whether we have total count
-                        if (progress.limit === 'entire' && progress.percentComplete > 0) {
-                            progressMessage += `${percentCompleteEmoji} Progress: ${progress.totalCollected} messages collected (${progress.percentComplete.toFixed(1)}% complete)\n`
-                        } else if (progress.limit === 'entire') {
-                            progressMessage += `${percentCompleteEmoji} Progress: ${progress.totalCollected} messages collected\n`
-                        } else {
-                            progressMessage += `${percentCompleteEmoji} Progress: ${progress.totalCollected}/${progress.limit} messages (${progress.percentComplete.toFixed(1)}%)\n`
-                        }
-
-                        // Add ETA information
-                        if (progress.estimatedTimeRemaining !== null) {
-                            const etaString = formatTimeRemaining(progress.estimatedTimeRemaining)
-                            const speed = progress.messagesPerSecond.toFixed(1)
-
-                            progressMessage += `⏱️ ETA: ${etaString} (${speed} msgs/sec)\n`
-                        }
-
-                        progressMessage += `📚 Batches processed: ${progress.batchNumber}`
-
-                        if (newMessagesOnly) {
-                            progressMessage += '\n⚠️ Only collecting new messages since last collection.'
-                        }
-
-                        // Update the appropriate message using our manager
-                        await messageManager.updateMessage(progressMessage)
+                    if (progress.limit === 'entire') {
+                        await progressTracker.update({
+                            current: progress.totalCollected,
+                            percent: progress.percentComplete,
+                            statusText,
+                            eta
+                        })
+                    } else {
+                        await progressTracker.update({
+                            current: progress.totalCollected,
+                            total: progress.limit,
+                            statusText,
+                            eta
+                        })
                     }
                 }
 
@@ -758,7 +567,7 @@ export default {
                 }
 
                 // Send the final message using our manager
-                await messageManager.sendFinalMessage({
+                await progressTracker.finish({
                     content: completionMessage
                 })
             } catch (error) {

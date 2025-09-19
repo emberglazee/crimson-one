@@ -2,6 +2,7 @@ import { SlashCommand } from '../types'
 import { SlashCommandBuilder } from 'discord.js'
 import { translate } from 'google-translate-api-x'
 import { shuffleArray } from '../util/functions'
+import { ProgressTracker } from '../modules'
 
 export default {
     data: new SlashCommandBuilder()
@@ -45,46 +46,26 @@ export default {
         await ctx.deferReply()
 
         const totalSteps = languages.length
-        let currentStep = 0
-        let lastReportedStep = 0
-
-        function createProgressBar(completed: number, total: number, barLength: number = 20): string {
-            const progress = completed / total
-            const filledLength = Math.round(barLength * progress)
-            const bar = '█'.repeat(filledLength) + '░'.repeat(barLength - filledLength)
-            return bar
-        }
-
-        const progressInterval = setInterval(() => {
-            if (currentStep > lastReportedStep) {
-                lastReportedStep = currentStep
-                const progressBar = createProgressBar(currentStep, totalSteps)
-                ctx.editReply(`Translating... ${progressBar} (${currentStep}/${totalSteps})`)
-                    .catch(console.error)
-            }
-        }, 5000)
+        const progressTracker = new ProgressTracker(ctx, 'Poorly Translating...')
 
         let translatedText = inputText
         try {
-
-            translatedText = await languages.reduce(async (previousPromise, lang, index) => {
-                const prevText = await previousPromise
-                const result = await translate(prevText, { to: lang })
-                currentStep = index + 1
-                return result.text
-            }, Promise.resolve(inputText))
+            let currentStep = 0
+            for (const lang of languages) {
+                translatedText = (await translate(translatedText, { to: lang })).text
+                currentStep++
+                progressTracker.recordStep()
+                await progressTracker.update({ current: currentStep, total: totalSteps, statusText: `Translating to ${lang}...` })
+            }
 
         } catch (error) {
             console.error('Translation error:', error)
-            clearInterval(progressInterval)
-            ctx.editReply(`An error occurred during translation: ${error}`)
+            await progressTracker.finish(`An error occurred during translation: ${error}`)
             return
         }
 
-        // Clear the interval and update with the final translation.
-        clearInterval(progressInterval)
         const time2 = process.hrtime(time1)
         const elapsedSeconds = (time2[0] + time2[1] / 1e9).toFixed(3)
-        ctx.editReply(`**Poorly translated:**\n${inputText}\n**into:**\n${translatedText}\n-# Time: ${elapsedSeconds}s`)
+        await progressTracker.finish(`**Poorly translated:**\n${inputText}\n**into:**\n${translatedText}\n-# Time: ${elapsedSeconds}s`)
     }
 } satisfies SlashCommand
