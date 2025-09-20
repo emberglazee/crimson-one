@@ -1,6 +1,7 @@
 import { SlashCommand } from '../types'
 import { SlashCommandBuilder } from 'discord.js'
 import { distance } from 'fastest-levenshtein'
+import { ProgressTracker } from '../modules'
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY
 
@@ -40,7 +41,7 @@ async function searchTmdb(query: string): Promise<TmdbMovie[]> {
     return data.results
 }
 
-async function findAndReplaceMovies(text: string): Promise<string> {
+async function findAndReplaceMovies(text: string, progress?: { tracker: ProgressTracker, processed: number }): Promise<string> {
     if (!text.trim()) return text
 
     const words = text.split(' ')
@@ -51,6 +52,10 @@ async function findAndReplaceMovies(text: string): Promise<string> {
     let bestExactMatch: { movie: TmdbMovie, ngram: string } | null = null
 
     for (const ngram of ngramsExact) {
+        if (progress) {
+            progress.processed++
+            await progress.tracker.update({ current: progress.processed, statusText: `Searching for exact match: "${ngram}"` })
+        }
         const movies = await searchTmdb(ngram)
         const exactMatchMovie = movies.find(movie => movie.title.toLowerCase() === ngram.toLowerCase())
         if (exactMatchMovie) {
@@ -67,7 +72,7 @@ async function findAndReplaceMovies(text: string): Promise<string> {
         const beforeText = text.substring(0, matchIndex)
         const afterText = text.substring(matchIndex + ngram.length)
 
-        return (await findAndReplaceMovies(beforeText)) + replacement + (await findAndReplaceMovies(afterText))
+        return (await findAndReplaceMovies(beforeText, progress)) + replacement + (await findAndReplaceMovies(afterText, progress))
     }
 
     // --- Pass 2: Find best FUZZY match (if no exact match found) ---
@@ -76,6 +81,10 @@ async function findAndReplaceMovies(text: string): Promise<string> {
     let lowestDistance = Infinity
 
     for (const ngram of ngramsFuzzy) {
+        if (progress) {
+            progress.processed++
+            await progress.tracker.update({ current: progress.processed, statusText: `Searching for fuzzy match: "${ngram}"` })
+        }
         const movies = await searchTmdb(ngram)
         if (movies.length === 0) continue
 
@@ -110,7 +119,7 @@ async function findAndReplaceMovies(text: string): Promise<string> {
             const beforeText = text.substring(0, matchIndex)
             const afterText = text.substring(matchIndex + ngram.length)
 
-            return (await findAndReplaceMovies(beforeText)) + replacement + (await findAndReplaceMovies(afterText))
+            return (await findAndReplaceMovies(beforeText, progress)) + replacement + (await findAndReplaceMovies(afterText, progress))
         }
     }
 
@@ -121,8 +130,8 @@ async function findAndReplaceMovies(text: string): Promise<string> {
 
 export default {
     data: new SlashCommandBuilder()
-        .setName('movie')
-        .setDescription('Corrects movie titles in a sentence and adds the release year.')
+        .setName('cinematize')
+        .setDescription('Replaces words in your text with movie titles for comedic effect.')
         .addStringOption(option => option
             .setName('text')
             .setDescription('The text to process.')
@@ -138,10 +147,17 @@ export default {
 
         const inputText = ctx.getStringOption('text', true)
 
-        const correctedText = await findAndReplaceMovies(inputText)
+        const useProgress = inputText.length > 40
+        let progress: { tracker: ProgressTracker, processed: number } | undefined
+        if (useProgress) {
+            const tracker = new ProgressTracker(ctx, 'Cinematizing text...')
+            progress = { tracker, processed: 0 }
+        }
 
-        if (inputText === correctedText) {
-            await ctx.editReply(`Could not find any confident movie matches in "${inputText}".`)
+        const correctedText = await findAndReplaceMovies(inputText, progress)
+
+        if (progress) {
+            await progress.tracker.finish(correctedText)
         } else {
             await ctx.editReply(correctedText)
         }
