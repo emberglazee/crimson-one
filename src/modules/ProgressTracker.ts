@@ -7,7 +7,6 @@ const INTERACTION_TIMEOUT_MS = 15 * 60 * 1000
 const SAFETY_MARGIN_MS = 1 * 60 * 1000
 
 export class ProgressTracker {
-    private readonly ctx: CommandContext
     private readonly title: string
     private messageManager: InteractionMessageManager
     private readonly startTime: number
@@ -16,7 +15,6 @@ export class ProgressTracker {
     private readonly UPDATE_INTERVAL = 1500
 
     constructor(ctx: CommandContext, title: string) {
-        this.ctx = ctx
         this.title = title
         this.messageManager = new InteractionMessageManager(ctx)
         this.startTime = Date.now()

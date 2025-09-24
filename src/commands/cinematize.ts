@@ -1,5 +1,10 @@
-import { SlashCommand } from '../types'
-import { SlashCommandBuilder } from 'discord.js'
+import { ContextMenuCommand, SlashCommand } from '../types'
+import {
+    ApplicationCommandType,
+    ContextMenuCommandBuilder,
+    type MessageContextMenuCommandInteraction,
+    SlashCommandBuilder
+} from 'discord.js'
 import { distance } from 'fastest-levenshtein'
 import { ProgressTracker } from '../modules'
 
@@ -41,7 +46,7 @@ async function searchTmdb(query: string): Promise<TmdbMovie[]> {
     return data.results
 }
 
-async function findAndReplaceMovies(text: string, progress?: { tracker: ProgressTracker, processed: number }): Promise<string> {
+async function findAndReplaceMovies(text: string, progress?: { tracker: ProgressTracker, processed: number, total: number }): Promise<string> {
     if (!text.trim()) return text
 
     const words = text.split(' ')
@@ -54,9 +59,10 @@ async function findAndReplaceMovies(text: string, progress?: { tracker: Progress
     for (const ngram of ngramsExact) {
         if (progress) {
             progress.processed++
-            await progress.tracker.update({ current: progress.processed, statusText: `Searching for exact match: "${ngram}"` })
+            await progress.tracker.update({ current: progress.processed, total: progress.total, statusText: `Searching for exact match: "${ngram}"` })
         }
         const movies = await searchTmdb(ngram)
+        if (progress) progress.tracker.recordStep() // Record step time after API call
         const exactMatchMovie = movies.find(movie => movie.title.toLowerCase() === ngram.toLowerCase())
         if (exactMatchMovie) {
             bestExactMatch = { movie: exactMatchMovie, ngram }
@@ -83,9 +89,10 @@ async function findAndReplaceMovies(text: string, progress?: { tracker: Progress
     for (const ngram of ngramsFuzzy) {
         if (progress) {
             progress.processed++
-            await progress.tracker.update({ current: progress.processed, statusText: `Searching for fuzzy match: "${ngram}"` })
+            await progress.tracker.update({ current: progress.processed, total: progress.total, statusText: `Searching for fuzzy match: "${ngram}"` })
         }
         const movies = await searchTmdb(ngram)
+        if (progress) progress.tracker.recordStep() // Record step time after API call
         if (movies.length === 0) continue
 
         for (const movie of movies) {
@@ -148,10 +155,15 @@ export default {
         const inputText = ctx.getStringOption('text', true)
 
         const useProgress = inputText.length > 40
-        let progress: { tracker: ProgressTracker, processed: number } | undefined
+        let progress: { tracker: ProgressTracker, processed: number, total: number } | undefined
         if (useProgress) {
             const tracker = new ProgressTracker(ctx, 'Cinematizing text...')
-            progress = { tracker, processed: 0 }
+            const words = inputText.split(' ')
+            const maxNgramSize = Math.min(words.length, 5)
+            const ngramsExact = getNgrams(inputText, 1, maxNgramSize)
+            const ngramsFuzzy = getNgrams(inputText, 2, maxNgramSize)
+            const total = ngramsExact.length + ngramsFuzzy.length
+            progress = { tracker, processed: 0, total }
         }
 
         const correctedText = await findAndReplaceMovies(inputText, progress)
@@ -163,3 +175,28 @@ export default {
         }
     }
 } satisfies SlashCommand
+
+export const contextMenuCommand = {
+    data: new ContextMenuCommandBuilder()
+        .setName('Cinematize')
+        .setType(ApplicationCommandType.Message),
+    async execute({ deferReply, editReply }, interaction: MessageContextMenuCommandInteraction) {
+        if (!process.env.TMDB_API_KEY) {
+            await interaction.reply({ content: '❌ The TMDB API key is not configured. Please contact the bot owner.', ephemeral: true })
+            return
+        }
+
+        const inputText = interaction.targetMessage.content
+        if (!inputText || !inputText.trim()) {
+            await interaction.reply({ content: '❌ The message has no text to cinematize.', ephemeral: true })
+            return
+        }
+
+        await deferReply()
+
+        const correctedText = await findAndReplaceMovies(inputText)
+
+        await editReply(correctedText)
+    },
+    type: ApplicationCommandType.Message
+} satisfies ContextMenuCommand<ApplicationCommandType.Message>
