@@ -219,6 +219,17 @@ export class MessageTrigger {
             async action(message) {
                 await message.reply('https://cdn.discordapp.com/attachments/1261829304271245463/1413087375105724507/r9rgr1evtph91.png?ex=68baa7ac&is=68b9562c&hm=f58001e1a1b88211e0f7449320883aa6114c406b809d23c84a3f2732c259fb8b&')
             }
+        },
+        {
+            pattern: [/until then/gmi],
+            async action(message) {
+                await message.reply(getRandomElement([
+                    'https://tenor.com/view/until-then-catherine-portillo-until-then-game-gif-2584337774223174448',
+                    'https://tenor.com/view/until-then-until-then-cath-untilthen-cath-us-gif-777643791924215591',
+                    'https://tenor.com/view/until-then-until-then-mark-until-then-mark-gif-16530595766137122906',
+                    'https://tenor.com/view/until-then-untilthen-untilthengame-cathy-catherine-gif-14784323206851821179'
+                ]))
+            }
         }
     ]
     async processMessage(message: Message) {
