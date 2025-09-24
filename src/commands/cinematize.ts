@@ -1,10 +1,5 @@
-import { ContextMenuCommand, SlashCommand } from '../types'
-import {
-    ApplicationCommandType,
-    ContextMenuCommandBuilder,
-    type MessageContextMenuCommandInteraction,
-    SlashCommandBuilder
-} from 'discord.js'
+import { SlashCommand } from '../types'
+import { SlashCommandBuilder } from 'discord.js'
 import { distance } from 'fastest-levenshtein'
 import { ProgressTracker } from '../modules'
 
@@ -175,28 +170,3 @@ export default {
         }
     }
 } satisfies SlashCommand
-
-export const contextMenuCommand = {
-    data: new ContextMenuCommandBuilder()
-        .setName('Cinematize')
-        .setType(ApplicationCommandType.Message),
-    async execute({ deferReply, editReply }, interaction: MessageContextMenuCommandInteraction) {
-        if (!process.env.TMDB_API_KEY) {
-            await interaction.reply({ content: '❌ The TMDB API key is not configured. Please contact the bot owner.', ephemeral: true })
-            return
-        }
-
-        const inputText = interaction.targetMessage.content
-        if (!inputText || !inputText.trim()) {
-            await interaction.reply({ content: '❌ The message has no text to cinematize.', ephemeral: true })
-            return
-        }
-
-        await deferReply()
-
-        const correctedText = await findAndReplaceMovies(inputText)
-
-        await editReply(correctedText)
-    },
-    type: ApplicationCommandType.Message
-} satisfies ContextMenuCommand<ApplicationCommandType.Message>
