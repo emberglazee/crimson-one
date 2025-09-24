@@ -43,11 +43,11 @@ export default {
             .setDescription('Create a new message based on collected chat data')
             .addBooleanOption(option => option
                 .setName('global')
-                .setDescription('Consider all messages from all servers (default: false - just this server)')
+                .setDescription('Consider messages from all servers (default: false - only this server).')
                 .setRequired(false)
             ).addChannelOption(option => option
                 .setName('channel')
-                .setDescription('Specific channel to use for message generation (ignored if global is true)')
+                .setDescription('Specific channel to use for message generation (ignored if \'global\' is true).')
                 .setRequired(false)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
             ).addUserOption(option => option
@@ -84,7 +84,7 @@ export default {
                 .setRequired(false)
             ).addChannelOption(option => option
                 .setName('channel')
-                .setDescription('Specific channel to view statistics for (ignored if global is true)')
+                .setDescription('Specific channel to view statistics for (ignored if \'global\' is true).')
                 .setRequired(false)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
             ).addUserOption(option => option
@@ -98,19 +98,19 @@ export default {
             )
         ).addSubcommand(subcommand => subcommand
             .setName('collect')
-            .setDescription('Gather messages to train the Markov chain')
+            .setDescription('Gathers messages to train the Markov chain')
             .addChannelOption(option => option
                 .setName('channel')
-                .setDescription('Channel to collect messages from')
+                .setDescription('The channel to collect messages from.')
                 .setRequired(true)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
             ).addUserOption(option => option
                 .setName('user')
-                .setDescription('Only collect messages from this user')
+                .setDescription('Only collect messages from this user.')
                 .setRequired(false)
             ).addStringOption(option => option
                 .setName('user_id')
-                .setDescription('User ID to use if the user is not in the server')
+                .setDescription('The ID of the user to use if they are not in the server.')
                 .setRequired(false)
             ).addIntegerOption(option => option
                 .setName('limit')
@@ -380,17 +380,17 @@ export default {
                 '- A (text-based) Markov chain is a model that predicts the next word in a sequence based on the words that came before it.\n' +
                 '- This bot uses the messages in servers to build a model and generate new sentences that try to mimic the style of the server members.\n' +
                 '### 1. Data Collection\n' +
-                '- The bot requires messages to generate sentences. More data equals more accurate and coherent generated sentences.\n' +
+                '- The bot requires messages to generate sentences. More data results in more accurate and coherent generated sentences.\n' +
                 '  - `/markov collect`: Collects messages from a *single* specified channel;\n' +
                 '  - `/markov collect_all`: Collects messages from *all* channels accessible by the bot.\n' +
                 '- **Note**: both commands have extensive options, like only collecting from a certain user, or with a certain message cap (limit). You can view them all in the slash command option suggestions.\n' +
                 '### 2. Text Generation\n' +
                 '  - `/markov generate`: Generate a new sentence using the Markov chain model.\n' +
                 '- To support filters, the messages are stored inside a PostgreSQL database.\n' +
-                '- Everytime the generation command is called, messages are fetched from the database following the filters set.\n' +
+                '- Every time the generation command is called, messages are fetched from the database according to the filters set.\n' +
                 '- Two modes of generation are supported:\n' +
-                '  1. `bigram`: uses only the last word as the context to determine the next word (less coherent, effective when there are not that many messages to work with);\n' +
-                '  2. `trigram` (default): uses the last two words instead (more coherent but only effective when there are many messages to work with, like over 5-10 thousand).\n' +
+                '  1. `bigram`: uses only the last word as the context to determine the next word (less coherent, effective when there are fewer messages to work with);\n' +
+                '  2. `trigram` (default): uses the last two words instead (more coherent but only effective with a large number of messages (e.g., over 5,000-10,000)).\n' +
                 '### 3. Statistics\n' +
                 '  - `/markov stats`: Display a summary for the messages stored that match the filters (if provided).'
             )
@@ -398,7 +398,7 @@ export default {
                 '### Privacy concerns?\n' +
                 '- The bot\'s code is fully open source: <https://github.com/emberglazee/crimson-one> ([my own model implementation in Rust](<https://github.com/emberglazee/crimson-one/blob/rocketman02/crimson_markov/src/lib.rs>), [this command](<https://github.com/emberglazee/crimson-one/blob/rocketman02/src/commands/markov.ts>), and [FFI and database handlers](<https://github.com/emberglazee/crimson-one/tree/rocketman02/src/modules/MarkovChain>)).\n' +
                 '- The messages in the database are never manually viewed or manipulated, unless it\'s crucial for debugging an issue with the model.\n' +
-                '- To request deleting specific data from the message database please send a Discord DM to `@emberglaze`, or an email to `emberglaze@emberglaze.ru`, with proof of server ownership, staff membership, or own account ownership (if requesting deletion for yourself).\n' +
+                '- To request the deletion of specific data from the message database please send a Discord DM to `@emberglaze`, or an email to `emberglaze@emberglaze.ru`, with proof of server ownership, staff membership, or account ownership (if requesting deletion for yourself).\n' +
                 '- Data deletion might be implemented as a bot command in the near future.'
             )
             await ctx.reply(text)
@@ -509,7 +509,7 @@ export default {
                     if (progress.taskId !== operationTaskId) return
 
                     const eta = progress.estimatedTimeRemaining ? formatTimeRemaining(progress.estimatedTimeRemaining) : undefined
-                    const statusText = newMessagesOnly ? 'Only collecting new messages since last collection.' : undefined
+                    const statusText = newMessagesOnly ? 'Only collecting new messages since the last collection.' : undefined
 
                     if (progress.limit === 'entire') {
                         await progressTracker.update({

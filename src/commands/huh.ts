@@ -4,7 +4,7 @@ import { SlashCommand } from '../types'
 export default {
     data: new SlashCommandBuilder()
         .setName('huh')
-        .setDescription('"hUh?" - Dr. House'),
+        .setDescription('Sends the "hUh?" meme from House M.D.'),
     async execute(ctx) {
         await ctx.deferReply()
         await ctx.editReply({

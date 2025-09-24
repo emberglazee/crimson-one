@@ -63,7 +63,7 @@ class TalkingBen {
     }
 
     async pickUp() {
-        await this.ctx.followUp('📞 *picked up*')
+        await this.ctx.followUp('📞 *Picks up the phone.*')
         await sleep(1000)
     }
 
@@ -89,7 +89,7 @@ class TalkingBen {
     }
 
     async waitForMessage(): Promise<Message> {
-        if (!this.ctx.channel || this.ctx.channel.type === ChannelType.GroupDM) throw new Error('Channel not available for waiting for message.')
+        if (!this.ctx.channel || this.ctx.channel.type === ChannelType.GroupDM) throw new Error('Channel not available for waiting for messages.')
         const collected = await this.ctx.channel.awaitMessages({
             filter: (m: Message) => m.author.id !== this.ctx.client.user.id,
             max: 1,

@@ -5,7 +5,7 @@ import { randomProjectWingmanArticle } from '../util/functions'
 export default {
     data: new SlashCommandBuilder()
         .setName('aldo')
-        .setDescription('The wikipedia nerd'),
+        .setDescription('Responds with a random Project Wingman wiki article.'),
     async execute(ctx) {
         await ctx.deferReply()
         const url = await randomProjectWingmanArticle().catch(() => '❌ Failed to get article')

@@ -9,7 +9,7 @@ let emojis: string[] = []
 export default {
     data: new SlashCommandBuilder()
         .setName('randombilly')
-        .setDescription('Send a random billy emoji'),
+        .setDescription('Sends a random "billy" emoji'),
     async execute(ctx) {
         let deferred = false
         if (!emojis.length) {

@@ -27,7 +27,7 @@ async function invoke({ messageId }: Input): Promise<string> {
         const message = await channel.messages.fetch(messageId)
 
         if (!message.poll) {
-            return JSON.stringify({ status: 'error', message: `Message with ID ${messageId} does not contain a poll.` })
+            return JSON.stringify({ status: 'error', message: `The message with the ID ${messageId} does not contain a poll.` })
         }
 
         if (message.poll.resultsFinalized) {

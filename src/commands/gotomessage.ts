@@ -4,22 +4,22 @@ import { SlashCommand } from '../types'
 export default {
     data: new SlashCommandBuilder()
         .setName('gotomessage')
-        .setDescription('Generate a link to jump to a specific message')
+        .setDescription('Generates a link to a specific message')
         .addStringOption(option => option
             .setName('message_id')
             .setDescription('The ID of the message to link to. (CHECK OTHER OPTIONS)')
             .setRequired(true)
         ).addStringOption(option => option
             .setName('channel_id')
-            .setDescription('The ID of the channel containing the message. (defaults to current channel)')
+            .setDescription('The ID of the channel containing the message (defaults to the current channel).')
             .setRequired(false)
         ).addStringOption(option => option
             .setName('guild_id')
-            .setDescription('The ID of the guild containing the message. (defaults to current guild)')
+            .setDescription('The ID of the guild containing the message (defaults to the current guild).')
             .setRequired(false)
         ).addBooleanOption(option => option
             .setName('is_dm')
-            .setDescription('Whether this is a DM message. (uses @me instead of guild ID)')
+            .setDescription('Whether this is a DM message (uses @me instead of the guild ID).')
             .setRequired(false)
         ),
     async execute(ctx) {

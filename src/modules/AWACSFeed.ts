@@ -168,7 +168,7 @@ export class AWACSFeed extends EventEmitter<{
             },
             messages: [
                 (role: string, deleter: string) => `🗑️ Squadron ${role} was deleted${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`,
-                (role: string, deleter: string) => `➖ Squadron ${role} was disbanded${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`,
+                (role: string, deleter: string) => `➖ The ${role} squadron was disbanded${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`,
                 (role: string, deleter: string) => `🔥 ${deleter === NO_IFF_DATA ? 'Someone' : deleter} incinerated the ${role} squadron.`
             ]
         },

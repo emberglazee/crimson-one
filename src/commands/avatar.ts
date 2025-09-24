@@ -9,7 +9,7 @@ export default {
         .setDescription('Get a user\'s profile picture')
         .addUserOption(option => option
             .setName('user')
-            .setDescription('User to show their avatar of (default: yourself)')
+            .setDescription('The user whose avatar you want to see (defaults to yourself).')
             .setRequired(false)
         ).addBooleanOption(option => option
             .setName('raw')
@@ -20,9 +20,9 @@ export default {
             .setDescription('Image format to get the avatar in')
             .addChoices(
                 { name: 'GIF (choose for animated avatars)', value: 'gif' },
-                { name: 'WEBP (0 compatability)', value: 'webp' },
+                { name: 'WEBP (low compatibility)', value: 'webp' },
                 { name: 'PNG (default)', value: 'png' },
-                { name: 'JPEG (compression)', value: 'jpg' }
+                { name: 'JPEG (compressed)', value: 'jpg' }
             ).setRequired(false)
         ).addNumberOption(option => option
             .setName('size')
@@ -68,16 +68,16 @@ export default {
                         avatar = member.displayAvatarURL({ extension: ext, size: size })
                     } catch {
                         avatar = user.displayAvatarURL({ extension: ext, size: size })
-                        footerNote = 'Error fetching the guild member, showing user\'s global avatar.'
+                        footerNote = 'Error fetching the guild member; showing the user\'s global avatar.'
                     }
                 } else {
                     avatar = user.displayAvatarURL({ extension: ext, size: size })
-                    footerNote = 'Could not access server information, showing global avatar.'
+                    footerNote = 'Could not access server information; showing the global avatar.'
                 }
             } else {
                 avatar = user.displayAvatarURL({ extension: ext, size: size })
                 if (installationType === BotInstallationType.UserInstallDM) {
-                    footerNote = 'Showing global avatar (command ran in DM).'
+                    footerNote = 'Showing global avatar (command was run in a DM).'
                 } else {
                     footerNote = 'Showing global avatar.'
                 }
@@ -102,7 +102,7 @@ export default {
         }
 
         const embed = new EmbedBuilder()
-            .setTitle(`${titlePrefix} avatar of ${user.username}`)
+            .setTitle(`${titlePrefix} avatar for ${user.username}`)
             .setImage(avatar)
             .setColor('#F96302')
 

@@ -239,7 +239,7 @@ ${helpText.trim()}
 
                     if (this.registry!.isGuildSlashCommand(command)) {
                         if (!context.guild || !context.member) {
-                            logger.warn(`{executeUnifiedCommand} Guild command "${command.data.name}" was executed in a non-guild context. This should not happen.`)
+                            logger.warn(`{executeUnifiedCommand} The server command "${command.data.name}" was executed outside of a server. This should not happen.`)
                             await context.reply('❌ This command can only be used in a server.')
                             return
                         }

@@ -4,19 +4,19 @@ import { SlashCommandBuilder } from 'discord.js'
 export default {
     data: new SlashCommandBuilder()
         .setName('crimsonchat')
-        .setDescription('Admin commands to control CrimsonChat (reserved to emberglaze)')
+        .setDescription('Admin commands to control CrimsonChat (reserved for emberglaze).')
         .addSubcommand(subcommand => subcommand
             .setName('reset')
             .setDescription('Reset chat history')
         ).addSubcommand(subcommand => subcommand
             .setName('updateprompt')
-            .setDescription('Update the system prompt to latest version')
+            .setDescription('Update the system prompt to the latest version')
         ).addSubcommand(subcommand => subcommand
             .setName('toggle')
             .setDescription('Toggle CrimsonChat on/off')
         ).addSubcommand(subcommand => subcommand
             .setName('forcebreak')
-            .setDescription('Force a mental breakdown on next message')
+            .setDescription('Force a mental breakdown on the next message')
         ).addSubcommand(subcommand => subcommand
             .setName('berserk')
             .setDescription('Toggle berserk mode (maximum chaos)')
@@ -98,8 +98,8 @@ export default {
                 await crimsonChat.updateSystemPrompt()
                 await ctx.reply('✅ System prompt updated')
                 crimsonChat.sendMessage(
-                    'System prompt has been updated to latest version.',
-                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: 'System prompt has been updated to latest version.' }
+                    'System prompt has been updated to the latest version.',
+                    { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: 'System prompt has been updated to the latest version.' }
                 )
                 break
 
@@ -118,7 +118,7 @@ export default {
                     return
                 }
                 crimsonChat.setForceNextBreakdown(true)
-                await ctx.reply('✅ Mental breakdown will be triggered on next message')
+                await ctx.reply('✅ A mental breakdown will be triggered on the next message')
                 break
 
             case 'berserk': {
@@ -162,7 +162,7 @@ export default {
                 await crimsonChat.ignoreUser(targetId!)
                 await ctx.reply(`✅ ${username} is now ignored by CrimsonChat`)
                 crimsonChat.sendMessage(
-                    `Now ignoring user ${username}, you are now unable to see their messages.`,
+                    `Now ignoring user ${username}. You are now unable to see their messages.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `Now ignoring user ${username}, you are now unable to see their messages.` }
                 )
                 break
@@ -173,7 +173,7 @@ export default {
                 const userId = ctx.getStringOption('userid')
 
                 if (!user && !userId) {
-                    await ctx.reply('❌ You must provide either a user or a user ID')
+                    await ctx.reply('❌ You must provide either a user or a user ID.')
                     return
                 }
 
@@ -182,7 +182,7 @@ export default {
                 await crimsonChat.unignoreUser(targetId!)
                 await ctx.reply(`✅ CrimsonChat will no longer ignore ${username}`)
                 crimsonChat.sendMessage(
-                    `User ${username} has been unignored, you are now able to see their messages.`,
+                    `User ${username} has been unignored. You are now able to see their messages.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `User ${username} has been unignored, you are now able to see their messages.` }
                 )
                 break
@@ -191,7 +191,7 @@ export default {
             case 'ignorelist':
                 const ignoredUsers = crimsonChat.getIgnoredUsers()
                 if (ignoredUsers.length === 0) {
-                    await ctx.reply('✅ No users are ignored from CrimsonChat')
+                    await ctx.reply('✅ No users are being ignored by CrimsonChat')
                     return
                 }
 
@@ -225,7 +225,7 @@ export default {
 
                 await ctx.deferReply()
                 await crimsonChat.setHistoryLimit(mode, limit)
-                await ctx.editReply(`✅ CrimsonChat history limit set to ${limit} ${mode}.`)
+                await ctx.editReply(`✅ The CrimsonChat history limit has been set to ${limit} ${mode}.`)
                 crimsonChat.sendMessage(
                     `System Alert: History limit has been set to ${limit} ${mode} by ${ctx.user.username}.`,
                     { username: 'System', displayName: 'System', serverDisplayName: 'System', messageContent: `System Alert: History limit has been set to ${limit} ${mode} by ${ctx.user.username}.` }

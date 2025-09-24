@@ -134,7 +134,7 @@ async function handleCrash(crashedCommit: string) {
             logger.error(`GIT ROLLBACK FAILED: ${red(error)}. Halting.`)
         }
     } else {
-        logger.warn(`Crash detected. Attempting restart ${restartAttempts}/${MAX_RESTART_ATTEMPTS}...`)
+        logger.warn(`A crash was detected. Attempting restart ${restartAttempts}/${MAX_RESTART_ATTEMPTS}...`)
         setTimeout(() => startBot(), 5000)
     }
 }

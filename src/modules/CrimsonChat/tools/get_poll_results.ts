@@ -39,7 +39,7 @@ async function invoke({ messageId }: Input): Promise<string> {
     } catch (e) {
         const error = e as Error
         logger.error(`Failed to get poll results: ${red(error.stack ?? error.message)}`)
-        return JSON.stringify({ status: 'error', message: `An internal error occurred while trying to get poll results: ${error.message}` })
+        return JSON.stringify({ status: 'error', message: `An internal error occurred while trying to get the poll results: ${error.message}` })
     }
 }
 

@@ -30,7 +30,7 @@ export class DashboardServer {
         this.wss = new WebSocketServer({ port })
 
         this.wss.on('connection', ws => {
-            logger.ok('Dashboard client connected.')
+            logger.ok('A dashboard client has connected.')
             this.sendStats()
             this.sendCrimsonChatStatus()
             this.sendOperations()

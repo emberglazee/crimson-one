@@ -26,7 +26,7 @@ export default {
             )
         ).addSubcommand(subcommand => subcommand
             .setName('get')
-            .setDescription('Get the current config for the server')
+            .setDescription('Get the current configuration for the server')
         ).addSubcommandGroup(group => group
             .setName('tag')
             .setDescription('Configure the tag system')
@@ -51,7 +51,7 @@ export default {
                 .addStringOption(option => option.setName('value').setDescription('The permission name, role, or user to allow').setRequired(true))
             ).addSubcommand(subcommand => subcommand
                 .setName('status')
-                .setDescription('Get the current tag system config')
+                .setDescription('Get the current tag system configuration')
             )
         ).setContexts(InteractionContextType.Guild)
         .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild),
@@ -74,9 +74,7 @@ export default {
             const guildConfig = await guildConfigManager.getConfig(guildId)
             guildConfig.prefix = prefix
             await guildConfigManager.setConfig(guildId, guildConfig)
-            await ctx.editReply(`✅ Prefix changed to 
-${prefix}
-`)
+            await ctx.editReply(`✅ Prefix changed to ${prefix}`)
 
         } else if (subcommand === 'message-trigger') {
 
@@ -90,10 +88,8 @@ ${prefix}
 
             const guildConfig = await guildConfigManager.getConfig(guildId)
             await ctx.editReply(
-                `Current config for **${ctx.guild.name}**:\n` +
-                `- Prefix: 
-${guildConfig.prefix}
-` +
+                `Current configuration for **${ctx.guild.name}**:\n` +
+                `- Prefix: ${guildConfig.prefix}` +
                 `- Message trigger: ${boolToEmoji(guildConfig.messageTrigger)}`
             )
 
@@ -130,7 +126,7 @@ ${guildConfig.prefix}
                             if (role) {
                                 id = role.id
                             } else {
-                                await ctx.editReply(`❌ Role with ID \"${value}\" not found.`)
+                                await ctx.editReply(`❌ A role with the ID "${value}" was not found.`)
                                 return
                             }
                         } else {
@@ -138,7 +134,7 @@ ${guildConfig.prefix}
                             if (role) {
                                 id = role.id
                             } else {
-                                await ctx.editReply(`❌ Could not find a role with the name \"${value}\". Please use the role ID or mention.`)
+                                await ctx.editReply(`❌ Could not find a role with the name "${value}". Please use the role ID or a mention.`)
                                 return
                             }
                         }
@@ -151,7 +147,7 @@ ${guildConfig.prefix}
                             if (user) {
                                 id = user.id
                             } else {
-                                await ctx.editReply(`❌ User with ID \`${value}\` not found.`)
+                                await ctx.editReply(`❌ A user with the ID \`${value}\` was not found.`)
                                 return
                             }
                         } else {
@@ -161,11 +157,11 @@ ${guildConfig.prefix}
                                 if (member) {
                                     id = member.id
                                 } else {
-                                    await ctx.editReply(`❌ Could not find a user with the name \`${value}\`. Please use the user ID or mention.`)
+                                    await ctx.editReply(`❌ Could not find a user with the name \`${value}\`. Please use the user ID or a mention.`)
                                     return
                                 }
                             } catch {
-                                await ctx.editReply(`❌ An error occurred while trying to find user \`${value}\`. Please use the user ID or mention.`)
+                                await ctx.editReply(`❌ An error occurred while trying to find the user \`${value}\`. Please use the user ID or a mention.`)
                                 return
                             }
                         }

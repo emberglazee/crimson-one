@@ -312,7 +312,7 @@ export class TextCommandParser {
         if (hasSubcommandsOrGroups && topLevelOptions.length === 0) {
             parser.demandCommand(
                 1,
-                'This command requires a subcommand. Use --help for options.'
+                'This command requires a subcommand. Use --help for a list of options.'
             )
         }
         return parser

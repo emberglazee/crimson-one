@@ -5,10 +5,10 @@ import { chance } from '../util/functions'
 export default {
     data: new SlashCommandBuilder()
         .setName('drunk')
-        .setDescription('Simulate drunk typing on the keyboard')
+        .setDescription('Simulates drunk typing.')
         .addStringOption(option => option
             .setName('text')
-            .setDescription('The text to drunkenly type')
+            .setDescription('The text to type drunkenly.')
             .setRequired(true)
         ),
     async execute(ctx) {

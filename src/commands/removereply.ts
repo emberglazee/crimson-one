@@ -4,7 +4,7 @@ import { inspect } from 'util'
 
 export const contextMenuCommand = {
     data: new ContextMenuCommandBuilder()
-        .setName('Remove bot reply')
+        .setName('Remove Bot Reply')
         .setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     type: ApplicationCommandType.Message,
     async execute({ reply, client }, interaction) {
@@ -13,21 +13,21 @@ export const contextMenuCommand = {
             const message = await channel.messages.fetch(interaction.targetMessage.id)
             if (message.author.id !== client.user.id) {
                 await reply({
-                    content: '❌ This command can only be used on this bot\'s interaction replies',
+                    content: '❌ This command can only be used on the bot\'s interaction replies',
                     flags: MessageFlags.Ephemeral
                 })
                 return
             }
             if (!message.interactionMetadata) {
                 await reply({
-                    content: '❌ This context command can only be used on interaction replies of this bot',
+                    content: '❌ This can only be used on the bot\'s interaction replies.',
                     flags: MessageFlags.Ephemeral
                 })
                 return
             }
             if (message.interactionMetadata.user.id !== interaction.user.id) {
                 await reply({
-                    content: '❌ You can only delete your own interaction replies',
+                    content: '❌ You can only delete your own interaction replies.',
                     flags: MessageFlags.Ephemeral
                 })
                 return
@@ -35,7 +35,7 @@ export const contextMenuCommand = {
 
             await message.delete()
             await reply({
-                content: '✅ Deleted the bot reply',
+                content: '✅ Deleted the bot\'s reply.',
                 flags: MessageFlags.Ephemeral
             })
         } catch (error) {

@@ -18,7 +18,7 @@ export default function onMessageDelete(client: Client, crimsonChat: CrimsonChat
             crimsonChat.sendMessage(content, {
                 username: 'System',
                 displayName: 'Message Delete',
-                serverDisplayName: 'Message Delete',
+                serverDisplayName: 'Message Deletion',
                 messageContent: content
             })
         }

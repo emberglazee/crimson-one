@@ -9,20 +9,20 @@ import morse from 'morse'
 export default {
     data: new SlashCommandBuilder()
         .setName('morse')
-        .setDescription('Decode or encode text from or to morse code')
+        .setDescription('Decodes or encodes text from or to Morse code')
         .addSubcommand(subcommand => subcommand
             .setName('decode')
-            .setDescription('Decode morse code into text')
+            .setDescription('Decodes Morse code into text')
             .addStringOption(option => option
                 .setName('code')
-                .setDescription('Morse code to attempt to decode')
+                .setDescription('The Morse code to decode')
             )
         ).addSubcommand(subcommand => subcommand
             .setName('encode')
-            .setDescription('Encode text into morse code')
+            .setDescription('Encodes text into Morse code')
             .addStringOption(option => option
                 .setName('text')
-                .setDescription('text to encode into morse code')
+                .setDescription('The text to encode into Morse code')
             )
         ),
     async execute(ctx) {

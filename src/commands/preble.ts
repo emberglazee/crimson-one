@@ -4,7 +4,7 @@ import { SlashCommand } from '../types'
 export default {
     data: new SlashCommandBuilder()
         .setName('preble')
-        .setDescription('Preble.'),
+        .setDescription('Sends the "Preble" audio clip.'),
     async execute(ctx) {
         await ctx.deferReply()
         await ctx.editReply({

@@ -4,10 +4,10 @@ import { SlashCommand } from '../types'
 export default {
     data: new SlashCommandBuilder()
         .setName('roulette')
-        .setDescription('Play Russian Roulette with a specified action')
+        .setDescription('Plays Russian Roulette with a specified action')
         .addStringOption(option => option
             .setName('action')
-            .setDescription('What happens if you lose (e.g., "timeout for 1 minute")')
+            .setDescription('The consequence if you lose (e.g., "get timed out for 1 minute").')
         ),
 
     async execute(ctx) {
@@ -19,7 +19,7 @@ export default {
 
         if (chamber === 1) {
             await ctx.reply({
-                content: `🔫 **BANG!** ${user} Predictable.` + (action ? `\nConsequence|| (of power)||: ${action}` : ''),
+                content: `🔫 **BANG!** ${user} Predictable.` + (action ? `\nConsequence||(of power)||: ${action}` : ''),
                 allowedMentions: { users: [user.id] }
             })
         } else {

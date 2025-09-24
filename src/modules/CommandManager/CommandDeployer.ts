@@ -29,7 +29,7 @@ export class CommandDeployer {
 
             const hasChanges = await this.checkCommandChanges(commands)
             if (!hasChanges) {
-                logger.debug('{refreshGlobalCommands} No changes detected, skipping refresh')
+                logger.debug('{refreshGlobalCommands} No changes were detected, skipping the refresh')
                 return
             }
 

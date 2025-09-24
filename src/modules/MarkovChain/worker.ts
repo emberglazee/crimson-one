@@ -56,7 +56,7 @@ class MarkovEngine {
         this.dbWriteQueue = this.dbWriteQueue
             .then(() => this.dataSource.addMessages(messages, guild, fullyCollectedChannelId, forceRescan))
             .catch(err => {
-                log('error', `Database write operation failed: ${(err as Error).message}`)
+                log('error', `A database write operation failed: ${(err as Error).message}`)
                 // Even if one write fails, we want the queue to continue with the next item.
                 // The error is logged, but the promise chain is not broken.
             })

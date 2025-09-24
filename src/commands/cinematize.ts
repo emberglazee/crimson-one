@@ -131,7 +131,7 @@ async function findAndReplaceMovies(text: string, progress?: { tracker: Progress
 export default {
     data: new SlashCommandBuilder()
         .setName('cinematize')
-        .setDescription('Replaces words in your text with movie titles for comedic effect.')
+        .setDescription('Replaces phrases in your text with movie titles.')
         .addStringOption(option => option
             .setName('text')
             .setDescription('The text to process.')

@@ -5,7 +5,7 @@ import { inspect } from 'util'
 export default {
     data: new SlashCommandBuilder()
         .setName('eval')
-        .setDescription('Evaluate JavaScript code')
+        .setDescription('Evaluates JavaScript code (owner only).')
         .addStringOption(option => option
             .setName('code')
             .setDescription('The code to evaluate')

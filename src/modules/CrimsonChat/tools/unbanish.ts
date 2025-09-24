@@ -21,7 +21,7 @@ async function invoke({ username, displayname, reason }: Input): Promise<string>
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ username, displayname, reason }))}`)
     const query = username ?? displayname
     if (!query) {
-        return JSON.stringify({ status: 'error', message: 'must provide either a username or display name to identify the target.' })
+        return JSON.stringify({ status: 'error', message: 'You must provide either a username or display name to identify the target.' })
     }
 
     let guild: Guild
@@ -43,7 +43,7 @@ async function invoke({ username, displayname, reason }: Input): Promise<string>
     }
 
     if (member.id === client.user.id) {
-        return JSON.stringify({ status: 'info', message: 'What did you think was gonna happen?' })
+        return JSON.stringify({ status: 'info', message: 'What did you think was going to happen?' })
     }
     if (!member.manageable) {
         return JSON.stringify({ status: 'error', message: `I cannot manage this user. They likely have a higher role than me. (Target: ${member.user.username})` })
@@ -56,7 +56,7 @@ async function invoke({ username, displayname, reason }: Input): Promise<string>
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
         logger.error(`Unbanishment failed for ${member.user.username}: ${red(errorMessage)}`)
-        return JSON.stringify({ status: 'error', message: `Failed to unbanish the user. ${errorMessage}` })
+        return JSON.stringify({ status: 'error', message: `Failed to unbanish the user: ${errorMessage}` })
     }
 }
 

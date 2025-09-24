@@ -24,7 +24,7 @@ export class GracefulShutdown {
 
     public async shutdown(signal: string): Promise<void> {
         if (!this.client) {
-            logger.warn('Client not set for graceful shutdown! => process.exit(1)')
+            logger.warn('The client is not set for graceful shutdown. Exiting with code 1.')
             process.exit(1)
         }
 

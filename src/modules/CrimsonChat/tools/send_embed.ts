@@ -86,7 +86,7 @@ async function invoke(input: z.infer<typeof schema>): Promise<string> {
         if (timestamp) embed.setTimestamp()
 
         if (embed.data.fields?.length === 0 && !embed.data.image && !embed.data.thumbnail) {
-            return JSON.stringify({ status: 'error', message: 'Embed is empty. You must provide at least one property like a title, description, or image.' })
+            return JSON.stringify({ status: 'error', message: 'The embed is empty. You must provide at least one property, such as a title, description, or image.' })
         }
 
         if (replyToMessageId) {

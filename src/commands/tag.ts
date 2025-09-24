@@ -8,10 +8,10 @@ import { relativeDiscordTimestamp } from '../util/functions'
 export default {
     data: new SlashCommandBuilder()
         .setName('tag')
-        .setDescription('Manage server tags')
+        .setDescription('Manages server tags')
         .addSubcommand(subcommand => subcommand
             .setName('get')
-            .setDescription('Get a tag by name')
+            .setDescription('Gets a tag by its name')
             .addStringOption(option => option
                 .setName('name')
                 .setDescription('The name of the tag')
@@ -19,7 +19,7 @@ export default {
             )
         ).addSubcommand(subcommand => subcommand
             .setName('create')
-            .setDescription('Create a new tag')
+            .setDescription('Creates a new tag')
             .addStringOption(option => option
                 .setName('name')
                 .setDescription('The name of the tag')
@@ -31,7 +31,7 @@ export default {
             )
         ).addSubcommand(subcommand => subcommand
             .setName('delete')
-            .setDescription('Delete a tag')
+            .setDescription('Deletes a tag')
             .addStringOption(option => option
                 .setName('name')
                 .setDescription('The name of the tag')
@@ -47,10 +47,10 @@ export default {
             )
         ).addSubcommand(subcommand => subcommand
             .setName('list')
-            .setDescription('List all tags in the server')
+            .setDescription('Lists all tags in the server')
         ).addSubcommand(subcommand => subcommand
             .setName('info')
-            .setDescription('Get info about a tag')
+            .setDescription('Gets info about a tag')
             .addStringOption(option => option
                 .setName('name')
                 .setDescription('The name of the tag')
@@ -82,7 +82,7 @@ export default {
                     await ctx.reply(tag.content)
                 } else {
                     logger.debug(`{get} Tag ${name} not found in guild ${ctx.guild.id}`)
-                    await ctx.reply({ content: '❌ Tag not found.', flags: MessageFlags.Ephemeral })
+                    await ctx.reply({ content: '❌ A tag with that name was not found.', flags: MessageFlags.Ephemeral })
                 }
                 break
             }

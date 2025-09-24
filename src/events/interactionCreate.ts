@@ -12,7 +12,7 @@ export default function onInteractionCreate(client: Client, commandManager: Comm
         }
 
         commandManager.handleInteraction(interaction).catch(err => {
-            logger.warn(`Error while handling interaction!\n${red(err.stack)}`)
+            logger.warn(`Error while handling interaction:\n${red(err.stack)}`)
         })
     })
 }

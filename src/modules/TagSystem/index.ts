@@ -35,7 +35,7 @@ export class TagManager {
     public async createTag(guildId: string, name: string, content: string, ownerId: string): Promise<Tag> {
         const existingTag = await this.getTag(guildId, name)
         if (existingTag) {
-            throw new Error('A tag with this name already exists in this server.')
+            throw new Error('A tag with this name already exists on this server.')
         }
 
         const newTag = this.repository.create({ guildId, name, content, ownerId })

@@ -42,7 +42,7 @@ export class OperationTracker extends EventEmitter<{
         metadata?: Record<string, unknown>
     ): Promise<T> {
         if (this.shuttingDown) {
-            throw new Error('Bot is shutting down, new operations are blocked')
+            throw new Error('The bot is shutting down. New operations are blocked')
         }
 
         const opId = this.generateOperationId(operationType)

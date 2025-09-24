@@ -10,10 +10,10 @@ import { convertOverwriteToOptions } from '../util/functions'
 export default {
     data: new SlashCommandBuilder()
         .setName('duplicate')
-        .setDescription('Commands to duplicate server items.')
+        .setDescription('Commands for duplicating server items.')
         .addSubcommand(subcommand => subcommand
             .setName('role')
-            .setDescription('Create an exact one-to-one replica of a server role.')
+            .setDescription('Creates an exact one-to-one replica of a server role.')
             .addRoleOption(option => option
                 .setName('role')
                 .setDescription('The role to duplicate')
@@ -102,7 +102,7 @@ export default {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error)
             logger.warn(`Error duplicating role: ${red(errorMessage)}`)
-            await ctx.editReply(`❌ Failed to duplicate role: \`${errorMessage}\``)
+            await ctx.editReply(`❌ Failed to duplicate the role: \`${errorMessage}\``)
         }
     }
 } satisfies SlashCommand

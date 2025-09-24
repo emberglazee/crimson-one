@@ -19,7 +19,7 @@ async function invoke({ status, activityType, activityName }: Input): Promise<st
     try {
         if (!client || !client.user) {
             logger.error(red('Discord client or user not available.'))
-            return JSON.stringify({ status: 'error', message: 'Discord client not available.' })
+            return JSON.stringify({ status: 'error', message: 'The Discord client is not available.' })
         }
 
         const presenceOptions: { status?: PresenceStatusData, activities?: { name: string, type: ActivityType }[] } = {}

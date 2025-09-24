@@ -14,7 +14,7 @@ export default {
         )
         .addStringOption(option => option
             .setName('duration')
-            .setDescription('Duration of the banishment (e.g., "6d 3h 2m" or a specific date). Default is permanent.')
+            .setDescription('Duration of the banishment (e.g., "6d 3h 2m" or a specific date). Defaults to permanent.')
             .setRequired(false)
         )
         .addStringOption(option => option
@@ -25,7 +25,7 @@ export default {
         .setContexts(InteractionContextType.Guild),
     async execute(ctx) {
         if (!ctx.member.permissions.has('ManageRoles')) {
-            await ctx.reply('❌ You dont have permission to manage roles.')
+            await ctx.reply('❌ You don\'t have permission to manage roles.')
             return
         }
 
@@ -70,7 +70,7 @@ export default {
                 const unbanishTimestamp = BigInt(Date.now()) + (durationSec * 1000n)
                 const maxTimestamp = BigInt(8.64e15) // `Date` cannot handle anything beyond this timestamp.
                 if (unbanishTimestamp > maxTimestamp) {
-                    await ctx.reply('❌ Unbanishment date cannot be past `13th of September, year 275760, 12:00:00.000 AM` (8.64e15 milliseconds since 1970), this is a limitation of JavaScript\'s `Date` object. also, just, why? why did you just try that?')
+                    await ctx.reply('❌ The unbanishment date cannot be later than September 13, 275760. This is a JavaScript limitation. Also, why?')
                     return
                 }
             }

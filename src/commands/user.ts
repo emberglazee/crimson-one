@@ -14,7 +14,7 @@ export const slashCommand = {
             .setDescription('Shows information about a user')
             .addUserOption(option => option
                 .setName('user')
-                .setDescription('The user to get info about (defaults to yourself)')
+                .setDescription('The user to get info about (defaults to you).')
                 .setRequired(false)
             )
         ),
@@ -62,7 +62,7 @@ export const slashCommand = {
 
                                 new ThumbnailBuilder()
                                     .setURL(getUserAvatar(user, null, { size: 256 }))
-                                    .setDescription(`Global avatar for user \`${user.username}\``)
+                                    .setDescription(`Global avatar for the user \`${user.username}\``)
 
                             )
 
@@ -82,7 +82,7 @@ export const slashCommand = {
                             .addTextDisplayComponents(
 
                                 new TextDisplayBuilder()
-                                    .setContent('Bot account?')
+                                    .setContent('Bot Account')
 
                             ).setButtonAccessory(
 
@@ -137,7 +137,7 @@ export const slashCommand = {
                     const memberRoleCount = member.roles.cache.size,
                         guildRoleCount = ctx.guild.roles.cache.size
                     const roleCountText = (
-                        `-# * 🎖️ ${Math.floor((memberRoleCount / guildRoleCount) * 100)}% of the roles on the server (${memberRoleCount} / ${guildRoleCount})`
+                        `-# * 🎖️ Has ${Math.floor((memberRoleCount / guildRoleCount) * 100)}% of the roles on this server (${memberRoleCount} / ${guildRoleCount})`
                     )
 
                     const boosting = !!member.premiumSince
@@ -159,7 +159,7 @@ export const slashCommand = {
 
                                         new ThumbnailBuilder()
                                             .setURL(getUserAvatar(user, ctx.guild, { size: 256 }))
-                                            .setDescription(`Server avatar for user \`${user.username}\``)
+                                            .setDescription(`Server avatar for the user \`${user.username}\``)
 
                                     )
 
@@ -174,7 +174,7 @@ export const slashCommand = {
                                     .addTextDisplayComponents(
 
                                         new TextDisplayBuilder()
-                                            .setContent('Server booster?')
+                                            .setContent('Server Booster')
 
                                     ).setButtonAccessory(
 
@@ -253,7 +253,7 @@ export const slashCommand = {
 
 export const userContextMenuCommand = {
     data: new ContextMenuCommandBuilder()
-        .setName('User information')
+        .setName('User Information')
         .setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     type: ApplicationCommandType.User,
     async execute({ reply, guild }, interaction) {
@@ -264,7 +264,7 @@ export const userContextMenuCommand = {
             .setThumbnail(targetUser.displayAvatarURL())
             .addFields(
                 { name: 'Username', value: targetUser.username, inline: true },
-                { name: 'Display Name', value: `${targetUser.displayName}${!targetUser.bot && targetUser.discriminator !== '0' ? ` (#${targetUser.discriminator})` : ''}`, inline: true },
+                { name: 'Display name', value: `${targetUser.displayName}${!targetUser.bot && targetUser.discriminator !== '0' ? ` (#${targetUser.discriminator})` : ''}`, inline: true },
                 { name: 'User ID', value: targetUser.id, inline: true },
                 { name: 'Account Created', value: `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>`, inline: true }
             )

@@ -209,7 +209,7 @@ export class MessageTrigger {
                 const originalNickname = member.nickname
 
                 await message.member.setNickname(name)
-                await message.reply(`hi \`${name}\`, im crimson 1`)
+                await message.reply(`Hi \`${name}\`, I\'m Crimson 1`)
                 await sleep(60 * 1000)
                 await message.member.setNickname(originalNickname)
             }

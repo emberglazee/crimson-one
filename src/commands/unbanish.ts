@@ -5,7 +5,7 @@ import { SOLITARY_CONFINEMENT_GUILD_ID } from '../util/constants'
 export default {
     data: new SlashCommandBuilder()
         .setName('unbanish')
-        .setDescription('Remove the `banished` role from a server member')
+        .setDescription('Removes the `banished` role from a server member')
         .addUserOption(option => option
             .setName('member')
             .setDescription('Server member to unbanish')
@@ -19,7 +19,7 @@ export default {
         .setContexts(InteractionContextType.Guild),
     async execute(ctx) {
         if (!ctx.member.permissions.has('ManageRoles')) {
-            await ctx.reply('❌ You dont have permission to manage roles.')
+            await ctx.reply('❌ You don\'t have permission to manage roles.')
             return
         }
 
@@ -58,7 +58,7 @@ export default {
             await ctx.editReply(`✅ Successfully unbanished ${targetMember.user.username}.`)
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.'
-            await ctx.editReply(`❌ Failed to unbanish member: ${errorMessage}`)
+            await ctx.editReply(`❌ Failed to unbanish the member: ${errorMessage}`)
         }
     },
     guildId: SOLITARY_CONFINEMENT_GUILD_ID

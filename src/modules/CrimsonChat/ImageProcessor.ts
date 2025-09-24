@@ -30,7 +30,7 @@ export class ImageProcessor {
                 mimeType = 'image/png' // We extract the first frame as a PNG
             } else {
                 const response = await fetch(url)
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+                if (!response.ok) throw new Error(`An HTTP error occurred with a status of ${response.status}.`)
                 // Determine mime type from headers or extension
                 mimeType = response.headers.get('content-type') || 'image/jpeg'
                 buffer = Buffer.from(await response.arrayBuffer())
@@ -87,7 +87,7 @@ export class ImageProcessor {
                         reject(error)
                     }
                 } else {
-                    reject(new Error(`FFmpeg exited with code ${code}`))
+                    reject(new Error(`FFmpeg exited with code ${code}.`))
                 }
             })
             ffmpeg.on('error', reject)

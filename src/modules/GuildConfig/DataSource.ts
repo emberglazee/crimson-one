@@ -45,7 +45,7 @@ export class GuildConfigDataSource {
             `)
 
             if (tables.length < 1) {
-                logger.warn('Guild config table missing, forcing table creation')
+                logger.warn('The guild config table is missing, forcing table creation')
                 await this.orm.synchronize(true)
             }
 

@@ -22,7 +22,7 @@ async function invoke({ username, displayname, duration, reason }: Input): Promi
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ username, displayname, duration, reason }))}`)
     const query = username ?? displayname
     if (!query) {
-        return JSON.stringify({ status: 'error', message: 'must provide either a username or display name to identify the target.' })
+        return JSON.stringify({ status: 'error', message: 'You must provide either a username or a display name to identify the target.' })
     }
 
     let guild: Guild
@@ -60,7 +60,7 @@ async function invoke({ username, displayname, duration, reason }: Input): Promi
             if (durationSec < 60n) return JSON.stringify({ status: 'error', message: 'Minimum banishment duration is 1 minute.' })
 
             const unbanishTimestamp = BigInt(Date.now()) + durationSec * 1000n
-            if (unbanishTimestamp > 8.64e15) return JSON.stringify({ status: 'error', message: 'Calculated unbanishment date is beyond `13th of September, year 275760, 12:00:00.000 AM`. wtf is wrong with you' })
+            if (unbanishTimestamp > 8.64e15) return JSON.stringify({ status: 'error', message: 'The calculated unbanishment date is beyond September 13, 275760. What is wrong with you?' })
         }
 
         await banishmentManager.banish(member, client.user, 'crimsonchat', duration ?? null, reason ?? 'Banishment issued by Crimson 1.')

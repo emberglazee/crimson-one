@@ -21,7 +21,7 @@ async function invoke({ username, displayname, new_display_name, reason }: Input
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ username, displayname, new_display_name, reason }))}`)
     const query = username ?? displayname
     if (!query) {
-        return JSON.stringify({ status: 'error', message: 'must provide either a user ID, username, or current display name to identify the target.' })
+        return JSON.stringify({ status: 'error', message: 'You must provide either a user ID, username, or current display name to identify the target.' })
     }
 
     // 1. Fetch Guild and check bot permissions
@@ -69,7 +69,7 @@ async function invoke({ username, displayname, new_display_name, reason }: Input
         logger.ok(`Changed ${member.user.username}'s display name to ${new_display_name}`)
     } catch (e) {
         logger.error(`Failed to set nickname for ${member.user.username}: ${red((e as Error).message)}`)
-        return JSON.stringify({ status: 'error', message: 'Failed to set the display name. There might have been a permissions error or the name is invalid.' })
+        return JSON.stringify({ status: 'error', message: 'Failed to set the display name. This may have been due to a permissions error or an invalid name.' })
     }
 
     return JSON.stringify({ status: 'success', message: `User ${member.user.username}'s display name has been changed to "${new_display_name}".` })

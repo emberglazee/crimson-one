@@ -4,7 +4,7 @@ import { SlashCommand } from '../types'
 export default {
     data: new SlashCommandBuilder()
         .setName('debug')
-        .setDescription('Toggle debug mode (owner only)'),
+        .setDescription('Toggles debug mode (owner only).'),
     async execute(ctx) {
         try { await ctx.assertEmbi() } catch { return }
 

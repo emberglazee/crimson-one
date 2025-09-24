@@ -6,6 +6,6 @@ export default {
         .setName('useless')
         .setDescription('Useless.'),
     async execute() {
-        // literally nothing. not even a reply. ive been asked to do this so i did it
+        // This command does nothing, not even reply.
     }
 } satisfies SlashCommand

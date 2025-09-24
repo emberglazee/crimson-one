@@ -79,7 +79,7 @@ export class CommandHotReloader {
                 await this.deployer.refreshGlobalCommands()
                 await this.deployer.refreshAllGuildCommands()
             } else {
-                logger.warn(`No commands found in reloaded file: ${yellow(filename)}`)
+                logger.warn(`No commands were found in the reloaded file: ${yellow(filename)}`)
             }
         } catch (error) {
             logger.error(`Failed to reload command from ${yellow(filename)}: ${red((error as Error).message)}`)

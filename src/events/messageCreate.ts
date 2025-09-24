@@ -69,7 +69,7 @@ async function handleTagCommand(message: Message, { tagManager, guildConfigManag
         }
 
         if (await tagManager.getTag(message.guild.id, tagName)) {
-            await message.reply(`❌ Tag "${tagName}" already exists.`)
+            await message.reply(`❌ A tag with the name "${tagName}" already exists.`)
             return
         }
 

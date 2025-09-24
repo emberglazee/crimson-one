@@ -28,7 +28,7 @@ async function invoke({ question, answers, duration = 24, allowMultiselect = fal
     try {
         const channel = await client.channels.fetch(CHANNEL_ID)
         if (!channel || channel.type !== ChannelType.GuildText) {
-            return JSON.stringify({ status: 'error', message: `Channel with ID "${CHANNEL_ID}" not found or is not a text channel.` })
+            return JSON.stringify({ status: 'error', message: `The channel with the ID "${CHANNEL_ID}" was not found or is not a text channel.` })
         }
 
         const pollOptions = {

@@ -14,10 +14,10 @@ const bannerSizeOptions = bannerSizes.map(size => ({ name: `${size}px` as const,
 export default {
     data: new SlashCommandBuilder()
         .setName('banner')
-        .setDescription('Show the banner of a user')
+        .setDescription('Show a user\'s banner')
         .addUserOption(option => option
             .setName('user')
-            .setDescription('The user to show the banner of (default: yourself)')
+            .setDescription('The user whose banner you want to see (defaults to yourself).')
             .setRequired(false)
         ).addBooleanOption(option => option
             .setName('raw')
@@ -25,7 +25,7 @@ export default {
             .setRequired(false)
         ).addStringOption(option => option
             .setName('extension')
-            .setDescription('Image format to get the banner in (default: PNG, if banner is animated, pick GIF)')
+            .setDescription('The image format for the banner (default: PNG; for animated banners, choose GIF).')
             .addChoices(...bannerExtensionOptions)
             .setRequired(false)
         ).addNumberOption(option => option
@@ -43,7 +43,7 @@ export default {
         const fetchedUser = await user.fetch(true)
         const banner = fetchedUser.bannerURL ? fetchedUser.bannerURL({ extension: ext, size: size }) : null
         if (!banner) {
-            await ctx.reply({ content: 'User does not have a banner', flags: MessageFlags.Ephemeral })
+            await ctx.reply({ content: 'This user does not have a banner', flags: MessageFlags.Ephemeral })
             return
         }
 

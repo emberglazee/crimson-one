@@ -344,7 +344,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
         }
 
         if (required && value === null) {
-            throw new Error(`Required option "${name}" is missing or invalid for ${this.isInteraction ? 'interaction' : 'text command'}.`)
+            throw new Error(`The required option "${name}" is missing or invalid.`)
         }
 
         if (value === null && !required && defaultValue !== undefined) {
@@ -399,7 +399,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
         }
 
         if (required && value === null) {
-            throw new Error(`Required option "${name}" is missing or could not be resolved for ${this.isInteraction ? 'interaction' : 'text command'}.`)
+            throw new Error(`The required option "${name}" is missing or could not be resolved.`)
         }
 
         if (value === null && !required && defaultValue !== undefined) {

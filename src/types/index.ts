@@ -140,7 +140,7 @@ export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements ICo
 
 export class ClassNotInitializedError extends Error {
     constructor() {
-        super('Command handler has not been initialized! Call init() first')
+        super('The command handler has not been initialized. Call init() first')
     }
 }
 

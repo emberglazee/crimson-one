@@ -4,7 +4,7 @@ import { SlashCommand } from '../types'
 export default {
     data: new SlashCommandBuilder()
         .setName('kill')
-        .setDescription('"YES! KILL!" - Steve Harvey'),
+        .setDescription('Sends the "YES! KILL!" meme from Family Feud.'),
     async execute(ctx) {
         await ctx.deferReply()
         await ctx.editReply({

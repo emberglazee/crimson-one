@@ -158,7 +158,7 @@ export class BanishmentManager extends EventEmitter<{
         }
         const member = await guild.members.fetch(userId).catch(() => null)
         if (!member) {
-            logger.warn(`Cannot unbanish user ${userId}: Member not found in guild ${guildId}.`)
+            logger.warn(`Cannot unbanish user ${userId}: Member not found in server ${guildId}.`)
             return
         }
 

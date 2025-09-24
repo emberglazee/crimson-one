@@ -24,7 +24,7 @@ export default {
             .setRequired(false)
         ).addUserOption(option => option
             .setName('user')
-            .setDescription('User to use their avatar as the portrait')
+            .setDescription('The user whose avatar will be used for the portrait')
             .setRequired(false)
         ).addStringOption(option => option
             .setName('subtext')
@@ -36,7 +36,7 @@ export default {
             .setRequired(false)
         ).addBooleanOption(option => option
             .setName('ephemeral')
-            .setDescription('Should the response only show up for you?')
+            .setDescription('If true, the response will only be visible to you.')
             .setRequired(false)
         ),
     async execute(ctx) {
@@ -56,11 +56,11 @@ export default {
         // Validate image source options
         const selectedOptions = [imageAttachment, urlOption, user].filter(Boolean).length
         if (selectedOptions === 0) {
-            await ctx.editReply('❌ Please provide either an image attachment, URL, or user mention.')
+            await ctx.editReply('❌ Please provide either an image attachment, a URL, or a user.')
             return
         }
         if (selectedOptions > 1) {
-            await ctx.editReply('❌ Please provide only one image source (attachment, URL, or user mention).')
+            await ctx.editReply('❌ Please provide only one image source (attachment, URL, or user).')
             return
         }
 

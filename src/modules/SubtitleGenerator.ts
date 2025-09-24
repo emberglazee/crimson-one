@@ -113,11 +113,11 @@ export class SubtitleGenerator {
                         reject(new Error(`Failed to read output file: ${error}`))
                     }
                 } else {
-                    reject(new Error(`FFmpeg failed with code ${code}: ${stderr}`))
+                    reject(new Error(`FFmpeg failed with code ${code}:\n${stderr}`))
                 }
             })
             ffmpeg.on('error', error => {
-                reject(new Error(`Failed to start FFmpeg: ${error}`))
+                reject(new Error(`Failed to start FFmpeg: ${error}.`))
             })
         })
     }
@@ -331,7 +331,7 @@ export class SubtitleGenerator {
                                         framerate
                                     }
                                 } else {
-                                    throw new Error(`Emoji URL is undefined for emoji: ${emoji.name || emoji.id}`)
+                                    throw new Error(`The emoji URL is undefined for the emoji: ${emoji.name || emoji.id}`)
                                 }
                             } finally {
                                 await this.cleanupTempDir(tmpDir)

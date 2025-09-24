@@ -10,7 +10,7 @@ export default {
 
         // Check if the bot is managed by the guardian
         if (typeof process.send !== 'function') {
-            await ctx.reply('❌ The bot is not running under the guardian process. Update cannot be performed.')
+            await ctx.reply('❌ The bot is not running under the guardian process, so an update cannot be performed.')
             return
         }
 

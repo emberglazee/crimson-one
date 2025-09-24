@@ -4,7 +4,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js'
 export default {
     data: new SlashCommandBuilder()
         .setName('roleinfo')
-        .setDescription('Get detailed information about a role.')
+        .setDescription('Gets detailed information about a role.')
         .addRoleOption(option => option
             .setName('role')
             .setDescription('The role to get information about')
@@ -12,7 +12,7 @@ export default {
         ),
     async execute(ctx) {
         if (!ctx.guild) {
-            await ctx.reply('❌ This command can only be used in a server!')
+            await ctx.reply('❌ This command can only be used in a server.')
         }
 
         const role = await ctx.getRoleOption('role', true)

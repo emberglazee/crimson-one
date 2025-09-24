@@ -4,7 +4,7 @@ import { SlashCommand } from '../types'
 export default {
     data: new SlashCommandBuilder()
         .setName('owo')
-        .setDescription('OwO-ify text')
+        .setDescription('OwO-ifies text')
         .addStringOption(option => option.setName('text').setDescription('Text to OwOify').setRequired(true)),
     async execute(ctx) {
         const inputText = ctx.getStringOption('text', true)

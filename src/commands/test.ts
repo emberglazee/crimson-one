@@ -8,7 +8,7 @@ import { smallFooterNote } from '../util/functions'
 export default {
     data: new SlashCommandBuilder()
         .setName('test')
-        .setDescription('Test command'),
+        .setDescription('A command for testing purposes.'),
     async execute(ctx) {
         const isAnInteraction = !!ctx.interaction
 

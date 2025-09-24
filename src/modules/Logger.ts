@@ -43,7 +43,7 @@ export class Logger extends EventEmitter<{
 
         const botSettingsManager = container.resolve(BotSettingsManager)
         if (level === 'debug' && !botSettingsManager.isDebugModeEnabled()) {
-            // Debug mode is off, so only write to file
+            // Debug mode is off, so the log will only be written to the file
             this.writeLogLine(logoutput(level, data, this.module))
             return
         }

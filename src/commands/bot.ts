@@ -25,7 +25,7 @@ function trackSuccessfulExecution(command: string): void {
 export default {
     data: new SlashCommandBuilder()
         .setName('bot')
-        .setDescription('Bot management and info commands')
+        .setDescription('Bot management and information commands.')
         .addSubcommand(subcommand => subcommand
             .setName('info')
             .setDescription('Show bot statistics and information')
@@ -54,7 +54,7 @@ export default {
                 .setRequired(false)
             ).addStringOption(option => option
                 .setName('shortcut')
-                .setDescription('Shortcut to change username to either guild name, your username, or your guild username')
+                .setDescription('Shortcut to change the username to the guild name, your username, or your guild username')
                 .addChoices(
                     { name: 'Guild Name', value: 'guild' },
                     { name: 'Your Username', value: 'user' },
@@ -110,7 +110,7 @@ Users: ${application.approximateUserInstallCount ?? 'N/A'}`, inline: true },
         }
         if (subcommand === 'set_global_username') {
             if (!canExecuteCommand(subcommand)) {
-                await ctx.reply(`❌ This command can only be ran ${USAGE_LIMIT} times every ${WINDOW_MINUTES} minutes, to avoid API rate limiting`)
+                await ctx.reply(`❌ This command can only be run ${USAGE_LIMIT} times every ${WINDOW_MINUTES} minutes to avoid API rate limiting`)
                 return
             }
             await ctx.deferReply()
@@ -122,7 +122,7 @@ Users: ${application.approximateUserInstallCount ?? 'N/A'}`, inline: true },
             }
             if (shortcut === 'guild') {
                 if (!ctx.guild) {
-                    await ctx.editReply('❌ The `guild` shortcut can only be used in a guild channel')
+                    await ctx.editReply('❌ The \'guild\' shortcut can only be used in a server.')
                     return
                 }
                 username = ctx.guild.name
@@ -130,7 +130,7 @@ Users: ${application.approximateUserInstallCount ?? 'N/A'}`, inline: true },
                 username = ctx.user.username
             } else if (shortcut === 'guilduser') {
                 if (!ctx.guild) {
-                    await ctx.editReply('❌ The `guilduser` shortcut can only be used in a guild channel')
+                    await ctx.editReply('❌ The `guilduser` shortcut can only be used in a server channel')
                     return
                 }
                 username = ctx.member!.user.username ?? ctx.user.username
@@ -144,7 +144,7 @@ Users: ${application.approximateUserInstallCount ?? 'N/A'}`, inline: true },
                 trackSuccessfulExecution(subcommand)
             } catch (e) {
                 if ((e as Error).message.includes('USERNAME_RATE_LIMIT')) {
-                    await ctx.editReply('❌ Hit the username change rate limit')
+                    await ctx.editReply('❌ You have hit the username change rate limit')
                     return
                 }
                 await ctx.editReply(`❌ Error changing username: ${(e as Error).message}`)

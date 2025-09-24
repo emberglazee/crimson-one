@@ -37,25 +37,25 @@ function addCommonRollOptions(sc: SlashCommandSubcommandBuilder) {
 export default {
     data: new SlashCommandBuilder()
         .setName('roll')
-        .setDescription('Do a dice roll 🎲')
+        .setDescription('Rolls a die 🎲')
         .addSubcommand(subcommand => { subcommand
             .setName('custom')
-            .setDescription('Roll a custom dice')
+            .setDescription('Roll a custom die.')
             .addNumberOption(option => option
                 .setName('sides')
-                .setDescription('Number of sides on the dice')
+                .setDescription('The number of sides on the die.')
                 .setRequired(true)
                 .setMinValue(1)
                 .setMaxValue(MAX_SIDES)
             )
             return addCommonRollOptions(subcommand)
         })
-        .addSubcommand(subcommand => addCommonRollOptions(subcommand.setName('d6').setDescription('Roll a d6 dice')))
-        .addSubcommand(subcommand => addCommonRollOptions(subcommand.setName('d20').setDescription('Roll a d20 dice')))
-        .addSubcommand(subcommand => addCommonRollOptions(subcommand.setName('d100').setDescription('Roll a d100 dice')))
+        .addSubcommand(subcommand => addCommonRollOptions(subcommand.setName('d6').setDescription('Roll a d6 die.')))
+        .addSubcommand(subcommand => addCommonRollOptions(subcommand.setName('d20').setDescription('Roll a d20 die.')))
+        .addSubcommand(subcommand => addCommonRollOptions(subcommand.setName('d100').setDescription('Roll a d100 die.')))
         .addSubcommand(subcommand => subcommand
             .setName('until')
-            .setDescription('Roll dice until you get a specific number 🎲')
+            .setDescription('Rolls a die until a specific number is rolled 🎲')
             .addNumberOption(option => option
                 .setName('number')
                 .setDescription('The number to roll until (required)')
@@ -64,7 +64,7 @@ export default {
                 .setMaxValue(MAX_UNTIL_SIDES)
             ).addNumberOption(option => option
                 .setName('sides')
-                .setDescription('Number of sides on the dice (required)')
+                .setDescription('The number of sides on the die (required).')
                 .setRequired(true)
                 .setMinValue(1)
                 .setMaxValue(MAX_UNTIL_SIDES)
@@ -92,8 +92,8 @@ export default {
             const endTime = process.hrtime(startTime)
             const duration = endTime[0] * 1000 + endTime[1] / 1000000
             const message = rolls === MAX_ITERATIONS
-                ? `🎲 Rolled ${rolls} times and never got ${targetNumber} on a d${sides} in ${duration}ms! Here are the last 10 rolls: ${rollHistory.slice(-10).join(', ')}`
-                : `🎲 Got ${targetNumber} on a d${sides} after ${rolls} rolls in ${duration}ms! Here are the last 10 rolls: ${rollHistory.slice(-10).join(', ')}`
+                ? `🎲 Rolled ${rolls} times and did not get ${targetNumber} on a d${sides} in ${duration.toFixed(2)}ms. Last 10 rolls: ${rollHistory.slice(-10).join(', ')}`
+                : `🎲 Got ${targetNumber} on a d${sides} after ${rolls} rolls in ${duration.toFixed(2)}ms. Last 10 rolls: ${rollHistory.slice(-10).join(', ')}`
             await ctx.reply(message)
             return
         }
@@ -125,7 +125,7 @@ export default {
 
         const message = action
             ? `${user} rolls ${rollText} (🎲 ${rolls}d${sides}) for ${action}`
-            : `${user} rolls ${rollText} (🎲 ${rolls}d${sides})`
+            : `${user} rolls **${rollText}** (🎲 ${rolls}d${sides})`
 
         await ctx.reply(message)
     }

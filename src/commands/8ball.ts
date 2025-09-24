@@ -13,7 +13,7 @@ const CASCADIA_RESPONSES = [
     'Even Diplomat wouldn\'t risk it.',
     'Too much Cordium in the air, ask again later.',
     'Galaxy gives the green light.',
-    'Negative Hitman 1, you just shot down a civilian airliner.',
+    'Negative, Hitman 1. You just shot down a civilian airliner.',
     'Cascadian command is busy right now, try again.'
 ]
 
@@ -22,7 +22,7 @@ const FEDERATION_RESPONSES = [
     'The Federation confirms it.',
     'As certain as the Federation\'s victory.',
     'Crimson 1 says yes.',
-    'The Federation sees no error.',
+    'The Federation finds no error.',
     'Negative Driver, RTB.',
     'Orange lights across the board, try later.',
     'The winds of the Federation don\'t favor it.',
@@ -43,10 +43,10 @@ const GENERIC_RESPONSES = [
 export default {
     data: new SlashCommandBuilder()
         .setName('8ball')
-        .setDescription('Ask the magic 8ball a question.')
+        .setDescription('Ask the magic 8-ball a question.')
         .addStringOption(option => option
             .setName('question')
-            .setDescription('The question you want to ask the magic 8ball.')
+            .setDescription('The question you want to ask the magic 8-ball.')
             .setRequired(true)
         ).addStringOption(option => option
             .setName('theme')
@@ -77,8 +77,8 @@ export default {
         const response = getRandomElement(finalResponses)
 
         const msgPrefix = `💬 ${ctx.user}: *${question}*\n`
-        const msgAnswer = `🎱 **8ball says:** ${response}`
-        const msgLoading = '🔮 *Shaking the magic 8ball...*'
+        const msgAnswer = `🎱 **8-ball says:** ${response}`
+        const msgLoading = '🔮 *Shaking the magic 8-ball...*'
 
         await ctx.reply(msgPrefix + msgLoading)
         await sleep(randRange(600, 3000))

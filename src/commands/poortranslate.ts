@@ -66,6 +66,6 @@ export default {
 
         const time2 = process.hrtime(time1)
         const elapsedSeconds = (time2[0] + time2[1] / 1e9).toFixed(3)
-        await progressTracker.finish(`**Poorly translated:**\n${inputText}\n**into:**\n${translatedText}\n-# Time: ${elapsedSeconds}s`)
+        await progressTracker.finish(`**Original:**\n${inputText}\n**Poorly Translated:**\n${translatedText}\n-# Time: ${elapsedSeconds}s`)
     }
 } satisfies SlashCommand

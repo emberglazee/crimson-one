@@ -7,7 +7,7 @@ import { type SubtitleGradientType, SUBTITLE_COLORS, SUBTITLE_ROLE_COLORS, SUBTI
 export const slashCommand = {
     data: new SlashCommandBuilder()
         .setName('subtitle')
-        .setDescription('Generate an Ace Combat 7 or Project Wingman-styled subtitle image')
+        .setDescription('Generates an Ace Combat 7 or Project Wingman-styled subtitle image')
         .addStringOption(option => option
             .setName('style')
             .setDescription('The subtitle style to use')
@@ -49,7 +49,7 @@ export const slashCommand = {
             )
         ).addStringOption(option => option
             .setName('gradient')
-            .setDescription('Apply a gradient effect to the speaker\'s name')
+            .setDescription('Applies a gradient effect to the speaker\'s name')
             .setRequired(false)
             .setChoices(
                 { name: 'Trans Flag', value: 'trans' },
@@ -59,15 +59,15 @@ export const slashCommand = {
             )
         ).addBooleanOption(option => option
             .setName('stretch')
-            .setDescription('Stretch the gradient across the entire name instead of repeating it')
+            .setDescription('Stretches the gradient across the entire name instead of repeating it')
             .setRequired(false)
         ).addBooleanOption(option => option
             .setName('continuous_gradient')
-            .setDescription('Make the gradient continuous across multiple lines of the speaker\'s name')
+            .setDescription('Makes the gradient continuous across multiple lines of the speaker\'s name')
             .setRequired(false)
         ).addBooleanOption(option => option
             .setName('interpret_newlines')
-            .setDescription('Convert <newline> tags into line breaks')
+            .setDescription('Converts <newline> tags into line breaks')
             .setRequired(false)
         ),
     async execute(ctx) {
@@ -109,7 +109,7 @@ export const slashCommand = {
 
 export const contextMenuCommandAC7 = {
     data: new ContextMenuCommandBuilder()
-        .setName('Quick Ace Combat 7 subtitle')
+        .setName('Quick Ace Combat 7 Subtitle')
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
     async execute({ deferReply, editReply, guild }, interaction) {
@@ -135,7 +135,7 @@ export const contextMenuCommandAC7 = {
 
 export const contextMenuCommandACZ = {
     data: new ContextMenuCommandBuilder()
-        .setName('Quick Ace Combat Zero subtitle')
+        .setName('Quick Ace Combat Zero Subtitle')
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
     async execute({ deferReply, editReply, guild }, interaction) {
@@ -161,7 +161,7 @@ export const contextMenuCommandACZ = {
 
 export const contextMenuCommandPW = {
     data: new ContextMenuCommandBuilder()
-        .setName('Quick Project Wingman subtitle')
+        .setName('Quick Project Wingman Subtitle')
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
     async execute({ deferReply, editReply, guild }, interaction) {
@@ -187,7 +187,7 @@ export const contextMenuCommandPW = {
 
 export const contextMenuCommandHD2 = {
     data: new ContextMenuCommandBuilder()
-        .setName('Quick Helldivers 2 subtitle')
+        .setName('Quick Helldivers 2 Subtitle')
         .setContexts(InteractionContextType.Guild),
     type: ApplicationCommandType.Message,
     async execute({ deferReply, editReply, guild }, interaction) {

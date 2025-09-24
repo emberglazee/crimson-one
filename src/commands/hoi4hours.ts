@@ -11,7 +11,7 @@ const { STEAM_API_KEY, STEAM_ID } = process.env
 export default {
     data: new SlashCommandBuilder()
         .setName('hoi4hours')
-        .setDescription('Check the Steam API for embi\'s hours in HOI4'),
+        .setDescription('Checks the Steam API for embi\'s hours in HOI4.'),
     async execute(ctx) {
         if (!STEAM_API_KEY || !STEAM_ID) {
             await ctx.reply('❌ Steam API key or ID is not configured for this bot. Please contact the bot owner.')
@@ -52,7 +52,8 @@ export default {
         if (remainingHours > 0) timeString += `${remainingHours}h `
         if (remainingMinutes > 0) timeString += `${remainingMinutes}m`
 
-        await ctx.editReply(`${ctx.pingEmbi} has spent \`${hours}\` hours playing HOI4\nThat's approximately: \`${timeString.trim()}\``)
+        await ctx.editReply(`${ctx.pingEmbi} has spent **${hours}** hours playing Hearts of Iron 4.\nThat's approximately **${timeString.trim()}**.`)
+
     }
 } satisfies SlashCommand
 

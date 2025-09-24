@@ -34,7 +34,7 @@ export class InteractionMessageManager {
             })
 
             // Create a follow-up message that we'll update from now on
-            const followUp = await this.context.followUp('🔄 Continuing operation...\nUpdates will now appear in this message.')
+            const followUp = await this.context.followUp('🔄 Continuing operation... Updates will now appear in this message.')
 
             // If followUp returns void (text command), just return null
             if (!followUp || typeof followUp !== 'object' || !('edit' in followUp)) {
