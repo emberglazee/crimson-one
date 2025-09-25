@@ -63,13 +63,29 @@ export default {
                     part: ['snippet'],
                     videoId: videoId,
                     order: 'time',
-                    maxResults: 1
+                    maxResults: 2
                 })
 
-                const commentThread = response.data.items?.[0]
-                if (!commentThread) {
+                if (!response.data.items || response.data.items.length === 0) {
                     await ctx.editReply('No comments found on this video.')
                     return
+                }
+
+                let commentThread = response.data.items[0]
+
+                // If there are two comments, check if the first one is older than the second.
+                // If so, it's likely a pinned comment, and the second one is the actual newest.
+                if (response.data.items.length > 1) {
+                    const firstComment = response.data.items[0].snippet?.topLevelComment?.snippet
+                    const secondComment = response.data.items[1].snippet?.topLevelComment?.snippet
+
+                    if (firstComment?.publishedAt && secondComment?.publishedAt) {
+                        const firstDate = new Date(firstComment.publishedAt)
+                        const secondDate = new Date(secondComment.publishedAt)
+                        if (firstDate < secondDate) {
+                            commentThread = response.data.items[1]
+                        }
+                    }
                 }
 
                 const comment = commentThread.snippet?.topLevelComment?.snippet
