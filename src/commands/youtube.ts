@@ -67,31 +67,43 @@ export default {
         const subcommand = ctx.getSubcommand()
         if (subcommand === 'newest') {
             try {
-                const response = await youtube.commentThreads.list({
-                    part: ['snippet'],
-                    videoId: videoId,
-                    order: 'time',
-                    maxResults: 2
-                })
+                const [videoResponse, commentThreadResponse] = await Promise.all([
+                    youtube.videos.list({
+                        part: ['snippet'],
+                        id: [videoId]
+                    }),
+                    youtube.commentThreads.list({
+                        part: ['snippet'],
+                        videoId: videoId,
+                        order: 'time',
+                        maxResults: 2
+                    })
+                ])
 
-                if (!response.data.items || response.data.items.length === 0) {
+                if (!commentThreadResponse.data.items || commentThreadResponse.data.items.length === 0) {
                     await ctx.editReply('No comments found on this video.')
                     return
                 }
 
-                let commentThread = response.data.items[0]
+                const video = videoResponse.data.items?.[0]
+                if (!video?.snippet) {
+                    await ctx.editReply('Could not retrieve video details.')
+                    return
+                }
+
+                let commentThread = commentThreadResponse.data.items[0]
 
                 // If there are two comments, check if the first one is older than the second.
                 // If so, it's likely a pinned comment, and the second one is the actual newest.
-                if (response.data.items.length > 1) {
-                    const firstComment = response.data.items[0].snippet?.topLevelComment?.snippet
-                    const secondComment = response.data.items[1].snippet?.topLevelComment?.snippet
+                if (commentThreadResponse.data.items.length > 1) {
+                    const firstComment = commentThreadResponse.data.items[0].snippet?.topLevelComment?.snippet
+                    const secondComment = commentThreadResponse.data.items[1].snippet?.topLevelComment?.snippet
 
                     if (firstComment?.publishedAt && secondComment?.publishedAt) {
                         const firstDate = new Date(firstComment.publishedAt)
                         const secondDate = new Date(secondComment.publishedAt)
                         if (firstDate < secondDate) {
-                            commentThread = response.data.items[1]
+                            commentThread = commentThreadResponse.data.items[1]
                         }
                     }
                 }
@@ -102,15 +114,28 @@ export default {
                     return
                 }
 
-                const embed = new EmbedBuilder()
-                    .setTitle(comment.authorDisplayName ?? 'Unknown Author')
-                    .setThumbnail(comment.authorProfileImageUrl ?? null)
+                const videoEmbed = new EmbedBuilder()
+                    .setAuthor({
+                        name: video.snippet.channelTitle ?? 'Unknown Channel',
+                        url: `https://www.youtube.com/channel/${video.snippet.channelId}`
+                    })
+                    .setTitle(`[${video.snippet.title ?? 'Unknown Video'}](https://youtu.be/${videoId})`)
+                    .setURL(videoUrl)
+                    .setThumbnail(video.snippet.thumbnails?.default?.url ?? null)
+                    .setColor('#FF0000')
+
+                const commentEmbed = new EmbedBuilder()
+                    .setAuthor({
+                        name: comment.authorDisplayName ?? 'Unknown Author',
+                        iconURL: comment.authorProfileImageUrl ?? undefined,
+                        url: comment.authorChannelUrl ?? undefined
+                    })
                     .setDescription(comment.textDisplay ? parseYoutubeTimestamps(comment.textDisplay) : '')
                     .setFooter({ text: `https://www.youtube.com/watch?v=${videoId}&lc=${commentThread.id}` })
                     .setTimestamp(new Date(comment.publishedAt ?? Date.now()))
                     .setColor('#FF0000')
 
-                await ctx.editReply({ embeds: [embed] })
+                await ctx.editReply({ embeds: [videoEmbed, commentEmbed] })
 
             } catch (error) {
                 console.error('Error fetching YouTube comment:', error)
@@ -119,11 +144,17 @@ export default {
         } else if (subcommand === 'earliest') {
             try {
                 const videoResponse = await youtube.videos.list({
-                    part: ['statistics'],
+                    part: ['snippet', 'statistics'],
                     id: [videoId]
                 })
 
-                const commentCount = parseInt(videoResponse.data.items?.[0]?.statistics?.commentCount ?? '0')
+                const video = videoResponse.data.items?.[0]
+                if (!video || !video.snippet || !video.statistics) {
+                    await ctx.editReply('Could not retrieve video details.')
+                    return
+                }
+
+                const commentCount = parseInt(video.statistics.commentCount ?? '0')
 
                 if (commentCount > 20000) {
                     await ctx.editReply('❌ This video has too many (>20,000) comments to fetch the earliest one. This is a bot limitation to prevent excessive API usage.')
@@ -186,15 +217,28 @@ export default {
                     return
                 }
 
-                const embed = new EmbedBuilder()
-                    .setTitle(comment.authorDisplayName ?? 'Unknown Author')
-                    .setThumbnail(comment.authorProfileImageUrl ?? null)
+                const videoEmbed = new EmbedBuilder()
+                    .setAuthor({
+                        name: video.snippet.channelTitle ?? 'Unknown Channel',
+                        url: `https://www.youtube.com/channel/${video.snippet.channelId}`
+                    })
+                    .setTitle(`[${video.snippet.title ?? 'Unknown Video'}](https://youtu.be/${videoId})`)
+                    .setURL(videoUrl)
+                    .setThumbnail(video.snippet.thumbnails?.default?.url ?? null)
+                    .setColor('#FF0000')
+
+                const commentEmbed = new EmbedBuilder()
+                    .setAuthor({
+                        name: comment.authorDisplayName ?? 'Unknown Author',
+                        iconURL: comment.authorProfileImageUrl ?? undefined,
+                        url: comment.authorChannelUrl ?? undefined
+                    })
                     .setDescription(comment.textDisplay ? parseYoutubeTimestamps(comment.textDisplay) : '')
                     .setFooter({ text: `https://www.youtube.com/watch?v=${videoId}&lc=${commentThread.id}` })
                     .setTimestamp(new Date(comment.publishedAt ?? Date.now()))
                     .setColor('#FF0000')
 
-                await ctx.editReply({ embeds: [embed] })
+                await ctx.editReply({ embeds: [videoEmbed, commentEmbed] })
 
             } catch (error) {
                 console.error('Error fetching YouTube comment:', error)
