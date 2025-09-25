@@ -51,11 +51,20 @@ async function findAndReplaceMovies(
     const words = text.split(' ')
     const maxNgramSize = Math.min(words.length, 5)
 
-    // --- Pass 1: Find best EXACT match ---
     const ngramsExact = getNgrams(text, 1, maxNgramSize)
-    let bestExactMatch: { movie: TmdbMovie, ngram: string } | null = null
+    const ngramsFuzzy = getNgrams(text, 2, maxNgramSize)
 
-    for (const ngram of ngramsExact) {
+    if (progress) {
+        progress.total += ngramsExact.length + ngramsFuzzy.length
+    }
+
+    // --- Pass 1: Find best EXACT match ---
+    let bestExactMatch: { movie: TmdbMovie, ngram: string } | null = null
+    let exactMatchIndex = -1
+
+    for (let i = 0; i < ngramsExact.length; i++) {
+        const ngram = ngramsExact[i]
+        exactMatchIndex = i
         const overheadIterationStart = Date.now()
         if (progress) {
             progress.processed++
@@ -81,6 +90,11 @@ async function findAndReplaceMovies(
     }
 
     if (bestExactMatch) {
+        if (progress) {
+            const skippedIterations = (ngramsExact.length - (exactMatchIndex + 1)) + ngramsFuzzy.length
+            progress.total -= skippedIterations
+        }
+
         const { movie, ngram } = bestExactMatch
         const year = movie.release_date ? ` (${movie.release_date.substring(0, 4)})` : ''
         const replacement = `${movie.title}${year}`
@@ -92,7 +106,6 @@ async function findAndReplaceMovies(
     }
 
     // --- Pass 2: Find best FUZZY match (if no exact match found) ---
-    const ngramsFuzzy = getNgrams(text, 2, maxNgramSize) // Only use n-grams of 2 or more words for fuzzy
     let bestFuzzyMatch: { movie: TmdbMovie, ngram: string, distance: number } | null = null
     let lowestDistance = Infinity
 
@@ -191,12 +204,7 @@ export default {
         let progress: { tracker: ProgressTracker, processed: number, total: number } | undefined
         if (useProgress) {
             const tracker = new ProgressTracker(ctx, 'Cinematizing text...')
-            const words = inputText.split(' ')
-            const maxNgramSize = Math.min(words.length, 5)
-            const ngramsExact = getNgrams(inputText, 1, maxNgramSize)
-            const ngramsFuzzy = getNgrams(inputText, 2, maxNgramSize)
-            const total = ngramsExact.length + ngramsFuzzy.length
-            progress = { tracker, processed: 0, total }
+            progress = { tracker, processed: 0, total: 0 }
         }
 
         const timings = {
