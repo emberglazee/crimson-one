@@ -4,6 +4,14 @@ import { google } from 'googleapis'
 
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
 
+function parseYoutubeTimestamps(text: string): string {
+    const regex = /<a href="([^"]+)">([^<]+)<\/a>/g
+    return text.replace(regex, (_match, url, linkText) => {
+        const decodedUrl = url.replace(/&amp;/g, '&')
+        return `[${linkText}](${decodedUrl})`
+    })
+}
+
 export default {
     data: new SlashCommandBuilder()
         .setName('youtube')
@@ -97,7 +105,7 @@ export default {
                 const embed = new EmbedBuilder()
                     .setTitle(comment.authorDisplayName ?? 'Unknown Author')
                     .setThumbnail(comment.authorProfileImageUrl ?? null)
-                    .setDescription(comment.textDisplay ?? '')
+                    .setDescription(comment.textDisplay ? parseYoutubeTimestamps(comment.textDisplay) : '')
                     .setFooter({ text: `https://www.youtube.com/watch?v=${videoId}&lc=${commentThread.id}` })
                     .setTimestamp(new Date(comment.publishedAt ?? Date.now()))
                     .setColor('#FF0000')
@@ -181,7 +189,7 @@ export default {
                 const embed = new EmbedBuilder()
                     .setTitle(comment.authorDisplayName ?? 'Unknown Author')
                     .setThumbnail(comment.authorProfileImageUrl ?? null)
-                    .setDescription(comment.textDisplay ?? '')
+                    .setDescription(comment.textDisplay ? parseYoutubeTimestamps(comment.textDisplay) : '')
                     .setFooter({ text: `https://www.youtube.com/watch?v=${videoId}&lc=${commentThread.id}` })
                     .setTimestamp(new Date(comment.publishedAt ?? Date.now()))
                     .setColor('#FF0000')
@@ -197,7 +205,7 @@ export default {
 } satisfies SlashCommand
 
 function extractVideoId(url: string): string | null {
-    const regex = /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
     const match = url.match(regex)
     return match ? match[1] : null
 }
