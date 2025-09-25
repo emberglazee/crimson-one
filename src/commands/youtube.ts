@@ -10,10 +10,10 @@ export default {
         .setDescription('Interact with YouTube.')
         .addSubcommandGroup(group => group
             .setName('comment')
-            .setDescription('Get comments from a YouTube video.')
+            .setDescription('Interact with YouTube comments.')
             .addSubcommand(subcommand => subcommand
-                .setName('latest')
-                .setDescription('Get the latest comment from a YouTube video.')
+                .setName('newest')
+                .setDescription('Get the newest comment from a YouTube video.')
                 .addStringOption(option => option
                     .setName('youtube_video_url')
                     .setDescription('The URL of the YouTube video.')
@@ -28,7 +28,7 @@ export default {
         }
 
         const subcommand = ctx.getSubcommand()
-        if (subcommand === 'latest') {
+        if (subcommand === 'newest') {
             await ctx.deferReply()
 
             const videoUrl = ctx.getStringOption('youtube_video_url', true)
