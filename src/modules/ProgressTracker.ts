@@ -21,7 +21,7 @@ export class ProgressTracker {
     }
 
     private createProgressBar(progress: number, barLength = 20): string {
-        const filledLength = Math.round(barLength * progress)
+        const filledLength = Math.max(0, Math.min(barLength, Math.round(barLength * progress)))
         const bar = '█'.repeat(filledLength) + '░'.repeat(barLength - filledLength)
         const percentage = (progress * 100).toFixed(1)
         return `${bar} ${percentage}%`
