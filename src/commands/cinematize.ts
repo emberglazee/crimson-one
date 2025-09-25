@@ -1,5 +1,5 @@
 import { SlashCommand } from '../types'
-import { SlashCommandBuilder } from 'discord.js'
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js'
 import { distance } from 'fastest-levenshtein'
 import { ProgressTracker } from '../modules'
 
@@ -41,7 +41,11 @@ async function searchTmdb(query: string): Promise<TmdbMovie[]> {
     return data.results
 }
 
-async function findAndReplaceMovies(text: string, progress?: { tracker: ProgressTracker, processed: number, total: number }): Promise<string> {
+async function findAndReplaceMovies(
+    text: string,
+    progress?: { tracker: ProgressTracker, processed: number, total: number },
+    timings?: { tmdbApiLatencies: number[], algorithmOverheads: number[] }
+): Promise<string> {
     if (!text.trim()) return text
 
     const words = text.split(' ')
@@ -52,13 +56,24 @@ async function findAndReplaceMovies(text: string, progress?: { tracker: Progress
     let bestExactMatch: { movie: TmdbMovie, ngram: string } | null = null
 
     for (const ngram of ngramsExact) {
+        const overheadIterationStart = Date.now()
         if (progress) {
             progress.processed++
             await progress.tracker.update({ current: progress.processed, total: progress.total, statusText: `Searching for exact match: "${ngram}"` })
         }
+
+        const apiCallStart = Date.now()
         const movies = await searchTmdb(ngram)
+        if (timings) timings.tmdbApiLatencies.push(Date.now() - apiCallStart)
+
         if (progress) progress.tracker.recordStep() // Record step time after API call
         const exactMatchMovie = movies.find(movie => movie.title.toLowerCase() === ngram.toLowerCase())
+
+        if (timings) {
+            const apiLatency = timings.tmdbApiLatencies[timings.tmdbApiLatencies.length - 1] || 0
+            timings.algorithmOverheads.push(Date.now() - overheadIterationStart - apiLatency)
+        }
+
         if (exactMatchMovie) {
             bestExactMatch = { movie: exactMatchMovie, ngram }
             break // Since ngrams are longest to shortest, first exact match is the best one.
@@ -73,7 +88,7 @@ async function findAndReplaceMovies(text: string, progress?: { tracker: Progress
         const beforeText = text.substring(0, matchIndex)
         const afterText = text.substring(matchIndex + ngram.length)
 
-        return (await findAndReplaceMovies(beforeText, progress)) + replacement + (await findAndReplaceMovies(afterText, progress))
+        return (await findAndReplaceMovies(beforeText, progress, timings)) + replacement + (await findAndReplaceMovies(afterText, progress, timings))
     }
 
     // --- Pass 2: Find best FUZZY match (if no exact match found) ---
@@ -82,13 +97,24 @@ async function findAndReplaceMovies(text: string, progress?: { tracker: Progress
     let lowestDistance = Infinity
 
     for (const ngram of ngramsFuzzy) {
+        const overheadIterationStart = Date.now()
         if (progress) {
             progress.processed++
             await progress.tracker.update({ current: progress.processed, total: progress.total, statusText: `Searching for fuzzy match: "${ngram}"` })
         }
+
+        const apiCallStart = Date.now()
         const movies = await searchTmdb(ngram)
+        if (timings) timings.tmdbApiLatencies.push(Date.now() - apiCallStart)
+
         if (progress) progress.tracker.recordStep() // Record step time after API call
-        if (movies.length === 0) continue
+        if (movies.length === 0) {
+            if (timings) {
+                const apiLatency = timings.tmdbApiLatencies[timings.tmdbApiLatencies.length - 1] || 0
+                timings.algorithmOverheads.push(Date.now() - overheadIterationStart - apiLatency)
+            }
+            continue
+        }
 
         for (const movie of movies) {
             if (!movie.title) continue
@@ -103,6 +129,10 @@ async function findAndReplaceMovies(text: string, progress?: { tracker: Progress
                 lowestDistance = currentDistance
                 bestFuzzyMatch = { movie, ngram, distance: currentDistance }
             }
+        }
+        if (timings) {
+            const apiLatency = timings.tmdbApiLatencies[timings.tmdbApiLatencies.length - 1] || 0
+            timings.algorithmOverheads.push(Date.now() - overheadIterationStart - apiLatency)
         }
     }
 
@@ -121,7 +151,7 @@ async function findAndReplaceMovies(text: string, progress?: { tracker: Progress
             const beforeText = text.substring(0, matchIndex)
             const afterText = text.substring(matchIndex + ngram.length)
 
-            return (await findAndReplaceMovies(beforeText, progress)) + replacement + (await findAndReplaceMovies(afterText, progress))
+            return (await findAndReplaceMovies(beforeText, progress, timings)) + replacement + (await findAndReplaceMovies(afterText, progress, timings))
         }
     }
 
@@ -145,7 +175,9 @@ export default {
             return
         }
 
+        const creationTimestamp = ctx.interaction?.createdTimestamp ?? ctx.message!.createdTimestamp
         await ctx.deferReply()
+        const commandLatency = Date.now() - creationTimestamp
 
         const inputText = ctx.getStringOption('text', true)
 
@@ -161,12 +193,38 @@ export default {
             progress = { tracker, processed: 0, total }
         }
 
-        const correctedText = await findAndReplaceMovies(inputText, progress)
+        const timings = {
+            tmdbApiLatencies: [] as number[],
+            algorithmOverheads: [] as number[]
+        }
+
+        const totalTimeStart = Date.now()
+        const correctedText = await findAndReplaceMovies(inputText, progress, timings)
+        const totalTime = Date.now() - totalTimeStart
 
         if (progress) {
             await progress.tracker.finish(correctedText)
         } else {
             await ctx.editReply(correctedText)
+        }
+
+        if (ctx.botSettingsManager.isDebugModeEnabled()) {
+            const { tmdbApiLatencies, algorithmOverheads } = timings
+            const avgTmdbLatency = tmdbApiLatencies.length > 0 ? tmdbApiLatencies.reduce((a, b) => a + b, 0) / tmdbApiLatencies.length : 0
+            const avgAlgoOverhead = algorithmOverheads.length > 0 ? algorithmOverheads.reduce((a, b) => a + b, 0) / algorithmOverheads.length : 0
+
+            const embed = new EmbedBuilder()
+                .setTitle('Cinematize Debug Timings')
+                .addFields(
+                    { name: 'Command Latency', value: `${commandLatency}ms`, inline: true },
+                    { name: 'Total Time', value: `${totalTime}ms`, inline: true },
+                    { name: 'Avg TMDB API Latency', value: `${avgTmdbLatency.toFixed(2)}ms (${tmdbApiLatencies.length} calls)`, inline: false },
+                    { name: 'Avg Algorithm Overhead', value: `${avgAlgoOverhead.toFixed(2)}ms (${algorithmOverheads.length} iterations)`, inline: false }
+                )
+                .setColor('#FFFF00')
+                .setTimestamp()
+
+            await ctx.followUp({ embeds: [embed] })
         }
     }
 } satisfies SlashCommand
