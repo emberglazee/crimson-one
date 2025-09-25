@@ -168,6 +168,7 @@ export default {
             .setName('text')
             .setDescription('The text to process.')
             .setRequired(true)
+            .setMaxLength(1000)
         ),
     async execute(ctx) {
         if (!process.env.TMDB_API_KEY) {
@@ -180,6 +181,11 @@ export default {
         const commandLatency = Date.now() - creationTimestamp
 
         const inputText = ctx.getStringOption('text', true)
+
+        if (inputText.length > 1000) {
+            await ctx.reply({ content: '❌ The input text cannot be longer than 1000 characters.', ephemeral: true })
+            return
+        }
 
         const useProgress = inputText.length > 40
         let progress: { tracker: ProgressTracker, processed: number, total: number } | undefined
