@@ -4,12 +4,18 @@ import { google } from 'googleapis'
 
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
 
-function parseYoutubeTimestamps(text: string): string {
+function formatYoutubeComment(text: string): string {
     const regex = /<a href="([^"]+)">([^<]+)<\/a>/g
-    return text.replace(regex, (_match, url, linkText) => {
+    let decodedText = text.replace(regex, (_match, url, linkText) => {
         const decodedUrl = url.replace(/&amp;/g, '&')
         return `[${linkText}](${decodedUrl})`
     })
+    decodedText = decodedText.replace(/&#39;/g, '\'')
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+    return decodedText
 }
 
 export default {
@@ -130,7 +136,7 @@ export default {
                         iconURL: comment.authorProfileImageUrl ?? undefined,
                         url: comment.authorChannelUrl ?? undefined
                     })
-                    .setDescription(comment.textDisplay ? parseYoutubeTimestamps(comment.textDisplay) : '')
+                    .setDescription(comment.textDisplay ? formatYoutubeComment(comment.textDisplay) : '')
                     .setFooter({ text: `https://www.youtube.com/watch?v=${videoId}&lc=${commentThread.id}` })
                     .setTimestamp(new Date(comment.publishedAt ?? Date.now()))
                     .setColor('#FF0000')
@@ -233,7 +239,7 @@ export default {
                         iconURL: comment.authorProfileImageUrl ?? undefined,
                         url: comment.authorChannelUrl ?? undefined
                     })
-                    .setDescription(comment.textDisplay ? parseYoutubeTimestamps(comment.textDisplay) : '')
+                    .setDescription(comment.textDisplay ? formatYoutubeComment(comment.textDisplay) : '')
                     .setFooter({ text: `https://www.youtube.com/watch?v=${videoId}&lc=${commentThread.id}` })
                     .setTimestamp(new Date(comment.publishedAt ?? Date.now()))
                     .setColor('#FF0000')
