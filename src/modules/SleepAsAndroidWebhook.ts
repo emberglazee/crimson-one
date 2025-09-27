@@ -17,7 +17,6 @@ type SleepWebhookEvents = {
 @singleton()
 export class SleepAsAndroidWebhookManager extends EventEmitter<SleepWebhookEvents> {
     private server: Server
-    private secret: string = ''
     private port: number = 0
     private channel: TextChannel | null = null
 
@@ -28,10 +27,8 @@ export class SleepAsAndroidWebhookManager extends EventEmitter<SleepWebhookEvent
 
     public setWebhookOptions(options: {
         port: number
-        secret: string
     }): SleepAsAndroidWebhookManager {
         this.port = options.port
-        this.secret = options.secret
         return this
     }
 
@@ -72,11 +69,29 @@ export class SleepAsAndroidWebhookManager extends EventEmitter<SleepWebhookEvent
             return
         }
 
-        const receivedSecret = req.headers['x-sleep-secret'] // Custom header for the secret
+        const expectedUsername = process.env.SLEEP_WEBHOOK_USERNAME
+        const expectedPassword = process.env.SLEEP_WEBHOOK_PASSWORD
 
-        if (!receivedSecret || Array.isArray(receivedSecret)) {
-            res.writeHead(400, { 'Content-Type': 'text/plain' })
-            res.end('Missing or invalid x-sleep-secret header')
+        if (!expectedUsername || !expectedPassword) {
+            logger.error('SLEEP_WEBHOOK_USERNAME or SLEEP_WEBHOOK_PASSWORD not set in environment variables.')
+            res.writeHead(500, { 'Content-Type': 'text/plain' })
+            res.end('Server configuration error.')
+            return
+        }
+
+        const authHeader = req.headers.authorization
+        if (!authHeader || !authHeader.startsWith('Basic ')) {
+            res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="SleepAsAndroid Webhook"' })
+            res.end('Unauthorized')
+            return
+        }
+
+        const credentials = Buffer.from(authHeader.slice(6), 'base64').toString('utf-8')
+        const [username, password] = credentials.split(':')
+
+        if (username !== expectedUsername || password !== expectedPassword) {
+            res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="SleepAsAndroid Webhook"' })
+            res.end('Unauthorized')
             return
         }
 
@@ -88,11 +103,6 @@ export class SleepAsAndroidWebhookManager extends EventEmitter<SleepWebhookEvent
         req.on('end', () => {
             try {
                 console.log(payload)
-                if (receivedSecret !== this.secret) {
-                    res.writeHead(401, { 'Content-Type': 'text/plain' })
-                    res.end('Invalid secret')
-                    return
-                }
 
                 const parsedPayload = JSON.parse(payload)
                 // Validate payload format: { event: string, [valueX: string]: string }

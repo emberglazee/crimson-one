@@ -74,8 +74,7 @@ client.once('ready', async () => {
 
     const sleepWebhook = sleepAsAndroidWebhookManager
         .setWebhookOptions({
-            port: Number(process.env.SLEEP_WEBHOOK_PORT) || 99603,
-            secret: process.env.SLEEP_WEBHOOK_SECRET!
+            port: Number(process.env.SLEEP_WEBHOOK_PORT) || 99603
         })
     await sleepWebhook.init()
 
