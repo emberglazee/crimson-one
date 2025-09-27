@@ -48,7 +48,7 @@ export class SleepAsAndroidWebhookManager extends EventEmitter<SleepWebhookEvent
                 .setTitle(payload.event)
                 .setAuthor({
                     name: 'Sleep as Android',
-                    iconURL: 'https://docs.sleep.urbandroid.org/assets/images/logo.png',
+                    iconURL: 'https://cdn.discordapp.com/attachments/982138135653793804/1421619724629835876/8T390CJk1L29Cq3POAzSCHhxYg7AqUCKam8xSHc-sEtIL5RQNVv77ZzKFbMU3pXFFA4w3840-896402765.png?ex=68d9b20a&is=68d8608a&hm=d6d8e2174be73453b055c2afdbfacbe63be46ee448e8d4a5d42760243e3280c6&',
                     url: 'https://play.google.com/store/apps/details?id=com.urbandroid.sleep'
                 })
                 .setColor('#7289DA') // Discord blurple color
@@ -65,12 +65,7 @@ export class SleepAsAndroidWebhookManager extends EventEmitter<SleepWebhookEvent
                         { name: '📛 Alarm Name', value: alarmName, inline: true },
                         { name: '⌛ Rescheduled To', value: date.toLocaleString('ru', { timeZone: 'Europe/Moscow' }), inline: true }
                     )
-                } else {
-                    embed.setDescription('❌ Alarm turned off.')
-                    embed.addFields(
-                        { name: '📛 Alarm Name', value: alarmName, inline: true }
-                    )
-                }
+                } else embed.setDescription('❌ Alarm turned off.')
             } else {
                 for (const key in payload) {
                     if (key !== 'event') {
