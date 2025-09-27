@@ -63,7 +63,7 @@ export class SleepAsAndroidWebhookManager extends EventEmitter<SleepWebhookEvent
                     const date = new Date(parseInt(timestamp))
                     embed.addFields(
                         { name: '📛 Alarm Name', value: alarmName, inline: true },
-                        { name: '⌛ Rescheduled To', value: date.toLocaleString(), inline: true }
+                        { name: '⌛ Rescheduled To', value: date.toLocaleString('ru', { timeZone: 'Europe/Moscow' }), inline: true }
                     )
                 } else {
                     embed.setDescription('❌ Alarm turned off.')
