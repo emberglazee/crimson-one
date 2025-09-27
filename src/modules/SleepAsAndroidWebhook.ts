@@ -54,9 +54,28 @@ export class SleepAsAndroidWebhookManager extends EventEmitter<SleepWebhookEvent
                 .setColor('#7289DA') // Discord blurple color
                 .setTimestamp()
 
-            for (const key in payload) {
-                if (key !== 'event') {
-                    embed.addFields({ name: key, value: payload[key], inline: true })
+            if (payload.event === 'alarm_rescheduled') {
+                embed.setTitle('⏰ Alarm changed')
+                const timestamp = payload.value1
+                const alarmName = payload.value2 || 'Default Alarm'
+
+                if (timestamp) {
+                    const date = new Date(parseInt(timestamp))
+                    embed.addFields(
+                        { name: '📛 Alarm Name', value: alarmName, inline: true },
+                        { name: '⌛ Rescheduled To', value: date.toLocaleString(), inline: true }
+                    )
+                } else {
+                    embed.setDescription('❌ Alarm turned off.')
+                    embed.addFields(
+                        { name: '📛 Alarm Name', value: alarmName, inline: true }
+                    )
+                }
+            } else {
+                for (const key in payload) {
+                    if (key !== 'event') {
+                        embed.addFields({ name: key, value: payload[key], inline: true })
+                    }
                 }
             }
 
