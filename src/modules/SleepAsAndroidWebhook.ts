@@ -45,7 +45,12 @@ export class SleepAsAndroidWebhookManager extends EventEmitter<SleepWebhookEvent
         this.on('sleepEvent', async payload => {
             logger.info(`Received Sleep as Android event: ${yellow(payload.event)}`)
             const embed = new EmbedBuilder()
-                .setTitle(`Sleep as Android Event: ${payload.event}`)
+                .setTitle(payload.event)
+                .setAuthor({
+                    name: 'Sleep as Android',
+                    iconURL: 'https://docs.sleep.urbandroid.org/assets/images/logo.png',
+                    url: 'https://play.google.com/store/apps/details?id=com.urbandroid.sleep'
+                })
                 .setColor('#7289DA') // Discord blurple color
                 .setTimestamp()
 
