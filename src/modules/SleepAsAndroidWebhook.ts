@@ -1,20 +1,24 @@
 import { singleton, inject } from 'tsyringe'
 import { Logger } from './Logger'
 import { yellow } from '../util/colors'
-const logger = new Logger('GithubWebhook')
+const logger = new Logger('SleepAsAndroidWebhook')
 
 import { EventEmitter } from 'tseep'
 import type { IncomingMessage, Server, ServerResponse } from 'http'
 import { createServer } from 'http'
-import crypto from 'crypto'
 import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
-import type { GithubWebhookEvents } from '../types'
+
+// Define a custom event type for Sleep as Android events
+type SleepWebhookEvents = {
+    sleepEvent: (payload: { event: string, [key: string]: string }) => void
+    error: (error: Error) => void
+} & { [key: string]: (...args: unknown[]) => void }
 
 @singleton()
-export class GithubWebhookManager extends EventEmitter<GithubWebhookEvents> {
+export class SleepAsAndroidWebhookManager extends EventEmitter<SleepWebhookEvents> {
     private server: Server
     private secret: string = ''
-    private port: number = 3000
+    private port: number = 0
     private channel: TextChannel | null = null
 
     public constructor(@inject('Client') private client: Client) {
@@ -25,7 +29,7 @@ export class GithubWebhookManager extends EventEmitter<GithubWebhookEvents> {
     public setWebhookOptions(options: {
         port: number
         secret: string
-    }): GithubWebhookManager {
+    }): SleepAsAndroidWebhookManager {
         this.port = options.port
         this.secret = options.secret
         return this
@@ -35,44 +39,30 @@ export class GithubWebhookManager extends EventEmitter<GithubWebhookEvents> {
         if (!this.client) {
             throw new Error('Client not set. Call setClient() first.')
         }
+        // Using the same channel as GithubWebhook for now, can be made configurable later
         this.channel = await this.client.channels.fetch('1331556083776487444') as TextChannel
         if (!this.channel) {
             throw new Error('Could not find webhook channel')
         }
 
-        // Set up event handlers for different types of webhook events
-        this.on('push', async payload => {
-            let description = ''
-            if (payload.commits && payload.commits.length > 0) {
-                description = payload.commits.map(commit =>
-                    `[${commit.id.substring(0, 7)}](${commit.url}) - ${commit.message}`
-                ).join('\n')
-            } else if (payload.head_commit) {
-                description = `[${payload.head_commit.id.substring(0, 7)}](${payload.head_commit.url}) - ${payload.head_commit.message}`
-            } else {
-                description = 'No commit information.'
-            }
-
+        this.on('sleepEvent', async payload => {
+            logger.info(`Received Sleep as Android event: ${yellow(payload.event)}`)
             const embed = new EmbedBuilder()
-                .setAuthor({
-                    name: payload.repository.name,
-                    iconURL: this.client!.user!.displayAvatarURL()
-                })
-                .setTitle('Push Event')
-                .setDescription(description)
-                .setTimestamp(new Date(payload.head_commit?.timestamp || Date.now()))
+                .setTitle(`Sleep as Android Event: ${payload.event}`)
+                .setColor('#7289DA') // Discord blurple color
+                .setTimestamp()
+
+            for (const key in payload) {
+                if (key !== 'event') {
+                    embed.addFields({ name: key, value: payload[key], inline: true })
+                }
+            }
 
             await this.channel?.send({ embeds: [embed] })
         })
 
         await this.start()
-        logger.ok(`Github webhook initialized and listening on port ${yellow(this.port)}`)
-    }
-
-    private verifySignature(payload: string, signature: string): boolean {
-        const hmac = crypto.createHmac('sha256', this.secret)
-        const digest = 'sha256=' + hmac.update(payload).digest('hex')
-        return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest))
+        logger.ok(`Sleep as Android webhook initialized and listening on port ${yellow(this.port)}`)
     }
 
     private async handleRequest(req: IncomingMessage, res: ServerResponse) {
@@ -82,12 +72,11 @@ export class GithubWebhookManager extends EventEmitter<GithubWebhookEvents> {
             return
         }
 
-        const signature = req.headers['x-hub-signature-256']
-        const event = req.headers['x-github-event']
+        const receivedSecret = req.headers['x-sleep-secret'] // Custom header for the secret
 
-        if (!signature || !event || Array.isArray(signature) || Array.isArray(event)) {
+        if (!receivedSecret || Array.isArray(receivedSecret)) {
             res.writeHead(400, { 'Content-Type': 'text/plain' })
-            res.end('Missing required headers')
+            res.end('Missing or invalid x-sleep-secret header')
             return
         }
 
@@ -98,14 +87,22 @@ export class GithubWebhookManager extends EventEmitter<GithubWebhookEvents> {
 
         req.on('end', () => {
             try {
-                if (!this.verifySignature(payload, signature)) {
+                console.log(payload)
+                if (receivedSecret !== this.secret) {
                     res.writeHead(401, { 'Content-Type': 'text/plain' })
-                    res.end('Invalid signature')
+                    res.end('Invalid secret')
                     return
                 }
 
                 const parsedPayload = JSON.parse(payload)
-                this.emit(event as keyof GithubWebhookEvents, parsedPayload)
+                // Validate payload format: { event: string, [valueX: string]: string }
+                if (typeof parsedPayload.event !== 'string') {
+                    res.writeHead(400, { 'Content-Type': 'text/plain' })
+                    res.end('Invalid payload format: missing or invalid "event" field')
+                    return
+                }
+
+                this.emit('sleepEvent', parsedPayload)
 
                 res.writeHead(200, { 'Content-Type': 'text/plain' })
                 res.end('OK')

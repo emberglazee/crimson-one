@@ -52,7 +52,7 @@ export interface GitHubPushEvent {
     commits: GitHubCommit[]
 }
 
-export type WebhookEvents = {
+export type GithubWebhookEvents = {
     push: (payload: GitHubPushEvent) => void
 } & {
     [key: string]: (...args: unknown[]) => void

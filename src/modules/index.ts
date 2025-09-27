@@ -23,3 +23,4 @@ export { BotSettingsManager } from './BotSettingsManager'
 
 export { InteractionMessageManager } from './InteractionMessageManager'
 export { ProgressTracker } from './ProgressTracker'
+export { SleepAsAndroidWebhookManager } from './SleepAsAndroidWebhook'

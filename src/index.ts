@@ -7,7 +7,7 @@ logger.info('Starting bot')
 
 import {
     SubtitleThreadManager, GracefulShutdown, TagManager, DashboardServer, CrimsonChat,
-    GuildConfigManager, GithubWebhookManager, CommandManager, BanishmentManager
+    GuildConfigManager, GithubWebhookManager, CommandManager, BanishmentManager, SleepAsAndroidWebhookManager
 } from './modules'
 
 import { readdir } from 'fs/promises'
@@ -46,9 +46,9 @@ container.register<Client>('Client', { useValue: client })
 
 // Resolve all services from the container
 const [
-    commandManager, gracefulShutdown, dashboardServer, guildConfigManager, banishmentManager, tagManager, crimsonChat, githubWebhookManager, subtitleThreadManager, messageTrigger
+    commandManager, gracefulShutdown, dashboardServer, guildConfigManager, banishmentManager, tagManager, crimsonChat, githubWebhookManager, subtitleThreadManager, messageTrigger, sleepAsAndroidWebhookManager
 ] = resolveServices(container,
-    CommandManager, GracefulShutdown, DashboardServer, GuildConfigManager, BanishmentManager, TagManager, CrimsonChat, GithubWebhookManager, SubtitleThreadManager, MessageTrigger
+    CommandManager, GracefulShutdown, DashboardServer, GuildConfigManager, BanishmentManager, TagManager, CrimsonChat, GithubWebhookManager, SubtitleThreadManager, MessageTrigger, SleepAsAndroidWebhookManager
 )
 
 client.once('ready', async () => {
@@ -71,6 +71,13 @@ client.once('ready', async () => {
             secret: process.env.GITHUB_WEBHOOK_SECRET!
         })
     await webhook.init()
+
+    const sleepWebhook = sleepAsAndroidWebhookManager
+        .setWebhookOptions({
+            port: Number(process.env.SLEEP_WEBHOOK_PORT) || 99603,
+            secret: process.env.SLEEP_WEBHOOK_SECRET!
+        })
+    await sleepWebhook.init()
 
     await subtitleThreadManager.init()
 
