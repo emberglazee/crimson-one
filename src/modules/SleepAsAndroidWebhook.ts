@@ -10,7 +10,7 @@ import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
 
 // Define a custom event type for Sleep as Android events
 type SleepWebhookEvents = {
-    sleepEvent: (payload: { event: string, [key: string]: string }) => void
+    sleepEvent: (payload: { event: string, [key: string]: string | undefined }) => void
     error: (error: Error) => void
 } & { [key: string]: (...args: unknown[]) => void }
 
@@ -54,24 +54,69 @@ export class SleepAsAndroidWebhookManager extends EventEmitter<SleepWebhookEvent
                 .setColor('#7289DA') // Discord blurple color
                 .setTimestamp()
 
-            if (payload.event === 'alarm_rescheduled') {
-                embed.setTitle('⏰ Alarm changed')
-                const timestamp = payload.value1
-                const alarmName = payload.value2 || 'Default Alarm'
+            switch (payload.event) {
+                case 'alarm_rescheduled': {
+                    embed.setTitle('⏰ Alarm changed')
+                    const timestamp = payload.value1
+                    const alarmName = payload.value2 || 'Default Alarm'
 
-                if (timestamp) {
-                    const date = new Date(parseInt(timestamp))
-                    embed.addFields(
-                        { name: '📛 Alarm Name', value: alarmName, inline: true },
-                        { name: '⌛ Rescheduled To', value: date.toLocaleString('ru', { timeZone: 'Europe/Moscow' }), inline: true }
-                    )
-                } else embed.setDescription('❌ Alarm turned off.')
-            } else {
-                for (const key in payload) {
-                    if (key !== 'event') {
-                        embed.addFields({ name: key, value: payload[key], inline: true })
-                    }
+                    if (timestamp) {
+                        const date = new Date(parseInt(timestamp))
+                        embed.addFields(
+                            { name: '📛 Alarm Name', value: alarmName, inline: true },
+                            { name: '⌛ Rescheduled To', value: date.toLocaleString('ru', { timeZone: 'Europe/Moscow' }), inline: true }
+                        )
+                    } else embed.setDescription('❌ Alarm turned off.')
+                    break
                 }
+                case 'sleep_tracking_started':
+                    embed.setTitle('😴 Sleep tracking started')
+                    break
+                case 'sleep_tracking_stopped':
+                    embed.setTitle('😴 Sleep tracking stopped')
+                    break
+                case 'before_smart_period': {
+                    embed.setTitle('😴 Smart period about to start')
+                    embed.setDescription('🔎 Finding an optimal moment to wake up based on sleep phases')
+
+                    const timestamp = payload.value1
+                    const alarmName = payload.value2 || 'Default Alarm'
+
+                    if (alarmName) embed.addFields({ name: '📛 Alarm Name', value: alarmName, inline: true })
+                    if (timestamp) {
+                        const date = new Date(parseInt(timestamp))
+                        embed.addFields({ name: '⌛ Set to', value: date.toLocaleString('ru', { timeZone: 'Europe/Moscow' }), inline: true })
+                    }
+                    break
+                }
+                case 'before_alarm':
+                    embed.setTitle('⏰ Alarm about to go off')
+                    break
+                case 'smart_period':
+                    embed.setTitle('😴🔎 Smart period started')
+                    break
+                case 'alarm_alert_started':
+                    embed.setTitle('⏰ Alarm alert started')
+                    break
+                case 'alarm_alert_dismiss':
+                    embed.setTitle('⏰ Alarm alert dismissed')
+                    break
+                case 'light_sleep':
+                    embed.setTitle('😴 Entered light sleep phase')
+                    break
+                case 'deep_sleep':
+                    embed.setTitle('😴 Entered deep sleep phase')
+                    break
+                case 'rem':
+                    embed.setTitle('😴 Entered REM sleep phase')
+                    break
+                default:
+                    for (const key in payload) {
+                        if (key !== 'event' && payload[key]) {
+                            embed.addFields({ name: key, value: payload[key], inline: true })
+                        }
+                    }
+                    break
             }
 
             await this.channel?.send({ embeds: [embed] })
