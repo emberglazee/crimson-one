@@ -101,7 +101,7 @@ export class CrimsonChatState {
                 : msg.content
             return acc + Math.ceil((content || '').length / 4)
         }, 0)
-        logger.info(`Recalculated total tokens: ${yellow(this.currentTokenCount)}`)
+        logger.debug(`Recalculated total tokens: ${yellow(this.currentTokenCount)}`)
     }
 
     private async pruneHistory(): Promise<void> {
@@ -111,7 +111,7 @@ export class CrimsonChatState {
             if (this.history.length > totalAllowed) {
                 const excess = this.history.length - totalAllowed
                 this.history.splice(foundationSize, excess)
-                logger.info(`Pruned message history to the last ${this.messageLimit} messages.`)
+                logger.debug(`Pruned message history to the last ${this.messageLimit} messages.`)
             }
         } else if (this.limitMode === 'tokens') {
             const foundationSize = getCrimsonChatHistoryFoundation().length
@@ -130,7 +130,7 @@ export class CrimsonChatState {
                     this.currentTokenCount -= Math.ceil((content || '').length / 4)
                 }
             }
-            logger.info(`Pruned history to ~${yellow(this.currentTokenCount)} tokens.`)
+            logger.debug(`Pruned history to ~${yellow(this.currentTokenCount)} tokens.`)
         }
     }
 
@@ -216,7 +216,7 @@ export class CrimsonChatState {
 
             await this.updateTotalTokenCount()
             this.initialized = true
-            logger.info(`CrimsonChat state loaded successfully with ${yellow(this.history.length)} messages and ~${yellow(this.currentTokenCount)} tokens.`)
+            logger.debug(`CrimsonChat state loaded successfully with ${yellow(this.history.length)} messages and ~${yellow(this.currentTokenCount)} tokens.`)
         } catch (e) {
             logger.warn(`No existing state file found, starting fresh. Error: ${e}`)
             this.systemPrompt = CRIMSON_CHAT_SYSTEM_PROMPT
