@@ -355,7 +355,8 @@ export function formatYoutubeComment(text: string): string {
         const decodedUrl = url.replace(/&amp;/g, '&')
         return `[${linkText}](${decodedUrl})`
     })
-    decodedText = decodedText.replace(/&#39;/g, "'")
+    decodedText = decodedText.replace(/<br\s*\/?>/g, '\n')
+        .replace(/&#39;/g, "'")
         .replace(/&quot;/g, '"')
         .replace(/&amp;/g, '&')
         .replace(/&lt;/g, '<')
