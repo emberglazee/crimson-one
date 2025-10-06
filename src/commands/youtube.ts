@@ -1,22 +1,10 @@
 import { SlashCommand } from '../types'
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js'
 import { google } from 'googleapis'
+import { extractVideoId, formatYoutubeComment } from '../util/functions'
 
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
 
-function formatYoutubeComment(text: string): string {
-    const regex = /<a href="([^"]+)">([^<]+)<\/a>/g
-    let decodedText = text.replace(regex, (_match, url, linkText) => {
-        const decodedUrl = url.replace(/&amp;/g, '&')
-        return `[${linkText}](${decodedUrl})`
-    })
-    decodedText = decodedText.replace(/&#39;/g, '\'')
-        .replace(/&quot;/g, '"')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-    return decodedText
-}
 
 export default {
     data: new SlashCommandBuilder()

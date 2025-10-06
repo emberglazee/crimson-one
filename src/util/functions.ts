@@ -325,7 +325,7 @@ interface ServiceClass<T> {
  * @param services An array of service classes to resolve.
  * @returns An array of resolved service instances, maintaining tuple order.
  */
-export function resolveServices<T extends readonly ServiceClass<any>[]>(
+export function resolveServices<T extends readonly ServiceClass<any>[] >(
     container: DependencyContainer,
     ...services: T
 ): { [K in keyof T]: T[K] extends ServiceClass<infer I> ? I : never } {
@@ -337,4 +337,26 @@ export function toFeetInches(value: any): `${number}'${number}` {
     const feet = Math.floor(inches / 12)
     const remainingInches = inches % 12
     return `${feet}'${remainingInches}`
+}
+
+// --- YouTube Utilities ---
+
+export function extractVideoId(url: string): string | null {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/ 
+    const match = url.match(regex)
+    return match ? match[1] : null
+}
+
+export function formatYoutubeComment(text: string): string {
+    const regex = /<a href="([^"]+)">([^<]+)<\/a>/g
+    let decodedText = text.replace(regex, (_match, url, linkText) => {
+        const decodedUrl = url.replace(/&amp;/g, '&')
+        return `[${linkText}](${decodedUrl})`
+    })
+    decodedText = decodedText.replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+    return decodedText
 }

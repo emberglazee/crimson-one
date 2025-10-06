@@ -4,11 +4,83 @@ const logger = new Logger('/markov')
 
 import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, InteractionContextType } from 'discord.js'
 
-import { formatTimeRemaining } from '../util/functions'
+import { formatTimeRemaining, extractVideoId, formatYoutubeComment } from '../util/functions'
 import { SlashCommand } from '../types'
+import { google } from 'googleapis'
+import { RustMarkovChain } from '../modules/MarkovChain/RustChain'
 
 // To prevent multiple concurrent collections
 let isCollectingAll = false
+
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
+const youtubeCommentCache = new Map<string, { comments: string[], timestamp: number }>()
+const CACHE_TTL = 60 * 60 * 1000 // 1 hour
+
+async function getYouTubeComments(videoId: string, ctx: CommandContext<true>): Promise<string[]> {
+    const cached = youtubeCommentCache.get(videoId)
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+        logger.info(`Using cached comments for video ID ${videoId}`)
+        await ctx.editReply(`✅ Using ${cached.comments.length} cached comments.`)
+        return cached.comments
+    }
+
+    const youtube = google.youtube({
+        version: 'v3',
+        auth: YOUTUBE_API_KEY
+    })
+
+    const videoResponse = await youtube.videos.list({
+        part: ['statistics'],
+        id: [videoId]
+    })
+
+    const video = videoResponse.data.items?.[0]
+    if (!video || !video.statistics) {
+        throw new Error('Could not retrieve video details.')
+    }
+
+    const commentCount = parseInt(video.statistics.commentCount ?? '0')
+
+    if (commentCount === 0) {
+        return []
+    }
+
+    const progressTracker = new ProgressTracker(ctx, 'Fetching comments from YouTube video...')
+    const comments: string[] = []
+    let nextPageToken: string | null | undefined = null
+    let fetchedCount = 0
+
+    do {
+        const commentThreadResponse = await youtube.commentThreads.list({
+            part: ['snippet'],
+            videoId: videoId,
+            order: 'time',
+            maxResults: 100,
+            pageToken: nextPageToken ?? undefined
+        })
+
+        if (commentThreadResponse.data.items) {
+            for (const item of commentThreadResponse.data.items) {
+                const commentText = item.snippet?.topLevelComment?.snippet?.textDisplay
+                if (commentText) {
+                    comments.push(formatYoutubeComment(commentText))
+                }
+            }
+            fetchedCount += commentThreadResponse.data.items.length
+            progressTracker.recordStep()
+            await progressTracker.update({ current: fetchedCount, total: commentCount })
+        }
+
+        nextPageToken = commentThreadResponse.data.nextPageToken
+    } while (nextPageToken)
+
+    await progressTracker.finish(`✅ Fetched ${comments.length} comments.`)
+
+    youtubeCommentCache.set(videoId, { comments: comments, timestamp: Date.now() })
+
+    return comments
+}
+
 
 // Markov event types
 interface MarkovCollectProgressEvent {
@@ -148,6 +220,41 @@ export default {
                 .setName('force_rescan')
                 .setDescription('Force a full rescan, ignoring previously collected messages.')
                 .setRequired(false)
+            )
+        ).addSubcommand(subcommand => subcommand
+            .setName('youtube_video')
+            .setDescription('Generate a message from comments of a YouTube video.')
+            .addStringOption(option => option
+                .setName('url')
+                .setDescription('The URL of the YouTube video.')
+                .setRequired(true)
+            )
+            .addIntegerOption(option => option
+                .setName('words')
+                .setDescription('How many words to generate (default: 30)')
+                .setRequired(false)
+            )
+            .addStringOption(option => option
+                .setName('seed')
+                .setDescription('Start the generated text with specific words')
+                .setRequired(false)
+            )
+            .addStringOption(option => option
+                .setName('mode')
+                .setDescription('The generation mode to use (default: trigram)')
+                .setRequired(false)
+                .addChoices(
+                    { name: 'Trigram (default)', value: 'trigram' },
+                    { name: 'Bigram (classic)', value: 'bigram' }
+                )
+            )
+        ).addSubcommand(subcommand => subcommand
+            .setName('youtube_video_stats')
+            .setDescription('View statistics about the comments of a YouTube video.')
+            .addStringOption(option => option
+                .setName('url')
+                .setDescription('The URL of the YouTube video.')
+                .setRequired(true)
             )
         ).addSubcommand(subcommand => subcommand
             .setName('help')
@@ -404,6 +511,137 @@ export default {
             await ctx.reply(text)
             await ctx.followUp(followUpText)
 
+        } else if (subcommand === 'youtube_video') {
+            if (!YOUTUBE_API_KEY) {
+                await ctx.reply('❌ YouTube API key is not configured. Please contact the bot owner.')
+                return
+            }
+
+            const videoUrl = ctx.getStringOption('url', true)
+            const videoId = extractVideoId(videoUrl)
+
+            if (!videoId) {
+                await ctx.editReply('❌ Invalid YouTube video URL.')
+                return
+            }
+
+            await ctx.deferReply()
+
+            try {
+                const comments = await getYouTubeComments(videoId, ctx)
+
+                if (comments.length === 0) {
+                    await ctx.editReply('No comments found on this video.')
+                    return
+                }
+
+                const words = ctx.getIntegerOption('words', false, 30)
+                const seed = ctx.getStringOption('seed', false) ?? undefined
+                const mode = ctx.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram'
+
+                const rustChain = new RustMarkovChain()
+                try {
+                    await ctx.editReply('Now generating message...')
+                    rustChain.trainBatch(comments)
+                    const result = rustChain.generate(words, mode, seed)
+
+                    if (!result) {
+                        await ctx.followUp('❌ Failed to generate a message. The model might not have had enough data.')
+                        return
+                    }
+
+                    await ctx.followUp(result)
+                } finally {
+                    rustChain.destroy()
+                }
+
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+                logger.warn(`Failed to generate message from YouTube comments: ${red(errorMessage)}`)
+                await ctx.editReply(`❌ An error occurred: ${errorMessage}`)
+            }
+        } else if (subcommand === 'youtube_video_stats') {
+            if (!YOUTUBE_API_KEY) {
+                await ctx.reply('❌ YouTube API key is not configured. Please contact the bot owner.')
+                return
+            }
+
+            const videoUrl = ctx.getStringOption('url', true)
+            const videoId = extractVideoId(videoUrl)
+
+            if (!videoId) {
+                await ctx.editReply('❌ Invalid YouTube video URL.')
+                return
+            }
+
+            await ctx.deferReply()
+
+            try {
+                const comments = await getYouTubeComments(videoId, ctx)
+
+                if (comments.length === 0) {
+                    await ctx.editReply('No comments found on this video, or failed to fetch them.')
+                    return
+                }
+
+                // Calculate stats
+                const messageCount = comments.length
+                const allWords = comments.flatMap(c => c.split(/\s+/).filter(w => w.length > 0))
+                const totalWordCount = allWords.length
+                const uniqueWords = new Set(allWords.map(w => w.toLowerCase()))
+                const uniqueWordCount = uniqueWords.size
+                const avgWordsPerMessage = totalWordCount / messageCount
+
+                // Model Quality Score logic from 'stats' subcommand
+                const messageCap = 50000
+                const wordCap = 2000000
+
+                const messageVolume = Math.min(1, Math.log10(messageCount) / Math.log10(messageCap))
+                const wordVolume = Math.min(1, Math.log10(totalWordCount) / Math.log10(wordCap))
+                const lexicalDiversity = totalWordCount > 0 ? Math.min(1, uniqueWordCount / Math.sqrt(totalWordCount)) : 0
+                const score = 0.4 * messageVolume + 0.3 * wordVolume + 0.3 * lexicalDiversity
+
+                const getScoreDetails = (s: number, type: 'bigram' | 'trigram') => {
+                    const thresholds = type === 'bigram'
+                        ? { excellent: 0.8, good: 0.6, ok: 0.4, poor: 0.2 }
+                        : { excellent: 0.9, good: 0.7, ok: 0.5, poor: 0.3 }
+
+                    if (s >= thresholds.excellent) return { emoji: '☑️', recommendation: 'Excellent' }
+                    if (s >= thresholds.good) return { emoji: '✅', recommendation: 'Good' }
+                    if (s >= thresholds.ok) return { emoji: 'ℹ️', recommendation: 'Okay' }
+                    if (s >= thresholds.poor) return { emoji: '⚠️', recommendation: 'Poor' }
+                    return { emoji: '❌', recommendation: 'Not Recommended' }
+                }
+
+                const bigramDetails = getScoreDetails(score, 'bigram')
+                const trigramDetails = getScoreDetails(score, 'trigram')
+
+                const embed = new EmbedBuilder()
+                    .setTitle('Markov Chain Data Statistics for YouTube Video')
+                    .setColor(0xFF0000) // YouTube Red
+                    .addFields(
+                        { name: 'Comments', value: messageCount.toLocaleString(), inline: true },
+                        { name: 'Total Words', value: totalWordCount.toLocaleString(), inline: true },
+                        { name: 'Unique Words', value: uniqueWordCount.toLocaleString(), inline: true },
+                        { name: 'Words Per Comment', value: avgWordsPerMessage.toFixed(1), inline: true },
+                        {
+                            name: 'Model Quality Score',
+                            value: `**Score:** ${score.toFixed(3)} / 1.000\n\n` +
+                                   '**Recommendations:**\n' +
+                                   `${bigramDetails.emoji} **Bigram:** ${bigramDetails.recommendation}\n` +
+                                   `${trigramDetails.emoji} **Trigram:** ${trigramDetails.recommendation}`,
+                            inline: false
+                        }
+                    )
+                    .setTimestamp()
+
+                await ctx.editReply({ embeds: [embed] })
+
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+                logger.warn(`Failed to get stats for YouTube video: ${red(errorMessage)}`)
+                await ctx.editReply(`❌ An error occurred: ${errorMessage}`)
+            }
         } else if (subcommand === 'collect_all') {
             if (isCollectingAll) {
                 await ctx.reply('❌ A `collect_all` operation is already in progress. Please wait for it to complete.')
