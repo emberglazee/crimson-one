@@ -6,22 +6,22 @@ import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Interactio
 
 import { formatTimeRemaining, extractVideoId, formatYoutubeComment } from '../util/functions'
 import { SlashCommand } from '../types'
-import { google } from 'googleapis'
+import { google, youtube_v3 } from 'googleapis'
 import { RustMarkovChain } from '../modules/MarkovChain/RustChain'
 
 // To prevent multiple concurrent collections
 let isCollectingAll = false
 
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
-const youtubeCommentCache = new Map<string, { comments: string[], timestamp: number }>()
+const youtubeCommentCache = new Map<string, { comments: string[], video: youtube_v3.Schema$Video, timestamp: number }>()
 const CACHE_TTL = 60 * 60 * 1000 // 1 hour
 
-async function getYouTubeComments(videoId: string, ctx: CommandContext<true>): Promise<string[]> {
+async function getYouTubeComments(videoId: string, ctx: CommandContext<true>): Promise<{ comments: string[], video: youtube_v3.Schema$Video }> {
     const cached = youtubeCommentCache.get(videoId)
     if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
         logger.info(`Using cached comments for video ID ${videoId}`)
         await ctx.editReply(`✅ Using ${cached.comments.length} cached comments.`)
-        return cached.comments
+        return { comments: cached.comments, video: cached.video }
     }
 
     const youtube = google.youtube({
@@ -30,19 +30,19 @@ async function getYouTubeComments(videoId: string, ctx: CommandContext<true>): P
     })
 
     const videoResponse = await youtube.videos.list({
-        part: ['statistics'],
+        part: ['statistics', 'snippet'],
         id: [videoId]
     })
 
     const video = videoResponse.data.items?.[0]
-    if (!video || !video.statistics) {
+    if (!video || !video.statistics || !video.snippet) {
         throw new Error('Could not retrieve video details.')
     }
 
     const commentCount = parseInt(video.statistics.commentCount ?? '0')
 
     if (commentCount === 0) {
-        return []
+        return { comments: [], video }
     }
 
     const progressTracker = new ProgressTracker(ctx, 'Fetching comments from YouTube video...')
@@ -76,9 +76,9 @@ async function getYouTubeComments(videoId: string, ctx: CommandContext<true>): P
 
     await progressTracker.finish(`✅ Fetched ${comments.length} comments.`)
 
-    youtubeCommentCache.set(videoId, { comments: comments, timestamp: Date.now() })
+    youtubeCommentCache.set(videoId, { comments, video, timestamp: Date.now() })
 
-    return comments
+    return { comments, video }
 }
 
 
@@ -528,7 +528,7 @@ export default {
             await ctx.deferReply()
 
             try {
-                const comments = await getYouTubeComments(videoId, ctx)
+                const { comments, video } = await getYouTubeComments(videoId, ctx)
 
                 if (comments.length === 0) {
                     await ctx.editReply('No comments found on this video.')
@@ -545,12 +545,22 @@ export default {
                     rustChain.trainBatch(comments)
                     const result = rustChain.generate(words, mode, seed)
 
+                    const videoEmbed = new EmbedBuilder()
+                        .setAuthor({
+                            name: video.snippet!.channelTitle ?? 'Unknown Channel',
+                            url: `https://www.youtube.com/channel/${video.snippet!.channelId}`
+                        })
+                        .setTitle(video.snippet!.title ?? 'Unknown Video')
+                        .setURL(videoUrl)
+                        .setThumbnail(video.snippet!.thumbnails?.default?.url ?? null)
+                        .setColor('#FF0000')
+
                     if (!result) {
-                        await ctx.followUp('❌ Failed to generate a message. The model might not have had enough data.')
+                        await ctx.editReply({ content: '❌ Failed to generate a message. The model might not have had enough data.', embeds: [videoEmbed] })
                         return
                     }
 
-                    await ctx.followUp(result)
+                    await ctx.editReply({ content: result, embeds: [videoEmbed] })
                 } finally {
                     rustChain.destroy()
                 }
@@ -577,7 +587,7 @@ export default {
             await ctx.deferReply()
 
             try {
-                const comments = await getYouTubeComments(videoId, ctx)
+                const { comments, video } = await getYouTubeComments(videoId, ctx)
 
                 if (comments.length === 0) {
                     await ctx.editReply('No comments found on this video, or failed to fetch them.')
@@ -617,7 +627,13 @@ export default {
                 const trigramDetails = getScoreDetails(score, 'trigram')
 
                 const embed = new EmbedBuilder()
-                    .setTitle('Markov Chain Data Statistics for YouTube Video')
+                    .setAuthor({
+                        name: video.snippet!.channelTitle ?? 'Unknown Channel',
+                        url: `https://www.youtube.com/channel/${video.snippet!.channelId}`
+                    })
+                    .setTitle(video.snippet!.title ?? 'Unknown Video')
+                    .setURL(videoUrl)
+                    .setThumbnail(video.snippet!.thumbnails?.default?.url ?? null)
                     .setColor(0xFF0000) // YouTube Red
                     .addFields(
                         { name: 'Comments', value: messageCount.toLocaleString(), inline: true },
