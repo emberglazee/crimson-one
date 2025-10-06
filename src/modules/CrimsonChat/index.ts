@@ -34,7 +34,7 @@ export class CrimsonChat extends EventEmitter<{
 
     private voidai = createOpenAICompatible({
         name: 'voidai',
-        baseURL: 'https://api.voidai.app/v1',
+        baseURL: 'http://localhost:11434/v1',
         apiKey: process.env.OPENAI_API_KEY
     })
 
