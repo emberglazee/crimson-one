@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, AttachmentBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
+import { owoTranslate } from '../util/functions'
 
 export default {
     data: new SlashCommandBuilder()

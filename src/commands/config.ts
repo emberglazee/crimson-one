@@ -2,7 +2,7 @@ import { InteractionContextType, PermissionsBitField, SlashCommandBuilder } from
 import { CommandContext } from '../modules'
 
 import { SlashCommand } from '../types'
-import { boolToEmoji } from '../util/functions'
+import { boolToEmoji, dontPing } from '../util/functions'
 
 export default {
     data: new SlashCommandBuilder()
@@ -221,5 +221,3 @@ export default {
         }
     }
 } satisfies SlashCommand
-
-const dontPing = (content: string) => ({ content, allowedMentions: { parse: [] } })
