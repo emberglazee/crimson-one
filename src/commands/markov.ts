@@ -537,13 +537,16 @@ export default {
 
                 const words = ctx.getIntegerOption('words', false, 30)
                 const seed = ctx.getStringOption('seed', false) ?? undefined
-                const mode = ctx.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram'
+                const mode = ctx.getStringOption('mode', false, 'bigram') as 'trigram' | 'bigram'
 
                 const rustChain = new RustMarkovChain()
                 try {
                     await ctx.editReply('Now generating message...')
+                    const timeStart = process.hrtime()
                     rustChain.trainBatch(comments)
                     const result = rustChain.generate(words, mode, seed)
+                    const timeEnd = process.hrtime(timeStart)
+                    const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6
 
                     const videoEmbed = new EmbedBuilder()
                         .setAuthor({
@@ -555,12 +558,29 @@ export default {
                         .setThumbnail(video.snippet!.thumbnails?.default?.url ?? null)
                         .setColor('#FF0000')
 
+                    const footerEmbed = new EmbedBuilder()
+                        .setColor(0x0099FF)
+                        .addFields(
+                            { name: 'Generation Time', value: `${timeEndMs.toFixed(0)}ms`, inline: true },
+                            {
+                                name: 'Filters',
+                                value: [
+                                    'Source: YouTube Video',
+                                    words !== 30 ? `Words: ${words}` : null,
+                                    seed ? `Seed: "${seed}"` : null,
+                                    `Mode: ${mode}`
+                                ].filter(Boolean).join(', ') || 'None',
+                                inline: false
+                            }
+                        )
+                        .setTimestamp()
+
                     if (!result) {
                         await ctx.editReply({ content: '❌ Failed to generate a message. The model might not have had enough data.', embeds: [videoEmbed] })
                         return
                     }
 
-                    await ctx.editReply({ content: result, embeds: [videoEmbed] })
+                    await ctx.editReply({ content: result, embeds: [videoEmbed, footerEmbed] })
                 } finally {
                     rustChain.destroy()
                 }
