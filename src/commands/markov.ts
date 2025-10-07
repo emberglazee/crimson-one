@@ -4,10 +4,13 @@ const logger = new Logger('/markov')
 
 import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, InteractionContextType } from 'discord.js'
 
-import { extractVideoId, formatYoutubeComment } from '../util/functions'
-import { SlashCommand } from '../types'
 import { google, type youtube_v3 } from 'googleapis'
+import type { GaxiosResponseWithHTTP2 } from 'googleapis-common'
+
 import { RustMarkovChain } from '../modules/MarkovChain/RustChain'
+import { SlashCommand } from '../types'
+import { extractVideoId, formatYoutubeComment } from '../util/functions'
+
 
 // To prevent multiple concurrent collections
 let isCollectingAll = false
@@ -51,7 +54,7 @@ async function getYouTubeComments(videoId: string, ctx: CommandContext<true>): P
     let fetchedCount = 0
 
     do {
-        const commentThreadResponse = await youtube.commentThreads.list({
+        const commentThreadResponse: GaxiosResponseWithHTTP2<youtube_v3.Schema$CommentThreadListResponse> = await youtube.commentThreads.list({
             part: ['snippet'],
             videoId: videoId,
             order: 'time',
