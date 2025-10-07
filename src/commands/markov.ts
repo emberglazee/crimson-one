@@ -4,9 +4,9 @@ const logger = new Logger('/markov')
 
 import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, InteractionContextType } from 'discord.js'
 
-import { formatTimeRemaining, extractVideoId, formatYoutubeComment } from '../util/functions'
+import { extractVideoId, formatYoutubeComment } from '../util/functions'
 import { SlashCommand } from '../types'
-import { google, youtube_v3 } from 'googleapis'
+import { google, type youtube_v3 } from 'googleapis'
 import { RustMarkovChain } from '../modules/MarkovChain/RustChain'
 
 // To prevent multiple concurrent collections
@@ -713,9 +713,13 @@ export default {
                 const allTargets = [...textChannels.values(), ...threads]
                 logger.info(`{collect_all} Total collection targets: ${yellow(allTargets.length)}`)
 
-                await ctx.editReply(`📡 Starting collection from **${allTargets.length} channels and threads**...`)
+                const progressTracker = new ProgressTracker(ctx, 'Collecting from all channels...')
+                let totalCollected = 0
+                let successfulChannels = 0
+                const failedChannels: { channel: string, error: string }[] = []
 
-                const collectionPromises = allTargets.map(targetChannel => (async () => {
+                for (let i = 0; i < allTargets.length; i++) {
+                    const targetChannel = allTargets[i]
                     try {
                         logger.info(`Collecting from #${yellow(targetChannel.name)} (${yellow(targetChannel.id)})`)
                         const { completionPromise } = markov.collectMessages(targetChannel as TextChannel, {
@@ -726,17 +730,21 @@ export default {
                         })
                         const count = await completionPromise
                         logger.ok(`Collected ${yellow(count)} messages from #${yellow(targetChannel.name)}`)
-                        return { channel: targetChannel.name, count, status: 'success' }
+                        totalCollected += count
+                        successfulChannels++
                     } catch (err) {
-                        logger.warn(`Failed to collect from #${yellow(targetChannel.name)}: ${red(err instanceof Error ? err.message : String(err))}`)
-                        return { channel: targetChannel.name, count: 0, status: 'error', error: err instanceof Error ? err.message : String(err) }
+                        const errorMsg = err instanceof Error ? err.message : String(err)
+                        logger.warn(`Failed to collect from #${yellow(targetChannel.name)}: ${red(errorMsg)}`)
+                        failedChannels.push({ channel: targetChannel.name, error: errorMsg })
                     }
-                })())
 
-                const results = await Promise.all(collectionPromises)
-                const totalCollected = results.reduce((sum, r) => sum + r.count, 0)
-                const successfulChannels = results.filter(r => r.status === 'success').length
-                const failedChannels = results.filter(r => r.status === 'error')
+                    await progressTracker.update({
+                        current: i + 1,
+                        total: allTargets.length,
+                        statusText: `Processed ${i + 1}/${allTargets.length} channels. ${successfulChannels} successful.`,
+                        eta: null
+                    })
+                }
 
                 let summary = `✅ Finished collecting from all channels and threads. Total messages collected: ${totalCollected}.`
                 summary += `\nSuccessfully collected from ${successfulChannels}/${allTargets.length} channels.`
@@ -744,7 +752,7 @@ export default {
                     summary += `\n❌ Failed to collect from ${failedChannels.length} channels: ${failedChannels.map(f => f.channel).join(', ')}`
                 }
 
-                await ctx.followUp(summary)
+                await progressTracker.finish(summary)
             } finally {
                 isCollectingAll = false
             }
@@ -782,22 +790,19 @@ export default {
                 const progressHandler = async (progress: MarkovCollectProgressEvent) => {
                     if (progress.taskId !== operationTaskId) return
 
-                    const eta = progress.estimatedTimeRemaining ? formatTimeRemaining(progress.estimatedTimeRemaining) : undefined
                     const statusText = newMessagesOnly ? 'Only collecting new messages since the last collection.' : undefined
 
                     if (progress.limit === 'entire') {
                         await progressTracker.update({
                             current: progress.totalCollected,
                             percent: progress.percentComplete,
-                            statusText,
-                            eta
+                            statusText
                         })
                     } else {
                         await progressTracker.update({
                             current: progress.totalCollected,
                             total: progress.limit,
-                            statusText,
-                            eta
+                            statusText
                         })
                     }
                 }
