@@ -4,14 +4,13 @@ const logger = new Logger('AWACSFeed')
 
 import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember, User, GuildBan, Role } from 'discord.js'
 import type { ClientEvents, PartialGuildMember } from 'discord.js'
-import { AWACS_FEED_CHANNEL, SOLITARY_CONFINEMENT_GUILD_ID } from '../util/constants'
+import { AWACS_FEED_CHANNEL, SOLITARY_CONFINEMENT_GUILD_ID, BANISH_ROLE_ID } from '../util/constants'
 import { formatDuration, getRandomElement } from '../util/functions'
 import { BanishmentManager, type BanishmentEvent, type UnbanishmentEvent } from './BanishmentManager'
 
 import { EventEmitter } from 'tseep'
 
 const NO_IFF_DATA = '\\ NO IFF DATA \\'
-const BANISHED_ROLE_ID = '1331170880591757434'
 
 type EventHandler<T extends keyof ClientEvents> = {
     event: T
@@ -289,7 +288,7 @@ export class AWACSFeed extends EventEmitter<{
         const removedRoles = oldMember.roles?.cache.filter(role => !newMember.roles.cache.has(role.id))
 
         for (const role of addedRoles.values()) {
-            if (role.id === BANISHED_ROLE_ID) {
+            if (role.id === BANISH_ROLE_ID) {
                 const assigner = await this.findRoleChanger(newMember, role, '$add')
                 if (assigner !== NO_IFF_DATA) {
                     const actor = await this.client.users.fetch(assigner).catch(() => null)
@@ -308,7 +307,7 @@ export class AWACSFeed extends EventEmitter<{
         }
 
         for (const role of removedRoles.values()) {
-            if (role.id === BANISHED_ROLE_ID) {
+            if (role.id === BANISH_ROLE_ID) {
                 const remover = await this.findRoleChanger(newMember, role, '$remove')
                 if (remover !== NO_IFF_DATA) {
                     const actor = await this.client.users.fetch(remover).catch(() => null)

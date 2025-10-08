@@ -7,9 +7,9 @@ import { Client, GuildMember, User } from 'discord.js'
 import fs from 'fs/promises'
 import path from 'path'
 import { parseDuration } from '../util/functions'
+import { BANISH_ROLE_ID } from '../util/constants'
 
 const BANISHMENT_STORE_PATH = path.join(process.cwd(), 'data/timed-banishments.json')
-const BANISHED_ROLE_ID = '1331170880591757434'
 
 export type BanishmentType = 'manual' | 'command' | 'crimsonchat'
 
@@ -113,9 +113,9 @@ export class BanishmentManager extends EventEmitter<{
     public async banish(member: GuildMember, actor: User, type: BanishmentType, durationStr: string | null, reason?: string) {
         this.actionsInProgress.add(member.id)
         try {
-            const role = await member.guild.roles.fetch(BANISHED_ROLE_ID)
+            const role = await member.guild.roles.fetch(BANISH_ROLE_ID)
             if (!role) {
-                throw new Error(`Banishment role (ID: ${BANISHED_ROLE_ID}) not found in guild ${member.guild.name}.`)
+                throw new Error(`Banishment role (ID: ${BANISH_ROLE_ID}) not found in guild ${member.guild.name}.`)
             }
 
             await member.roles.add(role, reason)
@@ -162,7 +162,7 @@ export class BanishmentManager extends EventEmitter<{
             return
         }
 
-        const role = await guild.roles.fetch(BANISHED_ROLE_ID).catch(() => null)
+        const role = await guild.roles.fetch(BANISH_ROLE_ID).catch(() => null)
         if (role && member.roles.cache.has(role.id)) {
             await member.roles.remove(role, reason)
             this.emit('userUnbanished', { member, actor, type, reason })
