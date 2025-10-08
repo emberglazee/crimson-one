@@ -102,13 +102,26 @@ export class SleepAsAndroidWebhookManager extends EventEmitter<SleepWebhookEvent
                     embed.setTitle('⏰ Alarm alert dismissed')
                     break
                 case 'light_sleep':
-                    embed.setTitle('😴 Entered light sleep phase')
+                    embed.setTitle('😴 Light sleep phase')
                     break
                 case 'deep_sleep':
-                    embed.setTitle('😴 Entered deep sleep phase')
+                    embed.setTitle('😴 Deep sleep phase')
                     break
                 case 'rem':
-                    embed.setTitle('😴 Entered REM sleep phase')
+                    embed.setTitle('😴 REM sleep phase')
+                    break
+                case 'time_to_bed_alarm_alert':
+                    embed.setTitle('🛌 Bed time alarm')
+                    embed.setDescription(`${PING_EMBI} non negotiable, NOW`)
+                    break
+                case 'sound_event_talk':
+                    embed.setTitle('🛌 Talking detected')
+                    break
+                case 'awake':
+                    embed.setTitle('🥱 Woke up')
+                    break
+                case 'not_awake':
+                    embed.setTitle('😴 Fell asleep')
                     break
                 default:
                     for (const key in payload) {
