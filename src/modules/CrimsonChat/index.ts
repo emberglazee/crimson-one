@@ -134,163 +134,171 @@ export class CrimsonChat extends EventEmitter<{
         const targetChannel = lastMessage.options.targetChannel || this.channel!
         logger.debug(`Generating response for a batch of ${yellow(bufferedMessages.length)} messages...`)
 
-        targetChannel.sendTyping().catch(e => logger.warn(`Typing indicator failed: ${e.message}`))
-
-        const breakdown = await this.handleRandomBreakdown()
-        if (breakdown) {
-            return breakdown
-        }
-
-        const state = await this.state.getState()
-
-        const contentParts: (TextPart | ImagePart)[] = []
-
-        const userMessageContext = {
-            ...lastMessage.options,
-            messageContent: lastMessage.content,
-            channelId: lastMessage.originalMessage?.channelId,
-            messageId: lastMessage.originalMessage?.id
-        }
-        delete userMessageContext.targetChannel
-        const userMessageOptionsJson = JSON.stringify(userMessageContext)
-        contentParts.push({ type: 'text', text: userMessageOptionsJson })
-
-        for (const msg of bufferedMessages) {
-            if (msg.originalMessage && msg.originalMessage.attachments.size > 0) {
-                for (const attachment of msg.originalMessage.attachments.values()) {
-                    if (attachment.contentType?.startsWith('image/')) {
-                        logger.info(`Found image attachment: ${yellow(attachment.url)}`)
-                        const imageData = await this.imageProcessor.fetchAndConvertToBase64(attachment.url)
-                        if (imageData) {
-                            const imageBuffer = Buffer.from(imageData.inlineData.data, 'base64')
-                            contentParts.push({ type: 'image', image: imageBuffer, mediaType: imageData.inlineData.mimeType })
-                        }
-                    }
-                }
-            }
-        }
-
-        const userMessage: ModelMessage = { role: 'user', content: contentParts }
-        const messages: ModelMessage[] = [...state.history, userMessage]
-
-        const tools = await loadTools()
+        const typingInterval = setInterval(() => {
+            targetChannel.sendTyping().catch(e => logger.warn(`Typing indicator loop failed: ${e.message}`))
+        }, 9000)
 
         try {
-            const timeoutPromise = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error('Assistant response timed out')), ASSISTANT_RESPONSE_TIMEOUT_MS)
-            )
+            targetChannel.sendTyping().catch(e => logger.warn(`Typing indicator failed: ${e.message}`))
 
-            const rawResult = await Promise.race([
-                generateText({
-                    model: this.voidai(this.state.modelName),
-                    system: state.systemPrompt,
-                    messages,
-                    tools: Object.keys(tools).length > 0 ? tools : undefined,
-                    temperature: this.state.berserkMode ? 2.0 : 0.8,
-                    topP: this.state.berserkMode ? 1.0 : 0.95,
-                    maxRetries: 10
-                }),
-                timeoutPromise
-            ]).catch(e => {
-                logger.warn(`generateText promise rejected: ${e instanceof Error ? e.stack ?? e.message : String(e)}`)
-                return null
-            })
-
-            if (!rawResult) {
-                logger.warn('generateText returned null or was rejected.')
-                return null
+            const breakdown = await this.handleRandomBreakdown()
+            if (breakdown) {
+                return breakdown
             }
 
-            const { text, toolCalls, toolResults, usage } = rawResult
+            const state = await this.state.getState()
 
-            const newMessages: ModelMessage[] = [userMessage]
-            if (toolCalls && toolCalls.length > 0) {
-                newMessages.push({ role: 'assistant', content: toolCalls })
-                for (const call of toolCalls as ToolCallPart[]) {
-                    const embed = new EmbedBuilder()
-                        .setColor('#FEE75C')
-                        .setTitle('⚙️ Tool Call')
-                        .addFields(
-                            { name: 'Tool', value: `\`${call.toolName}\``, inline: true },
-                            { name: 'Arguments', value: `\`\`\`json\n${JSON.stringify(call.input, null, 2)}
-\`\`\`` }
-                        )
-                        .setFooter({ text: `Call ID: ${call.toolCallId}` })
-                        .setTimestamp()
-                    await this.sendResponseToDiscord({ embeds: [embed] }, targetChannel, lastMessage.originalMessage)
-                }
+            const contentParts: (TextPart | ImagePart)[] = []
+
+            const userMessageContext = {
+                ...lastMessage.options,
+                messageContent: lastMessage.content,
+                channelId: lastMessage.originalMessage?.channelId,
+                messageId: lastMessage.originalMessage?.id
             }
-            if (toolResults && toolResults.length > 0) {
-                const toolResultParts: ToolResultPart[] = toolResults.map(result => ({
-                    type: 'tool-result',
-                    toolCallId: result.toolCallId,
-                    toolName: result.toolName,
-                    output: result.output
-                }))
-                newMessages.push({ role: 'tool', content: toolResultParts })
-                for (const result of toolResults) {
-                    const resultString = typeof result.output === 'string'
-                        ? result.output
-                        : JSON.stringify(result.output, null, 2)
+            delete userMessageContext.targetChannel
+            const userMessageOptionsJson = JSON.stringify(userMessageContext)
+            contentParts.push({ type: 'text', text: userMessageOptionsJson })
 
-                    let parsedResult: { status: string, message: string } | null = null
-                    try {
-                        parsedResult = JSON.parse(resultString)
-                    } catch (parseError) {
-                        logger.warn(`Failed to parse tool result as JSON: ${parseError}`)
-                    }
-
-                    let embedColor: HexColorString = '#ED4245'
-                    let embedTitle = '❌ Tool Failed'
-
-                    if (parsedResult) {
-                        switch (parsedResult.status) {
-                            case 'success':
-                                embedColor = '#57F287'
-                                embedTitle = '✅ Tool Executed'
-                                break
-                            case 'info':
-                                embedColor = '#FEE75C'
-                                embedTitle = 'ℹ️ Tool Information'
-                                break
-                            case 'error':
-                                embedColor = '#ED4245'
-                                embedTitle = '❌ Tool Failed'
-                                break
+            for (const msg of bufferedMessages) {
+                if (msg.originalMessage && msg.originalMessage.attachments.size > 0) {
+                    for (const attachment of msg.originalMessage.attachments.values()) {
+                        if (attachment.contentType?.startsWith('image/')) {
+                            logger.info(`Found image attachment: ${yellow(attachment.url)}`)
+                            const imageData = await this.imageProcessor.fetchAndConvertToBase64(attachment.url)
+                            if (imageData) {
+                                const imageBuffer = Buffer.from(imageData.inlineData.data, 'base64')
+                                contentParts.push({ type: 'image', image: imageBuffer, mediaType: imageData.inlineData.mimeType })
+                            }
                         }
                     }
-
-                    const embed = new EmbedBuilder()
-                        .setColor(embedColor)
-                        .setTitle(embedTitle)
-                        .addFields(
-                            { name: 'Tool', value: `\`${result.toolName}\``, inline: true },
-                            { name: 'Message', value: `\`\`\`\n${parsedResult ? parsedResult.message : resultString.substring(0, 1000)}
-\`\`\`}` }
-                        )
-                        .setFooter({ text: `Call ID: ${result.toolCallId}` })
-                        .setTimestamp()
-                    await this.sendResponseToDiscord({ embeds: [embed] }, targetChannel, lastMessage.originalMessage)
                 }
             }
-            if (text) {
-                newMessages.push({ role: 'assistant', content: text })
-            }
 
-            await this.state.addMessages(newMessages, {
-                promptTokens: usage.inputTokens!,
-                completionTokens: usage.outputTokens!
-            })
+            const userMessage: ModelMessage = { role: 'user', content: contentParts }
+            const messages: ModelMessage[] = [...state.history, userMessage]
 
-            return text
-        } catch (e) {
-            const error = e as Error
-            if (error.message === 'Assistant response timed out') {
-                logger.warn(`Assistant response timed out after ${ASSISTANT_RESPONSE_TIMEOUT_MS / 1000} seconds. Ignoring response.`)
+            const tools = await loadTools()
+
+            try {
+                const timeoutPromise = new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error('Assistant response timed out')), ASSISTANT_RESPONSE_TIMEOUT_MS)
+                )
+
+                const rawResult = await Promise.race([
+                    generateText({
+                        model: this.voidai(this.state.modelName),
+                        system: state.systemPrompt,
+                        messages,
+                        tools: Object.keys(tools).length > 0 ? tools : undefined,
+                        temperature: this.state.berserkMode ? 2.0 : 0.8,
+                        topP: this.state.berserkMode ? 1.0 : 0.95,
+                        maxRetries: 10
+                    }),
+                    timeoutPromise
+                ]).catch(e => {
+                    logger.warn(`generateText promise rejected: ${e instanceof Error ? e.stack ?? e.message : String(e)}`)
+                    return null
+                })
+
+                if (!rawResult) {
+                    logger.warn('generateText returned null or was rejected.')
+                    return null
+                }
+
+                const { text, toolCalls, toolResults, usage } = rawResult
+
+                const newMessages: ModelMessage[] = [userMessage]
+                if (toolCalls && toolCalls.length > 0) {
+                    newMessages.push({ role: 'assistant', content: toolCalls })
+                    for (const call of toolCalls as ToolCallPart[]) {
+                        const embed = new EmbedBuilder()
+                            .setColor('#FEE75C')
+                            .setTitle('⚙️ Tool Call')
+                            .addFields(
+                                { name: 'Tool', value: `\`${call.toolName}\``, inline: true },
+                                { name: 'Arguments', value: `\`\`\`json\n${JSON.stringify(call.input, null, 2)}
+\`\`\`` }
+                            )
+                            .setFooter({ text: `Call ID: ${call.toolCallId}` })
+                            .setTimestamp()
+                        await this.sendResponseToDiscord({ embeds: [embed] }, targetChannel, lastMessage.originalMessage)
+                    }
+                }
+                if (toolResults && toolResults.length > 0) {
+                    const toolResultParts: ToolResultPart[] = toolResults.map(result => ({
+                        type: 'tool-result',
+                        toolCallId: result.toolCallId,
+                        toolName: result.toolName,
+                        output: result.output
+                    }))
+                    newMessages.push({ role: 'tool', content: toolResultParts })
+                    for (const result of toolResults) {
+                        const resultString = typeof result.output === 'string'
+                            ? result.output
+                            : JSON.stringify(result.output, null, 2)
+
+                        let parsedResult: { status: string, message: string } | null = null
+                        try {
+                            parsedResult = JSON.parse(resultString)
+                        } catch (parseError) {
+                            logger.warn(`Failed to parse tool result as JSON: ${parseError}`)
+                        }
+
+                        let embedColor: HexColorString = '#ED4245'
+                        let embedTitle = '❌ Tool Failed'
+
+                        if (parsedResult) {
+                            switch (parsedResult.status) {
+                                case 'success':
+                                    embedColor = '#57F287'
+                                    embedTitle = '✅ Tool Executed'
+                                    break
+                                case 'info':
+                                    embedColor = '#FEE75C'
+                                    embedTitle = 'ℹ️ Tool Information'
+                                    break
+                                case 'error':
+                                    embedColor = '#ED4245'
+                                    embedTitle = '❌ Tool Failed'
+                                    break
+                            }
+                        }
+
+                        const embed = new EmbedBuilder()
+                            .setColor(embedColor)
+                            .setTitle(embedTitle)
+                            .addFields(
+                                { name: 'Tool', value: `\`${result.toolName}\``, inline: true },
+                                { name: 'Message', value: `\`\`\`\n${parsedResult ? parsedResult.message : resultString.substring(0, 1000)}
+\`\`\`}` }
+                            )
+                            .setFooter({ text: `Call ID: ${result.toolCallId}` })
+                            .setTimestamp()
+                        await this.sendResponseToDiscord({ embeds: [embed] }, targetChannel, lastMessage.originalMessage)
+                    }
+                }
+                if (text) {
+                    newMessages.push({ role: 'assistant', content: text })
+                }
+
+                await this.state.addMessages(newMessages, {
+                    promptTokens: usage.inputTokens!,
+                    completionTokens: usage.outputTokens!
+                })
+
+                return text
+            } catch (e) {
+                const error = e as Error
+                if (error.message === 'Assistant response timed out') {
+                    logger.warn(`Assistant response timed out after ${ASSISTANT_RESPONSE_TIMEOUT_MS / 1000} seconds. Ignoring response.`)
+                    return null
+                }
+                logger.warn(`Error processing message: ${red(error.stack ?? error.message)}`)
                 return null
             }
-            logger.warn(`Error processing message: ${red(error.stack ?? error.message)}`)
-            return null
+        } finally {
+            clearInterval(typingInterval)
         }
     }
 
