@@ -9,6 +9,6 @@ export default {
         try { await ctx.assertEmbi() } catch { return }
 
         const newDebugState = ctx.botSettingsManager.toggleDebugMode()
-        await ctx.reply(`✅ Debug mode is now ${newDebugState ? 'ENABLED' : 'DISABLED'}.`)
+        await ctx.reply(`ℹ️ Debug mode is now **${newDebugState ? '✅ enabled' : '❌ disabled'}**.`)
     }
 } satisfies SlashCommand
