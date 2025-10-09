@@ -6,7 +6,7 @@ export default {
         .setName('update')
         .setDescription('Pulls the latest commit and restarts the bot.'),
     async execute(ctx) {
-        try { await ctx.assertEmbi() } catch { return }
+        if (!(await ctx.checkEmbi())) return
 
         // Check if the bot is managed by the guardian
         if (typeof process.send !== 'function') {

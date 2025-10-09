@@ -12,7 +12,7 @@ export default {
             .setRequired(true)
         ),
     async execute(ctx) {
-        try { await ctx.assertEmbi() } catch { return }
+        if (!(await ctx.checkEmbi())) return
 
         await ctx.deferReply()
 

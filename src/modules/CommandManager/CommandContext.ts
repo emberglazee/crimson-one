@@ -107,14 +107,14 @@ export class CommandContext<InGuild extends boolean = boolean> {
     get user(): User { return this.author }
     get isEmbi(): boolean { return this.user.id === this.embiId }
 
-    /**
-     * @throws {Error} if the user is not embi (bot owner)
-     */
-    public async assertEmbi(): Promise<void> {
-        if (!this.isEmbi) {
-            await this.reply('❌ You, solely, are responsible for this.')
-            throw new Error('User is not embi')
+    public async checkEmbi(options: { andReply?: boolean } = { andReply: true }): Promise<boolean> {
+        if (this.isEmbi) {
+            return true
         }
+        if (options.andReply) {
+            await this.reply('❌ You, solely, are responsible for this.')
+        }
+        return false
     }
 
     get channel(): TextBasedChannel | null { return this.interaction ? this.interaction.channel : this.message!.channel }

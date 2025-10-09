@@ -92,7 +92,7 @@ Users: ${application.approximateUserInstallCount ?? 'N/A'}`, inline: true },
         }
 
         // Lock out everyone but me from the rest of the subcommands
-        try { await ctx.assertEmbi() } catch { return }
+        if (!(await ctx.checkEmbi())) return
 
         if (subcommand === 'set_global_avatar') {
             await ctx.deferReply()

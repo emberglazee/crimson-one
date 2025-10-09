@@ -6,7 +6,7 @@ export default {
         .setName('debug')
         .setDescription('Toggles debug mode (owner only).'),
     async execute(ctx) {
-        try { await ctx.assertEmbi() } catch { return }
+        if (!(await ctx.checkEmbi())) return
 
         const newDebugState = ctx.botSettingsManager.toggleDebugMode()
         await ctx.reply(`ℹ️ Debug mode is now **${newDebugState ? '✅ enabled' : '❌ disabled'}**.`)

@@ -18,7 +18,7 @@ export default {
             )
         ),
     async execute(ctx) {
-        try { await ctx.assertEmbi() } catch { return }
+        if (!(await ctx.checkEmbi())) return
 
         const subcommand = ctx.getSubcommand(true)
 

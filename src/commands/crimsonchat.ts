@@ -83,7 +83,7 @@ export default {
 
     async execute(ctx) {
         const isRoleAllowed = ctx.member?.roles.cache.has('958529446560808961') ?? false
-        if (!isRoleAllowed) try { await ctx.assertEmbi() } catch { return }
+        if (!isRoleAllowed && !(await ctx.checkEmbi())) return
 
         const { crimsonChat } = ctx
         const subcommand = ctx.getSubcommand()
