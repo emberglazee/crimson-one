@@ -1,3 +1,10 @@
+/// Bun FFI library for Markov chain processing
+
+// This code was written specifically for working around the
+// these hardware constraints: 2 VCPU cores and 4 GB of RAM.
+// Could be better, but this is the best and most efficient
+// implementation I've tested with my VPS the bot is hosted on.
+
 use fastrand::Rng;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
@@ -122,7 +129,7 @@ pub extern "C" fn train_on_batch(ptr: *mut MarkovChain, texts_ptr: *const u8, te
         return;
     }
     let chain = unsafe { &*ptr };
-    
+
     let texts_slice = unsafe { slice::from_raw_parts(texts_ptr, texts_len) };
     let texts_str = match str::from_utf8(texts_slice) {
         Ok(s) => s,
