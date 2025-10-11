@@ -499,7 +499,7 @@ pub extern "C" fn generate_text(
     }
 
     let result_str = join_tokens(&result_words);
-    let generation_ms = start_time.elapsed().as_secs_f64() * 1000.0;
+    let generation_ms = start_time.elapsed().as_micros() as f64 / 1_000.0;
 
     let result = GenerationResult {
         text: result_str,
