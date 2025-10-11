@@ -6,6 +6,7 @@
 // implementation I've tested with my VPS the bot is hosted on.
 
 use fastrand::Rng;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -52,7 +53,29 @@ pub struct MarkovChain {
     rng: Mutex<Rng>
 }
 
-impl MarkovChain {} 
+impl MarkovChain {}
+
+static HIGH_COMPLEXITY_TOKENIZER_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(concat!(
+        r"(?s)```[^`]*?```|",      // Multi-line code blocks
+        r"`[^`]*?`|",              // Inline code
+        r"<@!?&\d+>|",             // User and role mentions
+        r"<#\d+>|",                // Channel mentions
+        r"@everyone|@here|",       // Everyone/here mentions
+        r"<a?:\w+:\d+>|",          // Custom emojis
+        r"\p{Emoji}+|",            // Unicode Emojis
+        r"https?://[^\s]+|",       // URLs
+        r"\[[^\]]+\]\([^\s)]+\)|", // Masked links
+        r"\d+(?:[.,:']\d+)*%?|",   // Numbers with punctuation
+        r"[\w]+(?:['\-+/]\w+)*|",  // Words with mixed symbols (apostrophes, hyphens, slashes, plus signs)
+        r"\p{P}+|",                // Punctuation
+        r"~{2,}|",                 // Strikethrough
+        r"\*{2,}|",                // Bold
+        r"_{2,}|",                 // Underline
+        r"[*_>]"                   // Other markdown (italics, quotes)
+    ))
+    .unwrap()
+});
 
 fn tokenize<'a>(text: &'a str, complexity: &TokenizerComplexity) -> Vec<&'a str> {
     match complexity {
@@ -106,26 +129,10 @@ fn tokenize<'a>(text: &'a str, complexity: &TokenizerComplexity) -> Vec<&'a str>
             tokens
         }
         TokenizerComplexity::High => {
-            // More comprehensive regex
-            let re = Regex::new(concat!(
-                r"(?s)```[^`]*?```|",      // Multi-line code blocks
-                r"`[^`]*?`|",              // Inline code
-                r"<@!?&\d+>|",             // User and role mentions
-                r"<#\d+>|",                // Channel mentions
-                r"@everyone|@here|",       // Everyone/here mentions
-                r"<a?:\w+:\d+>|",          // Custom emojis
-                r"\p{Emoji}+|",            // Unicode Emojis
-                r"https?://[^\s]+|",       // URLs
-                r"\[[^\]]+\]\([^\s)]+\)|", // Masked links
-                r"\d+(?:[.,:']\d+)*%?|",   // Numbers with punctuation
-                r"[\w]+(?:['\-+/]\w+)*|",  // Words with mixed symbols (apostrophes, hyphens, slashes, plus signs)
-                r"\p{P}+|",                // Punctuation
-                r"~{2,}|",                 // Strikethrough
-                r"\*{2,}|",                // Bold
-                r"_{2,}|",                 // Underline
-                r"[*_>]"                   // Other markdown (italics, quotes)
-            )).unwrap();
-            re.find_iter(text).map(|m| m.as_str()).collect()
+            HIGH_COMPLEXITY_TOKENIZER_REGEX
+                .find_iter(text)
+                .map(|m| m.as_str())
+                .collect()
         }
     }
 }
