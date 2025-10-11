@@ -103,7 +103,8 @@ fn tokenize<'a>(text: &'a str, complexity: &TokenizerComplexity) -> Vec<&'a str>
                 r"https?://[^\s]+|",       // URLs
                 r"\[[^\]]+\]\([^\s)]+\)|", // Masked links
                 r"\d+(?:[.,:']\d+)*%?|",   // Numbers with punctuation
-                r"[\w]+(?:['\-+/]\w+)*",   // Words with mixed symbols (apostrophes, hyphens, slashes, plus signs)
+                r"[\w]+(?:['\-+/]\w+)*|",  // Words with mixed symbols (apostrophes, hyphens, slashes, plus signs)
+                r"\p{P}+|",                // Punctuation
                 r"~{2,}|",                 // Strikethrough
                 r"\*{2,}|",                // Bold
                 r"_{2,}|",                 // Underline
