@@ -2,7 +2,7 @@ import { Logger, type CommandContext, ProgressTracker, InteractionMessageManager
 import { yellow, red } from '../util/colors'
 const logger = new Logger('/markov')
 
-import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, InteractionContextType } from 'discord.js'
+import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, InteractionContextType, MessageFlags } from 'discord.js'
 
 import { google, type youtube_v3 } from 'googleapis'
 import type { GaxiosResponseWithHTTP2 } from 'googleapis-common'
@@ -14,6 +14,10 @@ import { extractVideoId, formatYoutubeComment } from '../util/functions'
 
 // To prevent multiple concurrent collections
 let isCollectingAll = false
+
+// Generation queue
+let isGenerating = false
+const generationQueue: { ctx: CommandContext<true> }[] = []
 
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
 const youtubeCommentCache = new Map<string, { comments: string[], video: youtube_v3.Schema$Video, timestamp: number }>()
@@ -107,6 +111,158 @@ interface MarkovCollectCompleteEvent {
     newMessagesOnly: boolean
     totalMessageCount?: number
     taskId: string
+}
+
+async function resolveUserOrId(ctx: CommandContext<true>) {
+    const user = await ctx.getUserOption('user', false, undefined)
+    const userId = ctx.getStringOption('user_id', false, undefined)
+    if (user) return user
+    if (userId) {
+        try {
+            // Try to fetch user from Discord (may fail if user is not cached)
+            return await ctx.client.users.fetch(userId)
+        } catch {
+            // If not found, just return the ID for DB filtering
+            return { id: userId }
+        }
+    }
+    return undefined
+}
+
+async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
+    const markov = ctx.markovChat
+
+    const userOrId = await resolveUserOrId(ctx)
+    const user = userOrId && 'tag' in userOrId ? userOrId : undefined
+    const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
+    const global = ctx.getBooleanOption('global', false, false)
+    const channel = global ? undefined : (await ctx.getChannelOption('channel')) as TextChannel | null ?? undefined
+    const words = ctx.getIntegerOption('words', false, 30)
+    const seed = ctx.getStringOption('seed', false) ?? undefined
+    const mode = ctx.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram'
+
+    let progressTracker: ProgressTracker | undefined
+
+    if (isQueued) {
+        if (ctx.channel && 'send' in ctx.channel) {
+            await ctx.channel.send(`Processing your queued Markov generation, ${ctx.author}...`)
+        } else {
+            logger.warn(`Cannot process queued generation in channel ${ctx.channel?.id} because it does not support sending messages.`)
+            return
+        }
+    } else {
+        await ctx.deferReply()
+        progressTracker = new ProgressTracker(ctx, 'Generating message...')
+    }
+
+    try {
+        logger.info(`Generating message with global: ${yellow(global)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
+
+        markov.on('generateProgress', (progress: any) => {
+            if (progress.step === 'training' && progressTracker) {
+                progressTracker.update({
+                    current: progress.progress,
+                    total: progress.total,
+                    statusText: 'Training model...'
+                }).catch(e => logger.warn(`Failed to update progress tracker: ${e.message}`))
+            }
+        })
+
+        const result = await markov.generateMessage({
+            guild: !global ? ctx.guild : undefined,
+            channel, user, userId, words, seed, global, mode
+        })
+        markov.removeAllListeners('generateProgress')
+
+        if (!result) {
+            throw new Error('Generation failed to produce a result.')
+        }
+
+        const { text, timings } = result
+        const totalTime = timings.db_query_ms + timings.training_ms + timings.generation_ms
+        logger.ok(`Generated message: ${yellow(text)}`)
+
+        const footerEmbed = new EmbedBuilder()
+            .setColor(0x0099FF)
+            .addFields(
+                {
+                    name: 'Time taken',
+                    value: `**Database:** \`${timings.db_query_ms.toFixed(0)}ms\`\n` +
+                           `**Training:** \`${timings.training_ms.toFixed(0)}ms\`\n` +
+                           `**Generation:** \`${timings.generation_ms.toFixed(0)}ms\`\n` +
+                           `**Total:** \`${totalTime.toFixed(0)}ms\``,
+                    inline: true
+                },
+                {
+                    name: 'Filters',
+                    value: [
+                        global ? 'Global' : 'This server',
+                        channel ? `Channel: #${channel.name ?? channel.id}` : null,
+                        user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
+                        words !== 30 ? `Words: ${words}` : null,
+                        seed ? `Seed: "${seed}"` : null,
+                        `Mode: ${mode}`
+                    ].filter(Boolean).join(', ') || 'None',
+                    inline: false
+                }
+            )
+            .setTimestamp()
+
+        const replyOptions = {
+            content: isQueued ? `${ctx.author}, your queued generation is complete:\n${text}` : text,
+            embeds: [footerEmbed],
+            allowedMentions: {
+                users: isQueued ? [ctx.author.id] : []
+            }
+        }
+
+        if (isQueued) {
+            if (ctx.channel && 'send' in ctx.channel) {
+                await ctx.channel.send(replyOptions)
+            }
+        } else {
+            await progressTracker!.finish(replyOptions)
+        }
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        logger.warn(`Failed to generate message: ${red(errorMessage)}`)
+
+        let userFriendlyError = `❌ Failed to generate message: ${errorMessage}`
+        if (errorMessage.includes('No messages found')) {
+            userFriendlyError = '❌ No messages found for the selected filters. Try collecting some messages first!'
+        }
+
+        if (isQueued) {
+            if (ctx.channel && 'send' in ctx.channel) {
+                await ctx.channel.send(`${ctx.author}, your queued generation failed: ${userFriendlyError}`)
+            }
+        } else {
+            await ctx.editReply({ content: userFriendlyError })
+        }
+    }
+}
+
+async function processQueue(markov: import('../modules').MarkovChat) {
+    if (generationQueue.length === 0) {
+        isGenerating = false
+        return
+    }
+
+    const { ctx } = generationQueue.shift()!
+    try {
+        await performGeneration(ctx, true)
+    } catch (e) {
+        logger.error(`Error processing queued generation: ${e instanceof Error ? e.stack : String(e)}`)
+        try {
+            if (ctx.channel && 'send' in ctx.channel) {
+                await ctx.channel.send(`${ctx.author}, your queued generation encountered a critical error.`)
+            }
+        } catch (sendError) {
+            logger.error(`Failed to notify user of queued generation error: ${sendError instanceof Error ? sendError.stack : String(sendError)}`)
+        }
+    } finally {
+        processQueue(markov)
+    }
 }
 
 export default {
@@ -268,110 +424,25 @@ export default {
         const subcommand = ctx.getSubcommand()
         const markov = ctx.markovChat
 
-        // Helper to resolve user from picker or user_id
-        async function resolveUserOrId() {
-            const user = await ctx.getUserOption('user', false, undefined)
-            const userId = ctx.getStringOption('user_id', false, undefined)
-            if (user) return user
-            if (userId) {
-                try {
-                    // Try to fetch user from Discord (may fail if user is not cached)
-                    return await ctx.client.users.fetch(userId)
-                } catch {
-                    // If not found, just return the ID for DB filtering
-                    return { id: userId }
-                }
-            }
-            return undefined
-        }
-
         if (subcommand === 'generate') {
-            const userOrId = await resolveUserOrId()
-            const user = userOrId && 'tag' in userOrId ? userOrId : undefined
-            const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-            const global = ctx.getBooleanOption('global', false, false)
-            const channel = global ? undefined : (await ctx.getChannelOption('channel')) as TextChannel | null ?? undefined
-            const words = ctx.getIntegerOption('words', false, 30)
-            const seed = ctx.getStringOption('seed', false) ?? undefined
-            const mode = ctx.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram'
+            if (isGenerating) {
+                generationQueue.push({ ctx })
+                await ctx.reply({
+                    content: `A generation is already in progress. You have been added to the queue at position ${generationQueue.length}. I will ping you when it's done.`,
+                    flags: MessageFlags.Ephemeral
+                })
+                return
+            }
 
-            await ctx.deferReply()
-
+            isGenerating = true
             try {
-                logger.info(`Generating message with global: ${yellow(global)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
-
-                const progressTracker = new ProgressTracker(ctx, 'Generating message...')
-                markov.on('generateProgress', (progress: any) => {
-                    if (progress.step === 'training') {
-                        progressTracker.update({
-                            current: progress.progress,
-                            total: progress.total,
-                            statusText: 'Training model...'
-                        })
-                    }
-                })
-
-                const result = await markov.generateMessage({
-                    guild: !global ? ctx.guild : undefined,
-                    channel, user, userId, words, seed, global, mode
-                })
-                markov.removeAllListeners('generateProgress')
-
-                if (!result) {
-                    throw new Error('Generation failed to produce a result.')
-                }
-
-                const { text, timings } = result
-                const totalTime = timings.db_query_ms + timings.training_ms + timings.generation_ms
-                logger.ok(`Generated message: ${yellow(text)}`)
-
-                const footerEmbed = new EmbedBuilder()
-                    .setColor(0x0099FF)
-                    .addFields(
-                        {
-                            name: 'Time taken',
-                            value: `**Database:** \`${timings.db_query_ms.toFixed(0)}ms\`\n` +
-                                   `**Training:** \`${timings.training_ms.toFixed(0)}ms\`\n` +
-                                   `**Generation:** \`${timings.generation_ms.toFixed(0)}ms\`\n` +
-                                   `**Total: \`${totalTime.toFixed(0)}ms\`**`,
-                            inline: true
-                        },
-                        {
-                            name: 'Filters',
-                            value: [
-                                global ? 'Global' : 'This server',
-                                channel ? `Channel: #${channel.name ?? channel.id}` : null,
-                                user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
-                                words !== 30 ? `Words: ${words}` : null,
-                                seed ? `Seed: "${seed}"` : null,
-                                `Mode: ${mode}`
-                            ].filter(Boolean).join(', ') || 'None',
-                            inline: false
-                        }
-                    )
-                    .setTimestamp()
-
-                await progressTracker.finish({
-                    content: text,
-                    embeds: [footerEmbed],
-                    allowedMentions: {
-                        parse: []
-                    }
-                })
-            } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-                logger.warn(`Failed to generate message: ${red(errorMessage)}`)
-
-                let userFriendlyError = `❌ Failed to generate message: ${errorMessage}`
-                if (errorMessage.includes('No messages found')) {
-                    userFriendlyError = '❌ No messages found for the selected filters. Try collecting some messages first!'
-                }
-
-                await ctx.editReply({ content: userFriendlyError })
+                await performGeneration(ctx, false)
+            } finally {
+                processQueue(markov)
             }
 
         } else if (subcommand === 'stats') {
-            const userOrId = await resolveUserOrId()
+            const userOrId = await resolveUserOrId(ctx)
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
             const global = ctx.getBooleanOption('global', false, false)
@@ -709,7 +780,7 @@ export default {
 
             isCollectingAll = true
             try {
-                const userOrId = await resolveUserOrId()
+                const userOrId = await resolveUserOrId(ctx)
                 const user = userOrId && 'tag' in userOrId ? userOrId : undefined
                 const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
                 const collectEntireChannel = ctx.getBooleanOption('entire_channel', false)
@@ -781,7 +852,7 @@ export default {
             }
             return
         } else if (subcommand === 'collect') {
-            const userOrId = await resolveUserOrId()
+            const userOrId = await resolveUserOrId(ctx)
             const user = userOrId && 'tag' in userOrId ? userOrId : undefined
             const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
             const collectEntireChannel = ctx.getBooleanOption('entire_channel', false)
