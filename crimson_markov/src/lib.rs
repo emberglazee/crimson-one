@@ -9,6 +9,7 @@ use fastrand::Rng;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serialize;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -194,9 +195,13 @@ pub extern "C" fn train_on_batch(
             .into_iter()
             .map(|word| {
                 // Inlined logic from intern_word_and_update_casing
-                let lower_word = word.to_lowercase();
+                let lower_word: Cow<str> = if word.chars().any(char::is_uppercase) {
+                    Cow::Owned(word.to_lowercase())
+                } else {
+                    Cow::Borrowed(word)
+                };
 
-                let id_symbol = lowercase_word_interner.get_or_intern(lower_word.as_str());
+                let id_symbol = lowercase_word_interner.get_or_intern(&*lower_word);
                 let id = id_symbol.to_usize() as u32;
 
                 let cased_id = cased_word_interner.get_or_intern(word);
@@ -273,8 +278,13 @@ fn generate_bigram(
             let seed_ids: Vec<u32> = words
                 .iter()
                 .filter_map(|word| {
+                    let lower_word: Cow<str> = if word.chars().any(char::is_uppercase) {
+                        Cow::Owned(word.to_lowercase())
+                    } else {
+                        Cow::Borrowed(word)
+                    };
                     lowercase_word_interner
-                        .get(word.to_lowercase().as_str())
+                        .get(&*lower_word)
                         .map(|s| s.to_usize() as u32)
                 })
                 .collect();
@@ -337,8 +347,13 @@ fn generate_trigram(
             let seed_ids: Vec<u32> = words
                 .iter()
                 .filter_map(|word| {
+                    let lower_word: Cow<str> = if word.chars().any(char::is_uppercase) {
+                        Cow::Owned(word.to_lowercase())
+                    } else {
+                        Cow::Borrowed(word)
+                    };
                     lowercase_word_interner
-                        .get(word.to_lowercase().as_str())
+                        .get(&*lower_word)
                         .map(|s| s.to_usize() as u32)
                 })
                 .collect();
