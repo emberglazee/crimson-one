@@ -10,7 +10,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serialize;
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr::{self, null_mut};
@@ -35,10 +35,12 @@ struct GenerationResult {
 
 type BigramMap = HashMap<u32, Vec<u32>>;
 type TrigramMap = HashMap<(u32, u32), Vec<u32>>;
+type TrigramInvertedStarters = HashMap<u32, HashSet<(u32, u32)>>;
 
 pub struct MarkovChain {
     bigram_chain: RwLock<BigramMap>,
     trigram_chain: RwLock<TrigramMap>,
+    trigram_inverted_starters: RwLock<TrigramInvertedStarters>,
     bigram_starters: RwLock<Vec<u32>>,
     trigram_starters: RwLock<Vec<(u32, u32)>>,
     lowercase_word_interner: RwLock<StringInterner<StringBackend<SymbolUsize>>>,
@@ -83,6 +85,7 @@ pub extern "C" fn create_chain() -> *mut MarkovChain {
     Box::into_raw(Box::new(MarkovChain {
         bigram_chain: RwLock::new(HashMap::new()),
         trigram_chain: RwLock::new(HashMap::new()),
+        trigram_inverted_starters: RwLock::new(HashMap::new()),
         bigram_starters: RwLock::new(Vec::new()),
         trigram_starters: RwLock::new(Vec::new()),
         lowercase_word_interner: RwLock::new(StringInterner::new()),
@@ -123,6 +126,7 @@ pub extern "C" fn train_on_batch(
     // Acquire all locks at the beginning of the function
     let mut bigram_chain = chain.bigram_chain.write().unwrap();
     let mut trigram_chain = chain.trigram_chain.write().unwrap();
+    let mut trigram_inverted_starters = chain.trigram_inverted_starters.write().unwrap();
     let mut bigram_starters = chain.bigram_starters.write().unwrap();
     let mut trigram_starters = chain.trigram_starters.write().unwrap();
     let mut lowercase_word_interner = chain.lowercase_word_interner.write().unwrap();
@@ -173,6 +177,10 @@ pub extern "C" fn train_on_batch(
                     .entry(key)
                     .or_default()
                     .push(word_ids[i + 2]);
+                trigram_inverted_starters
+                    .entry(word_ids[i])
+                    .or_default()
+                    .insert(key);
             }
         }
     }
@@ -311,32 +319,30 @@ fn generate_trigram(
                     }
                 }
 
-                // If seeding with two words failed or wasn't possible, try with the last word.
                 if !seeded {
                     let last_seed_id = *seed_ids.last().unwrap();
-                    let possible_starters: Vec<&(u32, u32)> = trigram_chain
-                        .keys()
-                        .filter(|(id1, _)| *id1 == last_seed_id)
-                        .collect();
+                    let trigram_inverted_starters = chain.trigram_inverted_starters.read().unwrap();
+                    if let Some(possible_starters_set) = trigram_inverted_starters.get(&last_seed_id) {
+                        if !possible_starters_set.is_empty() {
+                            let possible_starters: Vec<&(u32, u32)> = possible_starters_set.iter().collect();
+                            let chosen_pair = *possible_starters[rng.usize(..possible_starters.len())];
 
-                    if !possible_starters.is_empty() {
-                        let chosen_pair = *possible_starters[rng.usize(..possible_starters.len())];
+                            if seed_ids.len() == 1 {
+                                // If the original seed was just one word, the result starts with the new pair.
+                                result_ids.push(chosen_pair.0);
+                                result_ids.push(chosen_pair.1);
+                            } else {
+                                // Otherwise, append the next word to the original seed.
+                                result_ids = seed_ids.clone();
+                                result_ids.push(chosen_pair.1);
+                            }
 
-                        if seed_ids.len() == 1 {
-                            // If the original seed was just one word, the result starts with the new pair.
-                            result_ids.push(chosen_pair.0);
-                            result_ids.push(chosen_pair.1);
-                        } else {
-                            // Otherwise, append the next word to the original seed.
-                            result_ids = seed_ids.clone();
-                            result_ids.push(chosen_pair.1);
+                            current_pair = (
+                                *result_ids.get(result_ids.len() - 2).unwrap(),
+                                *result_ids.last().unwrap(),
+                            );
+                            seeded = true;
                         }
-
-                        current_pair = (
-                            *result_ids.get(result_ids.len() - 2).unwrap(),
-                            *result_ids.last().unwrap(),
-                        );
-                        seeded = true;
                     }
                 }
             }
