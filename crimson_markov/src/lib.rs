@@ -33,13 +33,6 @@ struct GenerationResult {
     timings: Timings,
 }
 
-#[repr(C)]
-pub enum TokenizerComplexity {
-    Low,    // Simple whitespace split
-    Medium, // Original custom tokenizer
-    High,   // Regex-based for Discord specifics
-}
-
 type BigramMap = HashMap<u32, Vec<u32>>;
 type TrigramMap = HashMap<(u32, u32), Vec<u32>>;
 
@@ -78,64 +71,11 @@ static HIGH_COMPLEXITY_TOKENIZER_REGEX: Lazy<Regex> = Lazy::new(|| {
     .unwrap()
 });
 
-fn tokenize<'a>(text: &'a str, complexity: &TokenizerComplexity) -> Vec<&'a str> {
-    match complexity {
-        TokenizerComplexity::Low => {
-            text.split_whitespace().collect()
-        }
-        TokenizerComplexity::Medium => {
-            // This is the original `custom_tokenize` logic
-            let mut tokens = Vec::new();
-            let mut last_pos = 0;
-
-            while last_pos < text.len() {
-                let start_pos = match text[last_pos..].find(|c: char| !c.is_whitespace()) {
-                    Some(pos) => last_pos + pos,
-                    None => break,
-                };
-
-                let remaining = &text[start_pos..];
-                let first_char = remaining.chars().next().unwrap();
-                let end_pos;
-
-                if remaining.starts_with("http") {
-                    end_pos = remaining.find(char::is_whitespace).map_or(text.len(), |i| start_pos + i);
-                } else if first_char.is_alphanumeric() {
-                    let mut end_word_pos = 0;
-                    let mut chars = remaining.char_indices().peekable();
-                    while let Some((i, c)) = chars.next() {
-                        if c.is_alphanumeric() {
-                            end_word_pos = i + c.len_utf8();
-                        } else if c == '\'' {
-                            if let Some((_, next_c)) = chars.peek() {
-                                if next_c.is_alphanumeric() {
-                                    continue;
-                                }
-                            }
-                            break;
-                        } else {
-                            break;
-                        }
-                    }
-                    end_pos = start_pos + end_word_pos;
-                } else if ".,!?;:\"'()[]{}".contains(first_char) {
-                    end_pos = start_pos + first_char.len_utf8();
-                } else {
-                    last_pos = start_pos + first_char.len_utf8();
-                    continue;
-                }
-                tokens.push(&text[start_pos..end_pos]);
-                last_pos = end_pos;
-            }
-            tokens
-        }
-        TokenizerComplexity::High => {
-            HIGH_COMPLEXITY_TOKENIZER_REGEX
-                .find_iter(text)
-                .map(|m| m.as_str())
-                .collect()
-        }
-    }
+fn tokenize<'a>(text: &'a str) -> Vec<&'a str> {
+    HIGH_COMPLEXITY_TOKENIZER_REGEX
+        .find_iter(text)
+        .map(|m| m.as_str())
+        .collect()
 }
 
 #[unsafe(no_mangle)]
@@ -165,8 +105,7 @@ pub extern "C" fn destroy_chain(ptr: *mut MarkovChain) {
 pub extern "C" fn train_on_batch(
     ptr: *mut MarkovChain,
     texts_ptr: *const u8,
-    texts_len: usize,
-    complexity: TokenizerComplexity,
+    texts_len: usize
 ) {
     if ptr.is_null() || texts_ptr.is_null() {
         return;
@@ -191,7 +130,7 @@ pub extern "C" fn train_on_batch(
     let mut casing_map = chain.casing_map.write().unwrap();
 
     for text in texts {
-        let word_ids: Vec<u32> = tokenize(text, &complexity)
+        let word_ids: Vec<u32> = tokenize(text)
             .into_iter()
             .map(|word| {
                 // Inlined logic from intern_word_and_update_casing
@@ -462,7 +401,6 @@ pub extern "C" fn generate_text(
     max_words: usize,
     mode: u8,
     seed_ptr: *const c_char,
-    complexity: TokenizerComplexity,
     db_query_ms: f64,
     training_ms: f64,
 ) -> *mut c_char {
@@ -480,7 +418,7 @@ pub extern "C" fn generate_text(
             None
         } else {
             Some(
-                tokenize(seed_str, &complexity)
+                tokenize(seed_str)
                     .into_iter()
                     .map(|s| s.to_string())
                     .collect(),

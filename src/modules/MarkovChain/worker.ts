@@ -2,7 +2,7 @@ import 'reflect-metadata'
 import { parentPort, isMainThread } from 'worker_threads'
 
 import { Client, Guild, Message as DiscordMessage, TextChannel, Collection, IntentsBitField, Partials, User } from 'discord.js'
-import { RustMarkovChain, type MarkovComplexity } from './RustChain'
+import { RustMarkovChain } from './RustChain'
 import { MarkovDataSource } from './DataSource'
 import { container } from 'tsyringe'
 
@@ -26,7 +26,6 @@ interface GenerateOptions {
     seed?: string
     global?: boolean
     mode?: 'trigram' | 'bigram'
-    complexity?: MarkovComplexity
 }
 
 interface MessageStatsOptions {
@@ -228,7 +227,7 @@ class MarkovEngine {
                 const chunk = messages.slice(i, i + CHUNK_SIZE)
                 const texts = chunk.map(msg => msg.text).filter(Boolean)
                 if (texts.length > 0) {
-                    rustChain.trainBatch(texts, options.complexity)
+                    rustChain.trainBatch(texts)
                 }
                 parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'training', progress: Math.min(i + CHUNK_SIZE, messages.length), total: messages.length, elapsedTime: performance.now() - overallStartTime, estimatedTimeRemaining: null } })
             }
@@ -240,7 +239,6 @@ class MarkovEngine {
                 options.words || 30,
                 options.mode || 'trigram',
                 options.seed,
-                options.complexity,
                 dbQueryMs,
                 trainingMs
             )

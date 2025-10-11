@@ -3,6 +3,7 @@
 data/chat_history.json
 data/memories.json
 data/shapesinc-cookies.txt
+target/
 
 # Based on https://raw.githubusercontent.com/github/gitignore/main/Node.gitignore
 

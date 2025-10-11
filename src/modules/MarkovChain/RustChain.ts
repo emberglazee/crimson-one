@@ -12,24 +12,16 @@ const { symbols } = dlopen(libPath, {
         args: [FFIType.ptr]
     },
     train_on_batch: {
-        args: [FFIType.ptr, FFIType.ptr, FFIType.u32, FFIType.u8] // chain_ptr, texts_ptr, texts_len, complexity
+        args: [FFIType.ptr, FFIType.ptr, FFIType.u32] // chain_ptr, texts_ptr, texts_len
     },
     generate_text: {
-        args: [FFIType.ptr, FFIType.i32, FFIType.u8, FFIType.cstring, FFIType.u8, FFIType.f64, FFIType.f64], // chain_ptr, max_words, mode, seed_ptr, complexity, db_query_ms, training_ms
+        args: [FFIType.ptr, FFIType.i32, FFIType.u8, FFIType.cstring, FFIType.f64, FFIType.f64], // chain_ptr, max_words, mode, seed_ptr, db_query_ms, training_ms
         returns: FFIType.ptr
     },
     free_text: {
         args: [FFIType.ptr]
     }
 })
-
-export type MarkovComplexity = 'low' | 'medium' | 'high'
-
-const complexityEnumMap: Record<MarkovComplexity, number> = {
-    low: 0,
-    medium: 1,
-    high: 2
-}
 
 export interface Timings {
     db_query_ms: number
@@ -52,22 +44,20 @@ export class RustMarkovChain {
         }
     }
 
-    public trainBatch(texts: string[], complexity: MarkovComplexity = 'medium'): void {
+    public trainBatch(texts: string[]): void {
         if (!this.chainPtr) {
             throw new Error('Chain pointer is null.')
         }
 
-        const complexityId = complexityEnumMap[complexity]
         const batchString = texts.join('\0')
         const textBuffer = Buffer.from(batchString, 'utf8') // No trailing null needed now
-        symbols.train_on_batch(this.chainPtr, textBuffer, textBuffer.byteLength, complexityId)
+        symbols.train_on_batch(this.chainPtr, textBuffer, textBuffer.byteLength)
     }
 
     public generate(
         maxWords: number = 30,
         mode: 'bigram' | 'trigram' = 'trigram',
         seed: string | undefined,
-        complexity: MarkovComplexity = 'medium',
         dbQueryMs: number,
         trainingMs: number
     ): GenerationResult | null {
@@ -75,7 +65,6 @@ export class RustMarkovChain {
             throw new Error('Cannot generate from a destroyed chain.')
         }
         const modeId = mode === 'bigram' ? 0 : 1
-        const complexityId = complexityEnumMap[complexity]
         const seedBuffer = seed ? Buffer.from(seed + '\0', 'utf8') : null
 
         const resultPtr: Pointer | null = symbols.generate_text(
@@ -83,7 +72,6 @@ export class RustMarkovChain {
             maxWords,
             modeId,
             seedBuffer,
-            complexityId,
             dbQueryMs,
             trainingMs
         )
