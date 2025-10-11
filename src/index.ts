@@ -51,7 +51,7 @@ const [
     CommandManager, GracefulShutdown, DashboardServer, GuildConfigManager, BanishmentManager, TagManager, CrimsonChat, GithubWebhookManager, SubtitleThreadManager, MessageTrigger, SleepAsAndroidWebhookManager
 )
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
     logger.info(`Logged in as ${yellow(client.user.tag)}`)
     client.user.setStatus('dnd')
 
