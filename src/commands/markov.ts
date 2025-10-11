@@ -7,7 +7,7 @@ import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Interactio
 import { google, type youtube_v3 } from 'googleapis'
 import type { GaxiosResponseWithHTTP2 } from 'googleapis-common'
 
-import { RustMarkovChain } from '../modules/MarkovChain/RustChain'
+import { RustMarkovChain, type MarkovComplexity } from '../modules/MarkovChain/RustChain'
 import { SlashCommand } from '../types'
 import { extractVideoId, formatYoutubeComment } from '../util/functions'
 
@@ -149,6 +149,15 @@ export default {
                     { name: 'Trigram (default)', value: 'trigram' },
                     { name: 'Bigram (classic)', value: 'bigram' }
                 )
+            ).addStringOption(option => option
+                .setName('complexity')
+                .setDescription('The tokenizer complexity to use (default: medium)')
+                .setRequired(false)
+                .addChoices(
+                    { name: 'Low (Fastest, least accurate)', value: 'low' },
+                    { name: 'Medium (Balanced, default)', value: 'medium' },
+                    { name: 'High (Slowest, most accurate)', value: 'high' }
+                )
             )
         ).addSubcommand(subcommand => subcommand
             .setName('stats')
@@ -250,6 +259,15 @@ export default {
                     { name: 'Trigram (default)', value: 'trigram' },
                     { name: 'Bigram (classic)', value: 'bigram' }
                 )
+            ).addStringOption(option => option
+                .setName('complexity')
+                .setDescription('The tokenizer complexity to use (default: medium)')
+                .setRequired(false)
+                .addChoices(
+                    { name: 'Low (Fastest, least accurate)', value: 'low' },
+                    { name: 'Medium (Balanced, default)', value: 'medium' },
+                    { name: 'High (Slowest, most accurate)', value: 'high' }
+                )
             )
         ).addSubcommand(subcommand => subcommand
             .setName('youtube_video_stats')
@@ -294,6 +312,7 @@ export default {
             const words = ctx.getIntegerOption('words', false, 30)
             const seed = ctx.getStringOption('seed', false) ?? undefined
             const mode = ctx.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram'
+            const complexity = ctx.getStringOption('complexity', false, 'medium') as MarkovComplexity
 
             await ctx.deferReply()
 
@@ -314,7 +333,7 @@ export default {
 
                 const result = await markov.generateMessage({
                     guild: !global ? ctx.guild : undefined,
-                    channel, user, userId, words, seed, global, mode
+                    channel, user, userId, words, seed, global, mode, complexity
                 })
                 markov.removeAllListeners('generateProgress')
 
@@ -334,7 +353,8 @@ export default {
                                 user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
                                 words !== 30 ? `Words: ${words}` : null,
                                 seed ? `Seed: "${seed}"` : null,
-                                `Mode: ${mode}`
+                                `Mode: ${mode}`,
+                                `Complexity: ${complexity}`
                             ].filter(Boolean).join(', ') || 'None',
                             inline: false
                         }
@@ -541,13 +561,14 @@ export default {
                 const words = ctx.getIntegerOption('words', false, 30)
                 const seed = ctx.getStringOption('seed', false) ?? undefined
                 const mode = ctx.getStringOption('mode', false, 'bigram') as 'trigram' | 'bigram'
+                const complexity = ctx.getStringOption('complexity', false, 'medium') as MarkovComplexity
 
                 const rustChain = new RustMarkovChain()
                 try {
                     await ctx.editReply('Now generating message...')
                     const timeStart = process.hrtime()
-                    rustChain.trainBatch(comments)
-                    const result = rustChain.generate(words, mode, seed)
+                    rustChain.trainBatch(comments, complexity)
+                    const result = rustChain.generate(words, mode, seed, complexity)
                     const timeEnd = process.hrtime(timeStart)
                     const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6
 
@@ -571,7 +592,8 @@ export default {
                                     'Source: YouTube Video',
                                     words !== 30 ? `Words: ${words}` : null,
                                     seed ? `Seed: "${seed}"` : null,
-                                    `Mode: ${mode}`
+                                    `Mode: ${mode}`,
+                                    `Complexity: ${complexity}`
                                 ].filter(Boolean).join(', ') || 'None',
                                 inline: false
                             }

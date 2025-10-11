@@ -11,6 +11,8 @@ interface InitializeTaskOptions {
     token: string
 }
 
+import type { MarkovComplexity } from './RustChain'
+
 interface CollectTaskOptions {
     guildId: string
     channelId: string
@@ -32,6 +34,7 @@ interface MarkovGenerateOptions {
     seed?: string
     global?: boolean
     mode?: 'trigram' | 'bigram'
+    complexity?: MarkovComplexity
 }
 
 interface MarkovCollectProgressEvent {
@@ -224,7 +227,7 @@ export class MarkovChat extends EventEmitter<{
     }
 
     public async generateMessage(options: MarkovGenerateOptions): Promise<string> {
-        const { guild, channel, user, userId, words, seed, global, mode } = options
+        const { guild, channel, user, userId, words, seed, global, mode, complexity } = options
         return this.sendTask<string>('generate', {
             guildId: guild?.id,
             channelId: channel?.id,
@@ -233,7 +236,8 @@ export class MarkovChat extends EventEmitter<{
             words,
             seed,
             global,
-            mode
+            mode,
+            complexity
         })
     }
 

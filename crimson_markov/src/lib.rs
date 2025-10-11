@@ -6,6 +6,7 @@
 // implementation I've tested with my VPS the bot is hosted on.
 
 use fastrand::Rng;
+use regex::Regex;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -14,6 +15,13 @@ use std::sync::{Mutex, RwLock};
 use string_interner::{backend::StringBackend, StringInterner, symbol::SymbolUsize, Symbol};
 use std::slice;
 use std::str;
+
+#[repr(C)]
+pub enum TokenizerComplexity {
+    Low,    // Simple whitespace split
+    Medium, // Original custom tokenizer
+    High,   // Regex-based for Discord specifics
+}
 
 type BigramMap = HashMap<u32, Vec<u32>>;
 type TrigramMap = HashMap<(u32, u32), Vec<u32>>;
@@ -31,73 +39,79 @@ pub struct MarkovChain {
 
 impl MarkovChain {} 
 
-/// A custom tokenizer that is faster than the regex-based one.
-/// It handles URLs, words (including contractions), and specific punctuation.
-fn custom_tokenize(text: &str) -> Vec<&str> {
-    let mut tokens = Vec::new();
-    let mut last_pos = 0;
-
-    while last_pos < text.len() {
-        // Find the start of the next token (skip whitespace)
-        let start_pos = match text[last_pos..].find(|c: char| !c.is_whitespace()) {
-            Some(pos) => last_pos + pos,
-            None => break // No more non-whitespace characters
-        };
-
-        let remaining = &text[start_pos..];
-        let first_char = remaining.chars().next().unwrap();
-        let end_pos;
-
-        // URLs
-        if remaining.starts_with("http") {
-            end_pos = remaining
-                .find(char::is_whitespace)
-                .map_or(text.len(), |i| start_pos + i);
+fn tokenize<'a>(text: &'a str, complexity: &TokenizerComplexity) -> Vec<&'a str> {
+    match complexity {
+        TokenizerComplexity::Low => {
+            text.split_whitespace().collect()
         }
-        // Words
-        else if first_char.is_alphanumeric() {
-            let mut end_word_pos = 0;
-            let mut chars = remaining.char_indices().peekable();
-            while let Some((i, c)) = chars.next() {
-                if c.is_alphanumeric() {
-                    end_word_pos = i + c.len_utf8();
-                } else if c == '\'' { // please stop editing this, this is `char` (single quotes) not `&str` (double quotes)
-                    if let Some((_, next_c)) = chars.peek() {
-                        if next_c.is_alphanumeric() {
-                            // This is an apostrophe inside a word, continue
-                            continue;
+        TokenizerComplexity::Medium => {
+            // This is the original `custom_tokenize` logic
+            let mut tokens = Vec::new();
+            let mut last_pos = 0;
+
+            while last_pos < text.len() {
+                let start_pos = match text[last_pos..].find(|c: char| !c.is_whitespace()) {
+                    Some(pos) => last_pos + pos,
+                    None => break,
+                };
+
+                let remaining = &text[start_pos..];
+                let first_char = remaining.chars().next().unwrap();
+                let end_pos;
+
+                if remaining.starts_with("http") {
+                    end_pos = remaining.find(char::is_whitespace).map_or(text.len(), |i| start_pos + i);
+                } else if first_char.is_alphanumeric() {
+                    let mut end_word_pos = 0;
+                    let mut chars = remaining.char_indices().peekable();
+                    while let Some((i, c)) = chars.next() {
+                        if c.is_alphanumeric() {
+                            end_word_pos = i + c.len_utf8();
+                        } else if c == '\'' {
+                            if let Some((_, next_c)) = chars.peek() {
+                                if next_c.is_alphanumeric() {
+                                    continue;
+                                }
+                            }
+                            break;
+                        } else {
+                            break;
                         }
                     }
-                    // Apostrophe at the end or followed by non-alphanumeric, break
-                    break;
+                    end_pos = start_pos + end_word_pos;
+                } else if ".,!?;:\"'()[]{}".contains(first_char) {
+                    end_pos = start_pos + first_char.len_utf8();
                 } else {
-                    // Not part of a word
-                    break;
+                    last_pos = start_pos + first_char.len_utf8();
+                    continue;
                 }
+                tokens.push(&text[start_pos..end_pos]);
+                last_pos = end_pos;
             }
-            end_pos = start_pos + end_word_pos;
+            tokens
         }
-        // Punctuation
-        else if ".,!?;:\"'()[]{}".contains(first_char) {
-            end_pos = start_pos + first_char.len_utf8();
+        TokenizerComplexity::High => {
+            // More comprehensive regex
+            let re = Regex::new(concat!(
+                r"(?s)```[^`]*?```|",      // Multi-line code blocks
+                r"`[^`]*?`|",              // Inline code
+                r"<@!?&\d+>|",             // User and role mentions
+                r"<#\d+>|",                // Channel mentions
+                r"@everyone|@here|",       // Everyone/here mentions
+                r"<a?:\w+:\d+>|",          // Custom emojis
+                r"\p{Emoji}+|",            // Unicode Emojis
+                r"https?://[^\s]+|",       // URLs
+                r"\[[^\]]+\]\([^\s)]+\)|", // Masked links
+                r"\d+(?:[.,:']\d+)*%?|",   // Numbers with punctuation
+                r"[\w]+(?:['\-+/]\w+)*",   // Words with mixed symbols (apostrophes, hyphens, slashes, plus signs)
+                r"~{2,}|",                 // Strikethrough
+                r"\*{2,}|",                // Bold
+                r"_{2,}|",                 // Underline
+                r"[*_>]"                   // Other markdown (italics, quotes)
+            )).unwrap();
+            re.find_iter(text).map(|m| m.as_str()).collect()
         }
-        // Unmatched character, skip it
-        else {
-            last_pos = start_pos + first_char.len_utf8();
-            continue;
-        }
-
-        tokens.push(&text[start_pos..end_pos]);
-        last_pos = end_pos;
     }
-    tokens
-}
-
-fn tokenize(text: &str) -> Vec<String> {
-    custom_tokenize(text)
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect()
 }
 
 #[unsafe(no_mangle)]
@@ -124,7 +138,12 @@ pub extern "C" fn destroy_chain(ptr: *mut MarkovChain) {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn train_on_batch(ptr: *mut MarkovChain, texts_ptr: *const u8, texts_len: usize) {
+pub extern "C" fn train_on_batch(
+    ptr: *mut MarkovChain,
+    texts_ptr: *const u8,
+    texts_len: usize,
+    complexity: TokenizerComplexity,
+) {
     if ptr.is_null() || texts_ptr.is_null() {
         return;
     }
@@ -148,7 +167,7 @@ pub extern "C" fn train_on_batch(ptr: *mut MarkovChain, texts_ptr: *const u8, te
     let mut casing_map = chain.casing_map.write().unwrap();
 
     for text in texts {
-        let word_ids: Vec<u32> = custom_tokenize(text)
+        let word_ids: Vec<u32> = tokenize(text, &complexity)
             .into_iter()
             .map(|word| {
                 // Inlined logic from intern_word_and_update_casing
@@ -404,7 +423,8 @@ pub extern "C" fn generate_text(
     ptr: *mut MarkovChain,
     max_words: usize,
     mode: u8,
-    seed_ptr: *const c_char
+    seed_ptr: *const c_char,
+    complexity: TokenizerComplexity,
 ) -> *mut c_char {
     if ptr.is_null() {
         return ptr::null_mut();
@@ -417,7 +437,13 @@ pub extern "C" fn generate_text(
         if seed_str.is_empty() {
             None
         } else {
-            Some(tokenize(seed_str))
+            // Use the provided complexity for tokenizing the seed.
+            Some(
+                tokenize(seed_str, &complexity)
+                    .into_iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+            )
         }
     };
 
