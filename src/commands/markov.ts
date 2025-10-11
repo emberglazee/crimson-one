@@ -318,7 +318,6 @@ export default {
 
             try {
                 logger.info(`Generating message with global: ${yellow(global)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
-                const timeStart = process.hrtime()
 
                 const progressTracker = new ProgressTracker(ctx, 'Generating message...')
                 markov.on('generateProgress', (progress: any) => {
@@ -337,14 +336,25 @@ export default {
                 })
                 markov.removeAllListeners('generateProgress')
 
-                const timeEnd = process.hrtime(timeStart)
-                const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6
-                logger.ok(`Generated message: ${yellow(result)}`)
+                if (!result) {
+                    throw new Error('Generation failed to produce a result.')
+                }
+
+                const { text, timings } = result
+                const totalTime = timings.db_query_ms + timings.training_ms + timings.generation_ms
+                logger.ok(`Generated message: ${yellow(text)}`)
 
                 const footerEmbed = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .addFields(
-                        { name: 'Generation Time', value: `${timeEndMs.toFixed(0)}ms`, inline: true },
+                        {
+                            name: 'Time taken',
+                            value: `**Database:** \`${timings.db_query_ms.toFixed(0)}ms\`\n` +
+                                   `**Training:** \`${timings.training_ms.toFixed(0)}ms\`\n` +
+                                   `**Generation:** \`${timings.generation_ms.toFixed(0)}ms\`\n` +
+                                   `**Total: \`${totalTime.toFixed(0)}ms\`**`,
+                            inline: true
+                        },
                         {
                             name: 'Filters',
                             value: [
@@ -362,7 +372,7 @@ export default {
                     .setTimestamp()
 
                 await progressTracker.finish({
-                    content: result,
+                    content: text,
                     embeds: [footerEmbed],
                     allowedMentions: {
                         parse: []
@@ -566,11 +576,20 @@ export default {
                 const rustChain = new RustMarkovChain()
                 try {
                     await ctx.editReply('Now generating message...')
-                    const timeStart = process.hrtime()
+
+                    const trainingStartTime = performance.now()
                     rustChain.trainBatch(comments, complexity)
-                    const result = rustChain.generate(words, mode, seed, complexity)
-                    const timeEnd = process.hrtime(timeStart)
-                    const timeEndMs = timeEnd[0] * 1000 + timeEnd[1] / 1e6
+                    const trainingMs = performance.now() - trainingStartTime
+
+                    const result = rustChain.generate(words, mode, seed, complexity, 0, trainingMs)
+
+                    if (!result) {
+                        await ctx.editReply({ content: '❌ Failed to generate a message. The model might not have had enough data.' })
+                        return
+                    }
+
+                    const { text, timings } = result
+                    const totalTime = timings.training_ms + timings.generation_ms
 
                     const videoEmbed = new EmbedBuilder()
                         .setAuthor({
@@ -585,7 +604,13 @@ export default {
                     const footerEmbed = new EmbedBuilder()
                         .setColor(0x0099FF)
                         .addFields(
-                            { name: 'Generation Time', value: `${timeEndMs.toFixed(0)}ms`, inline: true },
+                            {
+                                name: 'Generation Timings',
+                                value: `Training: \`${timings.training_ms.toFixed(0)}ms\`\n` +
+                                       `Generation: \`${timings.generation_ms.toFixed(0)}ms\`\n` +
+                                       `**Total: \`${totalTime.toFixed(0)}ms\`**`,
+                                inline: true
+                            },
                             {
                                 name: 'Filters',
                                 value: [
@@ -600,12 +625,7 @@ export default {
                         )
                         .setTimestamp()
 
-                    if (!result) {
-                        await ctx.editReply({ content: '❌ Failed to generate a message. The model might not have had enough data.', embeds: [videoEmbed] })
-                        return
-                    }
-
-                    await ctx.editReply({ content: result, embeds: [videoEmbed, footerEmbed] })
+                    await ctx.editReply({ content: text, embeds: [videoEmbed, footerEmbed] })
                 } finally {
                     rustChain.destroy()
                 }

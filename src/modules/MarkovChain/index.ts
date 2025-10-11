@@ -6,12 +6,15 @@ import { Client, Guild, TextChannel, User } from 'discord.js'
 import { EventEmitter } from 'tseep'
 import { Worker } from 'worker_threads'
 import path from 'path'
+import type { GenerationResult } from './RustChain'
 
 interface InitializeTaskOptions {
     token: string
 }
 
 import type { MarkovComplexity } from './RustChain'
+
+export type { GenerationResult }
 
 interface CollectTaskOptions {
     guildId: string
@@ -226,9 +229,9 @@ export class MarkovChat extends EventEmitter<{
         return { taskId, completionPromise }
     }
 
-    public async generateMessage(options: MarkovGenerateOptions): Promise<string> {
+    public async generateMessage(options: MarkovGenerateOptions): Promise<GenerationResult | null> {
         const { guild, channel, user, userId, words, seed, global, mode, complexity } = options
-        return this.sendTask<string>('generate', {
+        return this.sendTask<GenerationResult | null>('generate', {
             guildId: guild?.id,
             channelId: channel?.id,
             user,

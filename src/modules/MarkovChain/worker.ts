@@ -200,10 +200,11 @@ class MarkovEngine {
     }
 
     public async generateMessage(options: GenerateOptions) {
-        const startTime = Date.now()
+        const overallStartTime = performance.now()
 
+        // 1. Querying
         parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'querying', progress: 0, total: 1, elapsedTime: 0, estimatedTimeRemaining: null } })
-
+        const queryStartTime = performance.now()
         const messages = await this.dataSource.getMessages({
             guild: options.guildId ? { id: options.guildId } as Guild : undefined,
             channel: options.channelId ? { id: options.channelId } as TextChannel : undefined,
@@ -211,13 +212,15 @@ class MarkovEngine {
             userId: options.userId,
             global: options.global
         })
+        const dbQueryMs = performance.now() - queryStartTime
 
         if (messages.length === 0) {
             throw new Error('No messages found with the given filters')
         }
 
-        parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'training', progress: 0, total: messages.length, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null } })
-
+        // 2. Training
+        parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'training', progress: 0, total: messages.length, elapsedTime: performance.now() - overallStartTime, estimatedTimeRemaining: null } })
+        const trainingStartTime = performance.now()
         const rustChain = new RustMarkovChain()
         try {
             const CHUNK_SIZE = 1000
@@ -227,12 +230,20 @@ class MarkovEngine {
                 if (texts.length > 0) {
                     rustChain.trainBatch(texts, options.complexity)
                 }
-                parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'training', progress: Math.min(i + CHUNK_SIZE, messages.length), total: messages.length, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null } })
+                parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'training', progress: Math.min(i + CHUNK_SIZE, messages.length), total: messages.length, elapsedTime: performance.now() - overallStartTime, estimatedTimeRemaining: null } })
             }
+            const trainingMs = performance.now() - trainingStartTime
 
-            parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'generating', progress: 0, total: 1, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null } })
-
-            const result = rustChain.generate(options.words || 30, options.mode || 'trigram', options.seed, options.complexity)
+            // 3. Generating
+            parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'generating', progress: 0, total: 1, elapsedTime: performance.now() - overallStartTime, estimatedTimeRemaining: null } })
+            const result = rustChain.generate(
+                options.words || 30,
+                options.mode || 'trigram',
+                options.seed,
+                options.complexity,
+                dbQueryMs,
+                trainingMs
+            )
 
             return result
         } finally {

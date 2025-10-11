@@ -7,14 +7,29 @@
 
 use fastrand::Rng;
 use regex::Regex;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr::{self, null_mut};
-use std::sync::{Mutex, RwLock};
-use string_interner::{backend::StringBackend, StringInterner, symbol::SymbolUsize, Symbol};
 use std::slice;
 use std::str;
+use std::sync::{Mutex, RwLock};
+use std::time::Instant;
+use string_interner::{backend::StringBackend, StringInterner, symbol::SymbolUsize, Symbol};
+
+#[derive(Serialize)]
+struct Timings {
+    db_query_ms: f64,
+    training_ms: f64,
+    generation_ms: f64,
+}
+
+#[derive(Serialize)]
+struct GenerationResult {
+    text: String,
+    timings: Timings,
+}
 
 #[repr(C)]
 pub enum TokenizerComplexity {
@@ -426,11 +441,15 @@ pub extern "C" fn generate_text(
     mode: u8,
     seed_ptr: *const c_char,
     complexity: TokenizerComplexity,
+    db_query_ms: f64,
+    training_ms: f64,
 ) -> *mut c_char {
     if ptr.is_null() {
         return ptr::null_mut();
     }
+    let start_time = Instant::now();
     let chain = unsafe { &*ptr };
+    
     let seed_words = if seed_ptr.is_null() {
         None
     } else {
@@ -438,7 +457,6 @@ pub extern "C" fn generate_text(
         if seed_str.is_empty() {
             None
         } else {
-            // Use the provided complexity for tokenizing the seed.
             Some(
                 tokenize(seed_str, &complexity)
                     .into_iter()
@@ -457,8 +475,21 @@ pub extern "C" fn generate_text(
     if result_words.is_empty() {
         return null_mut();
     }
+
     let result_str = join_tokens(&result_words);
-    CString::new(result_str).map_or(ptr::null_mut(), |s| s.into_raw())
+    let generation_ms = start_time.elapsed().as_secs_f64() * 1000.0;
+
+    let result = GenerationResult {
+        text: result_str,
+        timings: Timings {
+            db_query_ms,
+            training_ms,
+            generation_ms,
+        },
+    };
+
+    let json_result = serde_json::to_string(&result).unwrap();
+    CString::new(json_result).map_or(ptr::null_mut(), |s| s.into_raw())
 }
 
 #[unsafe(no_mangle)]

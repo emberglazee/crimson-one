@@ -15,7 +15,7 @@ const { symbols } = dlopen(libPath, {
         args: [FFIType.ptr, FFIType.ptr, FFIType.u32, FFIType.u8] // chain_ptr, texts_ptr, texts_len, complexity
     },
     generate_text: {
-        args: [FFIType.ptr, FFIType.i32, FFIType.u8, FFIType.cstring, FFIType.u8], // chain_ptr, max_words, mode, seed_ptr, complexity
+        args: [FFIType.ptr, FFIType.i32, FFIType.u8, FFIType.cstring, FFIType.u8, FFIType.f64, FFIType.f64], // chain_ptr, max_words, mode, seed_ptr, complexity, db_query_ms, training_ms
         returns: FFIType.ptr
     },
     free_text: {
@@ -29,6 +29,17 @@ const complexityEnumMap: Record<MarkovComplexity, number> = {
     low: 0,
     medium: 1,
     high: 2
+}
+
+export interface Timings {
+    db_query_ms: number
+    training_ms: number
+    generation_ms: number
+}
+
+export interface GenerationResult {
+    text: string
+    timings: Timings
 }
 
 export class RustMarkovChain {
@@ -55,24 +66,41 @@ export class RustMarkovChain {
     public generate(
         maxWords: number = 30,
         mode: 'bigram' | 'trigram' = 'trigram',
-        seed?: string,
-        complexity: MarkovComplexity = 'medium'
-    ): string {
+        seed: string | undefined,
+        complexity: MarkovComplexity = 'medium',
+        dbQueryMs: number,
+        trainingMs: number
+    ): GenerationResult | null {
         if (!this.chainPtr) {
             throw new Error('Cannot generate from a destroyed chain.')
         }
         const modeId = mode === 'bigram' ? 0 : 1
         const complexityId = complexityEnumMap[complexity]
         const seedBuffer = seed ? Buffer.from(seed + '\0', 'utf8') : null
-        const resultPtr: Pointer | null = symbols.generate_text(this.chainPtr, maxWords, modeId, seedBuffer, complexityId)
+
+        const resultPtr: Pointer | null = symbols.generate_text(
+            this.chainPtr,
+            maxWords,
+            modeId,
+            seedBuffer,
+            complexityId,
+            dbQueryMs,
+            trainingMs
+        )
 
         if (!resultPtr) {
-            return ''
+            return null
         }
 
-        const result = new CString(resultPtr).toString()
+        const jsonResult = new CString(resultPtr).toString()
         symbols.free_text(resultPtr)
-        return result
+
+        try {
+            return JSON.parse(jsonResult) as GenerationResult
+        } catch (e) {
+            console.error('Failed to parse JSON from Rust:', e)
+            return null
+        }
     }
 
     public destroy(): void {
