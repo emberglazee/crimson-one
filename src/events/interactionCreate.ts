@@ -6,13 +6,12 @@ import type { Client } from 'discord.js'
 
 export default function onInteractionCreate(client: Client, commandManager: CommandManager) {
     client.on('interactionCreate', async interaction => {
-        if (!interaction.isChatInputCommand() && !interaction.isUserContextMenuCommand() && !interaction.isMessageContextMenuCommand()) {
-            if (interaction.isRepliable()) await interaction.reply(`⚠️ Unhandled interaction type ${interaction.type}`)
-            return
+        if (interaction.isChatInputCommand() || interaction.isUserContextMenuCommand() || interaction.isMessageContextMenuCommand()) {
+            commandManager.handleInteraction(interaction).catch(err => {
+                logger.warn(`Error while handling interaction:\n${red(err.stack)}`)
+            })
         }
-
-        commandManager.handleInteraction(interaction).catch(err => {
-            logger.warn(`Error while handling interaction:\n${red(err.stack)}`)
-        })
+        // Other interaction types (buttons, modals, etc.) are intentionally not handled here.
+        // They are managed by collectors within the commands that create them.
     })
 }
