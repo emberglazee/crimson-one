@@ -56,7 +56,7 @@ static HIGH_COMPLEXITY_TOKENIZER_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(concat!(
         r"(?s)```[^`]*?```|",      // Multi-line code blocks
         r"`[^`]*?`|",              // Inline code
-        r"<@!?&\d+>|",             // User and role mentions
+        r"<@[!&]?\d+>|",           // User and role mentions
         r"<#\d+>|",                // Channel mentions
         r"@everyone|@here|",       // Everyone/here mentions
         r"<a?:\w+:\d+>|",          // Custom emojis
