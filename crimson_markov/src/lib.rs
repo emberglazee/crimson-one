@@ -24,17 +24,17 @@ use string_interner::{backend::StringBackend, StringInterner, symbol::SymbolUsiz
 struct Timings {
     db_query_ms: f64,
     training_ms: f64,
-    generation_ms: f64,
+    generation_ms: f64
 }
 
 #[derive(Serialize)]
 struct GenerationResult {
     text: String,
-    timings: Timings,
+    timings: Timings
 }
 
-type BigramMap = HashMap<u32, Vec<u32>>;
-type TrigramMap = HashMap<(u32, u32), Vec<u32>>;
+type BigramMap = HashMap<u32, HashMap<u32, u32>>;
+type TrigramMap = HashMap<(u32, u32), HashMap<u32, u32>>;
 type TrigramInvertedStarters = HashMap<u32, HashSet<(u32, u32)>>;
 
 pub struct MarkovChain {
@@ -118,7 +118,7 @@ pub extern "C" fn train_on_batch(
     let texts_slice = unsafe { slice::from_raw_parts(texts_ptr, texts_len) };
     let texts_str = match str::from_utf8(texts_slice) {
         Ok(s) => s,
-        Err(_) => return, // Or handle error appropriately
+        Err(_) => return // Or handle error appropriately
     };
 
     let texts = texts_str.split('\0').filter(|s| !s.is_empty());
@@ -162,10 +162,8 @@ pub extern "C" fn train_on_batch(
         if word_ids.len() >= 2 {
             bigram_starters.push(word_ids[0]);
             for i in 0..(word_ids.len() - 1) {
-                bigram_chain
-                    .entry(word_ids[i])
-                    .or_default()
-                    .push(word_ids[i + 1]);
+                let follower_counts = bigram_chain.entry(word_ids[i]).or_default();
+                *follower_counts.entry(word_ids[i + 1]).or_insert(0) += 1;
             }
         }
 
@@ -173,10 +171,8 @@ pub extern "C" fn train_on_batch(
             trigram_starters.push((word_ids[0], word_ids[1]));
             for i in 0..(word_ids.len() - 2) {
                 let key = (word_ids[i], word_ids[i + 1]);
-                trigram_chain
-                    .entry(key)
-                    .or_default()
-                    .push(word_ids[i + 2]);
+                let follower_counts = trigram_chain.entry(key).or_default();
+                *follower_counts.entry(word_ids[i + 2]).or_insert(0) += 1;
                 trigram_inverted_starters
                     .entry(word_ids[i])
                     .or_default()
@@ -189,7 +185,7 @@ pub extern "C" fn train_on_batch(
 fn generate_bigram(
     chain: &MarkovChain,
     max_words: usize,
-    seed_words: Option<Vec<String>>,
+    seed_words: Option<Vec<String>>
 ) -> String {
     let bigram_chain = chain.bigram_chain.borrow();
     let bigram_starters = chain.bigram_starters.borrow();
@@ -239,11 +235,28 @@ fn generate_bigram(
 
     let words_to_generate = max_words.saturating_sub(result_ids.len());
     for _ in 0..words_to_generate {
-        if let Some(next_word_ids) = bigram_chain.get(&current_word_id) {
-            if next_word_ids.is_empty() {
+        if let Some(follower_counts) = bigram_chain.get(&current_word_id) {
+            // Trading off extra computation for less memory usage
+            let total_count: u64 = follower_counts.values().map(|&c| c as u64).sum();
+            if total_count == 0 {
                 break;
             }
-            current_word_id = next_word_ids[rng.usize(..next_word_ids.len())];
+            let mut choice = rng.u64(..total_count);
+            let mut next_word_id = 0;
+
+            for (word_id, count) in follower_counts.iter() {
+                if choice < *count as u64 {
+                    next_word_id = *word_id;
+                    break;
+                }
+                choice -= *count as u64;
+            }
+
+            if next_word_id == 0 {
+                break;
+            }
+
+            current_word_id = next_word_id;
             result_ids.push(current_word_id);
         } else {
             break;
@@ -275,7 +288,7 @@ fn generate_bigram(
 
     let mut result = String::new();
     let punctuation: &[char] = &[
-        '.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}',
+        '.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}'
     ];
 
     let mut tokens_iter = result_ids.iter().map(|&id| get_word_str(id));
@@ -300,7 +313,7 @@ fn generate_bigram(
 fn generate_trigram(
     chain: &MarkovChain,
     max_words: usize,
-    seed_words: Option<Vec<String>>,
+    seed_words: Option<Vec<String>>
 ) -> String {
     let trigram_chain = chain.trigram_chain.borrow();
     let trigram_starters = chain.trigram_starters.borrow();
@@ -337,7 +350,7 @@ fn generate_trigram(
                 if seed_ids.len() >= 2 {
                     let key = (
                         seed_ids[seed_ids.len() - 2],
-                        seed_ids[seed_ids.len() - 1],
+                        seed_ids[seed_ids.len() - 1]
                     );
                     if trigram_chain.contains_key(&key) {
                         result_ids = seed_ids.clone();
@@ -371,7 +384,7 @@ fn generate_trigram(
 
                             current_pair = (
                                 *result_ids.get(result_ids.len() - 2).unwrap(),
-                                *result_ids.last().unwrap(),
+                                *result_ids.last().unwrap()
                             );
                             seeded = true;
                         }
@@ -389,11 +402,27 @@ fn generate_trigram(
 
     let words_to_generate = max_words.saturating_sub(result_ids.len());
     for _ in 0..words_to_generate {
-        if let Some(next_word_ids) = trigram_chain.get(&current_pair) {
-            if next_word_ids.is_empty() {
+        if let Some(follower_counts) = trigram_chain.get(&current_pair) {
+            // Trading off extra computation for less memory usage
+            let total_count: u64 = follower_counts.values().map(|&c| c as u64).sum();
+            if total_count == 0 {
                 break;
             }
-            let next_word_id = next_word_ids[rng.usize(..next_word_ids.len())];
+            let mut choice = rng.u64(..total_count);
+            let mut next_word_id = 0;
+
+            for (word_id, count) in follower_counts.iter() {
+                if choice < *count as u64 {
+                    next_word_id = *word_id;
+                    break;
+                }
+                choice -= *count as u64;
+            }
+
+            if next_word_id == 0 {
+                break;
+            }
+
             result_ids.push(next_word_id);
             current_pair = (current_pair.1, next_word_id);
         } else {
@@ -426,7 +455,7 @@ fn generate_trigram(
 
     let mut result = String::new();
     let punctuation: &[char] = &[
-        '.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}',
+        '.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}'
     ];
 
     let mut tokens_iter = result_ids.iter().map(|&id| get_word_str(id));
@@ -455,7 +484,7 @@ pub extern "C" fn generate_text(
     mode: u8,
     seed_ptr: *const c_char,
     db_query_ms: f64,
-    training_ms: f64,
+    training_ms: f64
 ) -> *mut c_char {
     if ptr.is_null() {
         return ptr::null_mut();
@@ -474,7 +503,7 @@ pub extern "C" fn generate_text(
                 tokenize(seed_str)
                     .into_iter()
                     .map(|s| s.to_string())
-                    .collect(),
+                    .collect()
             )
         }
     };
@@ -496,8 +525,8 @@ pub extern "C" fn generate_text(
         timings: Timings {
             db_query_ms,
             training_ms,
-            generation_ms,
-        },
+            generation_ms
+        }
     };
 
     let json_result = serde_json::to_string(&result).unwrap();
