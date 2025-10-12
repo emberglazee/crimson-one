@@ -94,6 +94,8 @@ interface MarkovCollectProgressEvent {
     batchNumber: number
     messagesCollected: number
     totalCollected: number
+    totalFetched: number
+    totalIgnored: number
     limit: number | 'entire'
     percentComplete: number
     channelName: string
@@ -665,7 +667,7 @@ export default {
                 '### 1. Data Collection\n' +
                 '- The bot requires messages to generate sentences. More data results in more accurate and coherent generated sentences.\n' +
                 '  - `/markov collect`: Collects messages from a *single* specified channel;\n' +
-                '  - `/markov collect_all`: Collects messages from *all* channels accessible by the bot.\n' +
+                '  - `/markov collect_all`: Collects messages from ***all* channels accessible by the bot**.\n' +
                 '- **Note**: both commands have extensive options, like only collecting from a certain user, or with a certain message cap (limit). You can view them all in the slash command option suggestions.\n' +
                 '### 2. Text Generation\n' +
                 '  - `/markov generate`: Generate a new sentence using the Markov chain model.\n' +
@@ -1165,12 +1167,13 @@ export default {
                 const progressHandler = async (progress: MarkovCollectProgressEvent) => {
                     if (progress.taskId !== operationTaskId) return
 
-                    const statusText = newMessagesOnly ? 'Only collecting new messages since the last collection.' : undefined
+                    const statusText = newMessagesOnly ? 'Only collecting new messages since the last collection.' : 'Scanning messages...'
 
                     if (progress.limit === 'entire') {
                         await progressTracker.update({
                             current: progress.totalCollected,
-                            percent: progress.percentComplete,
+                            fetched: progress.totalFetched,
+                            ignored: progress.totalIgnored,
                             statusText
                         })
                     } else {

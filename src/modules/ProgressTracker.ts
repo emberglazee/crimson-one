@@ -44,11 +44,19 @@ export class ProgressTracker {
         this.stepTimes.push(now - lastStepTime)
     }
 
-    public async update(options: { current: number, total?: number, percent?: number, statusText?: string, eta?: string | null }) {
+    public async update(options: {
+        current: number
+        total?: number
+        percent?: number
+        statusText?: string
+        eta?: string | null
+        fetched?: number
+        ignored?: number
+    }) {
         const now = Date.now()
 
         const elapsedMs = now - this.startTime
-        if (elapsedMs > (INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS) && !this.messageManager.isUsingFollowUp) {
+        if (elapsedMs > INTERACTION_TIMEOUT_MS - SAFETY_MARGIN_MS && !this.messageManager.isUsingFollowUp) {
             this.messageManager.switchToFollowUp()
         }
 
@@ -57,27 +65,40 @@ export class ProgressTracker {
         }
         this.lastUpdateTime = now
 
-        let progress = 0
-        if (options.percent !== undefined) {
-            progress = options.percent / 100
-        } else if (options.total !== undefined && options.total > 0) {
-            progress = options.current / options.total
-        }
-
-        const progressBar = this.createProgressBar(progress)
-
         const eta = options.eta ?? (options.total ? this.calculateETA(options.current, options.total) : null)
 
-        let message = `**${this.title}**\n${progressBar}`
-        if (options.total) {
-            message += ` (${options.current}/${options.total})`
+        let message = `**${this.title}**\n`
+
+        if (options.fetched !== undefined) {
+            message += `*${options.statusText || 'Scanning messages...'}*
+\`\`\`
+Fetched:   ${options.fetched.toLocaleString()}
+Collected: ${options.current.toLocaleString()}
+Ignored:   ${options.ignored?.toLocaleString() ?? 'N/A'}
+\`\`\`
+`
         } else {
-            message += ` (${options.current} items)`
+            let progress = 0
+            if (options.percent !== undefined) {
+                progress = options.percent / 100
+            } else if (options.total !== undefined && options.total > 0) {
+                progress = options.current / options.total
+            }
+
+            const progressBar = this.createProgressBar(progress)
+            message += progressBar
+
+            if (options.total) {
+                message += ` (${options.current}/${options.total})`
+            } else {
+                message += ` (${options.current} items)`
+            }
+
+            if (options.statusText) {
+                message += `\n*${options.statusText}*`
+            }
         }
 
-        if (options.statusText) {
-            message += `\n*${options.statusText}*`
-        }
         if (eta) {
             message += `\n⏱️ ETA: ${eta}`
         }

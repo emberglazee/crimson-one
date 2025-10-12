@@ -108,6 +108,8 @@ class MarkovEngine {
         let lastId: string | undefined
         let batchCount = 0
         const numericLimit = isEntireChannel ? Number.MAX_SAFE_INTEGER : (limit as number)
+        let totalFetched = 0
+        let totalIgnored = 0
 
         while (messages.length < numericLimit) {
             if (batchCount > 0) await new Promise(resolve => setTimeout(resolve, delayMs))
@@ -133,11 +135,15 @@ class MarkovEngine {
 
             if (!batch?.size) break
 
+            totalFetched += batch.size
+
             let validMessages = user
                 ? batch.filter(msg => msg.author.id === user.id && msg.content.length > 0)
                 : userId
                     ? batch.filter(msg => msg.author.id === userId && msg.content.length > 0)
                     : batch.filter(msg => msg.content.length > 0)
+
+            totalIgnored += batch.size - validMessages.size
 
             if (wasFullyCollected) {
                 for (const [id] of validMessages) {
@@ -173,6 +179,8 @@ class MarkovEngine {
                 batchNumber: batchCount,
                 messagesCollected: validMessages.size,
                 totalCollected: messages.length,
+                totalFetched,
+                totalIgnored,
                 limit,
                 percentComplete: totalMessageCount && isEntireChannel ?
                     (messages.length / totalMessageCount) * 100 :

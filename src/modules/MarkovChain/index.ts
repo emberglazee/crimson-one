@@ -50,6 +50,8 @@ interface MarkovCollectProgressEvent {
     batchNumber: number
     messagesCollected: number
     totalCollected: number
+    totalFetched: number
+    totalIgnored: number
     limit: number | 'entire'
     percentComplete: number
     channelName: string
