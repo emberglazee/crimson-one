@@ -419,14 +419,15 @@ pub extern "C" fn generate_text(
     mode: u8,
     seed_ptr: *const c_char,
     db_query_ms: f64,
-    training_ms: f64
+    training_ms: f64,
+    batch_size: usize
 ) -> *mut c_char {
     if ptr.is_null() {
         return ptr::null_mut();
     }
-    let start_time = Instant::now();
+
     let chain = unsafe { &*ptr };
-    
+
     let seed_words = if seed_ptr.is_null() {
         None
     } else {
@@ -443,29 +444,57 @@ pub extern "C" fn generate_text(
         }
     };
 
-    let result_str = if mode == 0 {
-        generate_bigram(chain, max_words, seed_words)
-    } else {
-        generate_trigram(chain, max_words, seed_words)
-    };
+    if batch_size > 1 {
+        let mut results = Vec::with_capacity(batch_size);
+        for i in 0..batch_size {
+            let start_time = Instant::now();
+            let result_str = if mode == 0 {
+                generate_bigram(chain, max_words, seed_words.clone())
+            } else {
+                generate_trigram(chain, max_words, seed_words.clone())
+            };
 
-    if result_str.is_empty() {
-        return null_mut();
-    }
-
-    let generation_ms = start_time.elapsed().as_micros() as f64 / 1_000.0;
-
-    let result = GenerationResult {
-        text: result_str,
-        timings: Timings {
-            db_query_ms,
-            training_ms,
-            generation_ms
+            if !result_str.is_empty() {
+                let generation_ms = start_time.elapsed().as_micros() as f64 / 1_000.0;
+                results.push(GenerationResult {
+                    text: result_str,
+                    timings: Timings {
+                        db_query_ms: if i == 0 { db_query_ms } else { 0.0 },
+                        training_ms: if i == 0 { training_ms } else { 0.0 },
+                        generation_ms,
+                    },
+                });
+            }
         }
-    };
+        if results.is_empty() {
+            return null_mut();
+        }
+        let json_result = serde_json::to_string(&results).unwrap();
+        CString::new(json_result).map_or(ptr::null_mut(), |s| s.into_raw())
+    } else {
+        let start_time = Instant::now();
+        let result_str = if mode == 0 {
+            generate_bigram(chain, max_words, seed_words)
+        } else {
+            generate_trigram(chain, max_words, seed_words)
+        };
 
-    let json_result = serde_json::to_string(&result).unwrap();
-    CString::new(json_result).map_or(ptr::null_mut(), |s| s.into_raw())
+        if result_str.is_empty() {
+            return null_mut();
+        }
+
+        let generation_ms = start_time.elapsed().as_micros() as f64 / 1_000.0;
+        let result = GenerationResult {
+            text: result_str,
+            timings: Timings {
+                db_query_ms,
+                training_ms,
+                generation_ms,
+            },
+        };
+        let json_result = serde_json::to_string(&result).unwrap();
+        CString::new(json_result).map_or(ptr::null_mut(), |s| s.into_raw())
+    }
 }
 
 #[unsafe(no_mangle)]

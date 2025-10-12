@@ -35,6 +35,7 @@ interface MarkovGenerateOptions {
     seed?: string
     global?: boolean
     mode?: 'trigram' | 'bigram'
+    batch?: number
 }
 
 interface MarkovCollectProgressEvent {
@@ -226,9 +227,9 @@ export class MarkovChat extends EventEmitter<{
         return { taskId, completionPromise }
     }
 
-    public async generateMessage(options: MarkovGenerateOptions): Promise<GenerationResult | null> {
-        const { guild, channel, user, userId, words, seed, global, mode } = options
-        return this.sendTask<GenerationResult | null>('generate', {
+    public async generateMessage(options: MarkovGenerateOptions): Promise<GenerationResult | GenerationResult[] | null> {
+        const { guild, channel, user, userId, words, seed, global, mode, batch } = options
+        return this.sendTask<GenerationResult | GenerationResult[] | null>('generate', {
             guildId: guild?.id,
             channelId: channel?.id,
             user,
@@ -236,7 +237,8 @@ export class MarkovChat extends EventEmitter<{
             words,
             seed,
             global,
-            mode
+            mode,
+            batch
         })
     }
 

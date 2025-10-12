@@ -2,7 +2,7 @@ import 'reflect-metadata'
 import { parentPort, isMainThread } from 'worker_threads'
 
 import { Client, Guild, Message as DiscordMessage, TextChannel, Collection, IntentsBitField, Partials, User } from 'discord.js'
-import { RustMarkovChain } from './RustChain'
+import { RustMarkovChain, type GenerationResult } from './RustChain'
 import { MarkovDataSource } from './DataSource'
 import { container } from 'tsyringe'
 
@@ -26,6 +26,7 @@ interface GenerateOptions {
     seed?: string
     global?: boolean
     mode?: 'trigram' | 'bigram'
+    batch?: number
 }
 
 interface MessageStatsOptions {
@@ -198,7 +199,7 @@ class MarkovEngine {
         return messages.length
     }
 
-    public async generateMessage(options: GenerateOptions) {
+    public async generateMessage(options: GenerateOptions): Promise<GenerationResult | GenerationResult[] | null> {
         const overallStartTime = performance.now()
 
         // 1. Querying
@@ -240,9 +241,9 @@ class MarkovEngine {
                 options.mode || 'trigram',
                 options.seed,
                 dbQueryMs,
-                trainingMs
+                trainingMs,
+                options.batch || 1
             )
-
             return result
         } finally {
             // IMPORTANT: Clean up the memory used by the Rust chain

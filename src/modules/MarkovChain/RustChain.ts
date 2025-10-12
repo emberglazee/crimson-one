@@ -15,7 +15,7 @@ const { symbols } = dlopen(libPath, {
         args: [FFIType.ptr, FFIType.ptr, FFIType.u32] // chain_ptr, texts_ptr, texts_len
     },
     generate_text: {
-        args: [FFIType.ptr, FFIType.i32, FFIType.u8, FFIType.cstring, FFIType.f64, FFIType.f64], // chain_ptr, max_words, mode, seed_ptr, db_query_ms, training_ms
+        args: [FFIType.ptr, FFIType.i32, FFIType.u8, FFIType.cstring, FFIType.f64, FFIType.f64, FFIType.i32], // chain_ptr, max_words, mode, seed_ptr, db_query_ms, training_ms, batch_size
         returns: FFIType.ptr
     },
     free_text: {
@@ -59,8 +59,9 @@ export class RustMarkovChain {
         mode: 'bigram' | 'trigram' = 'trigram',
         seed: string | undefined,
         dbQueryMs: number,
-        trainingMs: number
-    ): GenerationResult | null {
+        trainingMs: number,
+        batchSize: number = 1
+    ): GenerationResult | GenerationResult[] | null {
         if (!this.chainPtr) {
             throw new Error('Cannot generate from a destroyed chain.')
         }
@@ -73,7 +74,8 @@ export class RustMarkovChain {
             modeId,
             seedBuffer,
             dbQueryMs,
-            trainingMs
+            trainingMs,
+            batchSize
         )
 
         if (!resultPtr) {
@@ -84,7 +86,11 @@ export class RustMarkovChain {
         symbols.free_text(resultPtr)
 
         try {
-            return JSON.parse(jsonResult) as GenerationResult
+            const parsed = JSON.parse(jsonResult)
+            if (batchSize > 1) {
+                return parsed as GenerationResult[]
+            }
+            return parsed as GenerationResult
         } catch (e) {
             console.error('Failed to parse JSON from Rust:', e)
             return null

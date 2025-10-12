@@ -140,6 +140,7 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
     const words = ctx.getIntegerOption('words', false, 30)
     const seed = ctx.getStringOption('seed', false) ?? undefined
     const mode = ctx.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram'
+    const batch = ctx.getIntegerOption('batch', false, 1)
 
     let progressTracker: ProgressTracker | undefined
 
@@ -156,7 +157,7 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
     }
 
     try {
-        logger.info(`Generating message with global: ${yellow(global)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}`)
+        logger.info(`Generating message with global: ${yellow(global)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}, batch: ${yellow(batch)}`)
 
         markov.on('generateProgress', (progress: any) => {
             if (progress.step === 'training' && progressTracker) {
@@ -170,7 +171,7 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
 
         const result = await markov.generateMessage({
             guild: !global ? ctx.guild : undefined,
-            channel, user, userId, words, seed, global, mode
+            channel, user, userId, words, seed, global, mode, batch
         })
         markov.removeAllListeners('generateProgress')
 
@@ -178,50 +179,109 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
             throw new Error('Generation failed to produce a result.')
         }
 
-        const { text, timings } = result
-        const totalTime = timings.db_query_ms + timings.training_ms + timings.generation_ms
-        logger.ok(`Generated message: ${yellow(text)}`)
+        if (Array.isArray(result)) {
+            const totalGenerationMs = result.reduce((acc, r) => acc + r.timings.generation_ms, 0)
+            const totalTime = result[0].timings.db_query_ms + result[0].timings.training_ms + totalGenerationMs
+            const avgTime = totalTime / result.length
+            logger.ok(`Generated ${result.length} messages. Average time: ${avgTime.toFixed(0)}ms`)
 
-        const footerEmbed = new EmbedBuilder()
-            .setColor(0x0099FF)
-            .addFields(
-                {
-                    name: 'Time taken',
-                    value: `**Database:** \`${timings.db_query_ms.toFixed(0)}ms\`\n` +
-                           `**Training:** \`${timings.training_ms.toFixed(0)}ms\`\n` +
-                           `**Generation:** \`${timings.generation_ms.toFixed(0)}ms\`\n` +
-                           `**Total:** \`${totalTime.toFixed(0)}ms\``,
-                    inline: true
-                },
-                {
-                    name: 'Filters',
-                    value: [
-                        global ? 'Global' : 'This server',
-                        channel ? `Channel: #${channel.name ?? channel.id}` : null,
-                        user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
-                        words !== 30 ? `Words: ${words}` : null,
-                        seed ? `Seed: "${seed}"` : null,
-                        `Mode: ${mode}`
-                    ].filter(Boolean).join(', ') || 'None',
-                    inline: false
+            const text = result.map((r, i) => `${i + 1}. ${r.text}`).join('\n')
+
+            const footerEmbed = new EmbedBuilder()
+                .setColor(0x0099FF)
+                .addFields(
+                    {
+                        name: 'Time taken (average)',
+                        value: `**Database:** \`${result[0].timings.db_query_ms.toFixed(0)}ms\`\n` +
+                               `**Training:** \`${result[0].timings.training_ms.toFixed(0)}ms\`\n` +
+                               `**Generation:** \`${(totalGenerationMs / result.length).toFixed(0)}ms/msg\`\n` +
+                               `**Total:** \`${totalTime.toFixed(0)}ms\``,
+                        inline: true
+                    },
+                    {
+                        name: 'Filters',
+                        value: [
+                            global ? 'Global' : 'This server',
+                            channel ? `Channel: #${channel.name ?? channel.id}` : null,
+                            user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
+                            words !== 30 ? `Words: ${words}` : null,
+                            seed ? `Seed: "${seed}"` : null,
+                            `Mode: ${mode}`,
+                            `Batch: ${batch}`
+                        ].filter(Boolean).join(', ') || 'None',
+                        inline: false
+                    }
+                )
+                .setTimestamp()
+
+            const replyOptions = {
+                embeds: [footerEmbed],
+                allowedMentions: {
+                    users: isQueued ? [ctx.author.id] : []
                 }
-            )
-            .setTimestamp()
-
-        const replyOptions = {
-            content: isQueued ? `${ctx.author}, your queued generation is complete:\n${text}` : text,
-            embeds: [footerEmbed],
-            allowedMentions: {
-                users: isQueued ? [ctx.author.id] : []
             }
-        }
 
-        if (isQueued) {
-            if (ctx.channel && 'send' in ctx.channel) {
-                await ctx.channel.send(replyOptions)
+            if (isQueued) {
+                if (ctx.channel && 'send' in ctx.channel) {
+                    await ctx.channel.send({ content: `${ctx.author}, your queued generation is complete:`, ...replyOptions })
+                    const chunks = text.match(/[\s\S]{1,2000}/g) || []
+                    for (const chunk of chunks) {
+                        await ctx.channel.send({ content: chunk, allowedMentions: { users: [] } })
+                    }
+                }
+            } else {
+                await progressTracker!.finish({ content: 'Generated messages:', ...replyOptions })
+                const chunks = text.match(/[\s\S]{1,2000}/g) || []
+                for (const chunk of chunks) {
+                    await ctx.followUp({ content: chunk })
+                }
             }
         } else {
-            await progressTracker!.finish(replyOptions)
+            const { text, timings } = result
+            const totalTime = timings.db_query_ms + timings.training_ms + timings.generation_ms
+            logger.ok(`Generated message: ${yellow(text)}`)
+
+            const footerEmbed = new EmbedBuilder()
+                .setColor(0x0099FF)
+                .addFields(
+                    {
+                        name: 'Time taken',
+                        value: `**Database:** \`${timings.db_query_ms.toFixed(0)}ms\`\n` +
+                               `**Training:** \`${timings.training_ms.toFixed(0)}ms\`\n` +
+                               `**Generation:** \`${timings.generation_ms.toFixed(0)}ms\`\n` +
+                               `**Total:** \`${totalTime.toFixed(0)}ms\``,
+                        inline: true
+                    },
+                    {
+                        name: 'Filters',
+                        value: [
+                            global ? 'Global' : 'This server',
+                            channel ? `Channel: #${channel.name ?? channel.id}` : null,
+                            user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
+                            words !== 30 ? `Words: ${words}` : null,
+                            seed ? `Seed: "${seed}"` : null,
+                            `Mode: ${mode}`
+                        ].filter(Boolean).join(', ') || 'None',
+                        inline: false
+                    }
+                )
+                .setTimestamp()
+
+            const replyOptions = {
+                content: isQueued ? `${ctx.author}, your queued generation is complete:\n${text}` : text,
+                embeds: [footerEmbed],
+                allowedMentions: {
+                    users: isQueued ? [ctx.author.id] : []
+                }
+            }
+
+            if (isQueued) {
+                if (ctx.channel && 'send' in ctx.channel) {
+                    await ctx.channel.send(replyOptions)
+                }
+            } else {
+                await progressTracker!.finish(replyOptions)
+            }
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -305,6 +365,12 @@ export default {
                     { name: 'Trigram (default)', value: 'trigram' },
                     { name: 'Bigram (classic)', value: 'bigram' }
                 )
+            ).addIntegerOption(option => option
+                .setName('batch')
+                .setDescription('Number of messages to generate (default: 1, max: 10)')
+                .setRequired(false)
+                .setMinValue(1)
+                .setMaxValue(10)
             )
         ).addSubcommand(subcommand => subcommand
             .setName('stats')
@@ -406,6 +472,12 @@ export default {
                     { name: 'Trigram (default)', value: 'trigram' },
                     { name: 'Bigram (classic)', value: 'bigram' }
                 )
+            ).addIntegerOption(option => option
+                .setName('batch')
+                .setDescription('Number of messages to generate (default: 1, max: 10)')
+                .setRequired(false)
+                .setMinValue(1)
+                .setMaxValue(10)
             )
         ).addSubcommand(subcommand => subcommand
             .setName('youtube_video_stats')
@@ -622,6 +694,7 @@ export default {
                 const words = ctx.getIntegerOption('words', false, 30)
                 const seed = ctx.getStringOption('seed', false) ?? undefined
                 const mode = ctx.getStringOption('mode', false, 'bigram') as 'trigram' | 'bigram'
+                const batch = ctx.getIntegerOption('batch', false, 1)
 
                 const rustChain = new RustMarkovChain()
                 try {
@@ -631,50 +704,96 @@ export default {
                     rustChain.trainBatch(comments)
                     const trainingMs = performance.now() - trainingStartTime
 
-                    const result = rustChain.generate(words, mode, seed, 0, trainingMs)
+                    const result = rustChain.generate(words, mode, seed, 0, trainingMs, batch)
 
                     if (!result) {
-                        await ctx.editReply({ content: '❌ Failed to generate a message. The model might not have had enough data.' })
+                        await ctx.editReply({ content: '❌ Failed to generate messages. The model might not have had enough data.' })
                         return
                     }
 
-                    const { text, timings } = result
-                    const totalTime = timings.training_ms + timings.generation_ms
+                    if (Array.isArray(result)) {
+                        const totalGenerationMs = result.reduce((acc, r) => acc + r.timings.generation_ms, 0)
+                        const totalTime = result[0].timings.training_ms + totalGenerationMs
+                        const text = result.map((r, i) => `${i + 1}. ${r.text}`).join('\n')
 
-                    const videoEmbed = new EmbedBuilder()
-                        .setAuthor({
-                            name: video.snippet!.channelTitle ?? 'Unknown Channel',
-                            url: `https://www.youtube.com/channel/${video.snippet!.channelId}`
-                        })
-                        .setTitle(video.snippet!.title ?? 'Unknown Video')
-                        .setURL(videoUrl)
-                        .setThumbnail(video.snippet!.thumbnails?.default?.url ?? null)
-                        .setColor('#FF0000')
+                        const videoEmbed = new EmbedBuilder()
+                            .setAuthor({
+                                name: video.snippet!.channelTitle ?? 'Unknown Channel',
+                                url: `https://www.youtube.com/channel/${video.snippet!.channelId}`
+                            })
+                            .setTitle(video.snippet!.title ?? 'Unknown Video')
+                            .setURL(videoUrl)
+                            .setThumbnail(video.snippet!.thumbnails?.default?.url ?? null)
+                            .setColor('#FF0000')
 
-                    const footerEmbed = new EmbedBuilder()
-                        .setColor(0x0099FF)
-                        .addFields(
-                            {
-                                name: 'Generation Timings',
-                                value: `Training: \`${timings.training_ms.toFixed(0)}ms\`\n` +
-                                       `Generation: \`${timings.generation_ms.toFixed(0)}ms\`\n` +
-                                       `**Total: \`${totalTime.toFixed(0)}ms\`**`,
-                                inline: true
-                            },
-                            {
-                                name: 'Filters',
-                                value: [
-                                    'Source: YouTube Video',
-                                    words !== 30 ? `Words: ${words}` : null,
-                                    seed ? `Seed: "${seed}"` : null,
-                                    `Mode: ${mode}`
-                                ].filter(Boolean).join(', ') || 'None',
-                                inline: false
-                            }
-                        )
-                        .setTimestamp()
+                        const footerEmbed = new EmbedBuilder()
+                            .setColor(0x0099FF)
+                            .addFields(
+                                {
+                                    name: 'Generation Timings (average)',
+                                    value: `Training: \`${result[0].timings.training_ms.toFixed(0)}ms\`\n` +
+                                           `Generation: \`${(totalGenerationMs / result.length).toFixed(0)}ms/msg\`\n` +
+                                           `**Total: \`${totalTime.toFixed(0)}ms\`**`,
+                                    inline: true
+                                },
+                                {
+                                    name: 'Filters',
+                                    value: [
+                                        'Source: YouTube Video',
+                                        words !== 30 ? `Words: ${words}` : null,
+                                        seed ? `Seed: "${seed}"` : null,
+                                        `Mode: ${mode}`,
+                                        `Batch: ${batch}`
+                                    ].filter(Boolean).join(', ') || 'None',
+                                    inline: false
+                                }
+                            )
+                            .setTimestamp()
 
-                    await ctx.editReply({ content: text, embeds: [videoEmbed, footerEmbed] })
+                        await ctx.editReply({ content: 'Generated messages:', embeds: [videoEmbed, footerEmbed] })
+                        const chunks = text.match(/[\s\S]{1,2000}/g) || []
+                        for (const chunk of chunks) {
+                            await ctx.followUp({ content: chunk, allowedMentions: { users: [] } })
+                        }
+                    } else {
+                        const { text, timings } = result
+                        const totalTime = timings.training_ms + timings.generation_ms
+
+                        const videoEmbed = new EmbedBuilder()
+                            .setAuthor({
+                                name: video.snippet!.channelTitle ?? 'Unknown Channel',
+                                url: `https://www.youtube.com/channel/${video.snippet!.channelId}`
+                            })
+                            .setTitle(video.snippet!.title ?? 'Unknown Video')
+                            .setURL(videoUrl)
+                            .setThumbnail(video.snippet!.thumbnails?.default?.url ?? null)
+                            .setColor('#FF0000')
+
+                        const footerEmbed = new EmbedBuilder()
+                            .setColor(0x0099FF)
+                            .addFields(
+                                {
+                                    name: 'Generation Timings',
+                                    value: `Training: \`${timings.training_ms.toFixed(0)}ms\`\n` +
+                                           `Generation: \`${timings.generation_ms.toFixed(0)}ms\`\n` +
+                                           `**Total: \`${totalTime.toFixed(0)}ms\`**`,
+                                    inline: true
+                                },
+                                {
+                                    name: 'Filters',
+                                    value: [
+                                        'Source: YouTube Video',
+                                        words !== 30 ? `Words: ${words}` : null,
+                                        seed ? `Seed: "${seed}"` : null,
+                                        `Mode: ${mode}`
+                                    ].filter(Boolean).join(', ') || 'None',
+                                    inline: false
+                                }
+                            )
+                            .setTimestamp()
+
+                        await ctx.editReply({ content: text, embeds: [videoEmbed, footerEmbed] })
+                    }
                 } finally {
                     rustChain.destroy()
                 }
