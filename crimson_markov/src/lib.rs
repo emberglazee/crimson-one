@@ -182,87 +182,40 @@ pub extern "C" fn train_on_batch(
     }
 }
 
-fn generate_bigram(
-    chain: &MarkovChain,
-    max_words: usize,
-    seed_words: Option<Vec<String>>
-) -> String {
-    let bigram_chain = chain.bigram_chain.borrow();
-    let bigram_starters = chain.bigram_starters.borrow();
+fn get_seed_ids(chain: &MarkovChain, seed_words: &[String]) -> Vec<u32> {
+    let lowercase_word_interner = chain.lowercase_word_interner.borrow();
+    seed_words
+        .iter()
+        .filter_map(|word| {
+            let lower_word: Cow<str> = if word.chars().any(char::is_uppercase) {
+                Cow::Owned(word.to_lowercase())
+            } else {
+                Cow::Borrowed(word)
+            };
+            lowercase_word_interner
+                .get(&*lower_word)
+                .map(|s| s.to_usize() as u32)
+        })
+        .collect()
+}
 
-    if bigram_chain.is_empty() || bigram_starters.is_empty() {
-        return String::new();
+fn choose_next_word(rng: &mut Rng, follower_counts: &HashMap<u32, u32>) -> Option<u32> {
+    let total_count: u64 = follower_counts.values().map(|&c| c as u64).sum();
+    if total_count == 0 {
+        return None;
     }
-    let mut result_ids = Vec::with_capacity(max_words);
-    let mut current_word_id: u32 = 0;
-    let mut seeded = false;
+    let mut choice = rng.u64(..total_count);
 
-    if let Some(words) = seed_words {
-        if !words.is_empty() {
-            let lowercase_word_interner = chain.lowercase_word_interner.borrow();
-            let seed_ids: Vec<u32> = words
-                .iter()
-                .filter_map(|word| {
-                    let lower_word: Cow<str> = if word.chars().any(char::is_uppercase) {
-                        Cow::Owned(word.to_lowercase())
-                    } else {
-                        Cow::Borrowed(word)
-                    };
-                    lowercase_word_interner
-                        .get(&*lower_word)
-                        .map(|s| s.to_usize() as u32)
-                })
-                .collect();
-            if !seed_ids.is_empty() {
-                if let Some(last_seed_id) = seed_ids.last() {
-                    if bigram_chain.contains_key(last_seed_id) {
-                        result_ids = seed_ids.clone();
-                        current_word_id = *last_seed_id;
-                        seeded = true;
-                    }
-                }
-            }
+    for (word_id, count) in follower_counts.iter() {
+        if choice < (*count as u64) {
+            return Some(*word_id);
         }
+        choice -= *count as u64;
     }
+    None
+}
 
-    // SAFETY: It's guaranteed that `generate_text` is only called from a single thread.
-    // Therefore, we can safely get a mutable reference to the RNG.
-    let rng = unsafe { &mut *chain.rng.get() };
-    if !seeded {
-        current_word_id = bigram_starters[rng.usize(..bigram_starters.len())];
-        result_ids.push(current_word_id);
-    }
-
-    let words_to_generate = max_words.saturating_sub(result_ids.len());
-    for _ in 0..words_to_generate {
-        if let Some(follower_counts) = bigram_chain.get(&current_word_id) {
-            // Trading off extra computation for less memory usage
-            let total_count: u64 = follower_counts.values().map(|&c| c as u64).sum();
-            if total_count == 0 {
-                break;
-            }
-            let mut choice = rng.u64(..total_count);
-            let mut next_word_id = 0;
-
-            for (word_id, count) in follower_counts.iter() {
-                if choice < *count as u64 {
-                    next_word_id = *word_id;
-                    break;
-                }
-                choice -= *count as u64;
-            }
-
-            if next_word_id == 0 {
-                break;
-            }
-
-            current_word_id = next_word_id;
-            result_ids.push(current_word_id);
-        } else {
-            break;
-        }
-    }
-
+fn ids_to_string(chain: &MarkovChain, result_ids: &[u32]) -> String {
     if result_ids.is_empty() {
         return String::new();
     }
@@ -310,6 +263,61 @@ fn generate_bigram(
     result
 }
 
+fn generate_bigram(
+    chain: &MarkovChain,
+    max_words: usize,
+    seed_words: Option<Vec<String>>
+) -> String {
+    let bigram_chain = chain.bigram_chain.borrow();
+    let bigram_starters = chain.bigram_starters.borrow();
+
+    if bigram_chain.is_empty() || bigram_starters.is_empty() {
+        return String::new();
+    }
+    let mut result_ids = Vec::with_capacity(max_words);
+    let mut current_word_id: u32 = 0;
+    let mut seeded = false;
+
+    if let Some(words) = seed_words {
+        if !words.is_empty() {
+            let seed_ids = get_seed_ids(chain, &words);
+            if !seed_ids.is_empty() {
+                if let Some(last_seed_id) = seed_ids.last() {
+                    if bigram_chain.contains_key(last_seed_id) {
+                        result_ids = seed_ids.clone();
+                        current_word_id = *last_seed_id;
+                        seeded = true;
+                    }
+                }
+            }
+        }
+    }
+
+    // SAFETY: It's guaranteed that `generate_text` is only called from a single thread.
+    // Therefore, we can safely get a mutable reference to the RNG.
+    let rng = unsafe { &mut *chain.rng.get() };
+    if !seeded {
+        current_word_id = bigram_starters[rng.usize(..bigram_starters.len())];
+        result_ids.push(current_word_id);
+    }
+
+    let words_to_generate = max_words.saturating_sub(result_ids.len());
+    for _ in 0..words_to_generate {
+        if let Some(follower_counts) = bigram_chain.get(&current_word_id) {
+            if let Some(next_word_id) = choose_next_word(rng, follower_counts) {
+                current_word_id = next_word_id;
+                result_ids.push(current_word_id);
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    ids_to_string(chain, &result_ids)
+}
+
 fn generate_trigram(
     chain: &MarkovChain,
     max_words: usize,
@@ -330,20 +338,7 @@ fn generate_trigram(
 
     if let Some(words) = seed_words {
         if !words.is_empty() {
-            let lowercase_word_interner = chain.lowercase_word_interner.borrow();
-            let seed_ids: Vec<u32> = words
-                .iter()
-                .filter_map(|word| {
-                    let lower_word: Cow<str> = if word.chars().any(char::is_uppercase) {
-                        Cow::Owned(word.to_lowercase())
-                    } else {
-                        Cow::Borrowed(word)
-                    };
-                    lowercase_word_interner
-                        .get(&*lower_word)
-                        .map(|s| s.to_usize() as u32)
-                })
-                .collect();
+            let seed_ids = get_seed_ids(chain, &words);
 
             if !seed_ids.is_empty() {
                 // Try seeding with the last two words if possible
@@ -403,78 +398,18 @@ fn generate_trigram(
     let words_to_generate = max_words.saturating_sub(result_ids.len());
     for _ in 0..words_to_generate {
         if let Some(follower_counts) = trigram_chain.get(&current_pair) {
-            // Trading off extra computation for less memory usage
-            let total_count: u64 = follower_counts.values().map(|&c| c as u64).sum();
-            if total_count == 0 {
+            if let Some(next_word_id) = choose_next_word(rng, follower_counts) {
+                result_ids.push(next_word_id);
+                current_pair = (current_pair.1, next_word_id);
+            } else {
                 break;
             }
-            let mut choice = rng.u64(..total_count);
-            let mut next_word_id = 0;
-
-            for (word_id, count) in follower_counts.iter() {
-                if choice < *count as u64 {
-                    next_word_id = *word_id;
-                    break;
-                }
-                choice -= *count as u64;
-            }
-
-            if next_word_id == 0 {
-                break;
-            }
-
-            result_ids.push(next_word_id);
-            current_pair = (current_pair.1, next_word_id);
         } else {
             break;
         }
     }
 
-    if result_ids.is_empty() {
-        return String::new();
-    }
-
-    let casing_map = chain.casing_map.borrow();
-    let cased_word_interner = chain.cased_word_interner.borrow();
-    let lowercase_word_interner = chain.lowercase_word_interner.borrow();
-
-    let get_word_str = |id: u32| -> Cow<'_, str> {
-        if let Some(case_map) = casing_map.get(&id) {
-            if let Some((cased_id, _)) = case_map.iter().max_by_key(|&(_, count)| count) {
-                if let Some(word_str) = cased_word_interner.resolve(*cased_id) {
-                    return Cow::Borrowed(word_str);
-                }
-            }
-        }
-        let symbol = SymbolUsize::try_from_usize(id as usize).unwrap();
-        lowercase_word_interner
-            .resolve(symbol)
-            .map(Cow::Borrowed)
-            .unwrap_or(Cow::Borrowed(""))
-    };
-
-    let mut result = String::new();
-    let punctuation: &[char] = &[
-        '.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}'
-    ];
-
-    let mut tokens_iter = result_ids.iter().map(|&id| get_word_str(id));
-
-    if let Some(first_token) = tokens_iter.next() {
-        result.push_str(&first_token);
-        for token in tokens_iter {
-            if let Some(first_char) = token.chars().next() {
-                if !punctuation.contains(&first_char) {
-                    result.push(' ');
-                }
-            } else {
-                result.push(' ');
-            }
-            result.push_str(&token);
-        }
-    }
-
-    result
+    ids_to_string(chain, &result_ids)
 }
 
 #[unsafe(no_mangle)]
