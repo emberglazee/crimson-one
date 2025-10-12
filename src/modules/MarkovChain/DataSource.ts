@@ -4,7 +4,7 @@ import { yellow, red } from '../../util/colors'
 const logger = new Logger('MarkovChain | DataSource')
 
 import { Guild as DiscordGuild, Message as DiscordMessage, TextChannel, User as DiscordUser } from 'discord.js'
-import { DataSource as ORMDataSource } from 'typeorm'
+import { DataSource as ORMDataSource, DeleteResult } from 'typeorm'
 
 import { removeDuplicatesByKey } from '../../util/functions'
 
@@ -163,5 +163,43 @@ export class MarkovDataSource {
             select: ['id']
         })
         return new Set(messages.map(m => m.id))
+    }
+
+    public async deleteMessages(options: {
+        guild?: { id: string }
+        channel?: { id: string }
+        user?: { id: string }
+        userId?: string
+        global?: boolean
+    }): Promise<DeleteResult> {
+        await this.init()
+
+        const query = this.orm
+            .getRepository(Message)
+            .createQueryBuilder('message')
+            .delete()
+
+        if (options.global) {
+            // No filters for global deletion
+        } else if (options.guild) {
+            query.andWhere('guildId = :guildId', { guildId: options.guild.id })
+            if (options.channel) {
+                query.andWhere('channelId = :channelId', { channelId: options.channel.id })
+            }
+        }
+
+        if (options.user) {
+            query.andWhere('authorId = :authorId', { authorId: options.user.id })
+        } else if (options.userId) {
+            query.andWhere('authorId = :authorId', { authorId: options.userId })
+        }
+
+        // Safety net: if no filters are applied, this would be a global delete.
+        // The command logic should prevent this, but as a last resort, we check here.
+        if (!options.global && !options.guild && !options.channel && !options.user && !options.userId) {
+            throw new Error('Unfiltered delete operations are not allowed. Please specify a guild, channel, or user.')
+        }
+
+        return query.execute()
     }
 }

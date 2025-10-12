@@ -37,6 +37,14 @@ interface MessageStatsOptions {
     global?: boolean
 }
 
+interface DeleteOptions {
+    guildId?: string
+    channelId?: string
+    user?: User
+    userId?: string
+    global?: boolean
+}
+
 class MarkovEngine {
     private client: Client | null = null
     private dataSource = container.resolve(MarkovDataSource)
@@ -318,6 +326,17 @@ class MarkovEngine {
             newestMessageTimestamp: newestTimestamp
         }
     }
+
+    public async deleteMessages(options: DeleteOptions) {
+        const result = await this.dataSource.deleteMessages({
+            guild: options.guildId ? { id: options.guildId } : undefined,
+            channel: options.channelId ? { id: options.channelId } : undefined,
+            user: options.user,
+            userId: options.userId,
+            global: options.global
+        })
+        return result.affected ?? 0
+    }
 }
 
 const engine = new MarkovEngine()
@@ -349,6 +368,9 @@ parentPort!.on('message', async (message: { type: string, options: unknown, task
                 break
             case 'info':
                 result = await engine.getMessageStats(message.options as MessageStatsOptions)
+                break
+            case 'delete':
+                result = await engine.deleteMessages(message.options as DeleteOptions)
                 break
             default:
                 throw new Error(`Unknown task type: ${message.type}`)

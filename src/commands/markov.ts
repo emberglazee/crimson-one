@@ -2,7 +2,7 @@ import { Logger, type CommandContext, ProgressTracker, InteractionMessageManager
 import { yellow, red } from '../util/colors'
 const logger = new Logger('/markov')
 
-import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, InteractionContextType, MessageFlags } from 'discord.js'
+import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, InteractionContextType, MessageFlags, PermissionsBitField, ButtonBuilder, ButtonStyle, ActionRowBuilder, ComponentType, type ButtonInteraction, type Collection } from 'discord.js'
 
 import { google, type youtube_v3 } from 'googleapis'
 import type { GaxiosResponseWithHTTP2 } from 'googleapis-common'
@@ -488,6 +488,26 @@ export default {
                 .setRequired(true)
             )
         ).addSubcommand(subcommand => subcommand
+            .setName('delete')
+            .setDescription('Delete messages from the Markov database (STAFF AND BOT OWNER ONLY).')
+            .addBooleanOption(option => option
+                .setName('global')
+                .setDescription('Delete messages from all servers (default: this server).')
+                .setRequired(false))
+            .addChannelOption(option => option
+                .setName('channel')
+                .setDescription('Delete messages from a specific channel.')
+                .setRequired(false)
+                .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread))
+            .addUserOption(option => option
+                .setName('user')
+                .setDescription('Delete messages from a specific user.')
+                .setRequired(false))
+            .addStringOption(option => option
+                .setName('user_id')
+                .setDescription('Delete messages from a user by their ID.')
+                .setRequired(false))
+        ).addSubcommand(subcommand => subcommand
             .setName('help')
             .setDescription('Detailed information about the command.')
         ).setContexts(InteractionContextType.Guild),
@@ -655,17 +675,159 @@ export default {
                 '  1. `bigram`: uses only the last word as the context to determine the next word (less coherent, effective when there are fewer messages to work with);\n' +
                 '  2. `trigram` (default): uses the last two words instead (more coherent but only effective with a large number of messages (e.g., over 5,000-10,000)).\n' +
                 '### 3. Statistics\n' +
-                '  - `/markov stats`: Display a summary for the messages stored that match the filters (if provided).'
+                '  - `/markov stats`: Display a summary for the messages stored that match the filters (if provided).\n' +
+                '### 4. Deletion\n' +
+                '  - `/markov delete`: Allows for the deletion of messages from the database. Staff can remove any messages, and users can remove their own.'
             )
             const followUpText = (
                 '### Privacy concerns?\n' +
                 '- The bot\'s code is fully open source: <https://github.com/emberglazee/crimson-one> ([my own model implementation in Rust](<https://github.com/emberglazee/crimson-one/blob/rocketman02/crimson_markov/src/lib.rs>), [this command](<https://github.com/emberglazee/crimson-one/blob/rocketman02/src/commands/markov.ts>), and [FFI and database handlers](<https://github.com/emberglazee/crimson-one/tree/rocketman02/src/modules/MarkovChain>)).\n' +
                 '- The messages in the database are never manually viewed or manipulated, unless it\'s crucial for debugging an issue with the model.\n' +
-                '- To request the deletion of specific data from the message database please send a Discord DM to `@emberglaze`, or an email to `emberglaze@emberglaze.ru`, with proof of server ownership, staff membership, or account ownership (if requesting deletion for yourself).\n' +
-                '- Data deletion might be implemented as a bot command in the near future.'
+                '- You can always delete your own messages from the database by using the `user` or `user_id` option with your own account.\n' +
+                '- Staff members with permissions like `Manage Server`, `Manage Channels`, `Ban Members` or `Administrator` can use the `/markov delete` command to remove data for other users or for entire channels.'
             )
             await ctx.reply(text)
             await ctx.followUp(followUpText)
+
+        } else if (subcommand === 'delete') {
+            if (!ctx.interaction) {
+                await ctx.reply({ content: 'This command can only be used as a slash command.', flags: MessageFlags.Ephemeral })
+                return
+            }
+
+            const userOrId = await resolveUserOrId(ctx)
+            const user = userOrId && 'tag' in userOrId ? userOrId : undefined
+            const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
+
+            // Check if it's a self-deletion request
+            const isSelfDelete = (user && user.id === ctx.author.id) || (userId && userId === ctx.author.id)
+
+            // If not a self-delete, enforce staff permissions
+            if (!isSelfDelete) {
+                const memberPermissions = ctx.member.permissions
+                if (
+                    !memberPermissions.has(PermissionsBitField.Flags.Administrator) &&
+                    !memberPermissions.has(PermissionsBitField.Flags.ManageGuild) &&
+                    !memberPermissions.has(PermissionsBitField.Flags.ManageChannels) &&
+                    !memberPermissions.has(PermissionsBitField.Flags.BanMembers)
+                ) {
+                    await ctx.reply({
+                        content: '❌ You need staff permissions (`Administrator`, `Manage Server`, `Manage Channels`, or `Ban Members`) to delete messages for other users or entire channels. You can, however, delete your own messages by specifying your user.',
+                        flags: MessageFlags.Ephemeral
+                    })
+                    return
+                }
+            }
+
+            const global = ctx.getBooleanOption('global', false, false)
+            const channel = global ? undefined : (await ctx.getChannelOption('channel')) as TextChannel | null ?? undefined
+
+            if (global && ctx.author.id !== process.env.OWNER_ID && !isSelfDelete) {
+                await ctx.reply({
+                    content: '❌ As a staff member, you can only delete messages within this server. The `global` option is restricted to the bot owner or for self-deletion.',
+                    flags: MessageFlags.Ephemeral
+                })
+                return
+            }
+
+            await ctx.deferReply({ ephemeral: true })
+
+            const filters = {
+                guild: !global ? ctx.guild : undefined,
+                channel: channel ?? undefined,
+                user,
+                userId,
+                global
+            }
+
+            try {
+                const stats = await markov.getMessageStats(filters)
+                const count = stats.messageCount
+
+                if (count === 0) {
+                    await ctx.editReply('No messages found matching the specified filters. Nothing to delete.')
+                    return
+                }
+
+                const confirmId = `confirm-delete-${ctx.interaction.id}`
+                const cancelId = `cancel-delete-${ctx.interaction.id}`
+
+                const row = new ActionRowBuilder<ButtonBuilder>()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(confirmId)
+                            .setLabel('Confirm')
+                            .setStyle(ButtonStyle.Danger)
+                            .setEmoji('⚠️'),
+                        new ButtonBuilder()
+                            .setCustomId(cancelId)
+                            .setLabel('Cancel')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('❌')
+                    )
+
+                const filterDescription = [
+                    global ? '🌐 **Global**' : `🏠 **Guild:** ${ctx.guild.name}`,
+                    channel ? `📝 **Channel:** #${channel.name}` : '',
+                    user ? `👤 **User:** @${user.tag}` : '',
+                    userId ? `👤 **User ID:** ${userId}` : ''
+                ].filter(Boolean).join('\n')
+
+                const confirmationMessage = `Are you sure you want to delete **${count.toLocaleString()}** message(s) from the Markov database?\n\n**Filters:**\n${filterDescription}\n\n⚠️ **This action is irreversible.**`
+
+                const reply = await ctx.editReply({
+                    content: confirmationMessage,
+                    components: [row]
+                })
+
+                if (!reply) {
+                    await ctx.editReply('Failed to send confirmation message.')
+                    return
+                }
+
+                const collector = reply.createMessageComponentCollector({
+                    componentType: ComponentType.Button,
+                    time: 60_000 // 60 seconds
+                })
+
+                collector.on('collect', async (i: ButtonInteraction) => {
+                    if (i.user.id !== ctx.author.id) {
+                        await i.reply({ content: 'You are not authorized to respond to this confirmation.', ephemeral: true })
+                        return
+                    }
+
+                    collector.stop()
+
+                    if (i.customId === confirmId) {
+                        await i.update({ content: '🗑️ Deleting messages...', components: [] })
+                        try {
+                            const deletedCount = await markov.deleteMessages(filters)
+                            await ctx.editReply(`✅ Successfully deleted **${deletedCount.toLocaleString()}** message(s).`)
+                        } catch (deleteError) {
+                            const errorMsg = deleteError instanceof Error ? deleteError.message : String(deleteError)
+                            logger.error(`Failed to delete messages: ${errorMsg}`)
+                            await ctx.editReply(`❌ An error occurred during deletion: ${errorMsg}`)
+                        }
+                    } else {
+                        await i.update({ content: 'Operation cancelled.', components: [] })
+                    }
+                })
+
+                collector.on('end', (collected: Collection<string, ButtonInteraction>) => {
+                    if (collected.size === 0) {
+                        ctx.editReply({ content: 'Confirmation timed out. Operation cancelled.', components: [] }).catch(() => {})
+                    }
+                })
+
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+                logger.warn(`Failed to get stats for deletion: ${red(errorMessage)}`)
+                let userFriendlyError = `❌ Failed to get message count for deletion: ${errorMessage}`
+                if (errorMessage.includes('No messages found')) {
+                    userFriendlyError = '❌ No messages found for the selected filters. Nothing to delete.'
+                }
+                await ctx.editReply({ content: userFriendlyError })
+            }
 
         } else if (subcommand === 'youtube_video') {
             if (!YOUTUBE_API_KEY) {

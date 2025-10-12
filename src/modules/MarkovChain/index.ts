@@ -38,6 +38,14 @@ interface MarkovGenerateOptions {
     batch?: number
 }
 
+interface MarkovDeleteOptions {
+    guild?: Guild
+    channel?: TextChannel
+    user?: User
+    userId?: string
+    global?: boolean
+}
+
 interface MarkovCollectProgressEvent {
     batchNumber: number
     messagesCollected: number
@@ -245,6 +253,17 @@ export class MarkovChat extends EventEmitter<{
     public async getMessageStats(options: MarkovGenerateOptions): Promise<MessageStats> {
         const { guild, channel, user, userId, global } = options
         return this.sendTask<MessageStats>('info', {
+            guildId: guild?.id,
+            channelId: channel?.id,
+            user,
+            userId,
+            global
+        })
+    }
+
+    public async deleteMessages(options: MarkovDeleteOptions): Promise<number> {
+        const { guild, channel, user, userId, global } = options
+        return this.sendTask<number>('delete', {
             guildId: guild?.id,
             channelId: channel?.id,
             user,
