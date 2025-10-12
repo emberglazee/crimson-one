@@ -909,13 +909,13 @@ export default {
                 await ctx.deferReply()
                 logger.info('{collect_all} Starting collection from all channels...')
 
-                const textChannels = (await ctx.guild.channels.fetch()).filter(c => c && (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) && c.viewable) as Map<string, TextChannel>
+                const textChannels = (await ctx.guild.channels.fetch()).filter(c => c && (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement) && c.viewable && !c.nsfw) as Map<string, TextChannel>
                 logger.ok(`{collect_all} Fetched ${yellow(textChannels.size)} text channels`)
 
                 const threadPromises = [...textChannels.values()].map(async c => {
                     try {
                         const threads = await c.threads.fetch()
-                        return threads.threads.filter(t => t.viewable)
+                        return threads.threads.filter(t => t.viewable && t.parent && !t.parent.nsfw)
                     } catch {
                         return []
                     }
