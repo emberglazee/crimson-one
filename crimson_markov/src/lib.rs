@@ -16,8 +16,7 @@ use std::os::raw::c_char;
 use std::ptr::{self, null_mut};
 use std::slice;
 use std::str;
-use std::cell::UnsafeCell;
-use std::sync::RwLock;
+use std::cell::{RefCell, UnsafeCell};
 use std::time::Instant;
 use string_interner::{backend::StringBackend, StringInterner, symbol::SymbolUsize, Symbol};
 
@@ -39,14 +38,14 @@ type TrigramMap = HashMap<(u32, u32), Vec<u32>>;
 type TrigramInvertedStarters = HashMap<u32, HashSet<(u32, u32)>>;
 
 pub struct MarkovChain {
-    bigram_chain: RwLock<BigramMap>,
-    trigram_chain: RwLock<TrigramMap>,
-    trigram_inverted_starters: RwLock<TrigramInvertedStarters>,
-    bigram_starters: RwLock<Vec<u32>>,
-    trigram_starters: RwLock<Vec<(u32, u32)>>,
-    lowercase_word_interner: RwLock<StringInterner<StringBackend<SymbolUsize>>>,
-    cased_word_interner: RwLock<StringInterner<StringBackend<SymbolUsize>>>,
-    casing_map: RwLock<HashMap<u32, HashMap<SymbolUsize, u32>>>,
+    bigram_chain: RefCell<BigramMap>,
+    trigram_chain: RefCell<TrigramMap>,
+    trigram_inverted_starters: RefCell<TrigramInvertedStarters>,
+    bigram_starters: RefCell<Vec<u32>>,
+    trigram_starters: RefCell<Vec<(u32, u32)>>,
+    lowercase_word_interner: RefCell<StringInterner<StringBackend<SymbolUsize>>>,
+    cased_word_interner: RefCell<StringInterner<StringBackend<SymbolUsize>>>,
+    casing_map: RefCell<HashMap<u32, HashMap<SymbolUsize, u32>>>,
     rng: UnsafeCell<Rng>
 }
 
@@ -84,14 +83,14 @@ fn tokenize<'a>(text: &'a str) -> Vec<&'a str> {
 #[unsafe(no_mangle)]
 pub extern "C" fn create_chain() -> *mut MarkovChain {
     Box::into_raw(Box::new(MarkovChain {
-        bigram_chain: RwLock::new(HashMap::new()),
-        trigram_chain: RwLock::new(HashMap::new()),
-        trigram_inverted_starters: RwLock::new(HashMap::new()),
-        bigram_starters: RwLock::new(Vec::new()),
-        trigram_starters: RwLock::new(Vec::new()),
-        lowercase_word_interner: RwLock::new(StringInterner::new()),
-        cased_word_interner: RwLock::new(StringInterner::new()),
-        casing_map: RwLock::new(HashMap::new()),
+        bigram_chain: RefCell::new(HashMap::new()),
+        trigram_chain: RefCell::new(HashMap::new()),
+        trigram_inverted_starters: RefCell::new(HashMap::new()),
+        bigram_starters: RefCell::new(Vec::new()),
+        trigram_starters: RefCell::new(Vec::new()),
+        lowercase_word_interner: RefCell::new(StringInterner::new()),
+        cased_word_interner: RefCell::new(StringInterner::new()),
+        casing_map: RefCell::new(HashMap::new()),
         rng: UnsafeCell::new(Rng::new())
     }))
 }
@@ -125,14 +124,14 @@ pub extern "C" fn train_on_batch(
     let texts = texts_str.split('\0').filter(|s| !s.is_empty());
 
     // Acquire all locks at the beginning of the function
-    let mut bigram_chain = chain.bigram_chain.write().unwrap();
-    let mut trigram_chain = chain.trigram_chain.write().unwrap();
-    let mut trigram_inverted_starters = chain.trigram_inverted_starters.write().unwrap();
-    let mut bigram_starters = chain.bigram_starters.write().unwrap();
-    let mut trigram_starters = chain.trigram_starters.write().unwrap();
-    let mut lowercase_word_interner = chain.lowercase_word_interner.write().unwrap();
-    let mut cased_word_interner = chain.cased_word_interner.write().unwrap();
-    let mut casing_map = chain.casing_map.write().unwrap();
+    let mut bigram_chain = chain.bigram_chain.borrow_mut();
+    let mut trigram_chain = chain.trigram_chain.borrow_mut();
+    let mut trigram_inverted_starters = chain.trigram_inverted_starters.borrow_mut();
+    let mut bigram_starters = chain.bigram_starters.borrow_mut();
+    let mut trigram_starters = chain.trigram_starters.borrow_mut();
+    let mut lowercase_word_interner = chain.lowercase_word_interner.borrow_mut();
+    let mut cased_word_interner = chain.cased_word_interner.borrow_mut();
+    let mut casing_map = chain.casing_map.borrow_mut();
 
     for text in texts {
         let word_ids: Vec<u32> = tokenize(text)
@@ -192,8 +191,8 @@ fn generate_bigram(
     max_words: usize,
     seed_words: Option<Vec<String>>,
 ) -> String {
-    let bigram_chain = chain.bigram_chain.read().unwrap();
-    let bigram_starters = chain.bigram_starters.read().unwrap();
+    let bigram_chain = chain.bigram_chain.borrow();
+    let bigram_starters = chain.bigram_starters.borrow();
 
     if bigram_chain.is_empty() || bigram_starters.is_empty() {
         return String::new();
@@ -204,7 +203,7 @@ fn generate_bigram(
 
     if let Some(words) = seed_words {
         if !words.is_empty() {
-            let lowercase_word_interner = chain.lowercase_word_interner.read().unwrap();
+            let lowercase_word_interner = chain.lowercase_word_interner.borrow();
             let seed_ids: Vec<u32> = words
                 .iter()
                 .filter_map(|word| {
@@ -255,9 +254,9 @@ fn generate_bigram(
         return String::new();
     }
 
-    let casing_map = chain.casing_map.read().unwrap();
-    let cased_word_interner = chain.cased_word_interner.read().unwrap();
-    let lowercase_word_interner = chain.lowercase_word_interner.read().unwrap();
+    let casing_map = chain.casing_map.borrow();
+    let cased_word_interner = chain.cased_word_interner.borrow();
+    let lowercase_word_interner = chain.lowercase_word_interner.borrow();
 
     let get_word_str = |id: u32| -> Cow<'_, str> {
         if let Some(case_map) = casing_map.get(&id) {
@@ -303,8 +302,8 @@ fn generate_trigram(
     max_words: usize,
     seed_words: Option<Vec<String>>,
 ) -> String {
-    let trigram_chain = chain.trigram_chain.read().unwrap();
-    let trigram_starters = chain.trigram_starters.read().unwrap();
+    let trigram_chain = chain.trigram_chain.borrow();
+    let trigram_starters = chain.trigram_starters.borrow();
 
     if trigram_chain.is_empty() || trigram_starters.is_empty() {
         return String::new();
@@ -318,7 +317,7 @@ fn generate_trigram(
 
     if let Some(words) = seed_words {
         if !words.is_empty() {
-            let lowercase_word_interner = chain.lowercase_word_interner.read().unwrap();
+            let lowercase_word_interner = chain.lowercase_word_interner.borrow();
             let seed_ids: Vec<u32> = words
                 .iter()
                 .filter_map(|word| {
@@ -350,7 +349,7 @@ fn generate_trigram(
                 if !seeded {
                     let last_seed_id = *seed_ids.last().unwrap();
                     let trigram_inverted_starters =
-                        chain.trigram_inverted_starters.read().unwrap();
+                        chain.trigram_inverted_starters.borrow();
                     if let Some(possible_starters_set) =
                         trigram_inverted_starters.get(&last_seed_id)
                     {
@@ -406,9 +405,9 @@ fn generate_trigram(
         return String::new();
     }
 
-    let casing_map = chain.casing_map.read().unwrap();
-    let cased_word_interner = chain.cased_word_interner.read().unwrap();
-    let lowercase_word_interner = chain.lowercase_word_interner.read().unwrap();
+    let casing_map = chain.casing_map.borrow();
+    let cased_word_interner = chain.cased_word_interner.borrow();
+    let lowercase_word_interner = chain.lowercase_word_interner.borrow();
 
     let get_word_str = |id: u32| -> Cow<'_, str> {
         if let Some(case_map) = casing_map.get(&id) {
