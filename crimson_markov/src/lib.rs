@@ -16,7 +16,8 @@ use std::os::raw::c_char;
 use std::ptr::{self, null_mut};
 use std::slice;
 use std::str;
-use std::sync::{Mutex, RwLock};
+use std::cell::UnsafeCell;
+use std::sync::RwLock;
 use std::time::Instant;
 use string_interner::{backend::StringBackend, StringInterner, symbol::SymbolUsize, Symbol};
 
@@ -46,7 +47,7 @@ pub struct MarkovChain {
     lowercase_word_interner: RwLock<StringInterner<StringBackend<SymbolUsize>>>,
     cased_word_interner: RwLock<StringInterner<StringBackend<SymbolUsize>>>,
     casing_map: RwLock<HashMap<u32, HashMap<SymbolUsize, u32>>>,
-    rng: Mutex<Rng>
+    rng: UnsafeCell<Rng>
 }
 
 impl MarkovChain {}
@@ -91,7 +92,7 @@ pub extern "C" fn create_chain() -> *mut MarkovChain {
         lowercase_word_interner: RwLock::new(StringInterner::new()),
         cased_word_interner: RwLock::new(StringInterner::new()),
         casing_map: RwLock::new(HashMap::new()),
-        rng: Mutex::new(Rng::new())
+        rng: UnsafeCell::new(Rng::new())
     }))
 }
 
@@ -229,7 +230,9 @@ fn generate_bigram(
         }
     }
 
-    let mut rng = chain.rng.lock().unwrap();
+    // SAFETY: It's guaranteed that `generate_text` is only called from a single thread.
+    // Therefore, we can safely get a mutable reference to the RNG.
+    let rng = unsafe { &mut *chain.rng.get() };
     if !seeded {
         current_word_id = bigram_starters[rng.usize(..bigram_starters.len())];
         result_ids.push(current_word_id);
@@ -309,7 +312,9 @@ fn generate_trigram(
     let mut result_ids = Vec::with_capacity(max_words);
     let mut current_pair: (u32, u32) = (0, 0);
     let mut seeded = false;
-    let mut rng = chain.rng.lock().unwrap();
+    // SAFETY: It's guaranteed that `generate_text` is only called from a single thread.
+    // Therefore, we can safely get a mutable reference to the RNG.
+    let rng = unsafe { &mut *chain.rng.get() };
 
     if let Some(words) = seed_words {
         if !words.is_empty() {
