@@ -344,7 +344,7 @@ export function toFeetInches(value: any): `${number}'${number}` {
 // --- YouTube Utilities ---
 
 export function extractVideoId(url: string): string | null {
-    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
+    const regex = /(?:(?:music\.)?youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
     const match = url.match(regex)
     return match ? match[1] : null
 }
