@@ -228,14 +228,14 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
                     await ctx.channel.send({ content: `${ctx.author}, your queued generation is complete:`, ...replyOptions })
                     const chunks = text.match(/[\s\S]{1,2000}/g) || []
                     for (const chunk of chunks) {
-                        await ctx.channel.send({ content: chunk, allowedMentions: { users: [] } })
+                        await ctx.channel.send({ content: chunk, allowedMentions: { parse: [] } })
                     }
                 }
             } else {
                 await progressTracker!.finish({ content: 'Generated messages:', ...replyOptions })
                 const chunks = text.match(/[\s\S]{1,2000}/g) || []
                 for (const chunk of chunks) {
-                    await ctx.followUp({ content: chunk })
+                    await ctx.followUp({ content: chunk, allowedMentions: { parse: [] } })
                 }
             }
         } else {
@@ -266,8 +266,7 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
                         ].filter(Boolean).join(', ') || 'None',
                         inline: false
                     }
-                )
-                .setTimestamp()
+                ).setTimestamp()
 
             const replyOptions = {
                 content: isQueued ? `${ctx.author}, your queued generation is complete:\n${text}` : text,
@@ -455,18 +454,15 @@ export default {
                 .setName('url')
                 .setDescription('The URL of the YouTube video.')
                 .setRequired(true)
-            )
-            .addIntegerOption(option => option
+            ).addIntegerOption(option => option
                 .setName('words')
                 .setDescription('How many words to generate (default: 30)')
                 .setRequired(false)
-            )
-            .addStringOption(option => option
+            ).addStringOption(option => option
                 .setName('seed')
                 .setDescription('Start the generated text with specific words')
                 .setRequired(false)
-            )
-            .addStringOption(option => option
+            ).addStringOption(option => option
                 .setName('mode')
                 .setDescription('The generation mode to use (default: trigram)')
                 .setRequired(false)
@@ -495,20 +491,21 @@ export default {
             .addBooleanOption(option => option
                 .setName('global')
                 .setDescription('Delete messages from all servers (default: this server).')
-                .setRequired(false))
-            .addChannelOption(option => option
+                .setRequired(false)
+            ).addChannelOption(option => option
                 .setName('channel')
                 .setDescription('Delete messages from a specific channel.')
                 .setRequired(false)
-                .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread))
-            .addUserOption(option => option
+                .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread)
+            ).addUserOption(option => option
                 .setName('user')
                 .setDescription('Delete messages from a specific user.')
-                .setRequired(false))
-            .addStringOption(option => option
+                .setRequired(false)
+            ).addStringOption(option => option
                 .setName('user_id')
                 .setDescription('Delete messages from a user by their ID.')
-                .setRequired(false))
+                .setRequired(false)
+            )
         ).addSubcommand(subcommand => subcommand
             .setName('help')
             .setDescription('Detailed information about the command.')
@@ -917,7 +914,7 @@ export default {
                         await ctx.editReply({ content: 'Generated messages:', embeds: [videoEmbed, footerEmbed] })
                         const chunks = text.match(/[\s\S]{1,2000}/g) || []
                         for (const chunk of chunks) {
-                            await ctx.followUp({ content: chunk, allowedMentions: { users: [] } })
+                            await ctx.followUp({ content: chunk, allowedMentions: { parse: [] } })
                         }
                     } else {
                         const { text, timings } = result
@@ -956,7 +953,7 @@ export default {
                             )
                             .setTimestamp()
 
-                        await ctx.editReply({ content: text, embeds: [videoEmbed, footerEmbed] })
+                        await ctx.editReply({ content: text, embeds: [videoEmbed, footerEmbed], allowedMentions: { parse: [] } })
                     }
                 } finally {
                     rustChain.destroy()
