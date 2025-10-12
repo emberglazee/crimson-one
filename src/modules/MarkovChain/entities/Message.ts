@@ -5,6 +5,8 @@ import { Channel, type Channel as ChannelType } from './Channel'
 import { Guild, type Guild as GuildType } from './Guild'
 
 @Entity('messages')
+@Index(['guildId', 'channelId', 'authorId'])
+@Index(['guildId', 'authorId'])
 export class Message {
     @PrimaryColumn()
     id!: string

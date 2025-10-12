@@ -30,6 +30,7 @@ export class MarkovDataSource {
                 password: process.env.POSTGRES_PASSWORD,
                 database: process.env.POSTGRES_DB,
                 entities: [Channel, Message, Guild, User],
+                migrations: ['./migrations/*.ts'],
                 synchronize: false
             })
 
