@@ -53,22 +53,22 @@ impl MarkovChain {}
 
 static HIGH_COMPLEXITY_TOKENIZER_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(concat!(
-        r"(?s)```[^`]*?```|",      // Multi-line code blocks
-        r"`[^`]*?`|",              // Inline code
-        r"<@[!&]?\d+>|",           // User and role mentions
-        r"<#\d+>|",                // Channel mentions
-        r"@everyone|@here|",       // Everyone/here mentions
-        r"<a?:\w+:\d+>|",          // Custom emojis
-        r"\p{Emoji}+|",            // Unicode Emojis
-        r"https?://[^\s]+|",       // URLs
-        r"\[[^\]]+\]\([^\s)]+\)|", // Masked links
-        r"\d+(?:[.,:']\d+)*%?|",   // Numbers with punctuation
-        r"[\w]+(?:['\-+/]\w+)*|",  // Words with mixed symbols (apostrophes, hyphens, slashes, plus signs)
-        r"\p{P}+|",                // Punctuation
-        r"~{2,}|",                 // Strikethrough
-        r"\*{2,}|",                // Bold
-        r"_{2,}|",                 // Underline
-        r"[*_>]"                   // Other markdown (italics, quotes)
+        r"(?s)```[^`]*?```|",        // Multi-line code blocks
+        r"`[^`]*?`|",                // Inline code
+        r"<@[!&]?\d+>|",             // User and role mentions
+        r"<#\d+>|",                  // Channel mentions
+        r"@everyone|@here|",         // Everyone/here mentions
+        r"<a?:\w+:\d+>|",            // Custom emojis
+        r"\p{Emoji}+|",              // Unicode Emojis
+        r"https?://[^\s<>]+|",       // URLs
+        r"\[[^\]]+\]\([^\s<>)]+\)|", // Masked links
+        r"\d+(?:[.,:']\d+)*%?|",     // Numbers with punctuation
+        r"[\w]+(?:['\-+/]\w+)*|",    // Words with mixed symbols (apostrophes, hyphens, slashes, plus signs)
+        r"\p{P}+|",                  // Punctuation
+        r"~{2,}|",                   // Strikethrough
+        r"\*{2,}|",                  // Bold
+        r"_{2,}|",                   // Underline
+        r"[*_>]"                     // Other markdown (italics, quotes)
     ))
     .unwrap()
 });
