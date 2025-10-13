@@ -51,7 +51,7 @@ pub struct MarkovChain {
 
 impl MarkovChain {}
 
-static HIGH_COMPLEXITY_TOKENIZER_REGEX: Lazy<Regex> = Lazy::new(|| {
+static TOKENIZER_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(concat!(
         r"(?s)```[^`]*?```|",        // Multi-line code blocks
         r"`[^`]*?`|",                // Inline code
@@ -64,17 +64,18 @@ static HIGH_COMPLEXITY_TOKENIZER_REGEX: Lazy<Regex> = Lazy::new(|| {
         r"\[[^\]]+\]\([^\s<>)]+\)|", // Masked links
         r"\d+(?:[.,:']\d+)*%?|",     // Numbers with punctuation
         r"[\w]+(?:['\-+/]\w+)*|",    // Words with mixed symbols (apostrophes, hyphens, slashes, plus signs)
-        r"\p{P}+|",                  // Punctuation
         r"~{2,}|",                   // Strikethrough
         r"\*{2,}|",                  // Bold
         r"_{2,}|",                   // Underline
-        r"[*_>]"                     // Other markdown (italics, quotes)
+        r"\*[^*]+\*|",               // Italics/actions
+        r"\p{P}+|",                  // Punctuation
+        r"[_>]"                      // Other markdown (quotes)
     ))
     .unwrap()
 });
 
 fn tokenize<'a>(text: &'a str) -> Vec<&'a str> {
-    HIGH_COMPLEXITY_TOKENIZER_REGEX
+    TOKENIZER_REGEX
         .find_iter(text)
         .map(|m| m.as_str())
         .collect()
