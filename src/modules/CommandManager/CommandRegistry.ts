@@ -3,7 +3,7 @@ import { Logger } from '../Logger'
 import { green, yellow } from '../../util/colors'
 const logger = new Logger('CommandRegistry')
 
-import { SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandOptionType, ApplicationCommandType, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder, ChannelType } from 'discord.js'
+import { SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandOptionType, ApplicationCommandType, SlashCommandSubcommandBuilder, SlashCommandSubcommandGroupBuilder } from 'discord.js'
 import type { APIApplicationCommandOption } from 'discord.js'
 import { readdir } from 'fs/promises'
 import type { Dirent } from 'fs'
@@ -226,7 +226,7 @@ export class CommandRegistry {
             case ApplicationCommandOptionType.Channel:
                 builder.addChannelOption(opt => {
                     opt.setName(option.name).setDescription(option.description).setRequired(!!option.required)
-                    if (option.channel_types) opt.addChannelTypes(...option.channel_types.filter(channelType => channelType !== ChannelType.GuildDirectory))
+                    if (option.channel_types) opt.addChannelTypes(...option.channel_types)
                     return opt
                 })
                 break
