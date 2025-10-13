@@ -77,11 +77,19 @@ export default {
                 embeds: [{
                     title: '🤖 Bot Information',
                     fields: [
-                        { name: 'Memory Usage', value: `Heap: ${formatBytes(heapUsed)}/${formatBytes(heapTotal)}
-RSS: ${formatBytes(rss)}`, inline: true },
+                        {
+                            name: 'Memory Usage', value: (
+                                `Heap: ${formatBytes(heapUsed)}/${formatBytes(heapTotal)}\n` +
+                                `RSS: ${formatBytes(rss)}`
+                            ), inline: true
+                        },
                         { name: 'Process Uptime', value: uptimeStr, inline: true },
-                        { name: '~ Installation Stats', value: `Servers: ${application.approximateGuildCount ?? 'N/A'}
-Users: ${application.approximateUserInstallCount ?? 'N/A'}`, inline: true },
+                        {
+                            name: '~ Installation Stats', value: (
+                                `Servers: ${application.approximateGuildCount ?? 'N/A'}\n` +
+                                `Users: ${application.approximateUserInstallCount ?? 'N/A'}`
+                            ), inline: true
+                        },
                         { name: 'Ongoing Operations', value: `${ongoingOperations}`, inline: true }
                     ],
                     color: 0x2B2D31,
