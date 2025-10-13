@@ -105,6 +105,10 @@ export default {
         switch (subcommand) {
             case 'custom':
                 sides = ctx.getNumberOption('sides', true)
+                if (sides === 2) {
+                    await ctx.reply('A 2-sided die? Predictable. Use `/coinflip` if you need a coin tossed, mercenary.')
+                    return
+                }
                 break
             case 'd6':
                 sides = 6
