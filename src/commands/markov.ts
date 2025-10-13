@@ -137,8 +137,7 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
     const userOrId = await resolveUserOrId(ctx)
     const user = userOrId && 'tag' in userOrId ? userOrId : undefined
     const userId = userOrId && !('tag' in userOrId) ? userOrId.id : undefined
-    const global = ctx.getBooleanOption('global', false, false)
-    const channel = global ? undefined : (await ctx.getChannelOption('channel')) as TextChannel | null ?? undefined
+    const channel = (await ctx.getChannelOption('channel')) as TextChannel | null ?? undefined
     const words = ctx.getIntegerOption('words', false, 30)
     const seed = ctx.getStringOption('seed', false) ?? undefined
     const mode = ctx.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram'
@@ -172,8 +171,8 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
         })
 
         const result = await markov.generateMessage({
-            guild: !global ? ctx.guild : undefined,
-            channel, user, userId, words, seed, global, mode, batch
+            guild: ctx.guild,
+            channel, user, userId, words, seed, mode, batch
         })
         markov.removeAllListeners('generateProgress')
 
@@ -203,7 +202,6 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
                     {
                         name: 'Filters',
                         value: [
-                            global ? 'Global' : 'This server',
                             channel ? `Channel: #${channel.name ?? channel.id}` : null,
                             user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
                             words !== 30 ? `Words: ${words}` : null,
@@ -257,7 +255,6 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
                     {
                         name: 'Filters',
                         value: [
-                            global ? 'Global' : 'This server',
                             channel ? `Channel: #${channel.name ?? channel.id}` : null,
                             user ? `User: @${user.tag}` : userId ? `User ID: ${userId}` : null,
                             words !== 30 ? `Words: ${words}` : null,
@@ -333,11 +330,7 @@ export default {
         .addSubcommand(subcommand => subcommand
             .setName('generate')
             .setDescription('Create a new message based on collected chat data')
-            .addBooleanOption(option => option
-                .setName('global')
-                .setDescription('Consider messages from all servers (default: false - only this server).')
-                .setRequired(false)
-            ).addChannelOption(option => option
+            .addChannelOption(option => option
                 .setName('channel')
                 .setDescription('Specific channel to use for message generation (ignored if \'global\' is true).')
                 .setRequired(false)
