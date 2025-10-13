@@ -1,10 +1,10 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 
 export default {
     data: new SlashCommandBuilder()
         .setName('reload')
-        .setDescription('Reloads commands.')
+        .setDescription('Reloads commands (bot owner only).')
         .addSubcommand(subcommand => subcommand
             .setName('all')
             .setDescription('Reloads all commands.')
@@ -16,7 +16,7 @@ export default {
                 .setDescription('The name of the command to reload.')
                 .setRequired(true)
             )
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         if (!(await ctx.checkEmbi())) return
 

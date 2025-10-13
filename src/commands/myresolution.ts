@@ -1,10 +1,11 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 
 export default {
     data: new SlashCommandBuilder()
         .setName('myresolution')
-        .setDescription('Sends the "my resolution" meme.'),
+        .setDescription('Sends the "my resolution" meme.')
+        .setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         await ctx.deferReply()
         await ctx.reply({

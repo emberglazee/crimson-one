@@ -1,5 +1,5 @@
-import { ChannelType, Message, SlashCommandBuilder } from 'discord.js'
-import type { SlashCommand } from '../types'
+import { ChannelType, InteractionContextType, Message, SlashCommandBuilder } from 'discord.js'
+import { BotInstallationType, type SlashCommand } from '../types'
 import type { CommandContext } from '../modules'
 import { chance, getRandomElement, sleep } from '../util/functions'
 
@@ -8,9 +8,12 @@ export default {
         .setName('ben')
         .setDescription('Talking Ben on Discord')
         .addSubcommand(subcommand => subcommand
+            .setName('call')
+            .setDescription('Start a call with Talking Ben')
+        ).addSubcommand(subcommand => subcommand
             .setName('hangup')
             .setDescription('End the current call')
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild),
     async execute(ctx) {
         const subcommand = ctx.getSubcommand()
         if (subcommand === 'hangup') {
@@ -33,6 +36,10 @@ class TalkingBen {
     constructor(private ctx: CommandContext) {}
 
     async call() {
+        if (this.ctx.getInstallationType() !== BotInstallationType.GuildInstall || this.ctx.getInstallationType() !== BotInstallationType.UserInstallDM) {
+            this.ctx.reply(`The command is not supported: You should be either in my DM's, or I should be in the server (installation type detected: ${this.ctx.getInstallationType()})`)
+            return
+        }
         if (!this.ctx.channel) throw new Error('No channel')
         if (activeCalls.has(this.ctx.channel.id)) {
             await this.ctx.reply({ content: 'Ben is already on a call in this channel.', ephemeral: true })

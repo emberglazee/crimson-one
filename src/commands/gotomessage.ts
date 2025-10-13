@@ -1,4 +1,4 @@
-import { MessageFlags, SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, MessageFlags, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 
 export default {
@@ -21,7 +21,7 @@ export default {
             .setName('is_dm')
             .setDescription('Whether this is a DM message (uses @me instead of the guild ID).')
             .setRequired(false)
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         await ctx.deferReply({ flags: MessageFlags.Ephemeral })
 

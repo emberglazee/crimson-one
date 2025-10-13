@@ -10,13 +10,11 @@ export default {
             .setName('member')
             .setDescription('Server member to unbanish')
             .setRequired(true)
-        )
-        .addStringOption(option => option
+        ).addStringOption(option => option
             .setName('reason')
             .setDescription('Reason for the unbanishment.')
             .setRequired(false)
-        )
-        .setContexts(InteractionContextType.Guild),
+        ).setContexts(InteractionContextType.Guild),
     async execute(ctx) {
         if (!ctx.member.permissions.has('ManageRoles')) {
             await ctx.reply('❌ You don\'t have permission to manage roles.')

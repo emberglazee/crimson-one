@@ -1,10 +1,11 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 
 export default {
     data: new SlashCommandBuilder()
         .setName('debug')
-        .setDescription('Toggles debug mode (owner only).'),
+        .setDescription('Toggles debug mode (bot owner only).')
+        .setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         if (!(await ctx.checkEmbi())) return
 

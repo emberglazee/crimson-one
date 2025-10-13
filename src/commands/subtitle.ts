@@ -69,7 +69,7 @@ export const slashCommand = {
             .setName('interpret_newlines')
             .setDescription('Converts <newline> tags into line breaks')
             .setRequired(false)
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         const style = (ctx.getStringOption('style', true)) as 'ac7' | 'pw' | 'acz' | 'hd2'
         const speaker = ctx.getStringOption('speaker', true)

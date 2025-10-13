@@ -1,14 +1,15 @@
 import { Logger } from '../modules'
 const logger = new Logger('/test')
 
-import { SlashCommandBuilder, ApplicationIntegrationType } from 'discord.js'
+import { SlashCommandBuilder, ApplicationIntegrationType, InteractionContextType } from 'discord.js'
 import { SlashCommand } from '../types'
 import { smallFooterNote } from '../util/functions'
 
 export default {
     data: new SlashCommandBuilder()
         .setName('test')
-        .setDescription('A command for testing purposes.'),
+        .setDescription('A command for testing purposes.')
+        .setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         const isAnInteraction = !!ctx.interaction
 

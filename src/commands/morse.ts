@@ -1,7 +1,7 @@
 import { Logger } from '../modules'
 const logger = new Logger('/morse')
 
-import { SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 import { PING_EMBI } from '../util/constants'
 import morse from 'morse'
@@ -24,7 +24,7 @@ export default {
                 .setName('text')
                 .setDescription('The text to encode into Morse code')
             )
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         try {
             const subcommand = ctx.getSubcommand(true)

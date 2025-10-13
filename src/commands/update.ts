@@ -1,10 +1,11 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 
 export default {
     data: new SlashCommandBuilder()
         .setName('update')
-        .setDescription('Pulls the latest commit and restarts the bot.'),
+        .setDescription('Pulls the latest commit and restarts the bot.')
+        .setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         if (!(await ctx.checkEmbi())) return
 

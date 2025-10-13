@@ -1,16 +1,16 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 import { inspect } from 'util'
 
 export default {
     data: new SlashCommandBuilder()
         .setName('eval')
-        .setDescription('Evaluates JavaScript code (owner only).')
+        .setDescription('Evaluates JavaScript code (bot owner only).')
         .addStringOption(option => option
             .setName('code')
             .setDescription('The code to evaluate')
             .setRequired(true)
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         if (!(await ctx.checkEmbi())) return
 

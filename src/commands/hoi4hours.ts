@@ -2,7 +2,7 @@ import { Logger } from '../modules'
 import { red } from '../util/colors'
 const logger = new Logger('/hoi4hours')
 
-import { SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 import { EMBI_ID, PING_EMBI } from '../util/constants'
 
@@ -11,7 +11,8 @@ const { STEAM_API_KEY, STEAM_ID } = process.env
 export default {
     data: new SlashCommandBuilder()
         .setName('hoi4hours')
-        .setDescription('Checks the Steam API for embi\'s hours in HOI4.'),
+        .setDescription('Checks the Steam API for embi\'s hours in HOI4.')
+        .setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         if (!STEAM_API_KEY || !STEAM_ID) {
             await ctx.reply('❌ Steam API key or ID is not configured for this bot. Please contact the bot owner.')

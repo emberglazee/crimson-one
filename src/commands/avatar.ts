@@ -1,4 +1,4 @@
-import { EmbedBuilder, SlashCommandBuilder, type ImageExtension, type ImageSize } from 'discord.js'
+import { EmbedBuilder, InteractionContextType, SlashCommandBuilder, type ImageExtension, type ImageSize } from 'discord.js'
 import { SlashCommand } from '../types'
 import { BotInstallationType } from '../types'
 import { smallFooterNote } from '../util/functions'
@@ -45,7 +45,7 @@ export default {
                 { name: 'Server (default)', value: 'guild' },
                 { name: 'Global', value: 'global' }
             ).setRequired(false)
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
 
     async execute(ctx) {
         const user = await ctx.getUserOption('user', false, ctx.author)

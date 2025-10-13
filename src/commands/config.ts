@@ -46,8 +46,7 @@ export default {
                         { name: 'Role', value: 'role' },
                         { name: 'User', value: 'user' }
                     )
-                )
-                .addStringOption(option => option.setName('action').setDescription('Whether to add or remove the permission').setRequired(true).addChoices({ name: 'add', value: 'add' }, { name: 'remove', value: 'remove' }))
+                ).addStringOption(option => option.setName('action').setDescription('Whether to add or remove the permission').setRequired(true).addChoices({ name: 'add', value: 'add' }, { name: 'remove', value: 'remove' }))
                 .addStringOption(option => option.setName('value').setDescription('The permission name, role, or user to allow').setRequired(true))
             ).addSubcommand(subcommand => subcommand
                 .setName('status')

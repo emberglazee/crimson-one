@@ -3,7 +3,7 @@ import { red } from '../util/colors'
 const logger = new Logger('/ac7portrait')
 
 import { SlashCommand } from '../types'
-import { SlashCommandBuilder, AttachmentBuilder, MessageFlags } from 'discord.js'
+import { SlashCommandBuilder, AttachmentBuilder, MessageFlags, InteractionContextType } from 'discord.js'
 import { createCanvas, loadImage } from 'canvas'
 
 export default {
@@ -38,7 +38,7 @@ export default {
             .setName('ephemeral')
             .setDescription('If true, the response will only be visible to you.')
             .setRequired(false)
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         await ctx.deferReply({
             flags: ctx.getBooleanOption('ephemeral', false) ? MessageFlags.Ephemeral : undefined

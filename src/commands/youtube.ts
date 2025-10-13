@@ -1,5 +1,5 @@
 import { SlashCommand } from '../types'
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js'
+import { SlashCommandBuilder, EmbedBuilder, InteractionContextType } from 'discord.js'
 import { google } from 'googleapis'
 import { extractVideoId, formatYoutubeComment } from '../util/functions'
 
@@ -30,7 +30,7 @@ export default {
                     .setRequired(true)
                 )
             )
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         if (!YOUTUBE_API_KEY) {
             await ctx.reply('❌ YouTube API key is not configured. Please contact the bot owner.')

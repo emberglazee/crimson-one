@@ -1,5 +1,5 @@
 import { SlashCommand } from '../types'
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js'
+import { SlashCommandBuilder, EmbedBuilder, InteractionContextType } from 'discord.js'
 
 export default {
     data: new SlashCommandBuilder()
@@ -9,7 +9,7 @@ export default {
             .setName('role')
             .setDescription('The role to get information about')
             .setRequired(true)
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         if (!ctx.guild) {
             await ctx.reply('❌ This command can only be used in a server.')

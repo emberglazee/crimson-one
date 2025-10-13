@@ -1,5 +1,5 @@
 import { SlashCommand } from '../types'
-import { SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 
 export default {
     data: new SlashCommandBuilder()
@@ -79,7 +79,7 @@ export default {
                 .setDescription('The limit to set')
                 .setRequired(true)
             )
-        ),
+        ).setContexts(InteractionContextType.Guild),
 
     async execute(ctx) {
         const isRoleAllowed = ctx.member?.roles.cache.has('958529446560808961') ?? false

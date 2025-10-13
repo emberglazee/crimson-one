@@ -1,4 +1,4 @@
-import { EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js'
+import { EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder } from 'discord.js'
 import type { ImageExtension, ImageSize } from 'discord.js'
 import type { SlashCommand } from '../types'
 
@@ -33,7 +33,7 @@ export default {
             .setDescription('Banner size (default: 1024)')
             .addChoices(...bannerSizeOptions)
             .setRequired(false)
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         const user = await ctx.getUserOption('user', false, ctx.author)
         const raw = ctx.getBooleanOption('raw', false, false)

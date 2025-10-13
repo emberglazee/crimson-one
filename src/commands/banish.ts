@@ -11,18 +11,15 @@ export default {
             .setName('member')
             .setDescription('Server member to banish')
             .setRequired(true)
-        )
-        .addStringOption(option => option
+        ).addStringOption(option => option
             .setName('duration')
             .setDescription('Duration of the banishment (e.g., "6d 3h 2m" or a specific date). Defaults to permanent.')
             .setRequired(false)
-        )
-        .addStringOption(option => option
+        ).addStringOption(option => option
             .setName('reason')
             .setDescription('Reason for the banishment.')
             .setRequired(false)
-        )
-        .setContexts(InteractionContextType.Guild),
+        ).setContexts(InteractionContextType.Guild),
     async execute(ctx) {
         if (!ctx.member.permissions.has('ManageRoles')) {
             await ctx.reply('❌ You don\'t have permission to manage roles.')

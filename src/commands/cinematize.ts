@@ -1,5 +1,5 @@
 import { SlashCommand } from '../types'
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js'
+import { SlashCommandBuilder, EmbedBuilder, InteractionContextType } from 'discord.js'
 import { distance } from 'fastest-levenshtein'
 import { ProgressTracker } from '../modules'
 
@@ -182,7 +182,7 @@ export default {
             .setDescription('The text to process.')
             .setRequired(true)
             .setMaxLength(1000)
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         if (!process.env.TMDB_API_KEY) {
             await ctx.reply('❌ The TMDB API key is not configured. Please contact the bot owner.')

@@ -1,5 +1,5 @@
 import { SlashCommand } from '../types'
-import { SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { translate } from 'google-translate-api-x'
 import { shuffleArray } from '../util/functions'
 import { ProgressTracker } from '../modules'
@@ -20,7 +20,7 @@ export default {
             .setName('exit_lang')
             .setDescription('The language to end the translation chain with (default: en)')
             .setRequired(false)
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
 
     async execute(ctx) {
         const time1 = process.hrtime()

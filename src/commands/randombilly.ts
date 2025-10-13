@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand, type Emojis } from '../types'
 import { readFile } from 'fs/promises'
 import { getRandomElement } from '../util/functions'
@@ -9,7 +9,8 @@ let emojis: string[] = []
 export default {
     data: new SlashCommandBuilder()
         .setName('randombilly')
-        .setDescription('Sends a random "billy" emoji'),
+        .setDescription('Sends a random "billy" emoji')
+        .setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         let deferred = false
         if (!emojis.length) {

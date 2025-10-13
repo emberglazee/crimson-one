@@ -17,7 +17,7 @@ export const slashCommand = {
                 .setDescription('The user to get info about (defaults to you).')
                 .setRequired(false)
             )
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         const subcommand = ctx.getSubcommand()
 

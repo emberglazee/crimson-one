@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, SlashCommandSubcommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder, SlashCommandSubcommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 import { randRange } from '../util/functions'
 
@@ -69,7 +69,7 @@ export default {
                 .setMinValue(1)
                 .setMaxValue(MAX_UNTIL_SIDES)
             )
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         const subcommand = ctx.getSubcommand(true)
         if (subcommand === 'until') {

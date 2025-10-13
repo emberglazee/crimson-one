@@ -1,5 +1,5 @@
 import { SlashCommand } from '../types'
-import { SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { getRandomElement, randRange, sleep } from '../util/functions'
 
 const CASCADIA_RESPONSES = [
@@ -56,7 +56,7 @@ export default {
                 { name: 'Pacific Federation', value: 'federation' },
                 { name: 'Random', value: 'random' }
             )
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         const question = ctx.getStringOption('question', true)
         const theme = ctx.getStringOption('theme', false)

@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 import { formatBytes } from '../util/functions'
 
@@ -61,7 +61,7 @@ export default {
                     { name: 'Your Guild Username', value: 'guilduser' }
                 ).setRequired(false)
             )
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
     async execute(ctx) {
         const subcommand = ctx.getSubcommand()
         if (subcommand === 'info') {

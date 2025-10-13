@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 
 export default {
@@ -8,7 +8,7 @@ export default {
         .addStringOption(option => option
             .setName('action')
             .setDescription('The consequence if you lose (e.g., "get timed out for 1 minute").')
-        ),
+        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
 
     async execute(ctx) {
         await ctx.deferReply()
