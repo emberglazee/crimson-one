@@ -9,7 +9,7 @@ export default {
             .setName('role')
             .setDescription('The role to get information about')
             .setRequired(true)
-        ).setContexts(InteractionContextType.BotDM, InteractionContextType.Guild, InteractionContextType.PrivateChannel),
+        ).setContexts(InteractionContextType.Guild),
     async execute(ctx) {
         if (!ctx.guild) {
             await ctx.reply('❌ This command can only be used in a server.')
