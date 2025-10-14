@@ -70,13 +70,14 @@ export class ProgressTracker {
         let message = `**${this.title}**\n`
 
         if (options.fetched !== undefined) {
-            message += `*${options.statusText || 'Scanning messages...'}*
-\`\`\`
-Fetched:   ${options.fetched.toLocaleString()}
-Collected: ${options.current.toLocaleString()}
-Ignored:   ${options.ignored?.toLocaleString() ?? 'N/A'}
-\`\`\`
-`
+            message += (
+                `*${options.statusText || 'Scanning messages...'}*\n` +
+                '```\n' +
+                `- Fetched:   ${options.fetched.toLocaleString()}\n` +
+                `- Collected: ${options.current.toLocaleString()}\n` +
+                `- Ignored:   ${options.ignored?.toLocaleString() ?? 'N/A'}\n` +
+                '```'
+            )
         } else {
             let progress = 0
             if (options.percent !== undefined) {
