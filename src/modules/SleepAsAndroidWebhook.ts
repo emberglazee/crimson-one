@@ -7,6 +7,7 @@ import { EventEmitter } from 'tseep'
 import type { IncomingMessage, Server, ServerResponse } from 'http'
 import { createServer } from 'http'
 import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
+import { PING_EMBI } from '../util/constants'
 
 // Define a custom event type for Sleep as Android events
 type SleepWebhookEvents = {
@@ -122,6 +123,10 @@ export class SleepAsAndroidWebhookManager extends EventEmitter<SleepWebhookEvent
                     break
                 case 'not_awake':
                     embed.setTitle('😴 Fell asleep')
+                    break
+                case 'apnea_alarm':
+                    embed.setTitle('⚠️ Apnea alarm')
+                    embed.setDescription('This better be a drill')
                     break
                 default:
                     for (const key in payload) {
