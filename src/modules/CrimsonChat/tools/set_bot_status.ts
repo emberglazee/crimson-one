@@ -2,19 +2,14 @@ import { Logger } from '../../Logger'
 import { yellow, red } from '../../../util/colors'
 const logger = new Logger('CrimsonChat | set_bot_status()')
 
-import { z } from 'zod'
-import { tool } from 'ai'
-import { client } from '../../..'
-import { ActivityType, type PresenceStatusData } from 'discord.js'
+import { type Client, ActivityType, type PresenceStatusData } from 'discord.js'
+import type { CrimsonTool } from '../types'
 
-const schema = z.object({
-    status: z.enum(['online', 'idle', 'dnd', 'invisible']).optional(),
-    activityType: z.enum(['Playing', 'Streaming', 'Listening', 'Watching', 'Competing']).optional(),
-    activityName: z.string().optional()
-})
-type Input = z.infer<typeof schema>
-
-async function invoke({ status, activityType, activityName }: Input): Promise<string> {
+async function invoke({ status, activityType, activityName }: {
+    status?: PresenceStatusData
+    activityType?: 'Playing' | 'Streaming' | 'Listening' | 'Watching' | 'Competing'
+    activityName?: string
+}, { client }: { client: Client }): Promise<string> {
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ status, activityType, activityName }))}`)
     try {
         if (!client || !client.user) {
@@ -77,8 +72,13 @@ async function invoke({ status, activityType, activityName }: Input): Promise<st
     }
 }
 
-export default tool({
+export default {
+    name: 'set_bot_status',
     description: 'Sets the Discord bot\'s presence status and activity.',
-    inputSchema: schema,
+    parameters: [
+        { name: 'status', type: 'string', description: 'The presence status (online, idle, dnd, invisible).', required: false },
+        { name: 'activityType', type: 'string', description: 'The type of activity (Playing, Streaming, Listening, Watching, Competing).', required: false },
+        { name: 'activityName', type: 'string', description: 'The name of the activity.', required: false }
+    ],
     execute: invoke
-})
+} as CrimsonTool

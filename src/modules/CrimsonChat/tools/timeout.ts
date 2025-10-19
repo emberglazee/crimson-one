@@ -2,21 +2,17 @@ import { Logger } from '../../Logger'
 import { yellow, red } from '../../../util/colors'
 const logger = new Logger('CrimsonChat | timeout()')
 
-import { z } from 'zod'
-import { tool } from 'ai'
-import { client as client } from '../../../'
+import { type Client } from 'discord.js'
 import { findMember } from '../../../util/functions'
 import { SOLITARY_CONFINEMENT_GUILD_ID } from '../../../util/constants'
+import type { CrimsonTool } from '../types'
 
-const schema = z.object({
-    username: z.string().optional(),
-    displayname: z.string().optional().describe('Discord display name; the least accurate, performs a closest match search'),
-    length: z.number().describe('Length of the timeout in milliseconds').min(5000).max(40320000),
-    reason: z.string().optional().describe("Optional reason for the timeout - for moderators' convenience")
-})
-type Input = z.infer<typeof schema>
-
-async function invoke({ username, displayname, length, reason }: Input): Promise<string> {
+async function invoke({ username, displayname, length, reason }: {
+    username?: string
+    displayname?: string
+    length: number
+    reason?: string
+}, { client }: { client: Client }): Promise<string> {
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ username, displayname, length, reason }))}`)
     const query = username ?? displayname
     if (!query) {
@@ -47,8 +43,34 @@ async function invoke({ username, displayname, length, reason }: Input): Promise
     return JSON.stringify({ status: 'success', message: `Timed out user ${member.user.username} (display name ${member.displayName}) for ${length} milliseconds` })
 }
 
-export default tool({
+export default {
+    name: 'timeout',
     description: 'Times out a Discord user.',
-    inputSchema: schema,
+    parameters: [
+        {
+            name: 'username',
+            type: 'string',
+            description: 'The user\'s global Discord username (e.g., "johndoe")',
+            required: false
+        },
+        {
+            name: 'displayname',
+            type: 'string',
+            description: 'Discord display name; the least accurate, performs a closest match search',
+            required: false
+        },
+        {
+            name: 'length',
+            type: 'number',
+            description: 'Length of the timeout in milliseconds. Minimum 5000, maximum 40320000.',
+            required: true
+        },
+        {
+            name: 'reason',
+            type: 'string',
+            description: "Optional reason for the timeout - for moderators' convenience",
+            required: false
+        }
+    ],
     execute: invoke
-})
+} as CrimsonTool

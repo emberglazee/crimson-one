@@ -12,10 +12,13 @@ import { usernamesToMentions } from './util/formatters'
 import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST_PROMPT } from '../../util/constants'
 import { ImageProcessor } from './ImageProcessor'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import type { ModelMessage, TextPart, ImagePart, ToolCallPart, ToolResultPart } from 'ai'
+import type { ModelMessage, TextPart, ImagePart } from 'ai'
 import { generateText } from 'ai'
-import { loadTools } from './tools'
+import { getTools } from './tools'
 import { EventEmitter } from 'tseep'
+import { parseToolCalls, stripToolCalls } from './util/xmlParser'
+import { ToolRegistry } from './ToolRegistry'
+import path from 'path'
 
 const ASSISTANT_RESPONSE_TIMEOUT_MS = 60000
 
@@ -48,7 +51,8 @@ export class CrimsonChat extends EventEmitter<{
         @inject('Client') private client: Client,
         public state: CrimsonChatState,
         private imageProcessor: ImageProcessor,
-        private messageQueue: MessageQueue
+        private messageQueue: MessageQueue,
+        private toolRegistry: ToolRegistry
     ) {
         super()
     }
@@ -59,6 +63,7 @@ export class CrimsonChat extends EventEmitter<{
         if (!this.channel) {
             throw new Error(`Could not find text channel ${this.channelId}`)
         }
+        await this.toolRegistry.loadTools(path.join(__dirname, 'tools'))
         // State is loaded in its own constructor now
         logger.ok('CrimsonChat initialized successfully')
     }
@@ -148,6 +153,17 @@ export class CrimsonChat extends EventEmitter<{
 
             const state = await this.state.getState()
 
+            // Dynamically add tool definitions to the system prompt
+            const tools = getTools()
+            let systemPrompt = state.systemPrompt
+            if (tools.size > 0) {
+                const toolDefinitions = Array.from(tools.values()).map(tool => {
+                    const params = tool.parameters.map(p => `    <${p.name}>${p.description}</${p.name}>`).join('\n')
+                    return `<tool>\n  <name>${tool.name}</name>\n  <description>${tool.description}</description>\n  <parameters>\n${params}\n  </parameters>\n</tool>`
+                }).join('\n\n')
+                systemPrompt += `\n\nAvailable tools:\n${toolDefinitions}`
+            }
+
             const contentParts: (TextPart | ImagePart)[] = []
 
             const userMessageContext = {
@@ -178,8 +194,6 @@ export class CrimsonChat extends EventEmitter<{
             const userMessage: ModelMessage = { role: 'user', content: contentParts }
             const messages: ModelMessage[] = [...state.history, userMessage]
 
-            const tools = await loadTools()
-
             try {
                 const timeoutPromise = new Promise<never>((_, reject) =>
                     setTimeout(() => reject(new Error('Assistant response timed out')), ASSISTANT_RESPONSE_TIMEOUT_MS)
@@ -188,9 +202,8 @@ export class CrimsonChat extends EventEmitter<{
                 const rawResult = await Promise.race([
                     generateText({
                         model: this.voidai(this.state.modelName),
-                        system: state.systemPrompt,
+                        system: systemPrompt,
                         messages,
-                        tools: Object.keys(tools).length > 0 ? tools : undefined,
                         temperature: this.state.berserkMode ? 2.0 : 0.8,
                         topP: this.state.berserkMode ? 1.0 : 0.95,
                         maxRetries: 10
@@ -206,80 +219,19 @@ export class CrimsonChat extends EventEmitter<{
                     return null
                 }
 
-                const { text, toolCalls, toolResults, usage } = rawResult
+                const { text, usage } = rawResult
+                const toolCalls = parseToolCalls(text)
 
+                // Execute tools if any are found
+                if (toolCalls.length > 0) {
+                    await this._executeToolCalls(toolCalls, targetChannel, lastMessage.originalMessage)
+                }
+
+                // Add messages to history
                 const newMessages: ModelMessage[] = [userMessage]
-                if (toolCalls && toolCalls.length > 0) {
-                    newMessages.push({ role: 'assistant', content: toolCalls })
-                    for (const call of toolCalls as ToolCallPart[]) {
-                        const embed = new EmbedBuilder()
-                            .setColor('#FEE75C')
-                            .setTitle('⚙️ Tool Call')
-                            .addFields(
-                                { name: 'Tool', value: `\`${call.toolName}\``, inline: true },
-                                { name: 'Arguments', value: `\`\`\`json\n${JSON.stringify(call.input, null, 2)}
-\`\`\`` }
-                            )
-                            .setFooter({ text: `Call ID: ${call.toolCallId}` })
-                            .setTimestamp()
-                        await this.sendResponseToDiscord({ embeds: [embed] }, targetChannel, lastMessage.originalMessage)
-                    }
-                }
-                if (toolResults && toolResults.length > 0) {
-                    const toolResultParts: ToolResultPart[] = toolResults.map(result => ({
-                        type: 'tool-result',
-                        toolCallId: result.toolCallId,
-                        toolName: result.toolName,
-                        output: result.output
-                    }))
-                    newMessages.push({ role: 'tool', content: toolResultParts })
-                    for (const result of toolResults) {
-                        const resultString = typeof result.output === 'string'
-                            ? result.output
-                            : JSON.stringify(result.output, null, 2)
-
-                        let parsedResult: { status: string, message: string } | null = null
-                        try {
-                            parsedResult = JSON.parse(resultString)
-                        } catch (parseError) {
-                            logger.warn(`Failed to parse tool result as JSON: ${parseError}`)
-                        }
-
-                        let embedColor: HexColorString = '#ED4245'
-                        let embedTitle = '❌ Tool Failed'
-
-                        if (parsedResult) {
-                            switch (parsedResult.status) {
-                                case 'success':
-                                    embedColor = '#57F287'
-                                    embedTitle = '✅ Tool Executed'
-                                    break
-                                case 'info':
-                                    embedColor = '#FEE75C'
-                                    embedTitle = 'ℹ️ Tool Information'
-                                    break
-                                case 'error':
-                                    embedColor = '#ED4245'
-                                    embedTitle = '❌ Tool Failed'
-                                    break
-                            }
-                        }
-
-                        const embed = new EmbedBuilder()
-                            .setColor(embedColor)
-                            .setTitle(embedTitle)
-                            .addFields(
-                                { name: 'Tool', value: `\`${result.toolName}\``, inline: true },
-                                { name: 'Message', value: `\`\`\`\n${parsedResult ? parsedResult.message : resultString.substring(0, 1000)}
-\`\`\`}` }
-                            )
-                            .setFooter({ text: `Call ID: ${result.toolCallId}` })
-                            .setTimestamp()
-                        await this.sendResponseToDiscord({ embeds: [embed] }, targetChannel, lastMessage.originalMessage)
-                    }
-                }
-                if (text) {
-                    newMessages.push({ role: 'assistant', content: text })
+                const strippedText = stripToolCalls(text)
+                if (strippedText) {
+                    newMessages.push({ role: 'assistant', content: strippedText })
                 }
 
                 await this.state.addMessages(newMessages, {
@@ -287,7 +239,8 @@ export class CrimsonChat extends EventEmitter<{
                     completionTokens: usage.outputTokens!
                 })
 
-                return text
+                // Return the text (without tool calls) to be sent to Discord
+                return strippedText
             } catch (e) {
                 const error = e as Error
                 if (error.message === 'Assistant response timed out') {
@@ -302,7 +255,121 @@ export class CrimsonChat extends EventEmitter<{
         }
     }
 
-    private async sendResponseToDiscord(response: string | MessageReplyOptions, targetChannel: TextChannel, originalMessage?: Message): Promise<void> {
+    private async _executeToolCalls(
+        toolCalls: ReturnType<typeof parseToolCalls>,
+        targetChannel: TextChannel,
+        originalMessage?: Message
+    ): Promise<void> {
+        const tools = getTools()
+
+        for (const call of toolCalls) {
+            const tool = tools.get(call.toolName)
+            if (!tool) {
+                logger.warn(`Unknown tool call: ${call.toolName}`)
+                continue
+            }
+
+            // Display "Thinking..." embed
+            const thinkingEmbed = new EmbedBuilder()
+                .setColor('#FEE75C')
+                .setTitle('⚙️ Tool Call')
+                .addFields(
+                    { name: 'Tool', value: `\`${call.toolName}\``, inline: true },
+                    { name: 'Arguments', value: `\`\`\`xml\n${Object.entries(call.args).map(([key, value]) => `<${key}>${value}</${key}>`).join('\n')}\n\`\`\`` }
+                )
+                .setFooter({ text: 'Executing...' })
+                .setTimestamp()
+
+            const thinkingMessage = await this.sendResponseToDiscord({ embeds: [thinkingEmbed] }, targetChannel, originalMessage)
+
+            try {
+                // Parameter validation and type casting
+                const validatedArgs: Record<string, any> = {}
+                for (const param of tool.parameters) {
+                    const argValue = call.args[param.name]
+                    if (param.required && argValue === undefined) {
+                        throw new Error(`Missing required parameter: ${param.name}`)
+                    }
+                    if (argValue !== undefined) {
+                        if (param.type === 'number') {
+                            validatedArgs[param.name] = Number(argValue)
+                            if (isNaN(validatedArgs[param.name])) {
+                                throw new Error(`Invalid number for parameter ${param.name}: ${argValue}`)
+                            }
+                        } else if (param.type === 'boolean') {
+                            validatedArgs[param.name] = argValue.toLowerCase() === 'true'
+                        } else {
+                            validatedArgs[param.name] = argValue
+                        }
+                    }
+                }
+
+                const resultString = await tool.execute(validatedArgs, { client: this.client })
+
+                let parsedResult: { status: string, message: string } | null = null
+                try {
+                    parsedResult = JSON.parse(resultString)
+                } catch (parseError) {
+                    logger.warn(`Failed to parse tool result as JSON: ${parseError}`)
+                }
+
+                let embedColor: HexColorString = '#ED4245'
+                let embedTitle = '❌ Tool Failed'
+
+                if (parsedResult) {
+                    switch (parsedResult.status) {
+                        case 'success':
+                            embedColor = '#57F287'
+                            embedTitle = '✅ Tool Executed'
+                            break
+                        case 'info':
+                            embedColor = '#FEE75C'
+                            embedTitle = 'ℹ️ Tool Information'
+                            break
+                        case 'error':
+                            embedColor = '#ED4245'
+                            embedTitle = '❌ Tool Failed'
+                            break
+                    }
+                }
+
+                const resultEmbed = new EmbedBuilder()
+                    .setColor(embedColor)
+                    .setTitle(embedTitle)
+                    .addFields(
+                        { name: 'Tool', value: `\`${tool.name}\``, inline: true },
+                        { name: 'Result', value: `\`\`\`\n${parsedResult ? parsedResult.message : resultString.substring(0, 1000)}\n\`\`\`` }
+                    )
+                    .setTimestamp()
+
+                if (thinkingMessage) {
+                    await thinkingMessage.edit({ embeds: [resultEmbed] })
+                } else {
+                    await this.sendResponseToDiscord({ embeds: [resultEmbed] }, targetChannel, originalMessage)
+                }
+
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
+                logger.error(`Tool execution failed for ${tool.name}: ${red(errorMessage)}`)
+                const errorEmbed = new EmbedBuilder()
+                    .setColor('#ED4245')
+                    .setTitle('❌ Tool Failed')
+                    .addFields(
+                        { name: 'Tool', value: `\`${tool.name}\``, inline: true },
+                        { name: 'Error', value: `\`\`\`\n${errorMessage}\n\`\`\`` }
+                    )
+                    .setTimestamp()
+
+                if (thinkingMessage) {
+                    await thinkingMessage.edit({ embeds: [errorEmbed] })
+                } else {
+                    await this.sendResponseToDiscord({ embeds: [errorEmbed] }, targetChannel, originalMessage)
+                }
+            }
+        }
+    }
+
+    private async sendResponseToDiscord(response: string | MessageReplyOptions, targetChannel: TextChannel, originalMessage?: Message): Promise<Message | void> {
         if (!this.client) throw new Error('Client not set')
 
         if (typeof response === 'string') {
@@ -312,12 +379,12 @@ export class CrimsonChat extends EventEmitter<{
             let isFirst = true
             for (const message of messages) {
                 const replyTo = isFirst ? originalMessage : undefined
-                this.messageQueue.queueMessage({ content: message, allowedMentions: { repliedUser: !!replyTo } }, targetChannel, replyTo)
+                return this.messageQueue.queueMessage({ content: message, allowedMentions: { repliedUser: !!replyTo } }, targetChannel, replyTo)
                 isFirst = false
             }
         } else {
             const replyTo = originalMessage
-            this.messageQueue.queueMessage({ ...response, allowedMentions: { repliedUser: !!replyTo, parse: [] } }, targetChannel, replyTo)
+            return this.messageQueue.queueMessage({ ...response, allowedMentions: { repliedUser: !!replyTo, parse: [] } }, targetChannel, replyTo)
         }
     }
 

@@ -2,23 +2,21 @@ import { Logger } from '../../Logger'
 import { yellow, red } from '../../../util/colors'
 const logger = new Logger('CrimsonChat | banish()')
 
-import { z } from 'zod'
-import { tool } from 'ai'
-import { client as client } from '../../..'
-import { type Guild, PermissionsBitField } from 'discord.js'
+import { container } from 'tsyringe'
+import { type Client, type Guild, PermissionsBitField } from 'discord.js'
 import { EMBI_ID, SOLITARY_CONFINEMENT_GUILD_ID } from '../../../util/constants'
 import { BanishmentManager } from '../../BanishmentManager'
 import { findMember, parseDuration } from '../../../util/functions'
+import type { CrimsonTool } from '../types'
 
-const schema = z.object({
-    username: z.string().optional().describe('The user\'s global Discord username (e.g., "johndoe")'),
-    displayname: z.string().optional().describe("The user's display name in the server; the least accurate, performs a closest match search"),
-    duration: z.string().optional().describe('Duration of the banishment (e.g., "6d 3h 2m" or a specific date). Default is permanent.'),
-    reason: z.string().optional().describe('Optional reason for the banishment for the audit log.')
-})
-type Input = z.infer<typeof schema>
+const banishmentManager = container.resolve(BanishmentManager)
 
-async function invoke({ username, displayname, duration, reason }: Input): Promise<string> {
+async function invoke({ username, displayname, duration, reason }: {
+    username?: string
+    displayname?: string
+    duration?: string
+    reason?: string
+}, { client }: { client: Client }): Promise<string> {
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ username, displayname, duration, reason }))}`)
     const query = username ?? displayname
     if (!query) {
@@ -43,6 +41,10 @@ async function invoke({ username, displayname, duration, reason }: Input): Promi
         return JSON.stringify({ status: 'error', message: `Could not find any member matching the query "${query}".` })
     }
 
+    if (!client.user) {
+        return JSON.stringify({ status: 'error', message: 'The bot client is not yet ready.' })
+    }
+
     if (member.id === client.user.id) {
         return JSON.stringify({ status: 'info', message: "You can't make me banish myself. Predictable." })
     }
@@ -53,7 +55,6 @@ async function invoke({ username, displayname, duration, reason }: Input): Promi
         return JSON.stringify({ status: 'error', message: `I cannot manage this user. They likely have a higher role than me. (Target: ${member.user.username})` })
     }
 
-    const banishmentManager = BanishmentManager.getInstance()
     try {
         const durationSec = duration ? parseDuration(duration) : null
         if (durationSec !== null) {
@@ -72,8 +73,34 @@ async function invoke({ username, displayname, duration, reason }: Input): Promi
     }
 }
 
-export default tool({
+export default {
+    name: 'banish',
     description: 'Assigns the "banished" role to a server member, restricting their access. This is a form of server moderation.',
-    inputSchema: schema,
+    parameters: [
+        {
+            name: 'username',
+            type: 'string',
+            description: 'The user\'s global Discord username (e.g., "johndoe")',
+            required: false
+        },
+        {
+            name: 'displayname',
+            type: 'string',
+            description: "The user's display name in the server; the least accurate, performs a closest match search",
+            required: false
+        },
+        {
+            name: 'duration',
+            type: 'string',
+            description: 'Duration of the banishment (e.g., "6d 3h 2m" or a specific date). Default is permanent.',
+            required: false
+        },
+        {
+            name: 'reason',
+            type: 'string',
+            description: 'Optional reason for the banishment for the audit log.',
+            required: false
+        }
+    ],
     execute: invoke
-})
+} as CrimsonTool

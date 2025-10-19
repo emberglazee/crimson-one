@@ -2,27 +2,17 @@ import { Logger } from '../../Logger'
 import { yellow, red } from '../../../util/colors'
 const logger = new Logger('CrimsonChat | create_poll()')
 
-import { z } from 'zod'
-import { tool } from 'ai'
-import { client as client } from '../../..'
-import { ChannelType, PollLayoutType } from 'discord.js'
+import { type Client, ChannelType, PollLayoutType } from 'discord.js'
+import type { CrimsonTool } from '../types'
 
 const CHANNEL_ID = '1335992675459141632'
 
-const answerSchema = z.object({
-    text: z.string().min(1).max(55)
-})
-
-const schema = z.object({
-    question: z.string().min(1).max(255),
-    answers: z.array(answerSchema).min(2).max(10),
-    duration: z.number().min(1).max(168).optional().describe('Duration of the poll in hours. Defaults to 24.'),
-    allowMultiselect: z.boolean().optional().describe('Whether to allow multiple answers. Defaults to false.')
-})
-
-type Input = z.infer<typeof schema>
-
-async function invoke({ question, answers, duration = 24, allowMultiselect = false }: Input): Promise<string> {
+async function invoke({ question, answers, duration = 24, allowMultiselect = false }: {
+    question: string
+    answers: string
+    duration?: number
+    allowMultiselect?: boolean
+}, { client }: { client: Client }): Promise<string> {
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ question, answers, duration, allowMultiselect }))}`)
 
     try {
@@ -31,9 +21,14 @@ async function invoke({ question, answers, duration = 24, allowMultiselect = fal
             return JSON.stringify({ status: 'error', message: `The channel with the ID "${CHANNEL_ID}" was not found or is not a text channel.` })
         }
 
+        const answerObjects = answers.split(',').map(ans => ({ text: ans.trim() }))
+        if (answerObjects.length < 2 || answerObjects.length > 10) {
+            return JSON.stringify({ status: 'error', message: 'Poll must have between 2 and 10 answers.' })
+        }
+
         const pollOptions = {
             question: { text: question },
-            answers: answers,
+            answers: answerObjects,
             duration: duration,
             allowMultiselect: allowMultiselect,
             layoutType: PollLayoutType.Default
@@ -49,8 +44,14 @@ async function invoke({ question, answers, duration = 24, allowMultiselect = fal
     }
 }
 
-export default tool({
+export default {
+    name: 'create_poll',
     description: 'Creates a new poll in the primary CrimsonChat channel.',
-    inputSchema: schema,
+    parameters: [
+        { name: 'question', type: 'string', description: 'The question for the poll.', required: true },
+        { name: 'answers', type: 'string', description: 'A comma-separated list of answers for the poll (e.g., "Answer 1,Answer 2,Answer 3").', required: true },
+        { name: 'duration', type: 'number', description: 'Duration of the poll in hours. Defaults to 24.', required: false },
+        { name: 'allowMultiselect', type: 'boolean', description: 'Whether to allow multiple answers. Defaults to false.', required: false }
+    ],
     execute: invoke
-})
+} as CrimsonTool

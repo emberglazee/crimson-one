@@ -2,22 +2,17 @@ import { Logger } from '../../Logger'
 import { yellow, red } from '../../../util/colors'
 const logger = new Logger('CrimsonChat | set_display_name()')
 
-import { z } from 'zod'
-import { tool } from 'ai'
-import { client as client } from '../../..'
-import { type Guild, PermissionsBitField } from 'discord.js'
+import { type Client, type Guild, PermissionsBitField } from 'discord.js'
 import { EMBI_ID, SOLITARY_CONFINEMENT_GUILD_ID } from '../../../util/constants'
 import { findMember } from '../../../util/functions'
+import type { CrimsonTool } from '../types'
 
-const schema = z.object({
-    username: z.string().optional().describe('The user\'s global Discord username (e.g., "johndoe")'),
-    displayname: z.string().optional().describe("The user's current display name in the server; the least accurate, performs a closest match search"),
-    new_display_name: z.string().min(1).max(32).describe('The new display name for the user. Must be between 1 and 32 characters.'),
-    reason: z.string().optional().describe('Optional reason for changing the display name for the audit log.')
-})
-type Input = z.infer<typeof schema>
-
-async function invoke({ username, displayname, new_display_name, reason }: Input): Promise<string> {
+async function invoke({ username, displayname, new_display_name, reason }: {
+    username?: string
+    displayname?: string
+    new_display_name: string
+    reason?: string
+}, { client }: { client: Client }): Promise<string> {
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ username, displayname, new_display_name, reason }))}`)
     const query = username ?? displayname
     if (!query) {
@@ -36,6 +31,10 @@ async function invoke({ username, displayname, new_display_name, reason }: Input
     const botMember = guild.members.me
     if (!botMember || !botMember.permissions.has(PermissionsBitField.Flags.ManageNicknames)) {
         return JSON.stringify({ status: 'error', message: "I do not have the 'Manage Nicknames' permission to perform this action." })
+    }
+
+    if (!client.user) {
+        return JSON.stringify({ status: 'error', message: 'The bot client is not yet ready.' })
     }
 
     // 2. Find the target member
@@ -75,8 +74,14 @@ async function invoke({ username, displayname, new_display_name, reason }: Input
     return JSON.stringify({ status: 'success', message: `User ${member.user.username}'s display name has been changed to "${new_display_name}".` })
 }
 
-export default tool({
+export default {
+    name: 'set_display_name',
     description: 'Sets the display name (nickname) of a Discord server member, including the bot itself. This is a form of server moderation.',
-    inputSchema: schema,
+    parameters: [
+        { name: 'username', type: 'string', description: 'The user\'s global Discord username (e.g., "johndoe")', required: false },
+        { name: 'displayname', type: 'string', description: "The user's current display name in the server; the least accurate, performs a closest match search", required: false },
+        { name: 'new_display_name', type: 'string', description: 'The new display name for the user. Must be between 1 and 32 characters.', required: true },
+        { name: 'reason', type: 'string', description: 'Optional reason for changing the display name for the audit log.', required: false }
+    ],
     execute: invoke
-})
+} as CrimsonTool

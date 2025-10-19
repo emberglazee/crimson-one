@@ -2,22 +2,20 @@ import { Logger } from '../../Logger'
 import { yellow, red } from '../../../util/colors'
 const logger = new Logger('CrimsonChat | unbanish()')
 
-import { z } from 'zod'
-import { tool } from 'ai'
-import { client as client } from '../../..'
-import { type Guild, PermissionsBitField } from 'discord.js'
+import { container } from 'tsyringe'
+import { type Client, type Guild, PermissionsBitField } from 'discord.js'
 import { BanishmentManager } from '../../BanishmentManager'
 import { findMember } from '../../../util/functions'
 import { SOLITARY_CONFINEMENT_GUILD_ID } from '../../../util/constants'
+import type { CrimsonTool } from '../types'
 
-const schema = z.object({
-    username: z.string().optional().describe('The user\'s global Discord username (e.g., "johndoe")'),
-    displayname: z.string().optional().describe("The user's display name in the server; the least accurate, performs a closest match search"),
-    reason: z.string().optional().describe('Optional reason for the unbanishment for the audit log.')
-})
-type Input = z.infer<typeof schema>
+const banishmentManager = container.resolve(BanishmentManager)
 
-async function invoke({ username, displayname, reason }: Input): Promise<string> {
+async function invoke({ username, displayname, reason }: {
+    username?: string
+    displayname?: string
+    reason?: string
+}, { client }: { client: Client }): Promise<string> {
     logger.debug(`Invoked with args: ${yellow(JSON.stringify({ username, displayname, reason }))}`)
     const query = username ?? displayname
     if (!query) {
@@ -37,6 +35,10 @@ async function invoke({ username, displayname, reason }: Input): Promise<string>
         return JSON.stringify({ status: 'error', message: "I do not have the 'Manage Roles' permission to perform this action." })
     }
 
+    if (!client.user) {
+        return JSON.stringify({ status: 'error', message: 'The bot client is not yet ready.' })
+    }
+
     const member = await findMember(guild, query)
     if (!member) {
         return JSON.stringify({ status: 'error', message: `Could not find any member matching the query "${query}".` })
@@ -49,7 +51,6 @@ async function invoke({ username, displayname, reason }: Input): Promise<string>
         return JSON.stringify({ status: 'error', message: `I cannot manage this user. They likely have a higher role than me. (Target: ${member.user.username})` })
     }
 
-    const banishmentManager = BanishmentManager.getInstance()
     try {
         await banishmentManager.unbanish(member, client.user, 'crimsonchat', reason ?? 'Unbanishment issued by Crimson 1.')
         return JSON.stringify({ status: 'success', message: `User ${member.user.username} has been unbanished.` })
@@ -60,8 +61,28 @@ async function invoke({ username, displayname, reason }: Input): Promise<string>
     }
 }
 
-export default tool({
+export default {
+    name: 'unbanish',
     description: 'Removes the "banished" role from a server member, restoring their access. This is a form of server moderation.',
-    inputSchema: schema,
+    parameters: [
+        {
+            name: 'username',
+            type: 'string',
+            description: 'The user\'s global Discord username (e.g., "johndoe")',
+            required: false
+        },
+        {
+            name: 'displayname',
+            type: 'string',
+            description: "The user's display name in the server; the least accurate, performs a closest match search",
+            required: false
+        },
+        {
+            name: 'reason',
+            type: 'string',
+            description: 'Optional reason for the unbanishment for the audit log.',
+            required: false
+        }
+    ],
     execute: invoke
-})
+} as CrimsonTool
