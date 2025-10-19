@@ -16,7 +16,7 @@ import type { ModelMessage, TextPart, ImagePart } from 'ai'
 import { generateText } from 'ai'
 import { getTools } from './tools'
 import { EventEmitter } from 'tseep'
-import { parseToolCalls, stripToolCalls } from './util/xmlParser'
+import { parseAIResponse, stripToolCalls, type ParsedToolCall } from './util/xmlParser'
 import { ToolRegistry } from './ToolRegistry'
 import path from 'path'
 
@@ -154,13 +154,9 @@ export class CrimsonChat extends EventEmitter<{
             const state = await this.state.getState()
 
             // Dynamically add tool definitions to the system prompt
-            const tools = getTools()
             let systemPrompt = state.systemPrompt
-            if (tools.size > 0) {
-                const toolDefinitions = Array.from(tools.values()).map(tool => {
-                    const params = tool.parameters.map(p => `    <${p.name}>${p.description}</${p.name}>`).join('\n')
-                    return `<tool>\n  <name>${tool.name}</name>\n  <description>${tool.description}</description>\n  <parameters>\n${params}\n  </parameters>\n</tool>`
-                }).join('\n\n')
+            const toolDefinitions = this._getToolDefinitionsPrompt()
+            if (toolDefinitions) {
                 systemPrompt += `\n\nAvailable tools:\n${toolDefinitions}`
             }
 
@@ -191,72 +187,100 @@ export class CrimsonChat extends EventEmitter<{
                 }
             }
 
-            const userMessage: ModelMessage = { role: 'user', content: contentParts }
-            const messages: ModelMessage[] = [...state.history, userMessage]
+            const initialUserMessage: ModelMessage = { role: 'user', content: contentParts }
+            const messages: ModelMessage[] = [...state.history, initialUserMessage]
 
-            try {
-                const timeoutPromise = new Promise<never>((_, reject) =>
-                    setTimeout(() => reject(new Error('Assistant response timed out')), ASSISTANT_RESPONSE_TIMEOUT_MS)
-                )
+            let lastResponseText: string | null = null
+            let lastUsage: { inputTokens?: number, outputTokens?: number } | null = null
+            let toolCalls: ParsedToolCall[] = []
+            let normalText: string | null = null
+            const MAX_RETRIES = 3
 
-                const rawResult = await Promise.race([
-                    generateText({
-                        model: this.voidai(this.state.modelName),
-                        system: systemPrompt,
-                        messages,
-                        temperature: this.state.berserkMode ? 2.0 : 0.8,
-                        topP: this.state.berserkMode ? 1.0 : 0.95,
-                        maxRetries: 10
-                    }),
-                    timeoutPromise
-                ]).catch(e => {
-                    logger.warn(`generateText promise rejected: ${e instanceof Error ? e.stack ?? e.message : String(e)}`)
+            for (let i = 0; i < MAX_RETRIES; i++) {
+                try {
+                    const timeoutPromise = new Promise<never>((_, reject) =>
+                        setTimeout(() => reject(new Error('Assistant response timed out')), ASSISTANT_RESPONSE_TIMEOUT_MS)
+                    )
+
+                    const result = await Promise.race([
+                        generateText({
+                            model: this.voidai(this.state.modelName),
+                            system: systemPrompt,
+                            messages,
+                            temperature: this.state.berserkMode ? 2.0 : 0.8,
+                            topP: this.state.berserkMode ? 1.0 : 0.95,
+                            maxRetries: 10
+                        }),
+                        timeoutPromise
+                    ])
+
+                    if (!result) {
+                        logger.warn('generateText returned null or was rejected.')
+                        if (i === MAX_RETRIES - 1) return null
+                        continue
+                    }
+                    lastResponseText = result.text
+                    lastUsage = result.usage
+                    const parsedResponse = parseAIResponse(lastResponseText)
+                    toolCalls = parsedResponse.toolCalls
+                    normalText = parsedResponse.normalText
+                    const invalidToolCall = toolCalls.find((call: ParsedToolCall) => !this.toolRegistry.tools.has(call.toolName))
+
+                    if (invalidToolCall) {
+                        logger.warn(`Model attempted to call an invalid tool: "${invalidToolCall.toolName}". Retrying... (${i + 1}/${MAX_RETRIES})`)
+
+                        const toolList = this._getToolDefinitionsPrompt()
+                        const correctionMessage: ModelMessage = {
+                            role: 'user',
+                            content: `Invalid tool call detected: "${invalidToolCall.toolName}". This tool does not exist. Please choose from the available tools:\n${toolList}`
+                        }
+                        messages.push({ role: 'assistant', content: lastResponseText }) // Add the failed response to history
+                        messages.push(correctionMessage) // Add the correction
+                        continue // Retry the loop
+                    }
+
+                    // If all tool calls are valid, or there are no tool calls, break the loop
+                    break
+
+                } catch (e) {
+                    const error = e as Error
+                    if (error.message === 'Assistant response timed out') {
+                        logger.warn(`Assistant response timed out after ${ASSISTANT_RESPONSE_TIMEOUT_MS / 1000} seconds. Ignoring response.`)
+                        return null
+                    }
+                    logger.warn(`Error processing message: ${red(error.stack ?? error.message)}`)
                     return null
-                })
-
-                if (!rawResult) {
-                    logger.warn('generateText returned null or was rejected.')
-                    return null
                 }
+            }
 
-                const { text, usage } = rawResult
-                const toolCalls = parseToolCalls(text)
-
-                // Execute tools if any are found
-                if (toolCalls.length > 0) {
-                    await this._executeToolCalls(toolCalls, targetChannel, lastMessage.originalMessage)
-                }
-
-                // Add messages to history
-                const newMessages: ModelMessage[] = [userMessage]
-                const strippedText = stripToolCalls(text)
-                if (strippedText) {
-                    newMessages.push({ role: 'assistant', content: strippedText })
-                }
-
-                await this.state.addMessages(newMessages, {
-                    promptTokens: usage.inputTokens!,
-                    completionTokens: usage.outputTokens!
-                })
-
-                // Return the text (without tool calls) to be sent to Discord
-                return strippedText
-            } catch (e) {
-                const error = e as Error
-                if (error.message === 'Assistant response timed out') {
-                    logger.warn(`Assistant response timed out after ${ASSISTANT_RESPONSE_TIMEOUT_MS / 1000} seconds. Ignoring response.`)
-                    return null
-                }
-                logger.warn(`Error processing message: ${red(error.stack ?? error.message)}`)
+            if (!lastResponseText || !lastUsage) {
+                logger.error('Failed to get a valid response from the model after multiple retries.')
                 return null
             }
+            // Execute tools if any are found
+            if (toolCalls.length > 0) {
+                await this._executeToolCalls(toolCalls, targetChannel, lastMessage.originalMessage)
+            }
+
+            // Add messages to history
+            const newMessages: ModelMessage[] = [initialUserMessage]
+            const assistantResponse = normalText || stripToolCalls(lastResponseText)
+            if (assistantResponse) {
+                newMessages.push({ role: 'assistant', content: assistantResponse })
+            }
+
+            await this.state.addMessages(newMessages, {
+                promptTokens: lastUsage.inputTokens!,
+                completionTokens: lastUsage.outputTokens!
+            })
+            return normalText || stripToolCalls(lastResponseText)
         } finally {
             clearInterval(typingInterval)
         }
     }
 
     private async _executeToolCalls(
-        toolCalls: ReturnType<typeof parseToolCalls>,
+        toolCalls: ParsedToolCall[],
         targetChannel: TextChannel,
         originalMessage?: Message
     ): Promise<void> {
@@ -514,5 +538,18 @@ export class CrimsonChat extends EventEmitter<{
 
     public getIgnoredUsers(): string[] {
         return this.state.ignoredUsers
+    }
+
+    private _getToolDefinitionsPrompt(): string {
+        const tools = this.toolRegistry.tools
+        if (tools.size === 0) {
+            return ''
+        }
+        const toolDefinitions = Array.from(tools.values()).map(tool => {
+            const params = tool.parameters.map(p => `    <${p.name}>${p.description}</${p.name}>`).join('\n')
+            return `<tool>\n  <name>${tool.name}</name>\n  <description>${tool.description}</description>\n  <parameters>\n${params}\n  </parameters>\n</tool>`
+        }).join('\n\n')
+
+        return toolDefinitions
     }
 }
