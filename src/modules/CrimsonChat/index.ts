@@ -19,6 +19,7 @@ import { EventEmitter } from 'tseep'
 import { parseAIResponse, stripToolCalls, type ParsedToolCall } from './util/xmlParser'
 import { ToolRegistry } from './ToolRegistry'
 import path from 'path'
+import { BotSettingsManager } from '../BotSettingsManager'
 
 const ASSISTANT_RESPONSE_TIMEOUT_MS = 60000
 
@@ -52,7 +53,8 @@ export class CrimsonChat extends EventEmitter<{
         public state: CrimsonChatState,
         private imageProcessor: ImageProcessor,
         private messageQueue: MessageQueue,
-        private toolRegistry: ToolRegistry
+        private toolRegistry: ToolRegistry,
+        private botSettingsManager: BotSettingsManager
     ) {
         super()
     }
@@ -285,6 +287,7 @@ export class CrimsonChat extends EventEmitter<{
         originalMessage?: Message
     ): Promise<void> {
         const tools = getTools()
+        const isDebug = this.botSettingsManager.isDebugModeEnabled()
 
         for (const call of toolCalls) {
             const tool = tools.get(call.toolName)
@@ -293,18 +296,20 @@ export class CrimsonChat extends EventEmitter<{
                 continue
             }
 
-            // Display "Thinking..." embed
-            const thinkingEmbed = new EmbedBuilder()
-                .setColor('#FEE75C')
-                .setTitle('⚙️ Tool Call')
-                .addFields(
-                    { name: 'Tool', value: `\`${call.toolName}\``, inline: true },
-                    { name: 'Arguments', value: `\`\`\`xml\n${Object.entries(call.args).map(([key, value]) => `<${key}>${value}</${key}>`).join('\n')}\n\`\`\`` }
-                )
-                .setFooter({ text: 'Executing...' })
-                .setTimestamp()
+            let thinkingMessage: Message | void
+            if (isDebug) {
+                const thinkingEmbed = new EmbedBuilder()
+                    .setColor('#FEE75C')
+                    .setTitle('⚙️ Tool Call')
+                    .addFields(
+                        { name: 'Tool', value: `\`${call.toolName}\``, inline: true },
+                        { name: 'Arguments', value: `\`\`\`xml\n${Object.entries(call.args).map(([key, value]) => `<${key}>${value}</${key}>`).join('\n')}\n\`\`\`` }
+                    )
+                    .setFooter({ text: 'Executing...' })
+                    .setTimestamp()
 
-            const thinkingMessage = await this.sendResponseToDiscord({ embeds: [thinkingEmbed] }, targetChannel, originalMessage)
+                thinkingMessage = await this.sendResponseToDiscord({ embeds: [thinkingEmbed] }, targetChannel, originalMessage)
+            }
 
             try {
                 // Parameter validation and type casting
@@ -330,64 +335,76 @@ export class CrimsonChat extends EventEmitter<{
 
                 const resultString = await tool.execute(validatedArgs, { client: this.client })
 
-                let parsedResult: { status: string, message: string } | null = null
-                try {
-                    parsedResult = JSON.parse(resultString)
-                } catch (parseError) {
-                    logger.warn(`Failed to parse tool result as JSON: ${parseError}`)
+                // If tool returns nothing, it has handled its own response.
+                if (!resultString) {
+                    if (thinkingMessage) {
+                        await thinkingMessage.delete().catch(e => logger.warn(`Failed to delete thinking message: ${(e as Error).message}`))
+                    }
+                    continue // Continue to next tool call
                 }
 
-                let embedColor: HexColorString = '#ED4245'
-                let embedTitle = '❌ Tool Failed'
+                if (isDebug) {
+                    let parsedResult: { status: string, message: string } | null = null
+                    try {
+                        parsedResult = JSON.parse(resultString)
+                    } catch (parseError) {
+                        logger.warn(`Failed to parse tool result as JSON: ${parseError}`)
+                    }
 
-                if (parsedResult) {
-                    switch (parsedResult.status) {
-                        case 'success':
-                            embedColor = '#57F287'
-                            embedTitle = '✅ Tool Executed'
-                            break
-                        case 'info':
-                            embedColor = '#FEE75C'
-                            embedTitle = 'ℹ️ Tool Information'
-                            break
-                        case 'error':
-                            embedColor = '#ED4245'
-                            embedTitle = '❌ Tool Failed'
-                            break
+                    let embedColor: HexColorString = '#ED4245'
+                    let embedTitle = '❌ Tool Failed'
+
+                    if (parsedResult) {
+                        switch (parsedResult.status) {
+                            case 'success':
+                                embedColor = '#57F287'
+                                embedTitle = '✅ Tool Executed'
+                                break
+                            case 'info':
+                                embedColor = '#FEE75C'
+                                embedTitle = 'ℹ️ Tool Information'
+                                break
+                            case 'error':
+                                embedColor = '#ED4245'
+                                embedTitle = '❌ Tool Failed'
+                                break
+                        }
+                    }
+
+                    const resultEmbed = new EmbedBuilder()
+                        .setColor(embedColor)
+                        .setTitle(embedTitle)
+                        .addFields(
+                            { name: 'Tool', value: `\`${tool.name}\``, inline: true },
+                            { name: 'Result', value: `\`\`\`\n${parsedResult ? parsedResult.message : resultString.substring(0, 1000)}\n\`\`\`` }
+                        )
+                        .setTimestamp()
+
+                    if (thinkingMessage) {
+                        await thinkingMessage.edit({ embeds: [resultEmbed] })
+                    } else {
+                        await this.sendResponseToDiscord({ embeds: [resultEmbed] }, targetChannel, originalMessage)
                     }
                 }
-
-                const resultEmbed = new EmbedBuilder()
-                    .setColor(embedColor)
-                    .setTitle(embedTitle)
-                    .addFields(
-                        { name: 'Tool', value: `\`${tool.name}\``, inline: true },
-                        { name: 'Result', value: `\`\`\`\n${parsedResult ? parsedResult.message : resultString.substring(0, 1000)}\n\`\`\`` }
-                    )
-                    .setTimestamp()
-
-                if (thinkingMessage) {
-                    await thinkingMessage.edit({ embeds: [resultEmbed] })
-                } else {
-                    await this.sendResponseToDiscord({ embeds: [resultEmbed] }, targetChannel, originalMessage)
-                }
-
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
                 logger.error(`Tool execution failed for ${tool.name}: ${red(errorMessage)}`)
-                const errorEmbed = new EmbedBuilder()
-                    .setColor('#ED4245')
-                    .setTitle('❌ Tool Failed')
-                    .addFields(
-                        { name: 'Tool', value: `\`${tool.name}\``, inline: true },
-                        { name: 'Error', value: `\`\`\`\n${errorMessage}\n\`\`\`` }
-                    )
-                    .setTimestamp()
 
-                if (thinkingMessage) {
-                    await thinkingMessage.edit({ embeds: [errorEmbed] })
-                } else {
-                    await this.sendResponseToDiscord({ embeds: [errorEmbed] }, targetChannel, originalMessage)
+                if (isDebug) {
+                    const errorEmbed = new EmbedBuilder()
+                        .setColor('#ED4245')
+                        .setTitle('❌ Tool Failed')
+                        .addFields(
+                            { name: 'Tool', value: `\`${tool.name}\``, inline: true },
+                            { name: 'Error', value: `\`\`\`\n${errorMessage}\n\`\`\`` }
+                        )
+                        .setTimestamp()
+
+                    if (thinkingMessage) {
+                        await thinkingMessage.edit({ embeds: [errorEmbed] })
+                    } else {
+                        await this.sendResponseToDiscord({ embeds: [errorEmbed] }, targetChannel, originalMessage)
+                    }
                 }
             }
         }
