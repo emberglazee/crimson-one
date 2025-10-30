@@ -330,20 +330,32 @@ export class AWACSFeed extends EventEmitter<{
         const oldTimeout = oldMember.communicationDisabledUntil
         const newTimeout = newMember.communicationDisabledUntil
 
-        if (oldTimeout !== newTimeout) {
-            const moderator = await this.findTimeoutChanger(newMember)
-            if (moderator === NO_IFF_DATA) {
+        if (oldTimeout?.getTime() !== newTimeout?.getTime()) {
+            const { executor, reason } = await this.findTimeoutChanger(newMember)
+
+            if (!executor) {
                 // If no specific timeout audit log entry is found,
                 // it means this communicationDisabledUntil change was not a direct timeout action.
                 // This can happen if other member updates implicitly change this property.
                 return
             }
+            const moderator = executor.username ?? NO_IFF_DATA
 
             if (newTimeout) { // User was timed out
-                const message = getRandomElement(AWACSFeed.timeoutMessages)(newMember.user.username, moderator)
+                let message = getRandomElement(AWACSFeed.timeoutMessages)(newMember.user.username, moderator)
+                const duration = newTimeout.getTime() - Date.now()
+                if (duration > 0) {
+                    message += ` for ${formatDuration(Math.floor(duration / 1000))}`
+                }
+                if (reason) {
+                    message += `. Reason: ${reason}`
+                }
                 await this.sendMessage(message)
             } else if (oldTimeout) { // User was untimed out
-                const message = `🔊 ${newMember.user.username} has been unmuted${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}`}.`
+                let message = `🔊 ${newMember.user.username} has been unmuted${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}`}.`
+                if (reason) {
+                    message += ` Reason: ${reason}`
+                }
                 await this.sendMessage(message)
             }
         }
@@ -384,10 +396,10 @@ export class AWACSFeed extends EventEmitter<{
         return NO_IFF_DATA
     }
 
-    private async findTimeoutChanger(member: GuildMember | User): Promise<string> {
+    private async findTimeoutChanger(member: GuildMember | User): Promise<{ executor: User | null, reason: string | null }> {
         try {
             const guild = (member instanceof GuildMember) ? member.guild : null
-            if (!guild) return NO_IFF_DATA
+            if (!guild) return { executor: null, reason: null }
 
             const auditLogs = await guild.fetchAuditLogs({
                 type: AuditLogEvent.MemberUpdate,
@@ -399,14 +411,17 @@ export class AWACSFeed extends EventEmitter<{
                 entry.changes.some(change => change.key === 'communication_disabled_until')
             )
 
-            if (logEntry?.executor) {
-                return logEntry.executor.username ?? NO_IFF_DATA
+            if (logEntry) {
+                return {
+                    executor: logEntry.executor,
+                    reason: logEntry.reason
+                }
             }
         } catch (error) {
             const username = (member instanceof GuildMember) ? member.user.username : member.username
             logger.warn(`[AWACSFeed] Error fetching audit logs for ${username} timeout change: ${error instanceof Error ? error.message : String(error)}`)
         }
-        return NO_IFF_DATA
+        return { executor: null, reason: null }
     }
 
     private async sendMessage(message: string) {
