@@ -5,7 +5,7 @@
       "name": "hueglot",
       "dependencies": {
         "@ai-sdk/openai-compatible": "^1.0.22",
-        "@byjohann/toon": "^0.5.1",
+        "@byjohann/toon": "^0.6.0",
         "@types/ws": "^8.18.1",
         "ai": "^5.0.69",
         "canvas": "^3.2.0",
@@ -56,7 +56,7 @@
 
     "@babel/runtime": ["@babel/runtime@7.27.6", "", {}, "sha512-vbavdySgbTTrmFE+EsiqUTzlOr5bzlnJtUv9PynGCAKvfQqjIXbvFdumPM/GxMDfyuGMJaJAU6TO4zc1Jf1i8Q=="],
 
-    "@byjohann/toon": ["@byjohann/toon@0.5.1", "", { "bin": { "toon": "bin/toon.mjs" } }, "sha512-bGWRVkIbU2JG2XQvGeWYtSG/eCef6Y1oXjZ0AXkjJXoNUMuOacaJs/jgdzkzfp65GKRP2H3lG0pP1T6CP6VTDQ=="],
+    "@byjohann/toon": ["@byjohann/toon@0.6.0", "", { "bin": { "toon": "bin/toon.mjs" } }, "sha512-yXvqQfVf9hyIiX3uqpxDc5rfJI2HF2uzM3efOz/GhsQnn9D6hLpnAUAtArtKVULQqECCYO+Cxjr5DxvSwAgVaw=="],
 
     "@discordjs/builders": ["@discordjs/builders@1.12.2", "", { "dependencies": { "@discordjs/formatters": "^0.6.1", "@discordjs/util": "^1.1.1", "@sapphire/shapeshift": "^4.0.0", "discord-api-types": "^0.38.26", "fast-deep-equal": "^3.1.3", "ts-mixer": "^6.0.4", "tslib": "^2.6.3" } }, "sha512-AugKmrgRJOHXEyMkABH/hXpAmIBKbYokCEl9VAM4Kh6FvkdobQ+Zhv7AR6K+y5hS7+VQ7gKXPYCe1JQmV07H1g=="],
 
