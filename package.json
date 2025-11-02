@@ -8,6 +8,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "dashboard": "cd dashboard && tsx ui.tsx",
+    "dashboard:install": "cd dashboard && npm install",
     "build:markov": "cd crimson_markov && cargo build --release"
   },
   "devDependencies": {
