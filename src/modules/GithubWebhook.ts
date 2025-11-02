@@ -42,28 +42,102 @@ export class GithubWebhookManager extends EventEmitter<GithubWebhookEvents> {
 
         // Set up event handlers for different types of webhook events
         this.on('push', async payload => {
-            let description = ''
-            if (payload.commits && payload.commits.length > 0) {
-                description = payload.commits.map(commit =>
-                    `[${commit.id.substring(0, 7)}](${commit.url}) - ${commit.message}`
-                ).join('\n')
-            } else if (payload.head_commit) {
-                description = `[${payload.head_commit.id.substring(0, 7)}](${payload.head_commit.url}) - ${payload.head_commit.message}`
-            } else {
-                description = 'No commit information.'
-            }
+            // Ignore pushes that are part of a pull request
+            if (payload.pusher.name === 'web-flow') return
 
+            const branch = payload.ref.split('/').pop()
             const embed = new EmbedBuilder()
                 .setAuthor({
                     name: payload.repository.name,
-                    iconURL: this.client!.user!.displayAvatarURL()
+                    iconURL: payload.sender.avatar_url,
+                    url: payload.repository.html_url
                 })
-                .setTitle('Push Event')
-                .setDescription(description)
-                .setTimestamp(new Date(payload.head_commit?.timestamp || Date.now()))
+                .setColor('#7289DA')
+
+            // If head_commit is null, it's a new branch
+            if (!payload.head_commit) {
+                embed.setTitle(`Branch created: ${branch}`)
+                embed.setURL(payload.compare)
+                embed.setDescription(`Branch \`${branch}\` was created by ${payload.sender.login}.`)
+            } else {
+                embed.setTitle(`Push to ${branch}`)
+                embed.setURL(payload.compare)
+                const description = payload.commits.map(commit =>
+                    `[${commit.id.substring(0, 7)}](${commit.url}) ${commit.message}`
+                ).join('\\n')
+                embed.setDescription(description)
+            }
 
             await this.channel?.send({ embeds: [embed] })
         })
+
+        this.on('pull_request', async payload => {
+            const embed = new EmbedBuilder()
+                .setAuthor({
+                    name: payload.repository.name,
+                    iconURL: payload.sender.avatar_url,
+                    url: payload.repository.html_url
+                })
+                .setURL(payload.pull_request.html_url)
+                .setTimestamp(new Date(payload.pull_request.created_at))
+
+            switch (payload.action) {
+                case 'opened':
+                    embed.setTitle(`Pull request opened: #${payload.number} ${payload.pull_request.title}`)
+                    embed.setDescription(payload.pull_request.body || 'No description provided.')
+                    embed.setColor('#00FF00')
+                    break
+                case 'closed':
+                    if (payload.pull_request.merged) {
+                        embed.setTitle(`Pull request merged: #${payload.number} ${payload.pull_request.title}`)
+                        embed.setColor('#800080')
+                    } else {
+                        embed.setTitle(`Pull request closed: #${payload.number} ${payload.pull_request.title}`)
+                        embed.setColor('#FF0000')
+                    }
+                    break
+                case 'reopened':
+                    embed.setTitle(`Pull request reopened: #${payload.number} ${payload.pull_request.title}`)
+                    embed.setColor('#FFA500')
+                    break
+                default:
+                    return // We don't care about other actions
+            }
+
+            await this.channel?.send({ embeds: [embed] })
+        })
+
+        this.on('issues', async payload => {
+            const embed = new EmbedBuilder()
+                .setAuthor({
+                    name: payload.repository.name,
+                    iconURL: payload.sender.avatar_url,
+                    url: payload.repository.html_url
+                })
+                .setURL(payload.issue.html_url)
+                .setTimestamp(new Date(payload.issue.created_at))
+
+            switch (payload.action) {
+                case 'opened':
+                    embed.setTitle(`Issue opened: #${payload.issue.number} ${payload.issue.title}`)
+                    embed.setDescription(payload.issue.body || 'No description provided.')
+                    embed.setColor('#00FF00')
+                    break
+                case 'closed':
+                    embed.setTitle(`Issue closed: #${payload.issue.number} ${payload.issue.title}`)
+                    embed.setColor('#FF0000')
+                    break
+                case 'reopened':
+                    embed.setTitle(`Issue reopened: #${payload.issue.number} ${payload.issue.title}`)
+                    embed.setColor('#FFA500')
+                    break
+                default:
+                    return // We don't care about other actions
+            }
+
+            await this.channel?.send({ embeds: [embed] })
+        })
+
 
         await this.start()
         logger.ok(`Github webhook initialized and listening on port ${yellow(this.port)}`)

@@ -53,7 +53,9 @@ export interface GitHubPushEvent {
 }
 
 export type GithubWebhookEvents = {
-    push: (payload: GitHubPushEvent) => void
+    push: (payload: ExplicitAny) => void
+    pull_request: (payload: ExplicitAny) => void
+    issues: (payload: ExplicitAny) => void
 } & {
     [key: string]: (...args: unknown[]) => void
 }
