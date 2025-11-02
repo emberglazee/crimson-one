@@ -187,3 +187,5 @@ dist
 crimson_markov.dll
 crimson_markov.so
 crimson_markov.dylib
+.gemini/
+gha-creds-*.json

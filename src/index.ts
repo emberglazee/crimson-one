@@ -7,7 +7,7 @@ logger.info('Starting bot')
 
 import {
     SubtitleThreadManager, GracefulShutdown, TagManager, DashboardServer, CrimsonChat,
-    GuildConfigManager, GithubWebhookManager, CommandManager, BanishmentManager, SleepAsAndroidWebhookManager
+    GuildConfigManager, GithubWebhookManager, CommandManager, BanishmentManager, SleepAsAndroidWebhookManager, LongTermMemoryManager
 } from './modules'
 
 import { readdir } from 'fs/promises'
@@ -46,9 +46,9 @@ container.register<Client>('Client', { useValue: client })
 
 // Resolve all services from the container
 const [
-    commandManager, gracefulShutdown, dashboardServer, guildConfigManager, banishmentManager, tagManager, crimsonChat, githubWebhookManager, subtitleThreadManager, messageTrigger, sleepAsAndroidWebhookManager
+    commandManager, gracefulShutdown, dashboardServer, guildConfigManager, banishmentManager, tagManager, crimsonChat, githubWebhookManager, subtitleThreadManager, messageTrigger, sleepAsAndroidWebhookManager, longTermMemoryManager
 ] = resolveServices(container,
-    CommandManager, GracefulShutdown, DashboardServer, GuildConfigManager, BanishmentManager, TagManager, CrimsonChat, GithubWebhookManager, SubtitleThreadManager, MessageTrigger, SleepAsAndroidWebhookManager
+    CommandManager, GracefulShutdown, DashboardServer, GuildConfigManager, BanishmentManager, TagManager, CrimsonChat, GithubWebhookManager, SubtitleThreadManager, MessageTrigger, SleepAsAndroidWebhookManager, LongTermMemoryManager
 )
 
 client.once('clientReady', async () => {
@@ -64,6 +64,7 @@ client.once('clientReady', async () => {
     await banishmentManager.init()
     await tagManager.init()
     await crimsonChat.init()
+    await longTermMemoryManager.init()
 
     const webhook = githubWebhookManager
         .setWebhookOptions({

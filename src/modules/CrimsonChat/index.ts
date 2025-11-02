@@ -9,7 +9,8 @@ import type { CommandContext } from '../'
 import { MessageQueue } from './MessageQueue'
 import { CrimsonChatState, type HistoryLimitMode } from './memory'
 import { usernamesToMentions } from './util/formatters'
-import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST_PROMPT } from '../../util/constants'
+import { CRIMSON_BREAKDOWN_PROMPT, CRIMSON_CHAT_SYSTEM_PROMPT, CRIMSON_CHAT_TEST_PROMPT, CRIMSON_LONG_TERM_MEMORY_PROMPT } from '../../util/constants'
+import { LongTermMemoryManager } from '../LongTermMemory'
 import { ImageProcessor } from './ImageProcessor'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import type { ModelMessage, TextPart, ImagePart } from 'ai'
@@ -54,7 +55,8 @@ export class CrimsonChat extends EventEmitter<{
         private imageProcessor: ImageProcessor,
         private messageQueue: MessageQueue,
         private toolRegistry: ToolRegistry,
-        private botSettingsManager: BotSettingsManager
+        private botSettingsManager: BotSettingsManager,
+        private longTermMemoryManager: LongTermMemoryManager
     ) {
         super()
     }
@@ -134,6 +136,41 @@ export class CrimsonChat extends EventEmitter<{
         }
     }
 
+    private async _reflectOnConversation(userMessage: BufferedMessage, assistantResponse: string): Promise<void> {
+        const conversation = `User "${userMessage.options.username}" said: "${userMessage.content}"\nAssistant (you) responded: "${assistantResponse}"`;
+        const prompt = `${CRIMSON_LONG_TERM_MEMORY_PROMPT}\n\nHere is the conversation snippet to evaluate:\n\n${conversation}`;
+
+        try {
+            const result = await generateText({
+                model: this.voidai('gemini-2.5-flash-lite'),
+                prompt: prompt,
+                temperature: 0.0, // Low temperature for deterministic evaluation
+            });
+
+            const evaluation = result.text.trim();
+            logger.debug(`Memory evaluation result: ${evaluation}`);
+
+            if (evaluation.startsWith("STORE:")) {
+                const importanceMatch = evaluation.match(/(CRITICAL|IMPORTANT|USEFUL|RELEVANT|BASIC)/);
+                const importanceMap: Record<string, number> = {
+                    "CRITICAL": 5,
+                    "IMPORTANT": 4,
+                    "USEFUL": 3,
+                    "RELEVANT": 2,
+                    "BASIC": 1,
+                };
+                const importance = importanceMatch ? importanceMap[importanceMatch[1]] : 1;
+
+                // Extract the core fact to be stored
+                const fact = `[${new Date().toISOString()}] User '${userMessage.options.username}' and I discussed: ${userMessage.content}. I responded: ${assistantResponse}.`;
+
+                await this.longTermMemoryManager.addMemory(fact, importance);
+            }
+        } catch (error) {
+            logger.error(`Failed to reflect on conversation for memory: ${red(error instanceof Error ? error.message : String(error))}`);
+        }
+    }
+
     private async _generateResponse(
         bufferedMessages: BufferedMessage[]
     ): Promise<string | null> {
@@ -155,12 +192,17 @@ export class CrimsonChat extends EventEmitter<{
 
             const state = await this.state.getState()
 
-            // Dynamically add tool definitions to the system prompt
-            let systemPrompt = state.systemPrompt
-            const toolDefinitions = this._getToolDefinitionsPrompt()
-            if (toolDefinitions) {
-                systemPrompt += `\n\nAvailable tools:\n${toolDefinitions}`
+            // --- LONG-TERM MEMORY INJECTION ---
+            const memories = await this.longTermMemoryManager.getAllMemories();
+            let systemPrompt = state.systemPrompt;
+            if (memories.length > 0) {
+                const memoryBlock = memories.map(mem => `- ${mem.text}`).join('\n');
+                systemPrompt = `${state.systemPrompt}\n\n## LONG-TERM MEMORY:\nHere are some relevant facts and past conversations. Use them to inform your response.\n${memoryBlock}`;
             }
+            // --- END LTM INJECTION ---
+
+            const toolDefinitions = this._getToolDefinitionsPrompt()
+            systemPrompt = systemPrompt.replace('[TOOL_DEFINITIONS]', toolDefinitions);
 
             const contentParts: (TextPart | ImagePart)[] = []
 
@@ -264,9 +306,10 @@ export class CrimsonChat extends EventEmitter<{
                 await this._executeToolCalls(toolCalls, targetChannel, lastMessage.originalMessage)
             }
 
-            // Add messages to history
-            const newMessages: ModelMessage[] = [initialUserMessage]
             const assistantResponse = normalText || stripToolCalls(lastResponseText)
+
+            // Add messages to short-term history
+            const newMessages: ModelMessage[] = [initialUserMessage]
             if (assistantResponse) {
                 newMessages.push({ role: 'assistant', content: assistantResponse })
             }
@@ -275,7 +318,13 @@ export class CrimsonChat extends EventEmitter<{
                 promptTokens: lastUsage.inputTokens!,
                 completionTokens: lastUsage.outputTokens!
             })
-            return normalText || stripToolCalls(lastResponseText)
+
+            // Reflect and potentially add to long-term memory
+            if (assistantResponse) {
+                await this._reflectOnConversation(lastMessage, assistantResponse);
+            }
+
+            return assistantResponse;
         } finally {
             clearInterval(typingInterval)
         }

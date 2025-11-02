@@ -12,6 +12,7 @@ import {
 } from '../../util/constants'
 import type { ModelMessage, FilePart, ImagePart, TextPart, ToolResultPart, ToolCallPart } from 'ai'
 import { Buffer } from 'buffer'
+import { encode, decode } from '@byjohann/toon'
 
 export type HistoryLimitMode = 'messages' | 'tokens'
 
@@ -60,7 +61,7 @@ function isSerializableImagePart(part: unknown): part is SerializableImagePart {
 
 @singleton()
 export class CrimsonChatState {
-    private statePath = path.join(process.cwd(), 'data/crimsonchat_state.json')
+    private statePath = path.join(process.cwd(), 'data/crimsonchat_state.toon')
     public history: MessageWithUsage[] = []
     private initialized = false
 
@@ -150,7 +151,7 @@ export class CrimsonChatState {
         if (this.initialized) return
         try {
             const data = await fs.readFile(this.statePath, 'utf-8')
-            const savedData = JSON.parse(data) as {
+            const savedData = decode(data) as {
                 systemPrompt: string
                 history: StoredMessage[]
                 limitMode?: HistoryLimitMode
@@ -281,7 +282,7 @@ export class CrimsonChatState {
                 ignoredUsers: this.ignoredUsers
             }
 
-            await fs.writeFile(this.statePath, JSON.stringify(dataToSave, null, 2))
+            await fs.writeFile(this.statePath, encode(dataToSave))
         } catch (e) {
             logger.error(`Failed to save chat state: ${red((e as Error).message)}`)
         }
