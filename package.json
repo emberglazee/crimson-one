@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^1.0.22",
-    "@toon-format/toon": "^0.7.0",
+    "@toon-format/toon": "^0.8.0",
     "@types/ws": "^8.18.1",
     "ai": "^5.0.69",
     "canvas": "^3.2.0",
