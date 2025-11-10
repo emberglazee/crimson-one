@@ -2,6 +2,8 @@
 
 Perhaps the worst discord bot known to the solar system and beyond.
 
+Invite it: https://discord.com/oauth2/authorize?client_id=1309994202351931522 (both user and guild install available)
+
 ---
 
 ## For Users: What Can I Do With This Bot?
