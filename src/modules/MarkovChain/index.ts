@@ -34,7 +34,7 @@ interface MarkovGenerateOptions {
     words?: number
     seed?: string
     global?: boolean
-    mode?: 'trigram' | 'bigram'
+    mode?: 'trigram' | 'bigram' | 'hybrid'
     batch?: number
 }
 

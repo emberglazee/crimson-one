@@ -56,7 +56,7 @@ export class RustMarkovChain {
 
     public generate(
         maxWords: number = 30,
-        mode: 'bigram' | 'trigram' = 'trigram',
+        mode: 'bigram' | 'trigram' | 'hybrid' = 'trigram',
         seed: string | undefined,
         dbQueryMs: number,
         trainingMs: number,
@@ -65,7 +65,7 @@ export class RustMarkovChain {
         if (!this.chainPtr) {
             throw new Error('Cannot generate from a destroyed chain.')
         }
-        const modeId = mode === 'bigram' ? 0 : 1
+        const modeId = mode === 'bigram' ? 0 : (mode === 'hybrid' ? 2 : 1)
         const seedBuffer = seed ? Buffer.from(seed + '\0', 'utf8') : null
 
         const resultPtr: Pointer | null = symbols.generate_text(

@@ -140,7 +140,7 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
     const channel = (await ctx.getChannelOption('channel')) as TextChannel | null ?? undefined
     const words = ctx.getIntegerOption('words', false, 30)
     const seed = ctx.getStringOption('seed', false) ?? undefined
-    const mode = ctx.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram'
+    const mode = ctx.getStringOption('mode', false, 'trigram') as 'trigram' | 'bigram' | 'hybrid'
     const batch = ctx.getIntegerOption('batch', false, 1)
 
     let progressTracker: ProgressTracker | undefined
@@ -356,6 +356,7 @@ export default {
                 .setDescription('The generation mode to use (default: trigram)')
                 .setRequired(false)
                 .addChoices(
+                    { name: 'Hybrid (variable order)', value: 'hybrid' },
                     { name: 'Trigram (default)', value: 'trigram' },
                     { name: 'Bigram (classic)', value: 'bigram' }
                 )
@@ -460,6 +461,7 @@ export default {
                 .setDescription('The generation mode to use (default: trigram)')
                 .setRequired(false)
                 .addChoices(
+                    { name: 'Hybrid (variable order)', value: 'hybrid' },
                     { name: 'Trigram (default)', value: 'trigram' },
                     { name: 'Bigram (classic)', value: 'bigram' }
                 )
@@ -847,7 +849,7 @@ export default {
 
                 const words = ctx.getIntegerOption('words', false, 30)
                 const seed = ctx.getStringOption('seed', false) ?? undefined
-                const mode = ctx.getStringOption('mode', false, 'bigram') as 'trigram' | 'bigram'
+                const mode = ctx.getStringOption('mode', false, 'bigram') as 'trigram' | 'bigram' | 'hybrid'
                 const batch = ctx.getIntegerOption('batch', false, 1)
 
                 const rustChain = new RustMarkovChain()

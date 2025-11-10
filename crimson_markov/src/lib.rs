@@ -413,6 +413,124 @@ fn generate_trigram(
     ids_to_string(chain, &result_ids)
 }
 
+fn generate_hybrid(
+    chain: &MarkovChain,
+    max_words: usize,
+    seed_words: Option<Vec<String>>
+) -> String {
+    let trigram_chain = chain.trigram_chain.borrow();
+    let bigram_chain = chain.bigram_chain.borrow();
+    let trigram_starters = chain.trigram_starters.borrow();
+
+    if trigram_chain.is_empty() || bigram_chain.is_empty() || trigram_starters.is_empty() {
+        return String::new();
+    }
+    let mut result_ids = Vec::with_capacity(max_words);
+    let mut current_pair: (u32, u32) = (0, 0);
+    let mut seeded = false;
+    // SAFETY: It's guaranteed that `generate_text` is only called from a single thread.
+    // Therefore, we can safely get a mutable reference to the RNG.
+    let rng = unsafe { &mut *chain.rng.get() };
+
+    if let Some(words) = seed_words {
+        if !words.is_empty() {
+            let seed_ids = get_seed_ids(chain, &words);
+
+            if !seed_ids.is_empty() {
+                // Try seeding with the last two words if possible
+                if seed_ids.len() >= 2 {
+                    let key = (
+                        seed_ids[seed_ids.len() - 2],
+                        seed_ids[seed_ids.len() - 1]
+                    );
+                    if trigram_chain.contains_key(&key) {
+                        result_ids = seed_ids.clone();
+                        current_pair = key;
+                        seeded = true;
+                    }
+                }
+
+                if !seeded {
+                    let last_seed_id = *seed_ids.last().unwrap();
+                    let trigram_inverted_starters =
+                        chain.trigram_inverted_starters.borrow();
+                    if let Some(possible_starters_set) =
+                        trigram_inverted_starters.get(&last_seed_id)
+                    {
+                        if !possible_starters_set.is_empty() {
+                            let possible_starters: Vec<&(u32, u32)> =
+                                possible_starters_set.iter().collect();
+                            let chosen_pair =
+                                *possible_starters[rng.usize(..possible_starters.len())];
+
+                            if seed_ids.len() == 1 {
+                                // If the original seed was just one word, the result starts with the new pair.
+                                result_ids.push(chosen_pair.0);
+                                result_ids.push(chosen_pair.1);
+                            } else {
+                                // Otherwise, append the next word to the original seed.
+                                result_ids = seed_ids.clone();
+                                result_ids.push(chosen_pair.1);
+                            }
+
+                            current_pair = (
+                                *result_ids.get(result_ids.len() - 2).unwrap(),
+                                *result_ids.last().unwrap()
+                            );
+                            seeded = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if !seeded {
+        current_pair = trigram_starters[rng.usize(..trigram_starters.len())];
+        result_ids.push(current_pair.0);
+        result_ids.push(current_pair.1);
+    }
+
+    let words_to_generate = max_words.saturating_sub(result_ids.len());
+    for _ in 0..words_to_generate {
+        let mut next_word_id: Option<u32> = None;
+
+        // 1. Try trigram
+        if let Some(follower_counts) = trigram_chain.get(&current_pair) {
+            if !follower_counts.is_empty() {
+                next_word_id = choose_next_word(rng, follower_counts);
+            }
+        }
+
+        // 2. Fallback to bigram
+        if next_word_id.is_none() {
+            if let Some(follower_counts) = bigram_chain.get(&current_pair.1) {
+                 if !follower_counts.is_empty() {
+                    next_word_id = choose_next_word(rng, follower_counts);
+                }
+            }
+        }
+
+        if let Some(id) = next_word_id {
+            result_ids.push(id);
+            current_pair = (current_pair.1, id);
+        } else {
+            // 3. Hybrid jump: if both fail, jump to a new random starter
+            if !trigram_starters.is_empty() {
+                current_pair = trigram_starters[rng.usize(..trigram_starters.len())];
+                result_ids.push(current_pair.0);
+                if result_ids.len() < max_words {
+                    result_ids.push(current_pair.1);
+                }
+            } else {
+                break; // No starters, nowhere to go.
+            }
+        }
+    }
+
+    ids_to_string(chain, &result_ids)
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn generate_text(
     ptr: *mut MarkovChain,
@@ -449,10 +567,10 @@ pub extern "C" fn generate_text(
         let mut results = Vec::with_capacity(batch_size);
         for i in 0..batch_size {
             let start_time = Instant::now();
-            let result_str = if mode == 0 {
-                generate_bigram(chain, max_words, seed_words.clone())
-            } else {
-                generate_trigram(chain, max_words, seed_words.clone())
+            let result_str = match mode {
+                0 => generate_bigram(chain, max_words, seed_words.clone()),
+                2 => generate_hybrid(chain, max_words, seed_words.clone()),
+                _ => generate_trigram(chain, max_words, seed_words.clone()),
             };
 
             if !result_str.is_empty() {
@@ -474,10 +592,10 @@ pub extern "C" fn generate_text(
         CString::new(json_result).map_or(ptr::null_mut(), |s| s.into_raw())
     } else {
         let start_time = Instant::now();
-        let result_str = if mode == 0 {
-            generate_bigram(chain, max_words, seed_words)
-        } else {
-            generate_trigram(chain, max_words, seed_words)
+        let result_str = match mode {
+            0 => generate_bigram(chain, max_words, seed_words),
+            2 => generate_hybrid(chain, max_words, seed_words),
+            _ => generate_trigram(chain, max_words, seed_words),
         };
 
         if result_str.is_empty() {
