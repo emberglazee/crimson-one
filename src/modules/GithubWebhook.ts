@@ -8,7 +8,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'http'
 import { createServer } from 'http'
 import crypto from 'crypto'
 import { Client, EmbedBuilder, type TextChannel } from 'discord.js'
-import type { GithubWebhookEvents } from '../types'
+import type { GithubWebhookEvents, GitHubCommit } from '../types'
 
 @singleton()
 export class GithubWebhookManager extends EventEmitter<GithubWebhookEvents> {
@@ -52,20 +52,27 @@ export class GithubWebhookManager extends EventEmitter<GithubWebhookEvents> {
                     iconURL: payload.sender.avatar_url,
                     url: payload.repository.html_url
                 })
-                .setColor('#7289DA')
 
-            // If head_commit is null, it's a new branch
-            if (!payload.head_commit) {
+            if (payload.deleted) {
+                embed.setTitle(`Branch deleted: ${branch}`)
+                    .setColor('#FF0000') // Red for deletion
+                    .setDescription(`Branch \`${branch}\` was deleted by ${payload.sender.login}.`)
+            } else if (payload.created) {
                 embed.setTitle(`Branch created: ${branch}`)
-                embed.setURL(payload.compare)
-                embed.setDescription(`Branch \`${branch}\` was created by ${payload.sender.login}.`)
-            } else {
+                    .setURL(payload.repository.html_url + '/tree/' + branch)
+                    .setColor('#00FF00') // Green for creation
+                    .setDescription(`Branch \`${branch}\` was created by ${payload.sender.login}.`)
+            } else if (payload.commits && payload.commits.length > 0) {
                 embed.setTitle(`Push to ${branch}`)
-                embed.setURL(payload.compare)
-                const description = payload.commits.map(commit =>
+                    .setURL(payload.compare)
+                    .setColor('#7289DA')
+                const description = payload.commits.map((commit: GitHubCommit) =>
                     `[${commit.id.substring(0, 7)}](${commit.url}) ${commit.message}`
-                ).join('\\n')
+                ).join('\n')
                 embed.setDescription(description)
+            } else {
+                logger.debug(`Unhandled push event for branch ${branch}. Payload: ${JSON.stringify(payload, null, 2)}`)
+                return
             }
 
             await this.channel?.send({ embeds: [embed] })
