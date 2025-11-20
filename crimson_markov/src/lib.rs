@@ -37,16 +37,20 @@ type BigramMap = HashMap<u32, HashMap<u32, u32>>;
 type TrigramMap = HashMap<(u32, u32), HashMap<u32, u32>>;
 type TrigramInvertedStarters = HashMap<u32, HashSet<(u32, u32)>>;
 
+struct ChainState {
+    bigram_chain: BigramMap,
+    trigram_chain: TrigramMap,
+    trigram_inverted_starters: TrigramInvertedStarters,
+    bigram_starters: Vec<u32>,
+    trigram_starters: Vec<(u32, u32)>,
+    lowercase_word_interner: StringInterner<StringBackend<SymbolUsize>>,
+    cased_word_interner: StringInterner<StringBackend<SymbolUsize>>,
+    casing_map: HashMap<u32, HashMap<SymbolUsize, u32>>,
+}
+
 pub struct MarkovChain {
-    bigram_chain: RefCell<BigramMap>,
-    trigram_chain: RefCell<TrigramMap>,
-    trigram_inverted_starters: RefCell<TrigramInvertedStarters>,
-    bigram_starters: RefCell<Vec<u32>>,
-    trigram_starters: RefCell<Vec<(u32, u32)>>,
-    lowercase_word_interner: RefCell<StringInterner<StringBackend<SymbolUsize>>>,
-    cased_word_interner: RefCell<StringInterner<StringBackend<SymbolUsize>>>,
-    casing_map: RefCell<HashMap<u32, HashMap<SymbolUsize, u32>>>,
-    rng: UnsafeCell<Rng>
+    state: RefCell<ChainState>,
+    rng: UnsafeCell<Rng>,
 }
 
 impl MarkovChain {}
@@ -84,15 +88,17 @@ fn tokenize<'a>(text: &'a str) -> Vec<&'a str> {
 #[unsafe(no_mangle)]
 pub extern "C" fn create_chain() -> *mut MarkovChain {
     Box::into_raw(Box::new(MarkovChain {
-        bigram_chain: RefCell::new(HashMap::new()),
-        trigram_chain: RefCell::new(HashMap::new()),
-        trigram_inverted_starters: RefCell::new(HashMap::new()),
-        bigram_starters: RefCell::new(Vec::new()),
-        trigram_starters: RefCell::new(Vec::new()),
-        lowercase_word_interner: RefCell::new(StringInterner::new()),
-        cased_word_interner: RefCell::new(StringInterner::new()),
-        casing_map: RefCell::new(HashMap::new()),
-        rng: UnsafeCell::new(Rng::new())
+        state: RefCell::new(ChainState {
+            bigram_chain: HashMap::new(),
+            trigram_chain: HashMap::new(),
+            trigram_inverted_starters: HashMap::new(),
+            bigram_starters: Vec::new(),
+            trigram_starters: Vec::new(),
+            lowercase_word_interner: StringInterner::new(),
+            cased_word_interner: StringInterner::new(),
+            casing_map: HashMap::new(),
+        }),
+        rng: UnsafeCell::new(Rng::new()),
     }))
 }
 
@@ -119,20 +125,13 @@ pub extern "C" fn train_on_batch(
     let texts_slice = unsafe { slice::from_raw_parts(texts_ptr, texts_len) };
     let texts_str = match str::from_utf8(texts_slice) {
         Ok(s) => s,
-        Err(_) => return // Or handle error appropriately
+        Err(_) => return, // Or handle error appropriately
     };
 
     let texts = texts_str.split('\0').filter(|s| !s.is_empty());
 
-    // Acquire all locks at the beginning of the function
-    let mut bigram_chain = chain.bigram_chain.borrow_mut();
-    let mut trigram_chain = chain.trigram_chain.borrow_mut();
-    let mut trigram_inverted_starters = chain.trigram_inverted_starters.borrow_mut();
-    let mut bigram_starters = chain.bigram_starters.borrow_mut();
-    let mut trigram_starters = chain.trigram_starters.borrow_mut();
-    let mut lowercase_word_interner = chain.lowercase_word_interner.borrow_mut();
-    let mut cased_word_interner = chain.cased_word_interner.borrow_mut();
-    let mut casing_map = chain.casing_map.borrow_mut();
+    // Acquire lock at the beginning of the function
+    let mut state = chain.state.borrow_mut();
 
     for text in texts {
         let word_ids: Vec<u32> = tokenize(text)
@@ -145,11 +144,11 @@ pub extern "C" fn train_on_batch(
                     Cow::Borrowed(word)
                 };
 
-                let id_symbol = lowercase_word_interner.get_or_intern(&*lower_word);
+                let id_symbol = state.lowercase_word_interner.get_or_intern(&*lower_word);
                 let id = id_symbol.to_usize() as u32;
 
-                let cased_id = cased_word_interner.get_or_intern(word);
-                let case_counts = casing_map.entry(id).or_default();
+                let cased_id = state.cased_word_interner.get_or_intern(word);
+                let case_counts = state.casing_map.entry(id).or_default();
                 *case_counts.entry(cased_id).or_insert(0) += 1;
 
                 id
@@ -161,20 +160,21 @@ pub extern "C" fn train_on_batch(
         }
 
         if word_ids.len() >= 2 {
-            bigram_starters.push(word_ids[0]);
+            state.bigram_starters.push(word_ids[0]);
             for i in 0..(word_ids.len() - 1) {
-                let follower_counts = bigram_chain.entry(word_ids[i]).or_default();
+                let follower_counts = state.bigram_chain.entry(word_ids[i]).or_default();
                 *follower_counts.entry(word_ids[i + 1]).or_insert(0) += 1;
             }
         }
 
         if word_ids.len() >= 3 {
-            trigram_starters.push((word_ids[0], word_ids[1]));
+            state.trigram_starters.push((word_ids[0], word_ids[1]));
             for i in 0..(word_ids.len() - 2) {
                 let key = (word_ids[i], word_ids[i + 1]);
-                let follower_counts = trigram_chain.entry(key).or_default();
+                let follower_counts = state.trigram_chain.entry(key).or_default();
                 *follower_counts.entry(word_ids[i + 2]).or_insert(0) += 1;
-                trigram_inverted_starters
+                state
+                    .trigram_inverted_starters
                     .entry(word_ids[i])
                     .or_default()
                     .insert(key);
@@ -184,7 +184,7 @@ pub extern "C" fn train_on_batch(
 }
 
 fn get_seed_ids(chain: &MarkovChain, seed_words: &[String]) -> Vec<u32> {
-    let lowercase_word_interner = chain.lowercase_word_interner.borrow();
+    let state = chain.state.borrow();
     seed_words
         .iter()
         .filter_map(|word| {
@@ -193,7 +193,8 @@ fn get_seed_ids(chain: &MarkovChain, seed_words: &[String]) -> Vec<u32> {
             } else {
                 Cow::Borrowed(word)
             };
-            lowercase_word_interner
+            state
+                .lowercase_word_interner
                 .get(&*lower_word)
                 .map(|s| s.to_usize() as u32)
         })
@@ -221,20 +222,19 @@ fn ids_to_string(chain: &MarkovChain, result_ids: &[u32]) -> String {
         return String::new();
     }
 
-    let casing_map = chain.casing_map.borrow();
-    let cased_word_interner = chain.cased_word_interner.borrow();
-    let lowercase_word_interner = chain.lowercase_word_interner.borrow();
+    let state = chain.state.borrow();
 
     let get_word_str = |id: u32| -> Cow<'_, str> {
-        if let Some(case_map) = casing_map.get(&id) {
+        if let Some(case_map) = state.casing_map.get(&id) {
             if let Some((cased_id, _)) = case_map.iter().max_by_key(|&(_, count)| count) {
-                if let Some(word_str) = cased_word_interner.resolve(*cased_id) {
+                if let Some(word_str) = state.cased_word_interner.resolve(*cased_id) {
                     return Cow::Borrowed(word_str);
                 }
             }
         }
         let symbol = SymbolUsize::try_from_usize(id as usize).unwrap();
-        lowercase_word_interner
+        state
+            .lowercase_word_interner
             .resolve(symbol)
             .map(Cow::Borrowed)
             .unwrap_or(Cow::Borrowed(""))
@@ -242,7 +242,7 @@ fn ids_to_string(chain: &MarkovChain, result_ids: &[u32]) -> String {
 
     let mut result = String::new();
     let punctuation: &[char] = &[
-        '.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}'
+        '.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}',
     ];
 
     let mut tokens_iter = result_ids.iter().map(|&id| get_word_str(id));
@@ -267,12 +267,11 @@ fn ids_to_string(chain: &MarkovChain, result_ids: &[u32]) -> String {
 fn generate_bigram(
     chain: &MarkovChain,
     max_words: usize,
-    seed_words: Option<Vec<String>>
+    seed_words: Option<Vec<String>>,
 ) -> String {
-    let bigram_chain = chain.bigram_chain.borrow();
-    let bigram_starters = chain.bigram_starters.borrow();
+    let state = chain.state.borrow();
 
-    if bigram_chain.is_empty() || bigram_starters.is_empty() {
+    if state.bigram_chain.is_empty() || state.bigram_starters.is_empty() {
         return String::new();
     }
     let mut result_ids = Vec::with_capacity(max_words);
@@ -284,7 +283,7 @@ fn generate_bigram(
             let seed_ids = get_seed_ids(chain, &words);
             if !seed_ids.is_empty() {
                 if let Some(last_seed_id) = seed_ids.last() {
-                    if bigram_chain.contains_key(last_seed_id) {
+                    if state.bigram_chain.contains_key(last_seed_id) {
                         result_ids = seed_ids.clone();
                         current_word_id = *last_seed_id;
                         seeded = true;
@@ -298,13 +297,13 @@ fn generate_bigram(
     // Therefore, we can safely get a mutable reference to the RNG.
     let rng = unsafe { &mut *chain.rng.get() };
     if !seeded {
-        current_word_id = bigram_starters[rng.usize(..bigram_starters.len())];
+        current_word_id = state.bigram_starters[rng.usize(..state.bigram_starters.len())];
         result_ids.push(current_word_id);
     }
 
     let words_to_generate = max_words.saturating_sub(result_ids.len());
     for _ in 0..words_to_generate {
-        if let Some(follower_counts) = bigram_chain.get(&current_word_id) {
+        if let Some(follower_counts) = state.bigram_chain.get(&current_word_id) {
             if let Some(next_word_id) = choose_next_word(rng, follower_counts) {
                 current_word_id = next_word_id;
                 result_ids.push(current_word_id);
@@ -322,12 +321,11 @@ fn generate_bigram(
 fn generate_trigram(
     chain: &MarkovChain,
     max_words: usize,
-    seed_words: Option<Vec<String>>
+    seed_words: Option<Vec<String>>,
 ) -> String {
-    let trigram_chain = chain.trigram_chain.borrow();
-    let trigram_starters = chain.trigram_starters.borrow();
+    let state = chain.state.borrow();
 
-    if trigram_chain.is_empty() || trigram_starters.is_empty() {
+    if state.trigram_chain.is_empty() || state.trigram_starters.is_empty() {
         return String::new();
     }
     let mut result_ids = Vec::with_capacity(max_words);
@@ -346,9 +344,9 @@ fn generate_trigram(
                 if seed_ids.len() >= 2 {
                     let key = (
                         seed_ids[seed_ids.len() - 2],
-                        seed_ids[seed_ids.len() - 1]
+                        seed_ids[seed_ids.len() - 1],
                     );
-                    if trigram_chain.contains_key(&key) {
+                    if state.trigram_chain.contains_key(&key) {
                         result_ids = seed_ids.clone();
                         current_pair = key;
                         seeded = true;
@@ -357,10 +355,9 @@ fn generate_trigram(
 
                 if !seeded {
                     let last_seed_id = *seed_ids.last().unwrap();
-                    let trigram_inverted_starters =
-                        chain.trigram_inverted_starters.borrow();
-                    if let Some(possible_starters_set) =
-                        trigram_inverted_starters.get(&last_seed_id)
+                    if let Some(possible_starters_set) = state
+                        .trigram_inverted_starters
+                        .get(&last_seed_id)
                     {
                         if !possible_starters_set.is_empty() {
                             let possible_starters: Vec<&(u32, u32)> =
@@ -380,7 +377,7 @@ fn generate_trigram(
 
                             current_pair = (
                                 *result_ids.get(result_ids.len() - 2).unwrap(),
-                                *result_ids.last().unwrap()
+                                *result_ids.last().unwrap(),
                             );
                             seeded = true;
                         }
@@ -391,14 +388,14 @@ fn generate_trigram(
     }
 
     if !seeded {
-        current_pair = trigram_starters[rng.usize(..trigram_starters.len())];
+        current_pair = state.trigram_starters[rng.usize(..state.trigram_starters.len())];
         result_ids.push(current_pair.0);
         result_ids.push(current_pair.1);
     }
 
     let words_to_generate = max_words.saturating_sub(result_ids.len());
     for _ in 0..words_to_generate {
-        if let Some(follower_counts) = trigram_chain.get(&current_pair) {
+        if let Some(follower_counts) = state.trigram_chain.get(&current_pair) {
             if let Some(next_word_id) = choose_next_word(rng, follower_counts) {
                 result_ids.push(next_word_id);
                 current_pair = (current_pair.1, next_word_id);
@@ -416,13 +413,14 @@ fn generate_trigram(
 fn generate_hybrid(
     chain: &MarkovChain,
     max_words: usize,
-    seed_words: Option<Vec<String>>
+    seed_words: Option<Vec<String>>,
 ) -> String {
-    let trigram_chain = chain.trigram_chain.borrow();
-    let bigram_chain = chain.bigram_chain.borrow();
-    let trigram_starters = chain.trigram_starters.borrow();
+    let state = chain.state.borrow();
 
-    if trigram_chain.is_empty() || bigram_chain.is_empty() || trigram_starters.is_empty() {
+    if state.trigram_chain.is_empty()
+        || state.bigram_chain.is_empty()
+        || state.trigram_starters.is_empty()
+    {
         return String::new();
     }
     let mut result_ids = Vec::with_capacity(max_words);
@@ -441,9 +439,9 @@ fn generate_hybrid(
                 if seed_ids.len() >= 2 {
                     let key = (
                         seed_ids[seed_ids.len() - 2],
-                        seed_ids[seed_ids.len() - 1]
+                        seed_ids[seed_ids.len() - 1],
                     );
-                    if trigram_chain.contains_key(&key) {
+                    if state.trigram_chain.contains_key(&key) {
                         result_ids = seed_ids.clone();
                         current_pair = key;
                         seeded = true;
@@ -452,10 +450,9 @@ fn generate_hybrid(
 
                 if !seeded {
                     let last_seed_id = *seed_ids.last().unwrap();
-                    let trigram_inverted_starters =
-                        chain.trigram_inverted_starters.borrow();
-                    if let Some(possible_starters_set) =
-                        trigram_inverted_starters.get(&last_seed_id)
+                    if let Some(possible_starters_set) = state
+                        .trigram_inverted_starters
+                        .get(&last_seed_id)
                     {
                         if !possible_starters_set.is_empty() {
                             let possible_starters: Vec<&(u32, u32)> =
@@ -475,7 +472,7 @@ fn generate_hybrid(
 
                             current_pair = (
                                 *result_ids.get(result_ids.len() - 2).unwrap(),
-                                *result_ids.last().unwrap()
+                                *result_ids.last().unwrap(),
                             );
                             seeded = true;
                         }
@@ -486,7 +483,7 @@ fn generate_hybrid(
     }
 
     if !seeded {
-        current_pair = trigram_starters[rng.usize(..trigram_starters.len())];
+        current_pair = state.trigram_starters[rng.usize(..state.trigram_starters.len())];
         result_ids.push(current_pair.0);
         result_ids.push(current_pair.1);
     }
@@ -496,7 +493,7 @@ fn generate_hybrid(
         let mut next_word_id: Option<u32> = None;
 
         // 1. Try trigram
-        if let Some(follower_counts) = trigram_chain.get(&current_pair) {
+        if let Some(follower_counts) = state.trigram_chain.get(&current_pair) {
             if !follower_counts.is_empty() {
                 next_word_id = choose_next_word(rng, follower_counts);
             }
@@ -504,8 +501,8 @@ fn generate_hybrid(
 
         // 2. Fallback to bigram
         if next_word_id.is_none() {
-            if let Some(follower_counts) = bigram_chain.get(&current_pair.1) {
-                 if !follower_counts.is_empty() {
+            if let Some(follower_counts) = state.bigram_chain.get(&current_pair.1) {
+                if !follower_counts.is_empty() {
                     next_word_id = choose_next_word(rng, follower_counts);
                 }
             }
@@ -516,8 +513,8 @@ fn generate_hybrid(
             current_pair = (current_pair.1, id);
         } else {
             // 3. Hybrid jump: if both fail, jump to a new random starter
-            if !trigram_starters.is_empty() {
-                current_pair = trigram_starters[rng.usize(..trigram_starters.len())];
+            if !state.trigram_starters.is_empty() {
+                current_pair = state.trigram_starters[rng.usize(..state.trigram_starters.len())];
                 result_ids.push(current_pair.0);
                 if result_ids.len() < max_words {
                     result_ids.push(current_pair.1);
