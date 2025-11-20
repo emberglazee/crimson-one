@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^1.0.22",
+    "@discordjs/rest": "^2.6.0",
     "@toon-format/toon": "^1.0.0",
     "@types/ws": "^8.18.1",
     "ai": "^5.0.69",

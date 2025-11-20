@@ -1,9 +1,11 @@
 import 'reflect-metadata'
 import { parentPort, isMainThread } from 'worker_threads'
 
-import { Client, Guild, Message as DiscordMessage, TextChannel, Collection, IntentsBitField, Partials, User } from 'discord.js'
+import { REST } from '@discordjs/rest'
+import { Routes, type APIChannel, type APIMessage } from 'discord-api-types/v10'
+
 import { RustMarkovChain, type GenerationResult } from './RustChain'
-import { MarkovDataSource } from './DataSource'
+import { MarkovDataSource, type SimplifiedMessage } from './DataSource'
 import { container } from 'tsyringe'
 
 if (isMainThread) {
@@ -20,7 +22,7 @@ function log(level: 'debug' | 'info' | 'warn' | 'error', data: string) {
 interface GenerateOptions {
     guildId?: string
     channelId?: string
-    user?: User
+    user?: { id: string }
     userId?: string
     words?: number
     seed?: string
@@ -32,7 +34,7 @@ interface GenerateOptions {
 interface MessageStatsOptions {
     guildId?: string
     channelId?: string
-    user?: User
+    user?: { id: string }
     userId?: string
     global?: boolean
 }
@@ -40,30 +42,26 @@ interface MessageStatsOptions {
 interface DeleteOptions {
     guildId?: string
     channelId?: string
-    user?: User
+    user?: { id: string }
     userId?: string
     global?: boolean
 }
 
 class MarkovEngine {
-    private client: Client | null = null
+    private rest: REST | null = null
     private dataSource = container.resolve(MarkovDataSource)
     private dbWriteQueue: Promise<void> = Promise.resolve()
 
     async initialize(token: string) {
-        if (this.client) return
-        this.client = new Client({
-            intents: [IntentsBitField.Flags.Guilds, IntentsBitField.Flags.GuildMessages],
-            partials: [Partials.Channel]
-        })
-        await this.client.login(token)
+        if (this.rest) return
+        this.rest = new REST({ version: '10' }).setToken(token)
         await this.dataSource.init()
-        log('info', 'Worker client and data source initialized.')
+        log('info', 'Worker REST client and data source initialized.')
     }
 
-    private addToDbWriteQueue(messages: DiscordMessage[], guild: Guild, fullyCollectedChannelId?: string, forceRescan?: boolean): Promise<void> {
+    private addToDbWriteQueue(messages: SimplifiedMessage[], guildId: string, channelName: string, channelId: string, fullyCollectedChannelId?: string, forceRescan?: boolean): Promise<void> {
         this.dbWriteQueue = this.dbWriteQueue
-            .then(() => this.dataSource.addMessages(messages, guild, fullyCollectedChannelId, forceRescan))
+            .then(() => this.dataSource.addMessages(messages, guildId, channelName, channelId, fullyCollectedChannelId, forceRescan))
             .catch(err => {
                 log('error', `A database write operation failed: ${(err as Error).message}`)
                 // Even if one write fails, we want the queue to continue with the next item.
@@ -81,29 +79,29 @@ class MarkovEngine {
         delayMs?: number
         forceRescan?: boolean
     }, taskId: string) {
-        if (!this.client) throw new Error('Worker client not initialized')
+        if (!this.rest) throw new Error('Worker REST client not initialized')
 
-        const { guildId: _guildId, channelId, user, userId, limit = 1000, delayMs = 1000, forceRescan = false } = options
+        const { guildId, channelId, user, userId, limit = 1000, delayMs = 1000, forceRescan = false } = options
 
-        const channel = await this.client.channels.fetch(channelId) as TextChannel
-        if (!channel) throw new Error(`Channel ${channelId} not found.`)
+        const channel = await this.rest.get(Routes.channel(channelId)) as APIChannel
+        if (!channel || !channel.name) throw new Error(`Channel ${channelId} not found or has no name.`)
 
-        const messages: DiscordMessage[] = []
+
+        const messages: APIMessage[] = []
         const startTime = Date.now()
         const MAX_RETRIES = 3
         const BATCH_SIZE = 100
 
-        const wasFullyCollected = forceRescan ? false : await this.dataSource.isChannelFullyCollected(channel.guild.id, channel.id)
-        const isEntireChannel = limit === 'entire'
-
+        const wasFullyCollected = forceRescan ? false : await this.dataSource.isChannelFullyCollected(guildId, channel.id)
         let existingMessageIds: Set<string> = new Set()
         let foundExistingMessage = false
 
         if (wasFullyCollected) {
-            existingMessageIds = await this.dataSource.getExistingMessageIds(channel.guild.id, channel.id)
+            existingMessageIds = await this.dataSource.getExistingMessageIds(guildId, channel.id)
         }
 
         const totalMessageCount: number | null = null
+        const isEntireChannel = limit === 'entire'
 
         let lastId: string | undefined
         let batchCount = 0
@@ -120,11 +118,11 @@ class MarkovEngine {
             if (lastId) fetchOptions.before = lastId
 
             let retries = 0
-            let batch: Collection<string, DiscordMessage> | null = null
+            let batch: APIMessage[] | null = null
 
             while (retries < MAX_RETRIES) {
                 try {
-                    batch = await channel.messages.fetch(fetchOptions)
+                    batch = await this.rest.get(Routes.channelMessages(channelId), { query: new URLSearchParams(fetchOptions as any) }) as APIMessage[]
                     break
                 } catch (error) {
                     retries++
@@ -133,9 +131,9 @@ class MarkovEngine {
                 }
             }
 
-            if (!batch?.size) break
+            if (!batch?.length) break
 
-            totalFetched += batch.size
+            totalFetched += batch.length
 
             let validMessages = user
                 ? batch.filter(msg => msg.author.id === user.id && msg.content.length > 0)
@@ -143,11 +141,11 @@ class MarkovEngine {
                     ? batch.filter(msg => msg.author.id === userId && msg.content.length > 0)
                     : batch.filter(msg => msg.content.length > 0)
 
-            totalIgnored += batch.size - validMessages.size
+            totalIgnored += batch.length - validMessages.length
 
             if (wasFullyCollected) {
-                for (const [id] of validMessages) {
-                    if (existingMessageIds.has(id)) {
+                for (const msg of validMessages) {
+                    if (existingMessageIds.has(msg.id)) {
                         foundExistingMessage = true
                         break
                     }
@@ -155,13 +153,13 @@ class MarkovEngine {
 
                 if (foundExistingMessage) {
                     validMessages = validMessages.filter(msg => !existingMessageIds.has(msg.id))
-                    messages.push(...validMessages.values())
+                    messages.push(...validMessages)
                     break
                 }
             }
 
-            messages.push(...validMessages.values())
-            lastId = batch.last()?.id
+            messages.push(...validMessages)
+            lastId = batch[batch.length - 1]?.id
             batchCount++
 
             const currentTime = Date.now()
@@ -177,7 +175,7 @@ class MarkovEngine {
 
             const progressEvent = {
                 batchNumber: batchCount,
-                messagesCollected: validMessages.size,
+                messagesCollected: validMessages.length,
                 totalCollected: messages.length,
                 totalFetched,
                 totalIgnored,
@@ -194,8 +192,16 @@ class MarkovEngine {
             parentPort!.postMessage({ type: 'progress', event: 'collectProgress', data: progressEvent, taskId: taskId })
         }
 
-        if (messages.length > 0) {
-            await this.addToDbWriteQueue(messages, channel.guild, isEntireChannel ? channel.id : undefined, forceRescan)
+        const simplifiedMessages: SimplifiedMessage[] = messages.map(m => ({
+            id: m.id,
+            text: m.content,
+            authorId: m.author.id,
+            channelId: m.channel_id,
+            timestamp: new Date(m.timestamp).getTime()
+        }))
+
+        if (simplifiedMessages.length > 0) {
+            await this.addToDbWriteQueue(simplifiedMessages, guildId, channel.name, channel.id, isEntireChannel ? channel.id : undefined, forceRescan)
         }
 
         parentPort!.postMessage({
@@ -222,8 +228,8 @@ class MarkovEngine {
         parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'querying', progress: 0, total: 1, elapsedTime: 0, estimatedTimeRemaining: null } })
         const queryStartTime = performance.now()
         const messages = await this.dataSource.getMessages({
-            guild: options.guildId ? { id: options.guildId } as Guild : undefined,
-            channel: options.channelId ? { id: options.channelId } as TextChannel : undefined,
+            guildId: options.guildId,
+            channelId: options.channelId,
             user: options.user,
             userId: options.userId,
             global: options.global
@@ -272,8 +278,8 @@ class MarkovEngine {
         parentPort!.postMessage({ type: 'progress', event: 'infoProgress', data: { step: 'querying', progress: 0, total: 1, elapsedTime: 0, estimatedTimeRemaining: null } })
 
         const messages = await this.dataSource.getMessages({
-            guild: options.guildId ? { id: options.guildId } as Guild : undefined,
-            channel: options.channelId ? { id: options.channelId } as TextChannel : undefined,
+            guildId: options.guildId,
+            channelId: options.channelId,
             user: options.user,
             userId: options.userId,
             global: options.global
@@ -337,8 +343,8 @@ class MarkovEngine {
 
     public async deleteMessages(options: DeleteOptions) {
         const result = await this.dataSource.deleteMessages({
-            guild: options.guildId ? { id: options.guildId } : undefined,
-            channel: options.channelId ? { id: options.channelId } : undefined,
+            guildId: options.guildId,
+            channelId: options.channelId,
             user: options.user,
             userId: options.userId,
             global: options.global

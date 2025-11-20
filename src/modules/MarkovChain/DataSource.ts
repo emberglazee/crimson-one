@@ -3,7 +3,6 @@ import { Logger } from '../Logger'
 import { yellow, red } from '../../util/colors'
 const logger = new Logger('MarkovChain | DataSource')
 
-import { Guild as DiscordGuild, Message as DiscordMessage, TextChannel, User as DiscordUser } from 'discord.js'
 import { DataSource as ORMDataSource, DeleteResult } from 'typeorm'
 
 import { removeDuplicatesByKey } from '../../util/functions'
@@ -12,6 +11,14 @@ import { Message } from './entities/Message'
 import { Channel } from './entities/Channel'
 import { Guild } from './entities/Guild'
 import { User } from './entities/User'
+
+export interface SimplifiedMessage {
+    id: string
+    text: string
+    authorId: string
+    channelId: string
+    timestamp: number
+}
 
 @singleton()
 export class MarkovDataSource {
@@ -43,7 +50,7 @@ export class MarkovDataSource {
         }
     }
 
-    public async addMessages(messages: DiscordMessage[], guild: DiscordGuild, fullyCollectedChannelId?: string, forceRescan = false) {
+    public async addMessages(messages: SimplifiedMessage[], guildId: string, channelName: string, channelId: string, fullyCollectedChannelId?: string, forceRescan = false) {
         await this.init()
 
         const BATCH_SIZE = 1000
@@ -51,17 +58,17 @@ export class MarkovDataSource {
 
         return this.orm.transaction(async manager => {
             // Upsert guild in a single operation
-            await manager.upsert(Guild, { id: guild.id }, ['id'])
-            logger.debug(`{addMessages} Guild ${yellow(guild.id)} upserted`)
+            await manager.upsert(Guild, { id: guildId }, ['id'])
+            logger.debug(`{addMessages} Guild ${yellow(guildId)} upserted`)
 
             // 1. Collect all unique users and channels from the entire message set first.
-            const allUsers = removeDuplicatesByKey(messages.map(msg => ({ id: msg.author.id })), user => user.id)
-            const allChannels = removeDuplicatesByKey(messages.map(msg => ({
-                id: msg.channelId,
-                guild: { id: guild.id },
-                name: (msg.channel as TextChannel).name,
+            const allUsers = removeDuplicatesByKey(messages.map(msg => ({ id: msg.authorId })), user => user.id)
+            const channelPayload = {
+                id: channelId,
+                guild: { id: guildId },
+                name: channelName,
                 fullyCollected: false
-            })), channel => channel.id)
+            }
 
             // 2. Bulk upsert all unique users ONCE.
             if (allUsers.length > 0) {
@@ -71,23 +78,18 @@ export class MarkovDataSource {
             }
 
             // 3. Bulk upsert all unique channels ONCE.
-            if (allChannels.length > 0) {
-                logger.debug(`{addMessages} Upserting ${yellow(allChannels.length)} unique channels`)
-                await manager.createQueryBuilder().insert().into(Channel).values(allChannels).orIgnore().execute()
-                logger.debug('{addMessages} Unique channels upserted')
-            }
+            logger.debug(`{addMessages} Upserting 1 unique channel: ${channelName}`)
+            await manager.createQueryBuilder().insert().into(Channel).values(channelPayload).orIgnore().execute()
+            logger.debug('{addMessages} Unique channel upserted')
+
 
             // 4. Process messages in batches for insertion.
             logger.debug('{addMessages} Beginning to process message batches for insertion')
             for (let i = 0; i < messages.length; i += BATCH_SIZE) {
                 const chunk = messages.slice(i, i + BATCH_SIZE)
                 const messagesToInsert = chunk.map(msg => ({
-                    id: msg.id,
-                    text: msg.content,
-                    authorId: msg.author.id,
-                    channelId: msg.channelId,
-                    guildId: guild.id,
-                    timestamp: msg.createdTimestamp
+                    ...msg,
+                    guildId: guildId
                 }))
 
                 if (messagesToInsert.length > 0) {
@@ -108,9 +110,9 @@ export class MarkovDataSource {
     }
 
     public async getMessages(options: {
-        guild?: DiscordGuild
-        channel?: TextChannel
-        user?: DiscordUser
+        guildId?: string
+        channelId?: string
+        user?: { id: string }
         userId?: string
         global?: boolean
     }): Promise<Message[]> {
@@ -131,11 +133,11 @@ export class MarkovDataSource {
         if (options.global) {
             // No guild/channel filters
         } else {
-            if (options.guild) {
-                query.andWhere('message.guildId = :guildId', { guildId: options.guild.id })
+            if (options.guildId) {
+                query.andWhere('message.guildId = :guildId', { guildId: options.guildId })
             }
-            if (options.channel) {
-                query.andWhere('message.channelId = :channelId', { channelId: options.channel.id })
+            if (options.channelId) {
+                query.andWhere('message.channelId = :channelId', { channelId: options.channelId })
             }
         }
 
@@ -166,8 +168,8 @@ export class MarkovDataSource {
     }
 
     public async deleteMessages(options: {
-        guild?: { id: string }
-        channel?: { id: string }
+        guildId?: string
+        channelId?: string
         user?: { id: string }
         userId?: string
         global?: boolean
@@ -181,10 +183,10 @@ export class MarkovDataSource {
 
         if (options.global) {
             // No filters for global deletion
-        } else if (options.guild) {
-            query.andWhere('guildId = :guildId', { guildId: options.guild.id })
-            if (options.channel) {
-                query.andWhere('channelId = :channelId', { channelId: options.channel.id })
+        } else if (options.guildId) {
+            query.andWhere('guildId = :guildId', { guildId: options.guildId })
+            if (options.channelId) {
+                query.andWhere('channelId = :channelId', { channelId: options.channelId })
             }
         }
 
@@ -196,7 +198,7 @@ export class MarkovDataSource {
 
         // Safety net: if no filters are applied, this would be a global delete.
         // The command logic should prevent this, but as a last resort, we check here.
-        if (!options.global && !options.guild && !options.channel && !options.user && !options.userId) {
+        if (!options.global && !options.guildId && !options.channelId && !options.user && !options.userId) {
             throw new Error('Unfiltered delete operations are not allowed. Please specify a guild, channel, or user.')
         }
 
