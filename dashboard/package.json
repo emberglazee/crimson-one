@@ -1,21 +1,17 @@
 {
-  "name": "dashboard",
+  "name": "@crimson-one/dashboard",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "main": "ui.tsx",
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@types/react": "^19.1.8",
-    "ink": "^6.0.1",
-    "react": "^19.1.0",
+    "@types/react": "^19.2.6",
+    "ink": "^6.5.1",
+    "react": "^19.2.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3",
+    "typescript": "^5.9.3",
     "ws": "^8.18.3"
   }
 }
