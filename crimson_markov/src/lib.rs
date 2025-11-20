@@ -10,7 +10,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serialize;
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use ahash::{AHashMap, AHashSet};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr::{self, null_mut};
@@ -33,9 +33,9 @@ struct GenerationResult {
     timings: Timings
 }
 
-type BigramMap = HashMap<u32, HashMap<u32, u32>>;
-type TrigramMap = HashMap<(u32, u32), HashMap<u32, u32>>;
-type TrigramInvertedStarters = HashMap<u32, HashSet<(u32, u32)>>;
+type BigramMap = AHashMap<u32, AHashMap<u32, u32>>;
+type TrigramMap = AHashMap<(u32, u32), AHashMap<u32, u32>>;
+type TrigramInvertedStarters = AHashMap<u32, AHashSet<(u32, u32)>>;
 
 struct ChainState {
     bigram_chain: BigramMap,
@@ -45,7 +45,7 @@ struct ChainState {
     trigram_starters: Vec<(u32, u32)>,
     lowercase_word_interner: StringInterner<StringBackend<SymbolUsize>>,
     cased_word_interner: StringInterner<StringBackend<SymbolUsize>>,
-    casing_map: HashMap<u32, HashMap<SymbolUsize, u32>>,
+    casing_map: AHashMap<u32, AHashMap<SymbolUsize, u32>>,
 }
 
 pub struct MarkovChain {
@@ -89,14 +89,14 @@ fn tokenize<'a>(text: &'a str) -> Vec<&'a str> {
 pub extern "C" fn create_chain() -> *mut MarkovChain {
     Box::into_raw(Box::new(MarkovChain {
         state: RefCell::new(ChainState {
-            bigram_chain: HashMap::new(),
-            trigram_chain: HashMap::new(),
-            trigram_inverted_starters: HashMap::new(),
+            bigram_chain: AHashMap::new(),
+            trigram_chain: AHashMap::new(),
+            trigram_inverted_starters: AHashMap::new(),
             bigram_starters: Vec::new(),
             trigram_starters: Vec::new(),
             lowercase_word_interner: StringInterner::new(),
             cased_word_interner: StringInterner::new(),
-            casing_map: HashMap::new(),
+            casing_map: AHashMap::new(),
         }),
         rng: UnsafeCell::new(Rng::new()),
     }))
@@ -201,7 +201,7 @@ fn get_seed_ids(chain: &MarkovChain, seed_words: &[String]) -> Vec<u32> {
         .collect()
 }
 
-fn choose_next_word(rng: &mut Rng, follower_counts: &HashMap<u32, u32>) -> Option<u32> {
+fn choose_next_word(rng: &mut Rng, follower_counts: &AHashMap<u32, u32>) -> Option<u32> {
     let total_count: u64 = follower_counts.values().map(|&c| c as u64).sum();
     if total_count == 0 {
         return None;
