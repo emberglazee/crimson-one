@@ -87,7 +87,7 @@ function parseToolCalls(toolCallsText: string): ParsedToolCall[] {
     // --- Strategy 2: Fallback to <tool_name>...</tool_name> format ---
     if (toolNames.length === 0) return []
 
-    const specificToolRegex = new RegExp(`<(${toolNames.join('|')})>([\s\S]*?)<\/\1>`, 'g')
+    const specificToolRegex = new RegExp(`<(${toolNames.join('|')})>([\\s\\S]*?)</\\1>`, 'g')
 
     while ((match = specificToolRegex.exec(toolCallsText)) !== null) {
         const raw = match[0]
@@ -119,6 +119,6 @@ export function stripToolCalls(responseText: string): string {
     const toolNames = Array.from(getTools().keys())
     if (toolNames.length === 0) return responseText
 
-    const toolRegex = new RegExp(`<(${toolNames.join('|')})>[\s\S]*?<\/\1>`, 'g')
+    const toolRegex = new RegExp(`<(${toolNames.join('|')})>[\\s\\S]*?</\\1>`, 'g')
     return responseText.replace(toolRegex, '').trim()
 }

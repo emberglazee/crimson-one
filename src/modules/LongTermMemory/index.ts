@@ -8,7 +8,7 @@ import { Memory } from './entities/Memory'
 @singleton()
 export class LongTermMemoryManager {
     public constructor(
-        private dataSource: LongTermMemoryDataSource,
+        private dataSource: LongTermMemoryDataSource
     ) { }
 
     public async init() {

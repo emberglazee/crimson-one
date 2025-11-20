@@ -137,37 +137,37 @@ export class CrimsonChat extends EventEmitter<{
     }
 
     private async _reflectOnConversation(userMessage: BufferedMessage, assistantResponse: string): Promise<void> {
-        const conversation = `User "${userMessage.options.username}" said: "${userMessage.content}"\nAssistant (you) responded: "${assistantResponse}"`;
-        const prompt = `${CRIMSON_LONG_TERM_MEMORY_PROMPT}\n\nHere is the conversation snippet to evaluate:\n\n${conversation}`;
+        const conversation = `User "${userMessage.options.username}" said: "${userMessage.content}"\nAssistant (you) responded: "${assistantResponse}"`
+        const prompt = `${CRIMSON_LONG_TERM_MEMORY_PROMPT}\n\nHere is the conversation snippet to evaluate:\n\n${conversation}`
 
         try {
             const result = await generateText({
                 model: this.voidai('gemini-2.5-flash-lite'),
                 prompt: prompt,
-                temperature: 0.0, // Low temperature for deterministic evaluation
-            });
+                temperature: 0.0 // Low temperature for deterministic evaluation
+            })
 
-            const evaluation = result.text.trim();
-            logger.debug(`Memory evaluation result: ${evaluation}`);
+            const evaluation = result.text.trim()
+            logger.debug(`Memory evaluation result: ${evaluation}`)
 
-            if (evaluation.startsWith("STORE:")) {
-                const importanceMatch = evaluation.match(/(CRITICAL|IMPORTANT|USEFUL|RELEVANT|BASIC)/);
+            if (evaluation.startsWith('STORE:')) {
+                const importanceMatch = evaluation.match(/(CRITICAL|IMPORTANT|USEFUL|RELEVANT|BASIC)/)
                 const importanceMap: Record<string, number> = {
-                    "CRITICAL": 5,
-                    "IMPORTANT": 4,
-                    "USEFUL": 3,
-                    "RELEVANT": 2,
-                    "BASIC": 1,
-                };
-                const importance = importanceMatch ? importanceMap[importanceMatch[1]] : 1;
+                    'CRITICAL': 5,
+                    'IMPORTANT': 4,
+                    'USEFUL': 3,
+                    'RELEVANT': 2,
+                    'BASIC': 1
+                }
+                const importance = importanceMatch ? importanceMap[importanceMatch[1]] : 1
 
                 // Extract the core fact to be stored
-                const fact = `[${new Date().toISOString()}] User '${userMessage.options.username}' and I discussed: ${userMessage.content}. I responded: ${assistantResponse}.`;
+                const fact = `[${new Date().toISOString()}] User '${userMessage.options.username}' and I discussed: ${userMessage.content}. I responded: ${assistantResponse}.`
 
-                await this.longTermMemoryManager.addMemory(fact, importance);
+                await this.longTermMemoryManager.addMemory(fact, importance)
             }
         } catch (error) {
-            logger.error(`Failed to reflect on conversation for memory: ${red(error instanceof Error ? error.message : String(error))}`);
+            logger.error(`Failed to reflect on conversation for memory: ${red(error instanceof Error ? error.message : String(error))}`)
         }
     }
 
@@ -193,16 +193,16 @@ export class CrimsonChat extends EventEmitter<{
             const state = await this.state.getState()
 
             // --- LONG-TERM MEMORY INJECTION ---
-            const memories = await this.longTermMemoryManager.getAllMemories();
-            let systemPrompt = state.systemPrompt;
+            const memories = await this.longTermMemoryManager.getAllMemories()
+            let systemPrompt = state.systemPrompt
             if (memories.length > 0) {
-                const memoryBlock = memories.map(mem => `- ${mem.text}`).join('\n');
-                systemPrompt = `${state.systemPrompt}\n\n## LONG-TERM MEMORY:\nHere are some relevant facts and past conversations. Use them to inform your response.\n${memoryBlock}`;
+                const memoryBlock = memories.map(mem => `- ${mem.text}`).join('\n')
+                systemPrompt = `${state.systemPrompt}\n\n## LONG-TERM MEMORY:\nHere are some relevant facts and past conversations. Use them to inform your response.\n${memoryBlock}`
             }
             // --- END LTM INJECTION ---
 
             const toolDefinitions = this._getToolDefinitionsPrompt()
-            systemPrompt = systemPrompt.replace('[TOOL_DEFINITIONS]', toolDefinitions);
+            systemPrompt = systemPrompt.replace('[TOOL_DEFINITIONS]', toolDefinitions)
 
             const contentParts: (TextPart | ImagePart)[] = []
 
@@ -321,10 +321,10 @@ export class CrimsonChat extends EventEmitter<{
 
             // Reflect and potentially add to long-term memory
             if (assistantResponse) {
-                await this._reflectOnConversation(lastMessage, assistantResponse);
+                await this._reflectOnConversation(lastMessage, assistantResponse)
             }
 
-            return assistantResponse;
+            return assistantResponse
         } finally {
             clearInterval(typingInterval)
         }
@@ -345,7 +345,7 @@ export class CrimsonChat extends EventEmitter<{
                 continue
             }
 
-            let thinkingMessage: Message | void
+            let thinkingMessage: Message | void | undefined = undefined
             if (isDebug) {
                 const thinkingEmbed = new EmbedBuilder()
                     .setColor('#FEE75C')
