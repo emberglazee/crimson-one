@@ -232,7 +232,7 @@ export class CrimsonChat extends EventEmitter<{
             }
 
             const initialUserMessage: ModelMessage = { role: 'user', content: contentParts }
-            const messages: ModelMessage[] = [...state.history, initialUserMessage]
+            const messages: ModelMessage[] = [...state.history.map(({ usage: _usage, ...rest }) => rest), initialUserMessage]
 
             let lastResponseText: string | null = null
             let lastUsage: { inputTokens?: number, outputTokens?: number } | null = null
