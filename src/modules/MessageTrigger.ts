@@ -34,7 +34,8 @@ export class MessageTrigger {
                     'https://tenor.com/view/metal-gear-solid-snake-big-boss-gif-12248663',
                     'https://tenor.com/view/metal-gear-solid-phantom-pain-metal-gear-solid-v-snake-big-boss-gif-6526414909388443363',
                     'https://tenor.com/view/mgs-mgsv-metal-gear-solid-big-boss-gif-27478240',
-                    'https://tenor.com/view/mgsv-mgs5-mgs-metal-gear-solid-metal-gear-solid-5-gif-7889838534933531334'
+                    'https://tenor.com/view/mgsv-mgs5-mgs-metal-gear-solid-metal-gear-solid-5-gif-7889838534933531334',
+                    'https://tenor.com/view/mgsv-metal-gear-solid-v-the-phantom-pain-venom-snake-big-boss-gif-25120242'
                 ]))
             }
         },
@@ -63,12 +64,14 @@ export class MessageTrigger {
                     'https://tenor.com/view/absolute-cinema-miside-mita-peak-smash-gif-6314619750132899497',
                     'https://tenor.com/view/absolute-cinema-ryo-yamada-ry-ryo-meme-gif-9636831842365625847',
                     'https://tenor.com/view/absolute-cinema-absolute-cinema-boykisser-gif-8548693639845499838',
-                    'https://tenor.com/view/mattis-ai-generated-absolute-cinema-black-and-white-greyscale-gif-15545318427947589245'
+                    'https://tenor.com/view/mattis-ai-generated-absolute-cinema-black-and-white-greyscale-gif-15545318427947589245',
+                    'https://tenor.com/view/absolute-cinema-raccoon-absolute-cinema-gif-17862327649353748812',
+                    'https://tenor.com/view/walter-walter-white-walter-white-absolute-cinema-white-walter-absolute-gif-10929974052418095046'
                 ]))
             }
         },
         {
-            pattern: [/spade incoming/gmi],
+            pattern: [/spade/gmi],
             async action(message) {
                 await message.reply(getRandomElement([
                     'https://cdn.discordapp.com/attachments/1267488539503886386/1344353319849558140/39e67e09-c811-479a-8011-9fb07b917e0e.gif?ex=67e23858&is=67e0e6d8&hm=79d98a161943f6e42ac43a9cf12b72000ea72102f43c8f936a5930ce735ab5ba&',
@@ -77,7 +80,9 @@ export class MessageTrigger {
                     'https://tenor.com/view/dog-swing-gif-23878746',
                     'https://tenor.com/view/grand-theft-auto-gta-gta5-gta-v-davey-gif-25947802',
                     'https://tenor.com/view/project-wingman-crimson-1-cordium-consequence-of-power-gif-18137013603651714218',
-                    'https://tenor.com/view/%D0%BF%D1%80%D0%B0%D1%86%D1%8E%D1%94-%D0%BF%D0%BF%D0%BE-%D0%BF%D0%BF%D0%BE-%D0%BF%D0%B2%D0%BE-%D0%BF%D0%B5%D1%82%D1%80%D1%96%D0%BE%D1%82-%D0%BF%D0%B0%D1%82%D1%80%D1%96%D0%BE%D1%82-gif-12934051785885241735'
+                    'https://tenor.com/view/%D0%BF%D1%80%D0%B0%D1%86%D1%8E%D1%94-%D0%BF%D0%BF%D0%BE-%D0%BF%D0%BF%D0%BE-%D0%BF%D0%B2%D0%BE-%D0%BF%D0%B5%D1%82%D1%80%D1%96%D0%BE%D1%82-%D0%BF%D0%B0%D1%82%D1%80%D1%96%D0%BE%D1%82-gif-12934051785885241735',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441173396393164820/image.png?ex=6920d4d1&is=691f8351&hm=057124e122b56586166862ec70a8a99f1bef86cb6f3fbd8f15bffcd92348ceab&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441173688014602300/image.png?ex=6920d516&is=691f8396&hm=c863bcc1b60662be93d180302cbb9e146b45b06cecce23b19dd574f0f1baec1d&'
                 ]))
             }
         },
@@ -88,13 +93,17 @@ export class MessageTrigger {
                 if (message.mentions.users.has(EMBI_ID) || message.author.id === EMBI_ID) return
                 if (message.guildId !== SOLITARY_CONFINEMENT_GUILD_ID) return
                 if (chance(50)) await message.reply(getRandomElement([
-                    'https://cdn.discordapp.com/attachments/982138135653793804/1374422035769462824/Vesktop_iH8AUuU6rH.png?ex=682dfdc4&is=682cac44&hm=1f37d03b5501415f6c38ff1e894e73f9d8ceb37430840908609b15a1d8ad3285&',
-                    'https://cdn.discordapp.com/attachments/982138135653793804/1374422059534516294/Vesktop_0rpn0aJGEh.png?ex=682dfdca&is=682cac4a&hm=8b34b654b7ca3b9d00767090d471a93af56e5784d0991e6cb6d011c6bf8eb5d8&',
-                    'https://cdn.discordapp.com/attachments/982138135653793804/1374422832867577939/Vesktop_cBoXqxNkmV.png?ex=682dfe82&is=682cad02&hm=dcc627b1f25f17f0c4535579fae57570c35676679ffe950c53aaab30cfe057a0&',
-                    'https://cdn.discordapp.com/attachments/982138135653793804/1374423151458390017/Vesktop_9xv5wElu0F.png?ex=682dfece&is=682cad4e&hm=43dcc535f453d65c7b62a04b4af4a1e9c1ed3dee6a25d4dac514d33602f7f8f7&',
-                    'https://cdn.discordapp.com/attachments/982138135653793804/1374423595425595512/Vesktop_19sIxDqsR4.png?ex=682dff38&is=682cadb8&hm=8e13d8a2eb71bec814be7478a591aa361effd0de755ab1d1df04c20a42a7b6f7&',
-                    'https://cdn.discordapp.com/attachments/982138135653793804/1374423912745799721/Vesktop_jN1dJsstMt.png?ex=682dff84&is=682cae04&hm=ec301535d6dcf685a153fbe7d4106ca639071286747c7f8b04460de2894c4139&',
-                    ''
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441168198857916510/image.png?ex=6920cffa&is=691f7e7a&hm=d394326b0355911a1264fd7d5c6947e7513e5d3447e9887720f97c5238a7f924&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441168467326799985/image.png?ex=6920d03a&is=691f7eba&hm=2eaadc52d2454ccdab7d59a2eaa4734db2075c863cc6164d43de94139db87033&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441169290748498000/image.png?ex=6920d0fe&is=691f7f7e&hm=8f45939afdc32412631bb10dae7f14689d26cc8babb2f2685feadc18c38d1fc8&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441169616054517841/image.png?ex=6920d14c&is=691f7fcc&hm=b2617c203174cb990e24d5ff91fbdd450356f1260b1d1cf5f15e0aa6684c28bd&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441172201352069180/image.png?ex=6920d3b4&is=691f8234&hm=b0621af698a37aea70c8ab8240a900f9ad6f79ef170e45571e0c5287d8092905&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441170152077918239/image.png?ex=6920d1cb&is=691f804b&hm=8d3269461444770914b983cc085cd500d3da698ec9ec4a94fe0a8eb2230b8692&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441170495990005850/image.png?ex=6920d21d&is=691f809d&hm=ae0b585f13459a16daaed308b8d162b52248392fbea041a94e45609e9273ae89&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441170760348602599/image.png?ex=6920d25c&is=691f80dc&hm=99f366251d14a6171d1bea42722acb73a12c749060d49074ef1511edc6549b46&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441171222443331654/image.png?ex=6920d2cb&is=691f814b&hm=1b2c68cfc0b275c47acb0b6400dcb590b0a18881501f8e4781efbd9e9f8b4565&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441171211878142004/image.png?ex=6920d2c8&is=691f8148&hm=d3ff3f666b49eb15946c36c03778b5fc9ddb036cc977c8eb989a6d3d3c547375&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441171493655543870/image.png?ex=6920d30b&is=691f818b&hm=56d62ebdabbe1838dd52fe38e63cb3832d5165d75e21e724fad62ae776952eea&'
                 ]))
                 const emberglaze = await message.client.users.fetch(EMBI_ID)
                 await emberglaze.send(`${PING_EMBI} https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`)
@@ -128,7 +137,11 @@ export class MessageTrigger {
                     'https://cdn.discordapp.com/attachments/982138135653793804/1362142160606199988/image.png?ex=6801513e&is=67ffffbe&hm=3920645809825cd0a04615a6d78beae4e44dcbdd89532af8b95cc0390d4c85fa&',
                     'https://cdn.discordapp.com/attachments/982138135653793804/1386321925340532808/image.png?ex=68594867&is=6857f6e7&hm=d39bae8efb9a310efefe0ca677ebc78eadbeafc190de7446b4152203ec117d31&',
                     'https://cdn.discordapp.com/attachments/982138135653793804/1386321932848468109/image.png?ex=68594869&is=6857f6e9&hm=ce0ade2cbd71ddfde03e522cfb22b387fa1d0820c19a06331bf90c5be5b4155b&',
-                    'https://cdn.discordapp.com/attachments/982138135653793804/1396164071925219519/image.png?ex=687d169e&is=687bc51e&hm=040a51bbd38f6edbcd3aa445a069acde6732b4e519e308757a963406077c9de6&'
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1396164071925219519/image.png?ex=687d169e&is=687bc51e&hm=040a51bbd38f6edbcd3aa445a069acde6732b4e519e308757a963406077c9de6&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441166718880841769/image.png?ex=6920ce99&is=691f7d19&hm=07c67bced3344ff9c8bc97a340421709aa6f9993b8741550949047d6da65377c&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441167368855228416/image.png?ex=6920cf34&is=691f7db4&hm=5058c0445c3958baeba9aa4479c5afb8271162fb9687c6583efa7ef3fe450270&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441172563496800367/image.png?ex=6920d40a&is=691f828a&hm=16a24732d180821a8ad43a8f600ae6d1aef8b690e74a579f1bd4d02e9cd387d7&',
+                    'https://cdn.discordapp.com/attachments/982138135653793804/1441172998689394848/image.png?ex=6920d472&is=691f82f2&hm=06396a589eedb401204903ceb5b283a7e785df8ea45e4b68802c3ccc30adcd02&'
                 ]))
                 const ashleigh = await message.client.users.fetch(ashleighId)
                 await ashleigh.send(`<@${ashleighId}> https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`)
@@ -143,7 +156,8 @@ export class MessageTrigger {
                     'https://tenor.com/view/fish-meme-you-know-what-that-means-gif-12503956388971591256',
                     'https://cdn.discordapp.com/attachments/1331556083776487444/1350097724204122212/caption.gif?ex=67e2aefd&is=67e15d7d&hm=aad1f8a3b156e93e539c279544f985eab49277c6100c4104ccaf3a7151cb325d&',
                     'https://tenor.com/view/funny-fish-launch-gif-14878073',
-                    'https://tenor.com/view/salmon-cannon-new-military-weapon-salmon-gun-the-salmon-cannon-meme-gif-22114966'
+                    'https://tenor.com/view/salmon-cannon-new-military-weapon-salmon-gun-the-salmon-cannon-meme-gif-22114966',
+                    'https://tenor.com/view/fich-drehender-fich-certified-fich-bunnyran56-bunnyran56-fich-gif-2494747943682487771'
                 ]))
             }
         },
@@ -160,7 +174,9 @@ export class MessageTrigger {
                 await message.reply(getRandomElement([
                     'https://tenor.com/view/horse-you-have-alerted-the-horse-alert-alert-horse-horse-alert-gif-10675569724654458517',
                     'https://tenor.com/view/order-of-iris-how-hungry-horse-honse-gif-14835892721220569918',
-                    'https://tenor.com/view/meme-horse-you-have-alerted-the-horse-pretty-derby-uma-musume-gif-15063465391514740847'
+                    'https://tenor.com/view/meme-horse-you-have-alerted-the-horse-pretty-derby-uma-musume-gif-15063465391514740847',
+                    'https://tenor.com/view/how-hungry-horse-meme-how-hungry-meme-hungry-gif-3271609735629330991',
+                    'https://tenor.com/view/you-have-alerted-the-horse-horse-gt-when-the-gif-13896701654039849313'
                 ]))
             }
         },
@@ -171,18 +187,13 @@ export class MessageTrigger {
             }
         },
         {
-            pattern: [/femboy/gmi],
-            async action(message) {
-                if (chance(1)) await message.reply('https://tenor.com/view/%D1%84%D1%81%D0%B1-gif-21407990')
-            }
-        },
-        {
             pattern: [/chicken jockey/gmi],
             async action(message) {
                 await message.reply(getRandomElement([
                     'https://tenor.com/view/minecraft-minecraft-movie-a-minecraft-movie-steve-jack-black-gif-4079785775268000209',
                     'https://tenor.com/view/minecraft-movie-theater-popcorn-explosion-crazy-gif-7283614019765734813',
-                    'https://tenor.com/view/chicken-jockey-minecraft-movie-minecraft-memes-minecraft-meme-chicken-jockey-flag-gif-6036972012917778487'
+                    'https://tenor.com/view/chicken-jockey-minecraft-movie-minecraft-memes-minecraft-meme-chicken-jockey-flag-gif-6036972012917778487',
+                    'https://tenor.com/view/chicken-jockey-chicken-jockey-minecraft-minecraft-movie-gif-9774009371795721510'
                 ]))
             }
         },
@@ -227,7 +238,10 @@ export class MessageTrigger {
                     'https://tenor.com/view/until-then-catherine-portillo-until-then-game-gif-2584337774223174448',
                     'https://tenor.com/view/until-then-until-then-cath-untilthen-cath-us-gif-777643791924215591',
                     'https://tenor.com/view/until-then-until-then-mark-until-then-mark-gif-16530595766137122906',
-                    'https://tenor.com/view/until-then-untilthen-untilthengame-cathy-catherine-gif-14784323206851821179'
+                    'https://tenor.com/view/until-then-untilthen-untilthengame-cathy-catherine-gif-14784323206851821179',
+                    'https://cdn.discordapp.com/attachments/1267488539503886386/1441164083234738377/until-then-untilthen.gif?ex=6920cc24&is=691f7aa4&hm=5f8509e19fc17f66f68eafd11a1c0a2542a4270207f0938486b323e4ab30297b&',
+                    'https://tenor.com/view/until-then-until-then-mark-mark-until-then-gif-15235730749064560255',
+                    'https://tenor.com/view/until-then-until-then-cath-cathuntilthen-whoa-untilthen-gif-8724377859103188895'
                 ]))
             }
         }
