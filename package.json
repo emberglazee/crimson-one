@@ -4,12 +4,17 @@
   "type": "module",
   "scripts": {
     "start": "bun src/guardian.ts",
+
     "delete-commands": "bun src/deleteCommands.ts",
+
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+
     "dashboard": "cd dashboard && tsx ui.tsx",
     "dashboard:install": "cd dashboard && npm install",
-    "build:markov": "cd crimson_markov && cargo build --release"
+
+    "markov:check": "cd crimson_markov && cargo check",
+    "markov:build": "cd crimson_markov && cargo build --release"
   },
   "devDependencies": {
     "@eslint/js": "^9.37.0",

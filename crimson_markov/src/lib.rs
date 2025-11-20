@@ -8,7 +8,7 @@
 use fastrand::Rng;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::Serialize;
+use serde_json;
 use std::borrow::Cow;
 use ahash::{AHashMap, AHashSet};
 use std::ffi::{CStr, CString};
@@ -19,15 +19,15 @@ use std::str;
 use std::cell::{RefCell, UnsafeCell};
 use std::time::Instant;
 use string_interner::{backend::StringBackend, StringInterner, symbol::SymbolUsize, Symbol};
+use std::fmt::Write; // Import Write for efficient string appending
 
-#[derive(Serialize)]
+// Structs used for internal logic only, no Serialize needed due to manual construction
 struct Timings {
     db_query_ms: f64,
     training_ms: f64,
     generation_ms: f64
 }
 
-#[derive(Serialize)]
 struct GenerationResult {
     text: String,
     timings: Timings
@@ -46,14 +46,13 @@ struct ChainState {
     lowercase_word_interner: StringInterner<StringBackend<SymbolUsize>>,
     cased_word_interner: StringInterner<StringBackend<SymbolUsize>>,
     casing_map: AHashMap<u32, AHashMap<SymbolUsize, u32>>,
+    cased_to_lower_map: AHashMap<SymbolUsize, u32>,
 }
 
 pub struct MarkovChain {
     state: RefCell<ChainState>,
     rng: UnsafeCell<Rng>,
 }
-
-impl MarkovChain {}
 
 static TOKENIZER_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(concat!(
@@ -78,14 +77,13 @@ static TOKENIZER_REGEX: Lazy<Regex> = Lazy::new(|| {
     .unwrap()
 });
 
-fn tokenize<'a>(text: &'a str) -> Vec<&'a str> {
+fn tokenize<'a>(text: &'a str) -> impl Iterator<Item = &'a str> {
     TOKENIZER_REGEX
         .find_iter(text)
         .map(|m| m.as_str())
-        .collect()
 }
 
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn create_chain() -> *mut MarkovChain {
     Box::into_raw(Box::new(MarkovChain {
         state: RefCell::new(ChainState {
@@ -97,12 +95,13 @@ pub extern "C" fn create_chain() -> *mut MarkovChain {
             lowercase_word_interner: StringInterner::new(),
             cased_word_interner: StringInterner::new(),
             casing_map: AHashMap::new(),
+            cased_to_lower_map: AHashMap::new(),
         }),
         rng: UnsafeCell::new(Rng::new()),
     }))
 }
 
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn destroy_chain(ptr: *mut MarkovChain) {
     if !ptr.is_null() {
         unsafe {
@@ -111,7 +110,36 @@ pub extern "C" fn destroy_chain(ptr: *mut MarkovChain) {
     }
 }
 
-#[unsafe(no_mangle)]
+fn intern_word_and_get_lower_id(state: &mut ChainState, word: &str) -> u32 {
+    // 1. Intern the raw (cased) word
+    let cased_id = state.cased_word_interner.get_or_intern(word);
+
+    // 2. Check if we already mapped this cased ID to a lowercase ID
+    let lower_id = if let Some(id) = state.cased_to_lower_map.get(&cased_id) {
+        *id
+    } else {
+        // 3. If not, calculate lowercase and intern that
+        let lower_word: Cow<str> = if word.chars().any(char::is_uppercase) {
+            Cow::Owned(word.to_lowercase())
+        } else {
+            Cow::Borrowed(word)
+        };
+        let lower_id_symbol = state.lowercase_word_interner.get_or_intern(&*lower_word);
+        let lower_id = lower_id_symbol.to_usize() as u32;
+        
+        // 4. Cache the mapping
+        state.cased_to_lower_map.insert(cased_id, lower_id);
+        lower_id
+    };
+
+    // 5. Update statistics for casing restoration later
+    let case_counts = state.casing_map.entry(lower_id).or_default();
+    *case_counts.entry(cased_id).or_insert(0) += 1;
+
+    lower_id
+}
+
+#[no_mangle]
 pub extern "C" fn train_on_batch(
     ptr: *mut MarkovChain,
     texts_ptr: *const u8,
@@ -125,60 +153,64 @@ pub extern "C" fn train_on_batch(
     let texts_slice = unsafe { slice::from_raw_parts(texts_ptr, texts_len) };
     let texts_str = match str::from_utf8(texts_slice) {
         Ok(s) => s,
-        Err(_) => return, // Or handle error appropriately
+        Err(_) => return,
     };
 
+    // Split by null terminator
     let texts = texts_str.split('\0').filter(|s| !s.is_empty());
 
-    // Acquire lock at the beginning of the function
     let mut state = chain.state.borrow_mut();
 
     for text in texts {
-        let word_ids: Vec<u32> = tokenize(text)
-            .into_iter()
-            .map(|word| {
-                // Inlined logic from intern_word_and_update_casing
-                let lower_word: Cow<str> = if word.chars().any(char::is_uppercase) {
-                    Cow::Owned(word.to_lowercase())
-                } else {
-                    Cow::Borrowed(word)
-                };
+        let mut tokens = tokenize(text);
+        let mut p1;
+        let mut p2;
 
-                let id_symbol = state.lowercase_word_interner.get_or_intern(&*lower_word);
-                let id = id_symbol.to_usize() as u32;
-
-                let cased_id = state.cased_word_interner.get_or_intern(word);
-                let case_counts = state.casing_map.entry(id).or_default();
-                *case_counts.entry(cased_id).or_insert(0) += 1;
-
-                id
-            })
-            .collect();
-
-        if word_ids.is_empty() {
-            continue;
+        // Process first token
+        if let Some(word) = tokens.next() {
+            let id = intern_word_and_get_lower_id(&mut state, word);
+            state.bigram_starters.push(id);
+            p1 = id;
+        } else {
+            continue; 
         }
 
-        if word_ids.len() >= 2 {
-            state.bigram_starters.push(word_ids[0]);
-            for i in 0..(word_ids.len() - 1) {
-                let follower_counts = state.bigram_chain.entry(word_ids[i]).or_default();
-                *follower_counts.entry(word_ids[i + 1]).or_insert(0) += 1;
-            }
+        // Process second token
+        if let Some(word) = tokens.next() {
+            let id = intern_word_and_get_lower_id(&mut state, word);
+            state.trigram_starters.push((p1, id));
+            
+            // bigram for (p1, id)
+            state.bigram_chain.entry(p1).or_default()
+                .entry(id).and_modify(|v| *v += 1).or_insert(1);
+                
+            p2 = p1;
+            p1 = id;
+        } else {
+            continue; 
         }
 
-        if word_ids.len() >= 3 {
-            state.trigram_starters.push((word_ids[0], word_ids[1]));
-            for i in 0..(word_ids.len() - 2) {
-                let key = (word_ids[i], word_ids[i + 1]);
-                let follower_counts = state.trigram_chain.entry(key).or_default();
-                *follower_counts.entry(word_ids[i + 2]).or_insert(0) += 1;
-                state
-                    .trigram_inverted_starters
-                    .entry(word_ids[i])
-                    .or_default()
-                    .insert(key);
-            }
+        // Process rest
+        for word in tokens {
+            let id = intern_word_and_get_lower_id(&mut state, word);
+            
+            // trigram for (p2, p1, id)
+            let key = (p2, p1);
+            state.trigram_chain.entry(key).or_default()
+                .entry(id).and_modify(|v| *v += 1).or_insert(1);
+                
+            state
+                .trigram_inverted_starters
+                .entry(p2)
+                .or_default()
+                .insert(key);
+
+            // bigram for (p1, id)
+            state.bigram_chain.entry(p1).or_default()
+                .entry(id).and_modify(|v| *v += 1).or_insert(1);
+
+            p2 = p1;
+            p1 = id;
         }
     }
 }
@@ -224,6 +256,10 @@ fn ids_to_string(chain: &MarkovChain, result_ids: &[u32]) -> String {
 
     let state = chain.state.borrow();
 
+    // Pre-calculating a rough capacity estimation to reduce reallocations
+    // Assuming avg word length of 5 + 1 space
+    let mut result = String::with_capacity(result_ids.len() * 6);
+
     let get_word_str = |id: u32| -> Cow<'_, str> {
         if let Some(case_map) = state.casing_map.get(&id) {
             if let Some((cased_id, _)) = case_map.iter().max_by_key(|&(_, count)| count) {
@@ -232,6 +268,7 @@ fn ids_to_string(chain: &MarkovChain, result_ids: &[u32]) -> String {
                 }
             }
         }
+        // Fallback if case mapping fails or word missing (safety)
         let symbol = SymbolUsize::try_from_usize(id as usize).unwrap();
         state
             .lowercase_word_interner
@@ -240,7 +277,6 @@ fn ids_to_string(chain: &MarkovChain, result_ids: &[u32]) -> String {
             .unwrap_or(Cow::Borrowed(""))
     };
 
-    let mut result = String::new();
     let punctuation: &[char] = &[
         '.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}',
     ];
@@ -293,8 +329,7 @@ fn generate_bigram(
         }
     }
 
-    // SAFETY: It's guaranteed that `generate_text` is only called from a single thread.
-    // Therefore, we can safely get a mutable reference to the RNG.
+    // SAFETY: Single thread guarantee via Bun
     let rng = unsafe { &mut *chain.rng.get() };
     if !seeded {
         current_word_id = state.bigram_starters[rng.usize(..state.bigram_starters.len())];
@@ -331,8 +366,7 @@ fn generate_trigram(
     let mut result_ids = Vec::with_capacity(max_words);
     let mut current_pair: (u32, u32) = (0, 0);
     let mut seeded = false;
-    // SAFETY: It's guaranteed that `generate_text` is only called from a single thread.
-    // Therefore, we can safely get a mutable reference to the RNG.
+    // SAFETY: Single thread guarantee
     let rng = unsafe { &mut *chain.rng.get() };
 
     if let Some(words) = seed_words {
@@ -366,11 +400,9 @@ fn generate_trigram(
                                 *possible_starters[rng.usize(..possible_starters.len())];
 
                             if seed_ids.len() == 1 {
-                                // If the original seed was just one word, the result starts with the new pair.
                                 result_ids.push(chosen_pair.0);
                                 result_ids.push(chosen_pair.1);
                             } else {
-                                // Otherwise, append the next word to the original seed.
                                 result_ids = seed_ids.clone();
                                 result_ids.push(chosen_pair.1);
                             }
@@ -426,8 +458,7 @@ fn generate_hybrid(
     let mut result_ids = Vec::with_capacity(max_words);
     let mut current_pair: (u32, u32) = (0, 0);
     let mut seeded = false;
-    // SAFETY: It's guaranteed that `generate_text` is only called from a single thread.
-    // Therefore, we can safely get a mutable reference to the RNG.
+    // SAFETY: Single thread guarantee
     let rng = unsafe { &mut *chain.rng.get() };
 
     if let Some(words) = seed_words {
@@ -435,7 +466,6 @@ fn generate_hybrid(
             let seed_ids = get_seed_ids(chain, &words);
 
             if !seed_ids.is_empty() {
-                // Try seeding with the last two words if possible
                 if seed_ids.len() >= 2 {
                     let key = (
                         seed_ids[seed_ids.len() - 2],
@@ -461,11 +491,9 @@ fn generate_hybrid(
                                 *possible_starters[rng.usize(..possible_starters.len())];
 
                             if seed_ids.len() == 1 {
-                                // If the original seed was just one word, the result starts with the new pair.
                                 result_ids.push(chosen_pair.0);
                                 result_ids.push(chosen_pair.1);
                             } else {
-                                // Otherwise, append the next word to the original seed.
                                 result_ids = seed_ids.clone();
                                 result_ids.push(chosen_pair.1);
                             }
@@ -520,7 +548,7 @@ fn generate_hybrid(
                     result_ids.push(current_pair.1);
                 }
             } else {
-                break; // No starters, nowhere to go.
+                break;
             }
         }
     }
@@ -528,7 +556,7 @@ fn generate_hybrid(
     ids_to_string(chain, &result_ids)
 }
 
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn generate_text(
     ptr: *mut MarkovChain,
     max_words: usize,
@@ -553,67 +581,80 @@ pub extern "C" fn generate_text(
         } else {
             Some(
                 tokenize(seed_str)
-                    .into_iter()
                     .map(|s| s.to_string())
                     .collect()
             )
         }
     };
 
-    if batch_size > 1 {
-        let mut results = Vec::with_capacity(batch_size);
-        for i in 0..batch_size {
-            let start_time = Instant::now();
-            let result_str = match mode {
-                0 => generate_bigram(chain, max_words, seed_words.clone()),
-                2 => generate_hybrid(chain, max_words, seed_words.clone()),
-                _ => generate_trigram(chain, max_words, seed_words.clone()),
-            };
-
-            if !result_str.is_empty() {
-                let generation_ms = start_time.elapsed().as_micros() as f64 / 1_000.0;
-                results.push(GenerationResult {
-                    text: result_str,
-                    timings: Timings {
-                        db_query_ms: if i == 0 { db_query_ms } else { 0.0 },
-                        training_ms: if i == 0 { training_ms } else { 0.0 },
-                        generation_ms,
-                    },
-                });
-            }
-        }
-        if results.is_empty() {
-            return null_mut();
-        }
-        let json_result = serde_json::to_string(&results).unwrap();
-        CString::new(json_result).map_or(ptr::null_mut(), |s| s.into_raw())
-    } else {
+    let mut results = Vec::with_capacity(batch_size);
+    
+    for i in 0..batch_size {
         let start_time = Instant::now();
         let result_str = match mode {
-            0 => generate_bigram(chain, max_words, seed_words),
-            2 => generate_hybrid(chain, max_words, seed_words),
-            _ => generate_trigram(chain, max_words, seed_words),
+            0 => generate_bigram(chain, max_words, seed_words.clone()),
+            2 => generate_hybrid(chain, max_words, seed_words.clone()),
+            _ => generate_trigram(chain, max_words, seed_words.clone()),
         };
 
-        if result_str.is_empty() {
-            return null_mut();
+        if !result_str.is_empty() {
+            let generation_ms = start_time.elapsed().as_micros() as f64 / 1_000.0;
+            results.push(GenerationResult {
+                text: result_str,
+                timings: Timings {
+                    db_query_ms: if i == 0 { db_query_ms } else { 0.0 },
+                    training_ms: if i == 0 { training_ms } else { 0.0 },
+                    generation_ms,
+                },
+            });
         }
-
-        let generation_ms = start_time.elapsed().as_micros() as f64 / 1_000.0;
-        let result = GenerationResult {
-            text: result_str,
-            timings: Timings {
-                db_query_ms,
-                training_ms,
-                generation_ms,
-            },
-        };
-        let json_result = serde_json::to_string(&result).unwrap();
-        CString::new(json_result).map_or(ptr::null_mut(), |s| s.into_raw())
     }
+
+    if results.is_empty() {
+        return null_mut();
+    }
+
+    // Optimization: Use a single pre-allocated buffer for JSON construction 
+    // to avoid allocating multiple Strings via format!().
+    let mut json_out = String::with_capacity(256 * results.len());
+    
+    if batch_size > 1 {
+        json_out.push('[');
+        for (i, r) in results.iter().enumerate() {
+            if i > 0 { json_out.push(','); }
+            
+            // We must still use serde_json for the text content to ensure 
+            // proper escaping of quotes, backslashes, etc.
+            let escaped_text = serde_json::to_string(&r.text).unwrap();
+            
+            let _ = write!(
+                json_out,
+                r#"{{"text":{},"timings":{{"db_query_ms":{},"training_ms":{},"generation_ms":{}}}}}"#,
+                escaped_text,
+                r.timings.db_query_ms,
+                r.timings.training_ms,
+                r.timings.generation_ms
+            );
+        }
+        json_out.push(']');
+    } else {
+        // Single object return for backwards compatibility / simplicity
+        let r = &results[0];
+        let escaped_text = serde_json::to_string(&r.text).unwrap();
+        let _ = write!(
+            json_out,
+            r#"{{"text":{},"timings":{{"db_query_ms":{},"training_ms":{},"generation_ms":{}}}}}"#,
+            escaped_text,
+            r.timings.db_query_ms,
+            r.timings.training_ms,
+            r.timings.generation_ms
+        );
+    }
+
+    CString::new(json_out).map_or(ptr::null_mut(), |s| s.into_raw())
 }
 
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn free_text(s: *mut c_char) {
     if !s.is_null() {
         unsafe {
