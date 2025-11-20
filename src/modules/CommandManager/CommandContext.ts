@@ -23,7 +23,7 @@ import { BotInstallationType, type JSONResolvable } from '../../types'
 
 import { EMBI_ID, PING_EMBI, TYPING_EMOJI } from '../../util/constants'
 import type { ArgumentsCamelCase } from 'yargs'
-import type { BanishmentManager, BotSettingsManager, CrimsonChat, GuildConfigManager, MarkovChat, OperationTracker, TagManager, CommandManager } from '..'
+import type { BanishmentManager, BotSettingsManager, CrimsonChat, GuildConfigManager, LongTermMemoryManager, MarkovChat, OperationTracker, TagManager, CommandManager } from '..'
 
 export interface CommandContextServices {
     banishmentManager: BanishmentManager
@@ -34,6 +34,7 @@ export interface CommandContextServices {
     operationTracker: OperationTracker
     botSettingsManager: BotSettingsManager
     commandManager: CommandManager
+    longTermMemoryManager: LongTermMemoryManager
 }
 
 export class CommandContext<InGuild extends boolean = boolean> {
@@ -63,6 +64,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public readonly operationTracker: OperationTracker
     public readonly botSettingsManager: BotSettingsManager
     public readonly commandManager: CommandManager
+    public readonly longTermMemoryManager: LongTermMemoryManager
 
 
     constructor(source: ChatInputCommandInteraction | Message, services: CommandContextServices, rawArgs?: string[]) {
@@ -77,6 +79,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
         this.operationTracker = services.operationTracker
         this.botSettingsManager = services.botSettingsManager
         this.commandManager = services.commandManager
+        this.longTermMemoryManager = services.longTermMemoryManager
 
         if (source instanceof Message) {
             this.message = source

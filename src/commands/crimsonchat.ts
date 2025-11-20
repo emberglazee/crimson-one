@@ -9,6 +9,9 @@ export default {
             .setName('reset')
             .setDescription('Reset chat history')
         ).addSubcommand(subcommand => subcommand
+            .setName('resetmem')
+            .setDescription('Reset the long-term memory of the bot')
+        ).addSubcommand(subcommand => subcommand
             .setName('updateprompt')
             .setDescription('Update the system prompt to the latest version')
         ).addSubcommand(subcommand => subcommand
@@ -85,13 +88,18 @@ export default {
         const isRoleAllowed = ctx.member?.roles.cache.has('958529446560808961') ?? false
         if (!isRoleAllowed && !(await ctx.checkEmbi())) return
 
-        const { crimsonChat } = ctx
+        const { crimsonChat, longTermMemoryManager } = ctx
         const subcommand = ctx.getSubcommand()
 
         switch (subcommand) {
             case 'reset':
                 await crimsonChat.clearHistory()
                 await ctx.reply('✅ Chat history reset')
+                break
+
+            case 'resetmem':
+                await longTermMemoryManager.clearMemories()
+                await ctx.reply('✅ CrimsonChat long-term memory reset')
                 break
 
             case 'updateprompt':

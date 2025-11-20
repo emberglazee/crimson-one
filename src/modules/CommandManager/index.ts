@@ -23,7 +23,7 @@ import { TextCommandParser } from './TextCommandParser'
 import { CommandDeployer } from './CommandDeployer'
 import { CommandHotReloader } from './CommandHotReloader'
 
-import { CrimsonChat, BotSettingsManager, BanishmentManager, GuildConfigManager, MarkovChat, TagManager } from '..'
+import { CrimsonChat, BotSettingsManager, BanishmentManager, GuildConfigManager, MarkovChat, TagManager, LongTermMemoryManager } from '..'
 
 @singleton()
 export class CommandManager {
@@ -41,7 +41,8 @@ export class CommandManager {
         private banishmentManager: BanishmentManager,
         private guildConfigManager: GuildConfigManager,
         private markovChat: MarkovChat,
-        private tagManager: TagManager
+        private tagManager: TagManager,
+        private longTermMemoryManager: LongTermMemoryManager
     ) {}
 
     public async init() {
@@ -115,7 +116,8 @@ export class CommandManager {
                     tagManager: this.tagManager,
                     operationTracker: this.operationTracker,
                     botSettingsManager: this.botSettingsManager,
-                    commandManager: this
+                    commandManager: this,
+                    longTermMemoryManager: this.longTermMemoryManager
                 })
                 await this.executeUnifiedCommand(command, context)
             } else if (interaction.isContextMenuCommand() && this.registry.isContextMenuCommand(command)) {
@@ -174,7 +176,8 @@ export class CommandManager {
                 tagManager: this.tagManager,
                 operationTracker: this.operationTracker,
                 botSettingsManager: this.botSettingsManager,
-                commandManager: this
+                commandManager: this,
+                longTermMemoryManager: this.longTermMemoryManager
             })
 
             if (context.parsedArgs?.h === true || context.parsedArgs?.help === true) {
