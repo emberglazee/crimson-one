@@ -137,9 +137,17 @@ export class SubtitleGenerator {
 
         const result: SubtitleImageResult = await this.sendTask('generate', options)
 
-        // The buffer from the worker is a plain object, so we need to convert it back to a Buffer
-        if (result.buffer && (result.buffer as any).type === 'Buffer' && (result.buffer as any).data) {
-             result.buffer = Buffer.from((result.buffer as any).data)
+        // The buffer from the worker can be a plain object or a Uint8Array, so convert it to a proper Buffer
+        if (result.buffer) {
+            if (result.buffer instanceof Buffer) {
+                // It's already a buffer, nothing to do.
+            } else if ((result.buffer as any).type === 'Buffer' && Array.isArray((result.buffer as any).data)) {
+                // It's a serialized buffer object
+                result.buffer = Buffer.from((result.buffer as any).data)
+            } else if (result.buffer instanceof Uint8Array) {
+                // It's a Uint8Array
+                result.buffer = Buffer.from(result.buffer)
+            }
         }
 
         return result

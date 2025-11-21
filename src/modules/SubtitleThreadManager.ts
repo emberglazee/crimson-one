@@ -1,5 +1,5 @@
 import { singleton, inject } from 'tsyringe'
-import { AttachmentBuilder, type Client, type ThreadChannel } from 'discord.js'
+import { type Client, type ThreadChannel } from 'discord.js'
 import { SubtitleGenerator } from '.'
 import { readFile } from 'fs/promises'
 import path from 'path'
@@ -28,11 +28,16 @@ export class SubtitleThreadManager {
                 const gradient = 'none'
                 const stretchGradient = false
                 const result = await this.subtitleGenerator.createSubtitleImage(message.guild!, speaker, quote, color, gradient, stretchGradient, 'pw', false)
-                const image = new AttachmentBuilder(result.buffer)
-                    .setName(`quote.${result.type === 'image/gif' ? 'gif' : 'png'}`)
+                const image = {
+                    attachment: result.buffer,
+                    name: `quote.${result.type === 'image/gif' ? 'gif' : 'png'}`
+                }
 
                 if (message.content.toLowerCase().includes('preble')) {
-                    const preble = new AttachmentBuilder(await readFile(path.join(__dirname, '../../data/preble.wav')), { name: 'preble.wav' })
+                    const preble = {
+                        attachment: await readFile(path.join(__dirname, '../../data/preble.wav')),
+                        name: 'preble.wav'
+                    }
                     await this.thread!.send({ files: [image, preble] })
                     return
                 }
