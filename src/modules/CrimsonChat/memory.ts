@@ -12,7 +12,7 @@ import {
 } from '../../util/constants'
 import type { ModelMessage, FilePart, ImagePart, TextPart, ToolResultPart, ToolCallPart } from 'ai'
 import { Buffer } from 'buffer'
-import { encode, decode } from '@byjohann/toon'
+import { encode, decode } from '@toon-format/toon'
 
 export type HistoryLimitMode = 'messages' | 'tokens'
 
