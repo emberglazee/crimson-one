@@ -1,5 +1,6 @@
 import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
+import path from 'path'
 
 export default {
     data: new SlashCommandBuilder()
@@ -10,7 +11,7 @@ export default {
         await ctx.deferReply()
         await ctx.editReply({
             files: [{
-                attachment: './data/huh.mov',
+                attachment: path.resolve('./data/huh.mov'),
                 name: 'huh.mov'
             }]
         })
