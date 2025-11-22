@@ -7,7 +7,7 @@ import { spawn } from 'child_process'
 import fs from 'fs/promises'
 import os from 'os'
 import path from 'path'
-import { type SubtitleGradientType } from '../../util/colors'
+import { type SubtitleGradientType, SUBTITLE_GRADIENTS } from '../../util/colors'
 import { Logger } from '../Logger'
 import { red, yellow } from '../../util/colors'
 
@@ -134,7 +134,7 @@ async function ffmpegExtractFrames(gifUrl: string, outputDir: string): Promise<{
 }
 
 async function performGeneration(options: SubtitleOptions) {
-    let { speaker, quote, color: _color, gradient: _gradient, stretchGradient: _stretchGradient, style, interpretNewlines, continuousGradient: _continuousGradient, usernames } = options
+    let { speaker, quote, color, gradient, stretchGradient, style, interpretNewlines, continuousGradient, usernames } = options
 
     if (interpretNewlines) {
         speaker = speaker.replace(/<newline>/g, '\n')
@@ -268,47 +268,468 @@ async function performGeneration(options: SubtitleOptions) {
         return { lines, startIndices }
     }
 
-    const { lines: speakerLines, startIndices: _speakerStartIndices } = wrapText(speaker, speakerEmojis)
-    const { lines: quoteLines, startIndices: _lineStartIndices } = wrapText(quote, quoteEmojis)
+    const { lines: speakerLines, startIndices: speakerStartIndices } = wrapText(speaker, speakerEmojis)
+    const { lines: quoteLines, startIndices: lineStartIndices } = wrapText(quote, quoteEmojis)
 
     const speakerHeight = speakerLines.length * lineHeight
     const height = 50 + speakerHeight + 2 + (quoteLines.length * lineHeight) + padding
 
-    const renderFrame = async (_frameIndex: number): Promise<Canvas> => {
+    const renderFrame = async (frameIndex: number): Promise<Canvas> => {
         const canvas = createCanvas(width, height)
         const ctx = canvas.getContext('2d')
-        // ... (The entire complex rendering logic from the original file)
-        // This is a placeholder for the actual rendering logic which is quite long.
-        ctx.fillStyle = 'black'
-        ctx.fillRect(0, 0, width, height)
-        ctx.fillStyle = 'white'
-        ctx.font = '20px Arial'
-        ctx.fillText('Subtitle generation logic is complex.', 10, 50)
-        ctx.fillText('This is a placeholder render.', 10, 80)
+        logger.debug(`Rendering frame ${yellow(frameIndex + 1)}`)
+        const startTime = performance.now()
+
+        // Create canvas and context for this frame
+        const speakerLineWidths: number[] = []
+
+        // HD2-specific measurements
+        const hd2FontSize = Math.floor(canvas.width * 0.025) // Increased from 0.012 to make text larger
+        const hd2LineHeight = hd2FontSize * 1.6 // Adjusted multiplier for better text spacing
+        const hd2TextPadding = Math.floor(hd2FontSize * 1.2) // Padding relative to font size
+        const hd2SpeakerTextGap = Math.floor(hd2FontSize * 0.75) // Reduced from 1.5 to 0.75 for tighter spacing
+        const hd2BaselineOffset = Math.floor(hd2LineHeight * 0.65) // Adjusted for better vertical alignment
+
+        // Define drawEmoji at the start of renderFrame so it's available everywhere
+        const drawEmoji = (emoji: typeof emojiImages[0], x: number, y: number) => {
+            if ('frames' in emoji && emoji.frames) {
+                const frame = emoji.frames[frameIndex % emoji.frames.length]
+                ctx.drawImage(frame, x, y + (fontSize * 0.1), fontSize, fontSize)
+            } else if ('image' in emoji) {
+                ctx.drawImage(emoji.image!, x, y + (fontSize * 0.1), fontSize, fontSize)
+            }
+        }
+
+        const drawText = (text: string, x: number, y: number, isPing = false, pingId?: string) => {
+            if (isPing) {
+                // Save context state
+                ctx.save()
+
+                const username = usernames[pingId!] || text
+                text = '@' + username
+
+                // Draw background with lighter ping color
+                const textWidth = ctx.measureText(text).width
+                ctx.fillStyle = '#7289DA30' // Discord ping color with 30% opacity
+                const bgPadding = fontSize * 0.2
+                const bgHeight = fontSize * 1.1
+                const bgOffset = 10 // Offset background down by 10px
+                // Round the corners of the background
+                ctx.beginPath()
+                ctx.roundRect(
+                    x - textWidth / 2 - bgPadding,
+                    y + bgOffset - bgPadding / 2,
+                    textWidth + bgPadding * 2,
+                    bgHeight,
+                    bgHeight / 2
+                )
+                ctx.fill()
+
+                // Draw text
+                ctx.fillStyle = '#7289DA'
+                ctx.fillText(text, x, y)
+
+                // Restore context state
+                ctx.restore()
+            } else {
+                ctx.fillText(text, x, y)
+            }
+        }
+
+        const speakerColor = color || '#FFFFFF'
+        const { TRANS_COLORS, RAINBOW_COLORS, ITALIAN_COLORS, FRENCH_COLORS } = SUBTITLE_GRADIENTS
+        const gradientColors = gradient === 'trans' ? TRANS_COLORS
+            : gradient === 'rainbow' ? RAINBOW_COLORS
+            : gradient === 'italian' ? ITALIAN_COLORS
+            : FRENCH_COLORS
+
+        ctx.clearRect(0, 0, width, height)
+        ctx.font = `${fontSize}px ${font}`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'top'
+        ctx.shadowColor = 'black'
+        ctx.shadowBlur = 8
+        let y = 50
+
+        // Helldivers 2 style, completely different from Ace Combat 7 and Project Wingman so handled separately
+        if (style === 'hd2') {
+            // Set up font and measurements
+            ctx.font = `${hd2FontSize}px ${font}`
+            ctx.textBaseline = 'alphabetic'
+            ctx.textAlign = 'left'
+            ctx.shadowBlur = 0 // Remove shadow effect
+
+            // Calculate dimensions
+            const speakerWidth = ctx.measureText(speaker).width
+            const maxBoxWidth = width * 0.8 // Maximum allowed width
+
+            // Word wrap the quote text
+            const wrappedQuoteLines: string[] = []
+            const words = quote.split(' ')
+            let currentLine = ''
+
+            for (const word of words) {
+                const testLine = currentLine ? `${currentLine} ${word}` : word
+                const testWidth = ctx.measureText(testLine).width
+
+                if (testWidth > maxBoxWidth - speakerWidth - hd2SpeakerTextGap - (hd2TextPadding * 2)) {
+                    if (currentLine) {
+                        wrappedQuoteLines.push(currentLine)
+                        currentLine = word
+                    } else {
+                        // If a single word is too long, force it on its own line
+                        wrappedQuoteLines.push(word)
+                        currentLine = ''
+                    }
+                } else {
+                    currentLine = testLine
+                }
+            }
+            if (currentLine) {
+                wrappedQuoteLines.push(currentLine)
+            }
+
+            // Calculate final box dimensions
+            const maxTextWidth = Math.max(...wrappedQuoteLines.map(line => ctx.measureText(line).width))
+            const totalWidth = Math.min(
+                maxBoxWidth,
+                speakerWidth + hd2SpeakerTextGap + maxTextWidth + (hd2TextPadding * 2)
+            )
+
+            // Box height needs to account for multiple lines
+            const boxHeight = hd2LineHeight * (1.2 + (wrappedQuoteLines.length > 1 ? 0.4 * (wrappedQuoteLines.length - 1) : 0)) +
+                (wrappedQuoteLines.length > 1 ? (wrappedQuoteLines.length - 1) * 10 : 0) // Add the extra line spacing to box height
+            const boxWidth = totalWidth
+            const boxX = (canvas.width - boxWidth) / 2
+            const hd2VerticalOffset = canvas.height * 0.6
+            const boxY = hd2VerticalOffset - (boxHeight / 2)
+
+            // Black box
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+            ctx.fillRect(boxX, boxY, boxWidth, boxHeight)
+
+            // Speaker name
+            ctx.fillStyle = gradient === 'none' ? '#FFE81F' : speakerColor
+            const speakerX = boxX + hd2TextPadding
+            const speakerY = boxY + hd2BaselineOffset
+            ctx.fillText(speaker, speakerX, speakerY)
+
+            // Quote text
+            ctx.fillStyle = 'white'
+            const textX = speakerX + speakerWidth + hd2SpeakerTextGap
+            let currentY = speakerY
+
+            for (let i = 0; i < wrappedQuoteLines.length; i++) {
+                const line = wrappedQuoteLines[i]
+                ctx.fillText(line, textX, currentY)
+                currentY += hd2LineHeight * 0.4 + 14 // Added 14 pixels to prevent tall letters from clipping
+            }
+
+            return canvas
+        }
+
+        if (gradient === 'none') {
+            ctx.fillStyle = speakerColor
+            for (let i = 0; i < speakerLines.length; i++) {
+                const line = speakerLines[i]
+                const lineStart = speakerStartIndices[i]
+                const nextLineStart = speakerStartIndices[i + 1] || speaker.length
+
+                const lineEmojis = speakerEmojis.filter(e =>
+                    e.index >= lineStart && e.index < nextLineStart
+                ).sort((a, b) => a.index - b.index)
+
+                const adjustedEmojis = lineEmojis.map(emoji => ({
+                    ...emoji,
+                    relativeIndex: emoji.index - lineStart
+                }))
+
+                // Calculate total width
+                let totalWidth = 0
+                let currentPos = 0
+                const lineText = line
+                for (const emoji of adjustedEmojis) {
+                    const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
+                    totalWidth += ctx.measureText(textBefore).width
+                    if (emoji.type === 'ping') {
+                        const username = usernames[emoji.id!] || emoji.full
+                        totalWidth += ctx.measureText('@' + username).width
+                    } else {
+                        totalWidth += fontSize
+                    }
+                    currentPos = emoji.relativeIndex + emoji.length
+                }
+                totalWidth += ctx.measureText(lineText.substring(currentPos)).width
+                speakerLineWidths.push(totalWidth)
+
+                // Text and emojis
+                const centerX = width / 2
+                let currentX = centerX - totalWidth / 2
+                currentPos = 0
+
+                for (const emoji of adjustedEmojis) {
+                    const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
+                    if (textBefore) {
+                        const textWidth = ctx.measureText(textBefore).width
+                        drawText(textBefore, currentX + textWidth / 2, y)
+                        currentX += textWidth
+                    }
+
+                    if (emoji.type === 'ping') {
+                        const username = usernames[emoji.id!] || emoji.full
+                        const pingWidth = ctx.measureText('@' + username).width
+                        drawText(emoji.full, currentX + pingWidth / 2, y, true, emoji.id)
+                        currentX += pingWidth
+                    } else {
+                        // Existing emoji drawing code
+                        const loadedEmoji = emojiImages.find(e =>
+                            (emoji.id && e.id === emoji.id) ||
+                            (!emoji.id && e.full === emoji.full)
+                        )
+                        if (loadedEmoji) {
+                            drawEmoji(loadedEmoji, currentX, y)
+                        }
+                        currentX += fontSize
+                    }
+                    currentPos = emoji.relativeIndex + emoji.length
+                }
+
+                const remainingText = lineText.substring(currentPos)
+                if (remainingText) {
+                    const textWidth = ctx.measureText(remainingText).width
+                    drawText(remainingText, currentX + textWidth / 2, y)
+                }
+
+                y += lineHeight
+            }
+        } else {
+            // When stretching, we use a smooth CanvasGradient for the best effect.
+            // When not stretching, we use character-by-character coloring to create a repeating pattern.
+            if (stretchGradient) {
+                ctx.textAlign = 'center'
+                const lineMetrics = speakerLines.map(line => ({
+                    line,
+                    width: ctx.measureText(line).width
+                }))
+                const maxLineWidth = Math.max(0, ...lineMetrics.map(m => m.width))
+
+                if (maxLineWidth > 0) {
+                    const x_start = width / 2 - maxLineWidth / 2
+                    const x_end = width / 2 + maxLineWidth / 2
+                    const gradientFill = ctx.createLinearGradient(x_start, 0, x_end, 0)
+
+                    gradientColors.forEach((color, index) => {
+                        const offset = gradientColors.length > 1
+                            ? index / (gradientColors.length - 1)
+                            : 0.5
+                        gradientFill.addColorStop(offset, color)
+                    })
+                    ctx.fillStyle = gradientFill
+                }
+
+                for (const metrics of lineMetrics) {
+                    speakerLineWidths.push(metrics.width)
+                    ctx.fillText(metrics.line, width / 2, y)
+                    y += lineHeight
+                }
+            } else {
+                // Use character-by-character coloring for a repeating (non-stretched) gradient effect.
+                // const totalChars = continuousGradient ? speakerLines.reduce((sum, line) => sum + line.length, 0) : 0 // This isn't actually used
+                let charCount = 0
+
+                for (const line of speakerLines) {
+                    speakerLineWidths.push(ctx.measureText(line).width)
+                    let x = width / 2 - ctx.measureText(line).width / 2
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i]
+                        const position = continuousGradient ? charCount : i
+                        const colorIndex = position % gradientColors.length
+
+                        ctx.fillStyle = gradientColors[colorIndex]
+                        ctx.textAlign = 'left'
+                        const charWidth = ctx.measureText(char).width
+                        ctx.fillText(char, x, y)
+                        x += charWidth
+                        charCount++
+                    }
+                    y += lineHeight
+                }
+                ctx.textAlign = 'center'
+            }
+        }
+
+        if (style === 'acz') {
+            const maxSpeakerLineWidth = speakerLineWidths.length > 0 ? Math.max(...speakerLineWidths) : 0
+            if (maxSpeakerLineWidth > 0) {
+                y += lineHeight / 4
+                const separatorWidth = maxSpeakerLineWidth * 1.2
+                const separatorX = width / 2 - separatorWidth / 2
+                ctx.fillStyle = speakerColor
+                ctx.fillRect(separatorX, y, separatorWidth, 2)
+                y += lineHeight / 2
+            }
+        }
+
+        // Draw quote
+        if (style === 'acz') {
+            ctx.fillStyle = speakerColor
+        } else {
+            ctx.fillStyle = 'white'
+        }
+        y += 2
+
+        for (let i = 0; i < quoteLines.length; i++) {
+            const line = quoteLines[i]
+            const lineStart = lineStartIndices[i]
+            const nextLineStart = lineStartIndices[i + 1] || quote.length
+
+            const lineEmojis = quoteEmojis.filter(e =>
+                e.index >= lineStart && e.index < nextLineStart
+            ).sort((a, b) => a.index - b.index)
+
+            // Adjust emoji indices relative to line start
+            const adjustedEmojis = lineEmojis.map(emoji => ({
+                ...emoji,
+                relativeIndex: emoji.index - lineStart
+            }))
+
+            // Calculate line width including emojis
+            let totalWidth = 0
+            let currentPos = 0
+            const lineText = line
+
+            // Pre-calculate total width with emoji replacements
+            for (const emoji of adjustedEmojis) {
+                const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
+                if (emoji.type === 'ping') {
+                    const username = usernames[emoji.id!] || emoji.full
+                    totalWidth += ctx.measureText(textBefore).width
+                    totalWidth += ctx.measureText('@' + username).width
+                } else {
+                    totalWidth += ctx.measureText(textBefore).width + fontSize
+                }
+                currentPos = emoji.relativeIndex + emoji.length
+            }
+            totalWidth += ctx.measureText(lineText.substring(currentPos)).width
+
+            // Center alignment calculations
+            const centerX = width / 2
+            let currentX = centerX - totalWidth / 2
+
+            // Ace Combat 7/Zero specific opening arrows
+            if ((style === 'ac7' || style === 'acz') && i === 0) {
+                ctx.save()
+                ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[0] : gradientColors[0])
+                ctx.fillText('<<', currentX - 40, y)
+                ctx.restore()
+            }
+
+            // Reset for actual drawing
+            currentPos = 0
+            for (const emoji of adjustedEmojis) {
+                const textBefore = lineText.substring(currentPos, emoji.relativeIndex)
+                if (textBefore) {
+                    const textWidth = ctx.measureText(textBefore).width
+                    drawText(textBefore, currentX + textWidth / 2, y)
+                    currentX += textWidth
+                }
+
+                if (emoji.type === 'ping') {
+                    const username = usernames[emoji.id!] || emoji.full
+                    const pingWidth = ctx.measureText('@' + username).width
+                    drawText(emoji.full, currentX + pingWidth / 2, y, true, emoji.id)
+                    currentX += pingWidth
+                } else {
+                    // Find and draw the loaded emoji image
+                    const loadedEmoji = emojiImages.find(e =>
+                        // For Discord emojis, match by ID
+                        (emoji.id && e.id === emoji.id) ||
+                        // For Twemojis, match by full text
+                        (!emoji.id && e.full === emoji.full)
+                    )
+                    if (loadedEmoji) {
+                        drawEmoji(loadedEmoji, currentX, y)
+                    }
+                    currentX += fontSize
+                }
+                currentPos = emoji.relativeIndex + emoji.length
+            }
+
+            // Draw remaining text
+            const remainingText = lineText.substring(currentPos)
+            if (remainingText) {
+                const textWidth = ctx.measureText(remainingText).width
+                drawText(remainingText, currentX + textWidth / 2, y)
+                currentX += textWidth
+            }
+
+            // Surprise, we need closing arrows too
+            if ((style === 'ac7' || style === 'acz') && i === quoteLines.length - 1) {
+                ctx.save()
+                ctx.fillStyle = gradient === 'none' ? speakerColor : (stretchGradient ? gradientColors[gradientColors.length - 1] : gradientColors[0])
+                ctx.fillText('>>', currentX + 40, y)
+                ctx.restore()
+            }
+
+            y += lineHeight
+        }
+
+        const endTime = performance.now()
+        logger.debug(`Frame ${yellow(frameIndex + 1)} rendered in ${yellow((endTime - startTime).toFixed(2))}ms\n`)
         return canvas
     }
 
     if (hasAnimatedEmojis) {
-        const animatedEmojis = emojiImages.filter((e): e is typeof e & { frames: any[], framerate?: number } => 'frames' in e && e.frames.length > 0)
-        let targetFramerate = 20
-        if (new Set(animatedEmojis.map(e => e.id)).size === 1) {
-            targetFramerate = animatedEmojis[0].framerate ?? 20
+        // Find all unique animated emojis
+        const animatedEmojis = emojiImages.filter((e): e is typeof e & { frames: any[], frameDelays: number[], framerate?: number } => 'frames' in e && e.frames && e.frames.length > 0 && 'frameDelays' in e)
+        const uniqueAnimatedIds = new Set(animatedEmojis.map(e => e.id))
+
+        // If there's only one unique animated emoji, use its framerate
+        let targetFramerate = 20 // default
+        if (uniqueAnimatedIds.size === 1) {
+            const firstAnimatedEmoji = animatedEmojis[0]
+            targetFramerate = firstAnimatedEmoji.frameDelays ?
+                Math.round(1000 / firstAnimatedEmoji.frameDelays[0]) : 20
         }
+
         const maxFrames = Math.max(...animatedEmojis.map(e => e.frames.length))
+        logger.debug(`Creating animated image with ${yellow(maxFrames)} frames at ${yellow(targetFramerate)}fps\n`)
+
         const tmpDir = await createTempDir()
+        const outputPath = path.join(tmpDir, 'output.gif')
+
         try {
+            // Render frames to PNG files
             for (let i = 0; i < maxFrames; i++) {
                 const canvas = await renderFrame(i)
-                await fs.writeFile(path.join(tmpDir, `frame-${i + 1}.png`), new Uint8Array(canvas.toBuffer()))
+                const framePath = path.join(tmpDir, `frame-${i + 1}.png`)
+                await fs.writeFile(framePath, new Uint8Array(canvas.toBuffer()))
+
+                if (i % 10 === 0) {
+                    const progress = ((i + 1) / maxFrames * 100).toFixed(1)
+                    logger.debug(`Frame progress: ${progress}% (${i + 1}/${maxFrames})`)
+                }
             }
-            const buffer = await ffmpegCreateGif(tmpDir, path.join(tmpDir, 'output.gif'), targetFramerate)
-            return { buffer, type: 'image/gif' as 'image/gif' }
+
+            // Create GIF using FFmpeg with detected framerate
+            logger.debug(`Creating GIF with FFmpeg at ${yellow(targetFramerate)}fps...`)
+            const buffer = await ffmpegCreateGif(tmpDir, outputPath, targetFramerate)
+            logger.debug(`GIF generation complete. Final size: ${yellow((buffer.length / 1024).toFixed(2))}KB\n`)
+
+            return {
+                buffer,
+                type: 'image/gif'
+            }
         } finally {
             await cleanupTempDir(tmpDir)
         }
     } else {
+        logger.debug('Generating static image')
         const canvas = await renderFrame(0)
-        return { buffer: canvas.toBuffer(), type: 'image/png' as 'image/png' }
+        return {
+            buffer: canvas.toBuffer(),
+            type: 'image/png'
+        }
     }
 }
 
