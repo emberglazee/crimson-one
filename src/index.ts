@@ -1,9 +1,23 @@
-import 'reflect-metadata' // Guardian might get skipped so import it here too just in case
+import 'reflect-metadata'
 import { container } from 'tsyringe'
 import { Logger, MessageTrigger } from './modules'
+import { stat } from 'fs/promises'
 import { yellow, red } from './util/colors'
+
 const logger = new Logger()
-logger.info('Starting bot')
+
+if (!await stat('./data/.initialized').catch(() => false)) {
+    logger.info('First-time setup detected, running initialization...')
+    const envExists = await stat('./.env').catch(() => false)
+    await import('./init')
+    if (!envExists) {
+        logger.info('Initialization complete, please fill out (or double check) the ./.env file and restart the bot.')
+        process.exit(1)
+    }
+    logger.ok('Initialization complete, proceeding with existing ./.env file.')
+}
+
+logger.info('Starting the bot...')
 
 import {
     SubtitleThreadManager, GracefulShutdown, TagManager, DashboardServer, CrimsonChat,
@@ -52,7 +66,7 @@ const [
 )
 
 client.once('clientReady', async () => {
-    logger.info(`Logged in as ${yellow(client.user.tag)}`)
+    logger.info(`Logged in as ${yellow(client.user.tag)}.`)
     client.user.setStatus('dnd')
 
     gracefulShutdown.registerShutdownHandlers()
@@ -97,7 +111,7 @@ client.once('clientReady', async () => {
         }
     }
 
-    logger.ok('Commands initialized, bot ready')
+    logger.ok('Commands initialized, bot ready.')
     client.user.setStatus('online')
     if (typeof process.send === 'function') {
         process.send({ type: 'READY' })

@@ -1,9 +1,16 @@
-# Custom
+# <custom>
 
-data/chat_history.json
-data/memories.json
-data/shapesinc-cookies.txt
-target/
+data/.initialized
+data/message_triggers.ts
+data/crimsonchat_state.toon
+data/timed-banishments.json
+
+crimson_markov/target
+crimson_markov.dll
+crimson_markov.so
+crimson_markov.dylib
+
+# </custom>
 
 # Based on https://raw.githubusercontent.com/github/gitignore/main/Node.gitignore
 
@@ -180,12 +187,3 @@ dist
 
 # Finder (MacOS) folder config
 .DS_Store
-
-# Rust
-/crimson_markov/target/
-*.rs.bk
-crimson_markov.dll
-crimson_markov.so
-crimson_markov.dylib
-.gemini/
-gha-creds-*.json
