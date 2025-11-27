@@ -139,7 +139,5 @@ async function handleCrash(crashedCommit: string) {
     }
 }
 
-(async () => {
-    lastKnownGoodCommit = await getCommitHash()
-    await startBot()
-})()
+lastKnownGoodCommit = await getCommitHash()
+await startBot()
