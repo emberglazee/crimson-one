@@ -6,6 +6,7 @@ import { parseMentions } from '../modules/CrimsonChat/util/formatters'
 import { create, all, type MathJsInstance } from 'mathjs'
 import { toFeetInches } from '../util/functions'
 import util from 'util'
+import { QOTD_ANSWERS_CHANNEL_ID, QOTD_CHANNEL_ID, QOTD_ROLE_ID, SOLITARY_CONFINEMENT_GUILD_ID } from '../util/constants'
 
 
 interface MessageCreateServices {
@@ -14,6 +15,42 @@ interface MessageCreateServices {
     commandManager: CommandManager
     crimsonChat: CrimsonChat
     messageTrigger: MessageTrigger
+}
+
+async function handleQOTD(message: Message, { crimsonChat }: Pick<MessageCreateServices, 'crimsonChat'>): Promise<void> {
+    if (message.guildId !== SOLITARY_CONFINEMENT_GUILD_ID || message.channelId !== QOTD_CHANNEL_ID) {
+        return
+    }
+
+    if (!message.mentions.roles.has(QOTD_ROLE_ID)) {
+        return
+    }
+
+    const botMember = message.guild?.members.me
+    if (!botMember?.roles.cache.has(QOTD_ROLE_ID)) {
+        return
+    }
+
+    const answersChannel = await message.client.channels.fetch(QOTD_ANSWERS_CHANNEL_ID).catch(() => null) as TextChannel | null
+    if (!answersChannel) {
+        logger.warn(`QOTD answers channel with ID ${QOTD_ANSWERS_CHANNEL_ID} not found.`)
+        return
+    }
+
+    const forwardedMessage = await answersChannel.send({
+        content: `> ${message.author.toString()} in ${message.channel.toString()} asked:\n${message.content}`,
+        allowedMentions: { users: [] }
+    })
+
+    crimsonChat.sendMessage(message.content, {
+        messageContent: message.content,
+        username: message.author.username,
+        displayName: message.member?.displayName ?? message.author.displayName,
+        serverDisplayName: message.member?.displayName ?? message.author.displayName,
+        guildName: message.guild?.name,
+        channelName: answersChannel.name,
+        targetChannel: answersChannel
+    }, forwardedMessage)
 }
 
 async function handleMathCommand(message: Message, math: MathJsInstance): Promise<void> {
@@ -229,6 +266,9 @@ export default async function onMessageCreate(client: Client<true>, services: Me
                 }
                 return
             }
+
+            // QOTD
+            await handleQOTD(message, { crimsonChat })
 
             // Message Triggers
             if (guildConfig.messageTrigger) {
