@@ -277,23 +277,52 @@ fn ids_to_string(chain: &MarkovChain, result_ids: &[u32]) -> String {
             .unwrap_or(Cow::Borrowed(""))
     };
 
-    let punctuation: &[char] = &[
-        '.', ',', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '{', '}',
-    ];
+    let right_sticky_punctuation: &[char] = &['.', ',', '!', '?', ';', ':', ')', ']', '}'];
+    let left_sticky_punctuation: &[char] = &['(', '[', '{', '$'];
+    let bi_directional_punctuation: &[char] = &['\'', '"'];
 
-    let mut tokens_iter = result_ids.iter().map(|&id| get_word_str(id));
+    let tokens: Vec<_> = result_ids.iter().map(|&id| get_word_str(id)).collect();
 
-    if let Some(first_token) = tokens_iter.next() {
-        result.push_str(&first_token);
-        for token in tokens_iter {
-            if let Some(first_char) = token.chars().next() {
-                if !punctuation.contains(&first_char) {
-                    result.push(' ');
+    if let Some(first_token) = tokens.first() {
+        result.push_str(first_token);
+
+        for i in 1..tokens.len() {
+            let prev_token = &tokens[i - 1];
+            let current_token = &tokens[i];
+
+            let mut add_space = true;
+
+            // Rule 1: No space if previous token ends with left-sticky punctuation.
+            if let Some(c) = prev_token.chars().last() {
+                if left_sticky_punctuation.contains(&c) || bi_directional_punctuation.contains(&c) {
+                    add_space = false;
                 }
-            } else {
+            }
+
+            // Rule 2: No space if current token starts with right-sticky punctuation.
+            if let Some(c) = current_token.chars().next() {
+                if right_sticky_punctuation.contains(&c) || bi_directional_punctuation.contains(&c) {
+                    add_space = false;
+                }
+            }
+            
+            // Rule 3: Override for specific cases. Add a space if a word follows a right-sticky punctuation.
+            // This allows for sentences like "Hello. World" instead of "Hello.World".
+            if let (Some(prev_last), Some(curr_first)) = (prev_token.chars().last(), current_token.chars().next()) {
+                if (right_sticky_punctuation.contains(&prev_last) || bi_directional_punctuation.contains(&prev_last)) && curr_first.is_alphanumeric() {
+                    add_space = true;
+                }
+                 // Rule 4: Prevent space between two bi-directional punctuations (e.g., empty quotes "").
+                if bi_directional_punctuation.contains(&prev_last) && bi_directional_punctuation.contains(&curr_first) {
+                    add_space = false;
+                }
+            }
+
+
+            if add_space {
                 result.push(' ');
             }
-            result.push_str(&token);
+            result.push_str(current_token);
         }
     }
 
