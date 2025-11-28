@@ -193,10 +193,10 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
                 .addFields(
                     {
                         name: 'Time taken (average)',
-                        value: `**Database:** \`${result[0].timings.db_query_ms.toFixed(0)}ms\`\n` +
-                               `**Training:** \`${result[0].timings.training_ms.toFixed(0)}ms\`\n` +
-                               `**Generation:** \`${(totalGenerationMs / result.length).toFixed(0)}ms/msg\`\n` +
-                               `**Total:** \`${totalTime.toFixed(0)}ms\``,
+                        value: `**Database:** \`${result[0].timings.db_query_ms.toFixed(2)}ms\`\n` +
+                               `**Training:** \`${result[0].timings.training_ms.toFixed(2)}ms\`\n` +
+                               `**Generation:** \`${(totalGenerationMs / result.length).toFixed(2)}ms/msg\`\n` +
+                               `**Total:** \`${totalTime.toFixed(2)}ms\``,
                         inline: true
                     },
                     {
@@ -246,10 +246,10 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
                 .addFields(
                     {
                         name: 'Time taken',
-                        value: `**Database:** \`${timings.db_query_ms.toFixed(0)}ms\`\n` +
-                               `**Training:** \`${timings.training_ms.toFixed(0)}ms\`\n` +
-                               `**Generation:** \`${timings.generation_ms.toFixed(0)}ms\`\n` +
-                               `**Total:** \`${totalTime.toFixed(0)}ms\``,
+                        value: `**Database:** \`${timings.db_query_ms.toFixed(2)}ms\`\n` +
+                               `**Training:** \`${timings.training_ms.toFixed(2)}ms\`\n` +
+                               `**Generation:** \`${timings.generation_ms.toFixed(2)}ms\`\n` +
+                               `**Total:** \`${totalTime.toFixed(2)}ms\``,
                         inline: true
                     },
                     {
@@ -887,9 +887,9 @@ export default {
                             .addFields(
                                 {
                                     name: 'Generation Timings (average)',
-                                    value: `Training: \`${result[0].timings.training_ms.toFixed(0)}ms\`\n` +
-                                           `Generation: \`${(totalGenerationMs / result.length).toFixed(0)}ms/msg\`\n` +
-                                           `**Total: \`${totalTime.toFixed(0)}ms\`**`,
+                                    value: `Training: \`${result[0].timings.training_ms.toFixed(2)}ms\`\n` +
+                                           `Generation: \`${(totalGenerationMs / result.length).toFixed(2)}ms/msg\`\n` +
+                                           `**Total: \`${totalTime.toFixed(2)}ms\`**`,
                                     inline: true
                                 },
                                 {

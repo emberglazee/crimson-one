@@ -305,7 +305,7 @@ fn ids_to_string(chain: &MarkovChain, result_ids: &[u32]) -> String {
                     add_space = false;
                 }
             }
-            
+
             // Rule 3: Override for specific cases. Add a space if a word follows a right-sticky punctuation.
             // This allows for sentences like "Hello. World" instead of "Hello.World".
             if let (Some(prev_last), Some(curr_first)) = (prev_token.chars().last(), current_token.chars().next()) {
@@ -627,7 +627,7 @@ pub extern "C" fn generate_text(
         };
 
         if !result_str.is_empty() {
-            let generation_ms = start_time.elapsed().as_micros() as f64 / 1_000.0;
+            let generation_ms = start_time.elapsed().as_nanos() as f64 / 1_000_000.0;
             results.push(GenerationResult {
                 text: result_str,
                 timings: Timings {
