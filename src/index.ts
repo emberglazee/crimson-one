@@ -21,7 +21,7 @@ logger.info('Starting the bot...')
 
 import {
     SubtitleThreadManager, GracefulShutdown, TagManager, DashboardServer, CrimsonChat,
-    GuildConfigManager, GithubWebhookManager, CommandManager, BanishmentManager, SleepAsAndroidWebhookManager, LongTermMemoryManager
+    GuildConfigManager, GithubWebhookManager, CommandManager, BanishmentManager, SleepAsAndroidWebhookManager, LongTermMemoryManager, AntiRaidManager
 } from './modules'
 
 import { readdir } from 'fs/promises'
@@ -60,9 +60,9 @@ container.register<Client>('Client', { useValue: client })
 
 // Resolve all services from the container
 const [
-    commandManager, gracefulShutdown, dashboardServer, guildConfigManager, banishmentManager, tagManager, crimsonChat, githubWebhookManager, subtitleThreadManager, messageTrigger, sleepAsAndroidWebhookManager, longTermMemoryManager
+    commandManager, gracefulShutdown, dashboardServer, guildConfigManager, banishmentManager, tagManager, crimsonChat, githubWebhookManager, subtitleThreadManager, messageTrigger, sleepAsAndroidWebhookManager, longTermMemoryManager, antiRaidManager
 ] = resolveServices(container,
-    CommandManager, GracefulShutdown, DashboardServer, GuildConfigManager, BanishmentManager, TagManager, CrimsonChat, GithubWebhookManager, SubtitleThreadManager, MessageTrigger, SleepAsAndroidWebhookManager, LongTermMemoryManager
+    CommandManager, GracefulShutdown, DashboardServer, GuildConfigManager, BanishmentManager, TagManager, CrimsonChat, GithubWebhookManager, SubtitleThreadManager, MessageTrigger, SleepAsAndroidWebhookManager, LongTermMemoryManager, AntiRaidManager
 )
 
 client.once('clientReady', async () => {
@@ -79,6 +79,7 @@ client.once('clientReady', async () => {
     await tagManager.init()
     await crimsonChat.init()
     await longTermMemoryManager.init()
+    await antiRaidManager.init()
 
     const webhook = githubWebhookManager
         .setWebhookOptions({
@@ -99,7 +100,7 @@ client.once('clientReady', async () => {
     for (const file of eventFiles) {
         const event = await import(path.join(__dirname, `events/${file}`)) as DiscordEventListener
         if (file === 'messageCreate.ts') {
-            event.default(client, { tagManager, guildConfigManager, commandManager, crimsonChat, messageTrigger })
+            event.default(client, { tagManager, guildConfigManager, commandManager, crimsonChat, messageTrigger, antiRaidManager })
         } else if (file === 'interactionCreate.ts') {
             event.default(client, commandManager)
         } else if (file === 'messageDelete.ts') {

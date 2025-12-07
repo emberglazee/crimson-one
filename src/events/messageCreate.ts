@@ -1,12 +1,13 @@
-import { Logger, TagManager, GuildConfigManager, CommandManager, CrimsonChat, MessageTrigger } from '../modules'
+import { Logger, TagManager, GuildConfigManager, CommandManager, CrimsonChat, MessageTrigger, AntiRaidManager } from '../modules'
 const logger = new Logger('event.messageCreate')
-import { type Client, TextChannel, Message } from 'discord.js'
+import { type Client, TextChannel, Message, ChannelType } from 'discord.js'
 import { normalizeUrl } from '../modules/CrimsonChat/util/url-utils'
 import { parseMentions } from '../modules/CrimsonChat/util/formatters'
 import { create, all, type MathJsInstance } from 'mathjs'
 import { toFeetInches } from '../util/functions'
 import util from 'util'
 import { QOTD_ANSWERS_CHANNEL_ID, QOTD_CHANNEL_ID, QOTD_ROLE_ID, SOLITARY_CONFINEMENT_GUILD_ID } from '../util/constants'
+import { red, yellow } from '../util/colors'
 
 
 interface MessageCreateServices {
@@ -15,6 +16,7 @@ interface MessageCreateServices {
     commandManager: CommandManager
     crimsonChat: CrimsonChat
     messageTrigger: MessageTrigger
+    antiRaidManager: AntiRaidManager
 }
 
 async function handleQOTD(message: Message, { crimsonChat }: Pick<MessageCreateServices, 'crimsonChat'>): Promise<void> {
@@ -234,7 +236,7 @@ async function handleCrimsonChat(message: Message, { crimsonChat }: Pick<Message
 }
 
 export default async function onMessageCreate(client: Client<true>, services: MessageCreateServices) {
-    const { tagManager, guildConfigManager, commandManager, crimsonChat, messageTrigger } = services
+    const { tagManager, guildConfigManager, commandManager, crimsonChat, messageTrigger, antiRaidManager } = services
 
     const math = create(all)
     math.createUnit({
@@ -248,6 +250,23 @@ export default async function onMessageCreate(client: Client<true>, services: Me
     client.on('messageCreate', async message => {
         try {
             if (message.author.bot) return
+
+            // Anti-raid check
+            await antiRaidManager.checkMessage(message)
+
+            // Honeypot channel
+            if (message.channel.type === ChannelType.GuildText && message.channel.name === 'honeypot') {
+                try {
+                    await message.member?.ban({
+                        reason: 'Automatic ban: Posted in honeypot channel.',
+                        deleteMessageSeconds: 60 * 60 * 24 * 7 // 7 days
+                    })
+                    logger.warn(`Banned user ${yellow(message.author.tag)} (${message.author.id}) for posting in the honeypot channel.`)
+                } catch (error) {
+                    logger.error(`Failed to ban user ${yellow(message.author.tag)} from honeypot channel: ${red(error instanceof Error ? error.message : String(error))}`)
+                }
+                return // Stop further processing
+            }
 
             const guildConfig = await guildConfigManager.getConfig(message.guild?.id)
 
