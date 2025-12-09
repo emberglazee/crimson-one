@@ -234,18 +234,16 @@ export class CrimsonChat extends EventEmitter<{
             const initialUserMessage: ModelMessage = { role: 'user', content: contentParts }
             const messages: ModelMessage[] = [...state.history.map(({ usage: _usage, ...rest }) => rest), initialUserMessage]
 
-            let lastResponseText: string | null = null
-            let lastUsage: { inputTokens?: number, outputTokens?: number } | null = null
-            let toolCalls: ParsedToolCall[] = []
-            let normalText: string | null = null
-            const MAX_RETRIES = 3
+            let finalResponseText: string | null = null
+            let finalUsage: { inputTokens?: number, outputTokens?: number } | null = null
+            let finalToolCalls: ParsedToolCall[] = []
+            let finalNormalText: string | null = null
+            const MAX_TOOL_RETRY = 3 // Maximum retries for invalid tool calls
 
-            for (let i = 0; i < MAX_RETRIES; i++) {
+            for (let i = 0; i < MAX_TOOL_RETRY; i++) {
                 try {
-                    const timeoutPromise = new Promise<never>((_, reject) =>
-                        setTimeout(() => reject(new Error('Assistant response timed out')), ASSISTANT_RESPONSE_TIMEOUT_MS)
-                    )
-
+                    const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Assistant response timed out')), ASSISTANT_RESPONSE_TIMEOUT_MS))
+ 
                     const result = await Promise.race([
                         generateText({
                             model: this.voidai(this.state.modelName),
@@ -257,66 +255,73 @@ export class CrimsonChat extends EventEmitter<{
                         }),
                         timeoutPromise
                     ])
-
+ 
                     if (!result) {
-                        logger.warn('generateText returned null or was rejected.')
-                        if (i === MAX_RETRIES - 1) return null
+                        logger.warn(`generateText returned null or was rejected. Retry attempt ${i + 1}/${MAX_TOOL_RETRY}.`)
+                        if (i === MAX_TOOL_RETRY - 1) return null
                         continue
                     }
-                    lastResponseText = result.text
-                    lastUsage = result.usage
-                    const parsedResponse = parseAIResponse(lastResponseText)
-                    toolCalls = parsedResponse.toolCalls
-                    normalText = parsedResponse.normalText
-                    const invalidToolCall = toolCalls.find((call: ParsedToolCall) => !this.toolRegistry.tools.has(call.toolName))
-
+ 
+                    const parsedResponse = parseAIResponse(result.text)
+                    const invalidToolCall = parsedResponse.toolCalls.find((call: ParsedToolCall) => !this.toolRegistry.tools.has(call.toolName))
+ 
                     if (invalidToolCall) {
-                        logger.warn(`Model attempted to call an invalid tool: "${invalidToolCall.toolName}". Retrying... (${i + 1}/${MAX_RETRIES})`)
-
+                        logger.warn(`Model attempted to call an invalid tool: "${invalidToolCall.toolName}". Retrying... (${i + 1}/${MAX_TOOL_RETRY})`)
                         const toolList = this._getToolDefinitionsPrompt()
+                        // Respond to the model in the chat history with the available tools, asking it to correct itself.
+                        // This correction message is treated as a user message to guide the model.
+                        // It's crucial this is a 'user' role message to ensure the model sees it as new instruction.
+                        // The previous assistant response (which contained the invalid tool call) is also added
+                        // to the history so the model can see its mistake.
+                        // The system prompt should already instruct the model not to hallucinate, but this provides explicit feedback.
                         const correctionMessage: ModelMessage = {
                             role: 'user',
-                            content: `Invalid tool call detected: "${invalidToolCall.toolName}". This tool does not exist. Please choose from the available tools:\n${toolList}`
+                            content: `Your previous response attempted to use a non-existent tool: "${invalidToolCall.toolName}". You can only use tools from the following list. Please adjust your response or proceed without a tool if no available tool fits your purpose. Only respond with valid tools or plain text.\n\n${toolList}`
                         }
-                        messages.push({ role: 'assistant', content: lastResponseText }) // Add the failed response to history
-                        messages.push(correctionMessage) // Add the correction
+                        messages.push({ role: 'assistant', content: result.text }) // Add the failed response to history
+                        messages.push(correctionMessage) // Add the correction for the next retry
                         continue // Retry the loop
                     }
-
-                    // If all tool calls are valid, or there are no tool calls, break the loop
+                    
+                    // If all tool calls are valid, or there are no tool calls, store results and break
+                    finalResponseText = result.text
+                    finalUsage = result.usage
+                    finalToolCalls = parsedResponse.toolCalls
+                    finalNormalText = parsedResponse.normalText
                     break
-
+ 
                 } catch (e) {
                     const error = e as Error
-                    if (error.message === 'Assistant response timed out') {
+                    if (error.message.includes('Assistant response timed out')) {
                         logger.warn(`Assistant response timed out after ${ASSISTANT_RESPONSE_TIMEOUT_MS / 1000} seconds. Ignoring response.`)
                         return null
                     }
                     logger.warn(`Error processing message: ${red(error.stack ?? error.message)}`)
-                    return null
+                    if (i === MAX_TOOL_RETRY - 1) return null // If last retry failed, propagate error
+                    continue
                 }
             }
 
-            if (!lastResponseText || !lastUsage) {
-                logger.error('Failed to get a valid response from the model after multiple retries.')
+            if (!finalResponseText || !finalUsage) {
+                logger.error('Failed to get a valid response from the model after multiple tool call retries.')
                 return null
             }
+
             // Execute tools if any are found
-            if (toolCalls.length > 0) {
-                await this._executeToolCalls(toolCalls, targetChannel, lastMessage.originalMessage)
+            if (finalToolCalls.length > 0) {
+                await this._executeToolCalls(finalToolCalls, targetChannel, lastMessage.originalMessage)
             }
 
-            const assistantResponse = normalText || stripToolCalls(lastResponseText)
+            const assistantResponse = finalNormalText || stripToolCalls(finalResponseText)
 
             // Add messages to short-term history
             const newMessages: ModelMessage[] = [initialUserMessage]
             if (assistantResponse) {
                 newMessages.push({ role: 'assistant', content: assistantResponse })
             }
-
             await this.state.addMessages(newMessages, {
-                promptTokens: lastUsage.inputTokens!,
-                completionTokens: lastUsage.outputTokens!
+                promptTokens: finalUsage.inputTokens!,
+                completionTokens: finalUsage.outputTokens!
             })
 
             // Reflect and potentially add to long-term memory
@@ -609,13 +614,13 @@ export class CrimsonChat extends EventEmitter<{
     private _getToolDefinitionsPrompt(): string {
         const tools = this.toolRegistry.tools
         if (tools.size === 0) {
-            return ''
+            return 'No tools are currently available.'
         }
         const toolDefinitions = Array.from(tools.values()).map(tool => {
-            const params = tool.parameters.map(p => `    <${p.name}>${p.description}</${p.name}>`).join('\n')
-            return `<tool>\n  <name>${tool.name}</name>\n  <description>${tool.description}</description>\n  <parameters>\n${params}\n  </parameters>\n</tool>`
+            const params = tool.parameters.map(p => `    - \`${p.name}\` (type: ${p.type}, required: ${p.required ? 'yes' : 'no'}): ${p.description}`).join('\n')
+            return `**Tool:** \`${tool.name}\`\n  **Description:** ${tool.description}\n  **Parameters:**\n${params}`
         }).join('\n\n')
 
-        return toolDefinitions
+        return `## Available Tools:\n${toolDefinitions}`
     }
 }

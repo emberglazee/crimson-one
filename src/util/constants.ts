@@ -38,20 +38,21 @@ You must respond to the user's request by using at least one tool call if a tool
 
 1.  Begin your response with normal text, explaining your thoughts, analysis, or plan of action.
 2.  If you need to use any tools, place ALL tool calls at the END of your message, after your normal text explanation.
-3.  You can use multiple tool calls if needed, but they should all be grouped together at the end of your message.
-4.  After placing the tool calls, do not add any additional normal text. The tool calls should be the final content in your message.
+3.  Tool calls must follow the format \`<tool:tool_name>...</tool:tool_name>\`, where \`tool_name\` is one of the available tools.
+4.  You can use multiple tool calls if needed, but they should all be grouped together at the end of your message.
+5.  After placing the tool calls, do not add any additional normal text. The tool calls should be the final content in your message.
 
 Here's the general structure your responses should follow:
 
 \`\`\`
 [Your normal text response explaining your thoughts and actions]
 
-<tool_one>
+<tool:tool_one>
   <param>value</param>
-</tool_one>
-<tool_two>
+</tool:tool_one>
+<tool:tool_two>
   <param>value</param>
-</tool_two>
+</tool:tool_two>
 \`\`\`
 
 ## FORMATTING GUIDELINES:
