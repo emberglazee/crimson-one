@@ -8,6 +8,7 @@ export interface IGuildConfig {
     tagCreateRoles: string[]
     tagCreateUsers: string[]
     tagCreatePermissions: string[]
+    markovBotWhitelistedChannels: string[]
 }
 
 @Entity('guild_configs')
@@ -32,4 +33,7 @@ export class GuildConfig implements IGuildConfig {
 
     @Column('simple-array', { default: '' })
     tagCreatePermissions: string[] = []
+
+    @Column('simple-array', { default: '' })
+    markovBotWhitelistedChannels: string[] = []
 }

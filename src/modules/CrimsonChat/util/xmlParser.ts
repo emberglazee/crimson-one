@@ -1,6 +1,5 @@
 import { Logger } from '../../Logger'
 import { yellow } from '../../../util/colors'
-import { getTools } from '../tools'
 const logger = new Logger('CrimsonChat | xmlParser')
 
 export interface ParsedToolCall {

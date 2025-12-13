@@ -52,6 +52,21 @@ export default {
                 .setName('status')
                 .setDescription('Get the current tag system configuration')
             )
+        ).addSubcommandGroup(group => group
+            .setName('markovbot')
+            .setDescription('Configure the markov bot')
+            .addSubcommand(subcommand => subcommand
+                .setName('whitelist_add')
+                .setDescription('Add a channel to the markov bot whitelist.')
+                .addChannelOption(option => option.setName('channel').setDescription('The channel to add to the whitelist.').setRequired(true))
+            ).addSubcommand(subcommand => subcommand
+                .setName('whitelist_remove')
+                .setDescription('Remove a channel from the markov bot whitelist.')
+                .addChannelOption(option => option.setName('channel').setDescription('The channel to remove from the whitelist.').setRequired(true))
+            ).addSubcommand(subcommand => subcommand
+                .setName('whitelist_list')
+                .setDescription('List the channels on the markov bot whitelist.')
+            )
         ).setContexts(InteractionContextType.Guild)
         .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild),
     async execute(ctx: CommandContext<true>) {
@@ -88,8 +103,9 @@ export default {
             const guildConfig = await guildConfigManager.getConfig(guildId)
             await ctx.editReply(
                 `Current configuration for **${ctx.guild.name}**:\n` +
-                `- Prefix: ${guildConfig.prefix}` +
-                `- Message trigger: ${boolToEmoji(guildConfig.messageTrigger)}`
+                `- Prefix: ${guildConfig.prefix}\n` +
+                `- Message trigger: ${boolToEmoji(guildConfig.messageTrigger)}\n` +
+                `- Markov bot whitelisted channels: ${guildConfig.markovBotWhitelistedChannels.length > 0 ? guildConfig.markovBotWhitelistedChannels.map(id => `<#${id}>`).join(', ') : 'None'}`
             )
 
         }
@@ -214,6 +230,44 @@ export default {
                         `  - Roles: ${tagCreateRoles.length > 0 ? tagCreateRoles.map(id => `<@&${id}>`).join(', ') : 'None'}\n` +
                         `  - Users: ${tagCreateUsers.length > 0 ? tagCreateUsers.map(id => `<@${id}>`).join(', ') : 'None'}`
                     await ctx.editReply(dontPing(status))
+                    break
+                }
+            }
+        }
+        if (subcommandGroup === 'markovbot') {
+            const markovBotSubcommand = ctx.getSubcommand(true)
+            const guildConfig = await guildConfigManager.getConfig(guildId)
+
+            switch (markovBotSubcommand) {
+                case 'whitelist_add': {
+                    const channel = await ctx.getChannelOption('channel', true)
+                    if (!guildConfig.markovBotWhitelistedChannels.includes(channel.id)) {
+                        guildConfig.markovBotWhitelistedChannels.push(channel.id)
+                        await guildConfigManager.setConfig(guildId, guildConfig)
+                        await ctx.editReply(`✅ Channel ${channel} has been added to the Markov bot whitelist.`)
+                    } else {
+                        await ctx.editReply(`❌ Channel ${channel} is already on the whitelist.`)
+                    }
+                    break
+                }
+                case 'whitelist_remove': {
+                    const channel = await ctx.getChannelOption('channel', true)
+                    const index = guildConfig.markovBotWhitelistedChannels.indexOf(channel.id)
+                    if (index > -1) {
+                        guildConfig.markovBotWhitelistedChannels.splice(index, 1)
+                        await guildConfigManager.setConfig(guildId, guildConfig)
+                        await ctx.editReply(`✅ Channel ${channel} has been removed from the Markov bot whitelist.`)
+                    } else {
+                        await ctx.editReply(`❌ Channel ${channel} is not on the whitelist.`)
+                    }
+                    break
+                }
+                case 'whitelist_list': {
+                    const { markovBotWhitelistedChannels } = guildConfig
+                    const list = markovBotWhitelistedChannels.length > 0
+                        ? markovBotWhitelistedChannels.map(id => `<#${id}>`).join('\n')
+                        : 'No channels are whitelisted.'
+                    await ctx.editReply(`**Markov Bot Whitelisted Channels:**\n${list}`)
                     break
                 }
             }

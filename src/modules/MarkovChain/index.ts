@@ -6,13 +6,13 @@ import { Client, Guild, TextChannel, User } from 'discord.js'
 import { EventEmitter } from 'tseep'
 import { Worker } from 'worker_threads'
 import path from 'path'
-import type { GenerationResult } from './RustChain'
+import type { GenerationResult, SimplifiedMessage } from './RustChain'
 
 interface InitializeTaskOptions {
     token: string
 }
 
-export type { GenerationResult }
+export type { GenerationResult, SimplifiedMessage }
 
 interface CollectTaskOptions {
     guildId: string
@@ -23,8 +23,6 @@ interface CollectTaskOptions {
     delayMs?: number
     forceRescan?: boolean
 }
-
-type AllTaskOptions = InitializeTaskOptions | CollectTaskOptions | MarkovGenerateOptions
 
 interface MarkovGenerateOptions {
     guild?: Guild
@@ -45,6 +43,23 @@ interface MarkovDeleteOptions {
     userId?: string
     global?: boolean
 }
+
+interface PersistentChainGenerateOptions {
+    chainId: string
+    seed?: string
+    words?: number
+}
+
+interface PersistentChainTrainOptions {
+    chainId: string
+    messages: SimplifiedMessage[]
+}
+
+interface PersistentChainDestroyOptions {
+    chainId: string
+}
+
+type AllTaskOptions = InitializeTaskOptions | CollectTaskOptions | MarkovGenerateOptions | MarkovDeleteOptions | PersistentChainGenerateOptions | PersistentChainTrainOptions | PersistentChainDestroyOptions
 
 interface MarkovCollectProgressEvent {
     batchNumber: number
@@ -272,5 +287,49 @@ export class MarkovChat extends EventEmitter<{
             userId,
             global
         })
+    }
+
+    public async getMessages(options: {
+        guild?: Guild
+        channel?: TextChannel
+        user?: User
+        userId?: string
+        global?: boolean
+    }): Promise<any[]> {
+        const { guild, channel, user, userId, global } = options
+        return this.sendTask<any[]>('getMessages', {
+            guildId: guild?.id,
+            channelId: channel?.id,
+            user,
+            userId,
+            global
+        })
+    }
+
+    public createPersistentChain(options: {
+        guild?: Guild
+        user?: User
+        userId?: string
+        global?: boolean
+    }): Promise<string> {
+        const { guild, user, userId, global } = options
+        return this.sendTask<string>('create_persistent_chain', {
+            guildId: guild?.id,
+            user,
+            userId,
+            global
+        })
+    }
+
+    public generateFromPersistentChain(options: { chainId: string, seed?: string, words?: number }): Promise<GenerationResult | null> {
+        return this.sendTask<GenerationResult | null>('generate_from_persistent_chain', options)
+    }
+
+    public trainPersistentChain(options: { chainId: string, messages: SimplifiedMessage[] }): Promise<void> {
+        return this.sendTask<void>('train_persistent_chain', options)
+    }
+
+    public destroyPersistentChain(chainId: string): Promise<void> {
+        return this.sendTask<void>('destroy_persistent_chain', { chainId })
     }
 }

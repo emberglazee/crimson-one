@@ -243,7 +243,7 @@ export class CrimsonChat extends EventEmitter<{
             for (let i = 0; i < MAX_TOOL_RETRY; i++) {
                 try {
                     const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Assistant response timed out')), ASSISTANT_RESPONSE_TIMEOUT_MS))
- 
+
                     const result = await Promise.race([
                         generateText({
                             model: this.voidai(this.state.modelName),
@@ -255,16 +255,16 @@ export class CrimsonChat extends EventEmitter<{
                         }),
                         timeoutPromise
                     ])
- 
+
                     if (!result) {
                         logger.warn(`generateText returned null or was rejected. Retry attempt ${i + 1}/${MAX_TOOL_RETRY}.`)
                         if (i === MAX_TOOL_RETRY - 1) return null
                         continue
                     }
- 
+
                     const parsedResponse = parseAIResponse(result.text)
                     const invalidToolCall = parsedResponse.toolCalls.find((call: ParsedToolCall) => !this.toolRegistry.tools.has(call.toolName))
- 
+
                     if (invalidToolCall) {
                         logger.warn(`Model attempted to call an invalid tool: "${invalidToolCall.toolName}". Retrying... (${i + 1}/${MAX_TOOL_RETRY})`)
                         const toolList = this._getToolDefinitionsPrompt()
@@ -282,14 +282,14 @@ export class CrimsonChat extends EventEmitter<{
                         messages.push(correctionMessage) // Add the correction for the next retry
                         continue // Retry the loop
                     }
-                    
+
                     // If all tool calls are valid, or there are no tool calls, store results and break
                     finalResponseText = result.text
                     finalUsage = result.usage
                     finalToolCalls = parsedResponse.toolCalls
                     finalNormalText = parsedResponse.normalText
                     break
- 
+
                 } catch (e) {
                     const error = e as Error
                     if (error.message.includes('Assistant response timed out')) {

@@ -51,6 +51,9 @@ class MarkovEngine {
     private rest: REST | null = null
     private dataSource = container.resolve(MarkovDataSource)
     private dbWriteQueue: Promise<void> = Promise.resolve()
+    private persistentChains = new Map<string, RustMarkovChain>()
+
+    public getMessages = this.dataSource.getMessages.bind(this.dataSource)
 
     async initialize(token: string) {
         if (this.rest) return
@@ -68,6 +71,101 @@ class MarkovEngine {
                 // The error is logged, but the promise chain is not broken.
             })
         return this.dbWriteQueue
+    }
+
+    private async _createChainFromDb(options: MessageStatsOptions, taskId: string): Promise<{ chain: RustMarkovChain, dbQueryMs: number, trainingMs: number }> {
+        const overallStartTime = performance.now()
+
+        // 1. Querying
+        parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'querying', progress: 0, total: 1, elapsedTime: 0, estimatedTimeRemaining: null, taskId } })
+        const queryStartTime = performance.now()
+        const messages = await this.dataSource.getMessages({
+            guildId: options.guildId,
+            channelId: options.channelId,
+            user: options.user,
+            userId: options.userId,
+            global: options.global
+        })
+        const dbQueryMs = performance.now() - queryStartTime
+
+        if (messages.length === 0) {
+            throw new Error('No messages found with the given filters')
+        }
+
+        // 2. Training
+        parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'training', progress: 0, total: messages.length, elapsedTime: performance.now() - overallStartTime, estimatedTimeRemaining: null, taskId } })
+        const trainingStartTime = performance.now()
+        const rustChain = new RustMarkovChain()
+        const simplifiedMessages: SimplifiedMessage[] = messages.map(m => ({
+            id: m.id,
+            text: m.text,
+            authorId: m.authorId,
+            channelId: m.channelId,
+            timestamp: Number(m.timestamp)
+        }))
+
+        const CHUNK_SIZE = 1000
+        for (let i = 0; i < simplifiedMessages.length; i += CHUNK_SIZE) {
+            const chunk = simplifiedMessages.slice(i, i + CHUNK_SIZE)
+            if (chunk.length > 0) {
+                rustChain.trainBatch(chunk)
+            }
+            parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'training', progress: Math.min(i + CHUNK_SIZE, messages.length), total: messages.length, elapsedTime: performance.now() - overallStartTime, estimatedTimeRemaining: null, taskId } })
+        }
+        const trainingMs = performance.now() - trainingStartTime
+
+        return { chain: rustChain, dbQueryMs, trainingMs }
+    }
+
+    public async generateMessage(options: GenerateOptions, taskId: string): Promise<GenerationResult | GenerationResult[] | null> {
+        const { chain, dbQueryMs, trainingMs } = await this._createChainFromDb(options, taskId)
+        try {
+            parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'generating', progress: 0, total: 1, taskId } })
+            const result = chain.generate(
+                options.words || 30,
+                options.mode || 'trigram',
+                options.seed,
+                dbQueryMs,
+                trainingMs,
+                options.batch || 1
+            )
+            return result
+        } finally {
+            chain.destroy()
+        }
+    }
+
+    public async createPersistentChain(options: MessageStatsOptions, taskId: string): Promise<string> {
+        const { chain } = await this._createChainFromDb(options, taskId)
+        const chainId = `persistent-${Date.now()}-${Math.random()}`
+        this.persistentChains.set(chainId, chain)
+        log('info', `Created and stored persistent chain with ID: ${chainId}`)
+        return chainId
+    }
+
+    public generateFromPersistentChain(options: { chainId: string, seed?: string, words?: number }): GenerationResult | null {
+        const chain = this.persistentChains.get(options.chainId)
+        if (!chain) {
+            throw new Error(`Persistent chain with ID ${options.chainId} not found.`)
+        }
+        return chain.generateChatResponse(options.words ?? 30, options.seed ?? '', 0, 0)
+    }
+
+    public trainPersistentChain(options: { chainId: string, messages: SimplifiedMessage[] }): void {
+        const chain = this.persistentChains.get(options.chainId)
+        if (!chain) {
+            throw new Error(`Persistent chain with ID ${options.chainId} not found.`)
+        }
+        chain.trainBatch(options.messages)
+    }
+
+    public destroyPersistentChain(chainId: string): void {
+        const chain = this.persistentChains.get(chainId)
+        if (chain) {
+            chain.destroy()
+            this.persistentChains.delete(chainId)
+            log('info', `Destroyed persistent chain with ID: ${chainId}`)
+        }
     }
 
     public async collectMessages(options: {
@@ -221,61 +319,9 @@ class MarkovEngine {
         return messages.length
     }
 
-    public async generateMessage(options: GenerateOptions): Promise<GenerationResult | GenerationResult[] | null> {
-        const overallStartTime = performance.now()
-
-        // 1. Querying
-        parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'querying', progress: 0, total: 1, elapsedTime: 0, estimatedTimeRemaining: null } })
-        const queryStartTime = performance.now()
-        const messages = await this.dataSource.getMessages({
-            guildId: options.guildId,
-            channelId: options.channelId,
-            user: options.user,
-            userId: options.userId,
-            global: options.global
-        })
-        const dbQueryMs = performance.now() - queryStartTime
-
-        if (messages.length === 0) {
-            throw new Error('No messages found with the given filters')
-        }
-
-        // 2. Training
-        parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'training', progress: 0, total: messages.length, elapsedTime: performance.now() - overallStartTime, estimatedTimeRemaining: null } })
-        const trainingStartTime = performance.now()
-        const rustChain = new RustMarkovChain()
-        try {
-            const CHUNK_SIZE = 1000
-            for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
-                const chunk = messages.slice(i, i + CHUNK_SIZE)
-                const texts = chunk.map(msg => msg.text).filter(Boolean)
-                if (texts.length > 0) {
-                    rustChain.trainBatch(texts)
-                }
-                parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'training', progress: Math.min(i + CHUNK_SIZE, messages.length), total: messages.length, elapsedTime: performance.now() - overallStartTime, estimatedTimeRemaining: null } })
-            }
-            const trainingMs = performance.now() - trainingStartTime
-
-            // 3. Generating
-            parentPort!.postMessage({ type: 'progress', event: 'generateProgress', data: { step: 'generating', progress: 0, total: 1, elapsedTime: performance.now() - overallStartTime, estimatedTimeRemaining: null } })
-            const result = rustChain.generate(
-                options.words || 30,
-                options.mode || 'trigram',
-                options.seed,
-                dbQueryMs,
-                trainingMs,
-                options.batch || 1
-            )
-            return result
-        } finally {
-            // IMPORTANT: Clean up the memory used by the Rust chain
-            rustChain.destroy()
-        }
-    }
-
-    public async getMessageStats(options: MessageStatsOptions) {
+    public async getMessageStats(options: MessageStatsOptions, taskId: string) {
         const startTime = Date.now()
-        parentPort!.postMessage({ type: 'progress', event: 'infoProgress', data: { step: 'querying', progress: 0, total: 1, elapsedTime: 0, estimatedTimeRemaining: null } })
+        parentPort!.postMessage({ type: 'progress', event: 'infoProgress', data: { step: 'querying', progress: 0, total: 1, elapsedTime: 0, estimatedTimeRemaining: null, taskId } })
 
         const messages = await this.dataSource.getMessages({
             guildId: options.guildId,
@@ -289,7 +335,7 @@ class MarkovEngine {
             throw new Error('No messages found with the given filters')
         }
 
-        parentPort!.postMessage({ type: 'progress', event: 'infoProgress', data: { step: 'processing', progress: 0, total: messages.length, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null } })
+        parentPort!.postMessage({ type: 'progress', event: 'infoProgress', data: { step: 'processing', progress: 0, total: messages.length, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null, taskId } })
 
         const CHUNK_SIZE = 1000
         const uniqueAuthors = new Set<string>()
@@ -325,7 +371,7 @@ class MarkovEngine {
                     }
                 }
             }
-            parentPort!.postMessage({ type: 'progress', event: 'infoProgress', data: { step: 'processing', progress: Math.min(i + CHUNK_SIZE, messages.length), total: messages.length, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null } })
+            parentPort!.postMessage({ type: 'progress', event: 'infoProgress', data: { step: 'processing', progress: Math.min(i + CHUNK_SIZE, messages.length), total: messages.length, elapsedTime: Date.now() - startTime, estimatedTimeRemaining: null, taskId } })
         }
 
         return {
@@ -355,7 +401,7 @@ class MarkovEngine {
 
 const engine = new MarkovEngine()
 
-parentPort!.on('message', async (message: { type: string, options: unknown, taskId: string }) => {
+parentPort!.on('message', async (message: { type: string, options: any, taskId: string }) => {
     try {
         if (message.type === 'initialize') {
             const { token } = message.options as { token: string }
@@ -367,24 +413,33 @@ parentPort!.on('message', async (message: { type: string, options: unknown, task
         let result
         switch (message.type) {
             case 'collect':
-                result = await engine.collectMessages(message.options as {
-                    guildId: string
-                    channelId: string
-                    user?: { id: string }
-                    userId?: string
-                    limit?: number | 'entire'
-                    delayMs?: number
-                    forceRescan?: boolean
-                }, message.taskId)
+                result = await engine.collectMessages(message.options, message.taskId)
                 break
             case 'generate':
-                result = await engine.generateMessage(message.options as GenerateOptions)
+                result = await engine.generateMessage(message.options as GenerateOptions, message.taskId)
                 break
             case 'info':
-                result = await engine.getMessageStats(message.options as MessageStatsOptions)
+                result = await engine.getMessageStats(message.options as MessageStatsOptions, message.taskId)
                 break
             case 'delete':
                 result = await engine.deleteMessages(message.options as DeleteOptions)
+                break
+            case 'getMessages':
+                result = await engine.getMessages(message.options as MessageStatsOptions)
+                break
+            case 'create_persistent_chain':
+                result = await engine.createPersistentChain(message.options as MessageStatsOptions, message.taskId)
+                break
+            case 'generate_from_persistent_chain':
+                result = engine.generateFromPersistentChain(message.options)
+                break
+            case 'train_persistent_chain':
+                engine.trainPersistentChain(message.options)
+                result = 'ok'
+                break
+            case 'destroy_persistent_chain':
+                engine.destroyPersistentChain(message.options.chainId)
+                result = 'ok'
                 break
             default:
                 throw new Error(`Unknown task type: ${message.type}`)

@@ -1,4 +1,4 @@
-import { Logger, TagManager, GuildConfigManager, CommandManager, CrimsonChat, MessageTrigger, AntiRaidManager } from '../modules'
+import { Logger, TagManager, GuildConfigManager, CommandManager, CrimsonChat, MessageTrigger, AntiRaidManager, MarkovBotManager, MarkovChat } from '../modules'
 const logger = new Logger('event.messageCreate')
 import { type Client, TextChannel, Message } from 'discord.js'
 import { normalizeUrl } from '../modules/CrimsonChat/util/url-utils'
@@ -16,6 +16,8 @@ interface MessageCreateServices {
     crimsonChat: CrimsonChat
     messageTrigger: MessageTrigger
     antiRaidManager: AntiRaidManager
+    markovBotManager: MarkovBotManager
+    markovChat: MarkovChat
 }
 
 async function handleQOTD(message: Message, { crimsonChat }: Pick<MessageCreateServices, 'crimsonChat'>): Promise<void> {
@@ -151,7 +153,9 @@ async function handleTagCommand(message: Message, { tagManager, guildConfigManag
     await message.reply(tag.content)
 }
 
-async function handleCrimsonChat(message: Message, { crimsonChat }: Pick<MessageCreateServices, 'crimsonChat'>, client: Client<true>): Promise<void> {
+async function handleCrimsonChat(message: Message, { crimsonChat, markovBotManager }: Pick<MessageCreateServices, 'crimsonChat' | 'markovBotManager'>, client: Client<true>): Promise<void> {
+    if (markovBotManager.isChannelActive(message.channel.id)) return
+
     const isMainChannel = message.channel.id === '1335992675459141632'
     const isTestingServer = message.guildId === '1335971145014579263'
     const isMentioned = message.mentions.users.has(client.user.id)
@@ -234,8 +238,37 @@ async function handleCrimsonChat(message: Message, { crimsonChat }: Pick<Message
     }, message)
 }
 
+async function handleMarkovBot(message: Message, { markovBotManager, markovChat }: Pick<MessageCreateServices, 'markovBotManager' | 'markovChat'>): Promise<void> {
+    if (!markovBotManager.isChannelActive(message.channel.id)) return
+
+    const instance = markovBotManager.getInstance(message.channel.id)
+    if (!instance) return
+
+    try {
+        const { chainId, config } = instance
+        const result = await markovChat.generateFromPersistentChain({
+            chainId,
+            words: config.words ?? 30,
+            seed: message.content
+        })
+
+        if (result && result.text) {
+            await message.reply(result.text)
+        }
+
+        // Continuous learning
+        markovBotManager.train(message.channel.id, [{
+            text: message.content,
+            timestamp: message.createdTimestamp
+        }])
+
+    } catch (error) {
+        logger.error(`Error generating Markov response: ${error}`)
+    }
+}
+
 export default async function onMessageCreate(client: Client<true>, services: MessageCreateServices) {
-    const { tagManager, guildConfigManager, commandManager, crimsonChat, messageTrigger, antiRaidManager } = services
+    const { tagManager, guildConfigManager, commandManager, crimsonChat, messageTrigger, antiRaidManager, markovBotManager, markovChat } = services
 
     const math = create(all)
     math.createUnit({
@@ -254,6 +287,9 @@ export default async function onMessageCreate(client: Client<true>, services: Me
             await antiRaidManager.checkMessage(message)
 
             const guildConfig = await guildConfigManager.getConfig(message.guild?.id)
+
+            // Markov Bot
+            await handleMarkovBot(message, { markovBotManager, markovChat })
 
             // Prefix commands
             if (message.content.startsWith(guildConfig.prefix)) {
@@ -280,7 +316,7 @@ export default async function onMessageCreate(client: Client<true>, services: Me
             }
 
             // CrimsonChat
-            await handleCrimsonChat(message, { crimsonChat }, client)
+            await handleCrimsonChat(message, { crimsonChat, markovBotManager }, client)
 
         } catch (error) {
             logger.error(`Error in messageCreate event handler!\n${error instanceof Error ? error.stack ?? error.message : util.inspect(error)}`)

@@ -23,7 +23,14 @@ import { TextCommandParser } from './TextCommandParser'
 import { CommandDeployer } from './CommandDeployer'
 import { CommandHotReloader } from './CommandHotReloader'
 
-import { CrimsonChat, BotSettingsManager, BanishmentManager, GuildConfigManager, MarkovChat, TagManager, LongTermMemoryManager } from '..'
+import { CrimsonChat } from '../CrimsonChat'
+import { BotSettingsManager } from '../BotSettingsManager'
+import { BanishmentManager } from '../BanishmentManager'
+import { GuildConfigManager } from '../GuildConfig'
+import { MarkovChat } from '../MarkovChain'
+import { TagManager } from '../TagSystem'
+import { LongTermMemoryManager } from '../LongTermMemory'
+import { MarkovBotManager } from '../MarkovBotManager'
 
 @singleton()
 export class CommandManager {
@@ -42,7 +49,8 @@ export class CommandManager {
         private guildConfigManager: GuildConfigManager,
         private markovChat: MarkovChat,
         private tagManager: TagManager,
-        private longTermMemoryManager: LongTermMemoryManager
+        private longTermMemoryManager: LongTermMemoryManager,
+        private markovBotManager: MarkovBotManager
     ) {}
 
     public async init() {
@@ -117,7 +125,8 @@ export class CommandManager {
                     operationTracker: this.operationTracker,
                     botSettingsManager: this.botSettingsManager,
                     commandManager: this,
-                    longTermMemoryManager: this.longTermMemoryManager
+                    longTermMemoryManager: this.longTermMemoryManager,
+                    markovBotManager: this.markovBotManager
                 })
                 await this.executeUnifiedCommand(command, context)
             } else if (interaction.isContextMenuCommand() && this.registry.isContextMenuCommand(command)) {
@@ -177,7 +186,8 @@ export class CommandManager {
                 operationTracker: this.operationTracker,
                 botSettingsManager: this.botSettingsManager,
                 commandManager: this,
-                longTermMemoryManager: this.longTermMemoryManager
+                longTermMemoryManager: this.longTermMemoryManager,
+                markovBotManager: this.markovBotManager
             })
 
             if (context.parsedArgs?.h === true || context.parsedArgs?.help === true) {

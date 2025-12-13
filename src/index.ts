@@ -21,7 +21,7 @@ logger.info('Starting the bot...')
 
 import {
     SubtitleThreadManager, GracefulShutdown, TagManager, DashboardServer, CrimsonChat,
-    GuildConfigManager, GithubWebhookManager, CommandManager, BanishmentManager, SleepAsAndroidWebhookManager, LongTermMemoryManager, AntiRaidManager
+    GuildConfigManager, GithubWebhookManager, CommandManager, BanishmentManager, SleepAsAndroidWebhookManager, LongTermMemoryManager, AntiRaidManager, MarkovBotManager, MarkovChat
 } from './modules'
 
 import { readdir } from 'fs/promises'
@@ -60,9 +60,9 @@ container.register<Client>('Client', { useValue: client })
 
 // Resolve all services from the container
 const [
-    commandManager, gracefulShutdown, dashboardServer, guildConfigManager, banishmentManager, tagManager, crimsonChat, githubWebhookManager, subtitleThreadManager, messageTrigger, sleepAsAndroidWebhookManager, longTermMemoryManager, antiRaidManager
+    commandManager, gracefulShutdown, dashboardServer, guildConfigManager, banishmentManager, tagManager, crimsonChat, githubWebhookManager, subtitleThreadManager, messageTrigger, sleepAsAndroidWebhookManager, longTermMemoryManager, antiRaidManager, markovBotManager, markovChat
 ] = resolveServices(container,
-    CommandManager, GracefulShutdown, DashboardServer, GuildConfigManager, BanishmentManager, TagManager, CrimsonChat, GithubWebhookManager, SubtitleThreadManager, MessageTrigger, SleepAsAndroidWebhookManager, LongTermMemoryManager, AntiRaidManager
+    CommandManager, GracefulShutdown, DashboardServer, GuildConfigManager, BanishmentManager, TagManager, CrimsonChat, GithubWebhookManager, SubtitleThreadManager, MessageTrigger, SleepAsAndroidWebhookManager, LongTermMemoryManager, AntiRaidManager, MarkovBotManager, MarkovChat
 )
 
 client.once('clientReady', async () => {
@@ -100,7 +100,7 @@ client.once('clientReady', async () => {
     for (const file of eventFiles) {
         const event = await import(path.join(__dirname, `events/${file}`)) as DiscordEventListener
         if (file === 'messageCreate.ts') {
-            event.default(client, { tagManager, guildConfigManager, commandManager, crimsonChat, messageTrigger, antiRaidManager })
+            event.default(client, { tagManager, guildConfigManager, commandManager, crimsonChat, messageTrigger, antiRaidManager, markovBotManager, markovChat })
         } else if (file === 'interactionCreate.ts') {
             event.default(client, commandManager)
         } else if (file === 'messageDelete.ts') {

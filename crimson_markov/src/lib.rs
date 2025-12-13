@@ -6,31 +6,44 @@
 // implementation I've tested with my VPS the bot is hosted on.
 
 use fastrand::Rng;
+use levenshtein::levenshtein;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use serde_json;
 use std::borrow::Cow;
 use ahash::{AHashMap, AHashSet};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr::{self, null_mut};
-use std::slice;
 use std::str;
 use std::cell::{RefCell, UnsafeCell};
 use std::time::Instant;
 use string_interner::{backend::StringBackend, StringInterner, symbol::SymbolUsize, Symbol};
 use std::fmt::Write; // Import Write for efficient string appending
 
-// Structs used for internal logic only, no Serialize needed due to manual construction
+#[derive(Serialize)]
 struct Timings {
     db_query_ms: f64,
     training_ms: f64,
     generation_ms: f64
 }
 
+#[derive(Serialize)]
 struct GenerationResult {
     text: String,
     timings: Timings
+}
+
+#[derive(Deserialize)]
+struct SimplifiedMessage {
+    text: String,
+    timestamp: i64,
+}
+
+struct MessageData {
+    word_ids: Vec<u32>,
+    original_text: String
 }
 
 type BigramMap = AHashMap<u32, AHashMap<u32, u32>>;
@@ -38,6 +51,7 @@ type TrigramMap = AHashMap<(u32, u32), AHashMap<u32, u32>>;
 type TrigramInvertedStarters = AHashMap<u32, AHashSet<(u32, u32)>>;
 
 struct ChainState {
+    all_messages: Vec<MessageData>,
     bigram_chain: BigramMap,
     trigram_chain: TrigramMap,
     trigram_inverted_starters: TrigramInvertedStarters,
@@ -87,6 +101,7 @@ fn tokenize<'a>(text: &'a str) -> impl Iterator<Item = &'a str> {
 pub extern "C" fn create_chain() -> *mut MarkovChain {
     Box::into_raw(Box::new(MarkovChain {
         state: RefCell::new(ChainState {
+            all_messages: Vec::new(),
             bigram_chain: AHashMap::new(),
             trigram_chain: AHashMap::new(),
             trigram_inverted_starters: AHashMap::new(),
@@ -142,75 +157,66 @@ fn intern_word_and_get_lower_id(state: &mut ChainState, word: &str) -> u32 {
 #[no_mangle]
 pub extern "C" fn train_on_batch(
     ptr: *mut MarkovChain,
-    texts_ptr: *const u8,
-    texts_len: usize
+    json_ptr: *const c_char,
 ) {
-    if ptr.is_null() || texts_ptr.is_null() {
+    if ptr.is_null() || json_ptr.is_null() {
         return;
     }
     let chain = unsafe { &*ptr };
+    let json_str = unsafe { CStr::from_ptr(json_ptr).to_str().unwrap_or("[]") };
 
-    let texts_slice = unsafe { slice::from_raw_parts(texts_ptr, texts_len) };
-    let texts_str = match str::from_utf8(texts_slice) {
-        Ok(s) => s,
-        Err(_) => return,
-    };
+    let mut messages: Vec<SimplifiedMessage> = serde_json::from_str(json_str).unwrap_or_else(|e| {
+        eprintln!("Failed to deserialize messages: {}", e);
+        Vec::new()
+    });
 
-    // Split by null terminator
-    let texts = texts_str.split('\0').filter(|s| !s.is_empty());
+    if messages.is_empty() {
+        return;
+    }
+
+    // Sort messages by timestamp to process them in chronological order
+    messages.sort_by_key(|m| m.timestamp);
 
     let mut state = chain.state.borrow_mut();
 
-    for text in texts {
-        let mut tokens = tokenize(text);
-        let mut p1;
-        let mut p2;
-
-        // Process first token
-        if let Some(word) = tokens.next() {
-            let id = intern_word_and_get_lower_id(&mut state, word);
-            state.bigram_starters.push(id);
-            p1 = id;
-        } else {
-            continue; 
+    for message in messages {
+        let tokens: Vec<&str> = tokenize(&message.text).collect();
+        if tokens.is_empty() {
+            continue;
         }
 
-        // Process second token
-        if let Some(word) = tokens.next() {
-            let id = intern_word_and_get_lower_id(&mut state, word);
-            state.trigram_starters.push((p1, id));
-            
-            // bigram for (p1, id)
-            state.bigram_chain.entry(p1).or_default()
-                .entry(id).and_modify(|v| *v += 1).or_insert(1);
-                
-            p2 = p1;
-            p1 = id;
-        } else {
-            continue; 
+        let word_ids: Vec<u32> = tokens.iter().map(|&word| intern_word_and_get_lower_id(&mut state, word)).collect();
+
+        // Add to all_messages for similarity search later
+        state.all_messages.push(MessageData {
+            word_ids: word_ids.clone(),
+            original_text: message.text.clone()
+        });
+
+        // --- Standard Word-Level Chain Training ---
+        if let Some(first_id) = word_ids.get(0) {
+            state.bigram_starters.push(*first_id);
         }
 
-        // Process rest
-        for word in tokens {
-            let id = intern_word_and_get_lower_id(&mut state, word);
+        if let Some(pair) = word_ids.get(0..2) {
+            state.trigram_starters.push((pair[0], pair[1]));
+            state.bigram_chain.entry(pair[0]).or_default()
+                .entry(pair[1]).and_modify(|v| *v += 1).or_insert(1);
+        }
+
+        for window in word_ids.windows(3) {
+            let (p2, p1, id) = (window[0], window[1], window[2]);
             
-            // trigram for (p2, p1, id)
+            // Trigram
             let key = (p2, p1);
             state.trigram_chain.entry(key).or_default()
                 .entry(id).and_modify(|v| *v += 1).or_insert(1);
                 
-            state
-                .trigram_inverted_starters
-                .entry(p2)
-                .or_default()
-                .insert(key);
+            state.trigram_inverted_starters.entry(p2).or_default().insert(key);
 
-            // bigram for (p1, id)
+            // Bigram
             state.bigram_chain.entry(p1).or_default()
                 .entry(id).and_modify(|v| *v += 1).or_insert(1);
-
-            p2 = p1;
-            p1 = id;
         }
     }
 }
@@ -585,6 +591,61 @@ fn generate_hybrid(
     ids_to_string(chain, &result_ids)
 }
 
+fn generate_chatbot_response(
+    chain: &MarkovChain,
+    max_words: usize,
+    seed_text: &str,
+) -> String {
+    let state = chain.state.borrow();
+    if state.all_messages.is_empty() {
+        return String::new();
+    }
+
+    // 1. Find the most similar message
+    let mut min_distance = usize::MAX;
+    let mut best_match_index: Option<usize> = None;
+
+    for (i, message_data) in state.all_messages.iter().enumerate() {
+        let distance = levenshtein(&seed_text, &message_data.original_text);
+        if distance < min_distance {
+            min_distance = distance;
+            best_match_index = Some(i);
+        }
+    }
+
+    let best_match_index = match best_match_index {
+        Some(index) => index,
+        None => return String::new(), // Should not happen if all_messages is not empty
+    };
+    
+    // 2. Find the message that was posted immediately after
+    let reply_candidate_index = best_match_index + 1;
+    if reply_candidate_index >= state.all_messages.len() {
+        // The best match was the last message, so we can't find a reply.
+        // Fallback: use a random starter.
+        return generate_hybrid(chain, max_words, None);
+    }
+    
+    let reply_candidate = &state.all_messages[reply_candidate_index];
+
+    // 3. Take the first 2-3 words of the reply candidate as the new seed
+    let new_seed_ids = &reply_candidate.word_ids;
+    let seed_word_count = if new_seed_ids.len() >= 2 { 2 } else { new_seed_ids.len() };
+    
+    if seed_word_count == 0 {
+        return generate_hybrid(chain, max_words, None);
+    }
+
+    let seed_words_as_strings: Vec<String> = new_seed_ids[..seed_word_count].iter().map(|&id| {
+        let symbol = SymbolUsize::try_from_usize(id as usize).unwrap();
+        state.lowercase_word_interner.resolve(symbol).unwrap().to_string()
+    }).collect();
+
+    // 4. Generate the rest of the message
+    generate_hybrid(chain, max_words, Some(seed_words_as_strings))
+}
+
+
 #[no_mangle]
 pub extern "C" fn generate_text(
     ptr: *mut MarkovChain,
@@ -682,6 +743,38 @@ pub extern "C" fn generate_text(
 
     CString::new(json_out).map_or(ptr::null_mut(), |s| s.into_raw())
 }
+
+#[no_mangle]
+pub extern "C" fn generate_chat_response(
+    ptr: *mut MarkovChain,
+    max_words: usize,
+    seed_ptr: *const c_char,
+    db_query_ms: f64,
+    training_ms: f64
+) -> *mut c_char {
+    if ptr.is_null() {
+        return ptr::null_mut();
+    }
+    let chain = unsafe { &*ptr };
+    let seed_str = unsafe { CStr::from_ptr(seed_ptr).to_str().unwrap_or("") };
+
+    let start_time = Instant::now();
+    let result_str = generate_chatbot_response(chain, max_words, seed_str);
+    let generation_ms = start_time.elapsed().as_nanos() as f64 / 1_000_000.0;
+    
+    let result = GenerationResult {
+        text: result_str,
+        timings: Timings {
+            db_query_ms,
+            training_ms,
+            generation_ms,
+        },
+    };
+
+    let json_out = serde_json::to_string(&result).unwrap();
+    CString::new(json_out).map_or(ptr::null_mut(), |s| s.into_raw())
+}
+
 
 #[no_mangle]
 pub extern "C" fn free_text(s: *mut c_char) {

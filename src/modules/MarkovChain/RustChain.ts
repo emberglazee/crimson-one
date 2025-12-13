@@ -12,10 +12,14 @@ const { symbols } = dlopen(libPath, {
         args: [FFIType.ptr]
     },
     train_on_batch: {
-        args: [FFIType.ptr, FFIType.ptr, FFIType.u32] // chain_ptr, texts_ptr, texts_len
+        args: [FFIType.ptr, FFIType.cstring] // chain_ptr, json_ptr
     },
     generate_text: {
         args: [FFIType.ptr, FFIType.i32, FFIType.u8, FFIType.cstring, FFIType.f64, FFIType.f64, FFIType.i32], // chain_ptr, max_words, mode, seed_ptr, db_query_ms, training_ms, batch_size
+        returns: FFIType.ptr
+    },
+    generate_chat_response: {
+        args: [FFIType.ptr, FFIType.i32, FFIType.cstring, FFIType.f64, FFIType.f64], // chain_ptr, max_words, seed_ptr, db_query_ms, training_ms
         returns: FFIType.ptr
     },
     free_text: {
@@ -34,6 +38,11 @@ export interface GenerationResult {
     timings: Timings
 }
 
+export interface SimplifiedMessage {
+    text: string
+    timestamp: number
+}
+
 export class RustMarkovChain {
     private chainPtr: Pointer | null
 
@@ -44,14 +53,13 @@ export class RustMarkovChain {
         }
     }
 
-    public trainBatch(texts: string[]): void {
+    public trainBatch(messages: SimplifiedMessage[]): void {
         if (!this.chainPtr) {
             throw new Error('Chain pointer is null.')
         }
-
-        const batchString = texts.join('\0')
-        const textBuffer = Buffer.from(batchString, 'utf8') // No trailing null needed now
-        symbols.train_on_batch(this.chainPtr, textBuffer, textBuffer.byteLength)
+        const jsonString = JSON.stringify(messages)
+        const jsonBuffer = Buffer.from(jsonString + '\0', 'utf8')
+        symbols.train_on_batch(this.chainPtr, jsonBuffer)
     }
 
     public generate(
@@ -91,6 +99,39 @@ export class RustMarkovChain {
                 return parsed as GenerationResult[]
             }
             return parsed as GenerationResult
+        } catch (e) {
+            console.error('Failed to parse JSON from Rust:', e)
+            return null
+        }
+    }
+
+    public generateChatResponse(
+        maxWords: number = 30,
+        seed: string,
+        dbQueryMs: number,
+        trainingMs: number
+    ): GenerationResult | null {
+        if (!this.chainPtr) {
+            throw new Error('Cannot generate from a destroyed chain.')
+        }
+        const seedBuffer = Buffer.from(seed + '\0', 'utf8')
+        const resultPtr: Pointer | null = symbols.generate_chat_response(
+            this.chainPtr,
+            maxWords,
+            seedBuffer,
+            dbQueryMs,
+            trainingMs
+        )
+
+        if (!resultPtr) {
+            return null
+        }
+
+        const jsonResult = new CString(resultPtr).toString()
+        symbols.free_text(resultPtr)
+
+        try {
+            return JSON.parse(jsonResult) as GenerationResult
         } catch (e) {
             console.error('Failed to parse JSON from Rust:', e)
             return null
