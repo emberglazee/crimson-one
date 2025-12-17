@@ -6,7 +6,7 @@
   "packageRules": [
     {
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
-      "commitMessagePrefix": "chore"
+      "commitMessagePrefix": "chore(deps): "
     }
   ]
 }
