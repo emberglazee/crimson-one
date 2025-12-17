@@ -7,9 +7,14 @@ import { ChannelType, SlashCommandBuilder, TextChannel, EmbedBuilder, Interactio
 import { google, type youtube_v3 } from 'googleapis'
 import type { GaxiosResponseWithHTTP2 } from 'googleapis-common'
 
-import { RustMarkovChain } from '../modules/MarkovChain/RustChain'
+import { RustMarkovChain, type SimplifiedMessage } from '../modules/MarkovChain/RustChain'
 import { SlashCommand } from '../types'
 import { extractVideoId, formatYoutubeComment } from '../util/functions'
+
+interface YouTubeComment {
+    text: string
+    timestamp: number
+}
 
 
 // To prevent multiple concurrent collections
@@ -20,10 +25,10 @@ let isGenerating = false
 const generationQueue: { ctx: CommandContext<true> }[] = []
 
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
-const youtubeCommentCache = new Map<string, { comments: string[], video: youtube_v3.Schema$Video, timestamp: number }>()
+const youtubeCommentCache = new Map<string, { comments: YouTubeComment[], video: youtube_v3.Schema$Video, timestamp: number }>()
 const CACHE_TTL = 60 * 60 * 1000 // 1 hour
 
-async function getYouTubeComments(videoId: string, ctx: CommandContext<true>): Promise<{ comments: string[], video: youtube_v3.Schema$Video }> {
+async function getYouTubeComments(videoId: string, ctx: CommandContext<true>): Promise<{ comments: YouTubeComment[], video: youtube_v3.Schema$Video }> {
     const cached = youtubeCommentCache.get(videoId)
     if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
         logger.info(`Using cached comments for video ID ${videoId}`)
@@ -53,7 +58,7 @@ async function getYouTubeComments(videoId: string, ctx: CommandContext<true>): P
     }
 
     const progressTracker = new ProgressTracker(ctx, 'Fetching comments from YouTube video...')
-    const comments: string[] = []
+    const comments: YouTubeComment[] = []
     let nextPageToken: string | null | undefined = null
     let fetchedCount = 0
 
@@ -68,9 +73,12 @@ async function getYouTubeComments(videoId: string, ctx: CommandContext<true>): P
 
         if (commentThreadResponse.data.items) {
             for (const item of commentThreadResponse.data.items) {
-                const commentText = item.snippet?.topLevelComment?.snippet?.textDisplay
-                if (commentText) {
-                    comments.push(formatYoutubeComment(commentText))
+                const comment = item.snippet?.topLevelComment?.snippet
+                if (comment?.textDisplay && comment.publishedAt) {
+                    comments.push({
+                        text: formatYoutubeComment(comment.textDisplay),
+                        timestamp: new Date(comment.publishedAt).getTime()
+                    })
                 }
             }
             fetchedCount += commentThreadResponse.data.items.length
@@ -857,7 +865,8 @@ export default {
                     await ctx.editReply('Now generating message...')
 
                     const trainingStartTime = performance.now()
-                    rustChain.trainBatch(comments)
+                    const simplifiedComments: SimplifiedMessage[] = comments.map(c => ({ text: c.text, timestamp: c.timestamp }))
+                    rustChain.trainBatch(simplifiedComments)
                     const trainingMs = performance.now() - trainingStartTime
 
                     const result = rustChain.generate(words, mode, seed, 0, trainingMs, batch)
@@ -985,7 +994,7 @@ export default {
 
                 // Calculate stats
                 const messageCount = comments.length
-                const allWords = comments.flatMap(c => c.split(/\s+/).filter(w => w.length > 0))
+                const allWords = comments.flatMap(c => c.text.split(/\s+/).filter(w => w.length > 0))
                 const totalWordCount = allWords.length
                 const uniqueWords = new Set(allWords.map(w => w.toLowerCase()))
                 const uniqueWordCount = uniqueWords.size
