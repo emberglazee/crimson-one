@@ -1,4 +1,4 @@
-import { InteractionContextType, SlashCommandBuilder } from 'discord.js'
+import { InteractionContextType, MessageFlags, SlashCommandBuilder } from 'discord.js'
 import { SlashCommand } from '../types'
 
 export default {
@@ -22,7 +22,7 @@ export default {
 
         const subcommand = ctx.getSubcommand(true)
 
-        await ctx.deferReply({ ephemeral: true })
+        await ctx.deferReply({ flags: MessageFlags.Ephemeral })
 
         try {
             if (subcommand === 'all') {

@@ -28,7 +28,7 @@ export default {
         ).setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild),
     async execute(ctx: CommandContext<true>) {
         if (!ctx.guild) {
-            await ctx.reply({ content: 'This command can only be used in a server.', ephemeral: true })
+            await ctx.reply({ content: 'This command can only be used in a server.', flags: MessageFlags.Ephemeral })
             return
         }
 
@@ -49,11 +49,11 @@ export default {
 
         if (subcommand === 'on') {
             if (!guildConfig.markovBotWhitelistedChannels.includes(channelId)) {
-                await ctx.reply({ content: 'This channel is not whitelisted for the Markov bot. An admin can add it using `/config markovbot whitelist_add`.', ephemeral: true })
+                await ctx.reply({ content: 'This channel is not whitelisted for the Markov bot. An admin can add it using `/config markovbot whitelist_add`.', flags: MessageFlags.Ephemeral })
                 return
             }
 
-            await ctx.deferReply({ ephemeral: true })
+            await ctx.deferReply({ flags: MessageFlags.Ephemeral })
             await ctx.editReply('Training Markov model for this channel... This may take a moment.')
 
             const user = await ctx.getUserOption('user')
@@ -76,7 +76,7 @@ export default {
 
         } else if (subcommand === 'off') {
             markovBotManager.deactivate(channelId)
-            await ctx.reply({ content: '✅ Markov bot has been turned off for this channel.', ephemeral: true })
+            await ctx.reply({ content: '✅ Markov bot has been turned off for this channel.', flags: MessageFlags.Ephemeral })
         }
     }
 } satisfies SlashCommand

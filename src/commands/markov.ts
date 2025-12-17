@@ -724,7 +724,7 @@ export default {
                 return
             }
 
-            await ctx.deferReply({ ephemeral: true })
+            await ctx.deferReply({ flags: MessageFlags.Ephemeral })
 
             const filters = {
                 guild: !global ? ctx.guild : undefined,
@@ -786,7 +786,7 @@ export default {
 
                 collector.on('collect', async (i: ButtonInteraction) => {
                     if (i.user.id !== ctx.author.id) {
-                        await i.reply({ content: 'You are not authorized to respond to this confirmation.', ephemeral: true })
+                        await i.reply({ content: 'You are not authorized to respond to this confirmation.', flags: MessageFlags.Ephemeral })
                         return
                     }
 

@@ -1,5 +1,5 @@
 import { SlashCommand } from '../types'
-import { SlashCommandBuilder, EmbedBuilder, InteractionContextType } from 'discord.js'
+import { SlashCommandBuilder, EmbedBuilder, InteractionContextType, MessageFlags } from 'discord.js'
 import { distance } from 'fastest-levenshtein'
 import { ProgressTracker } from '../modules'
 
@@ -196,7 +196,7 @@ export default {
         const inputText = ctx.getStringOption('text', true)
 
         if (inputText.length > 1000) {
-            await ctx.reply({ content: '❌ The input text cannot be longer than 1000 characters.', ephemeral: true })
+            await ctx.reply({ content: '❌ The input text cannot be longer than 1000 characters.', flags: MessageFlags.Ephemeral })
             return
         }
 

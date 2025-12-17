@@ -1,4 +1,4 @@
-import { ChannelType, InteractionContextType, Message, SlashCommandBuilder } from 'discord.js'
+import { ChannelType, InteractionContextType, Message, MessageFlags, SlashCommandBuilder } from 'discord.js'
 import { BotInstallationType, type SlashCommand } from '../types'
 import type { CommandContext } from '../modules'
 import { chance, getRandomElement, sleep } from '../util/functions'
@@ -18,7 +18,7 @@ export default {
         const subcommand = ctx.getSubcommand()
         if (subcommand === 'hangup') {
             if (!activeCalls.has(ctx.channel!.id)) {
-                await ctx.reply({ content: 'Ben is not currently on a call in this channel.', ephemeral: true })
+                await ctx.reply({ content: 'Ben is not currently on a call in this channel.', flags: MessageFlags.Ephemeral })
                 return
             }
             activeCalls.delete(ctx.channel!.id)
@@ -42,7 +42,7 @@ class TalkingBen {
         }
         if (!this.ctx.channel) throw new Error('No channel')
         if (activeCalls.has(this.ctx.channel.id)) {
-            await this.ctx.reply({ content: 'Ben is already on a call in this channel.', ephemeral: true })
+            await this.ctx.reply({ content: 'Ben is already on a call in this channel.', flags: MessageFlags.Ephemeral })
             return
         }
 
