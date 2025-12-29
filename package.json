@@ -40,7 +40,6 @@
     "google-translate-api-x": "^10.7.2",
     "googleapis": "^169.0.0",
     "mathjs": "^15.1.0",
-    "morse": "^0.1.0",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "sqlite3": "^5.1.7",
