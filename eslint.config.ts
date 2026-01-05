@@ -2,12 +2,13 @@ import path from 'node:path'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 import stylistic from '@stylistic/eslint-plugin'
+import { defineConfig } from 'eslint/config'
 
-export default tseslint.config({
+export default defineConfig({
     ...tseslint.configs.recommended[0],
     files: ['src/**/*.{js,mjs,cjs,ts}'],
     languageOptions: {
-        globals: globals.commonjs,
+        globals: globals.bunBuiltin,
         parserOptions: {
             project: './tsconfig.json',
             tsconfigRootDir: path.resolve(),
