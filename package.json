@@ -27,7 +27,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "^1.0.29",
+    "@ai-sdk/openai-compatible": "^2.0.0",
     "@discordjs/rest": "^2.6.0",
     "@toon-format/toon": "^2.1.0",
     "@types/ws": "^8.18.1",
