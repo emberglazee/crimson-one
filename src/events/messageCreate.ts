@@ -1,4 +1,5 @@
 import { Logger, TagManager, GuildConfigManager, CommandManager, CrimsonChat, MessageTrigger, AntiRaidManager, MarkovBotManager, MarkovChat } from '../modules'
+import { distance } from 'fastest-levenshtein'
 const logger = new Logger('event.messageCreate')
 import { type Client, TextChannel, Message } from 'discord.js'
 import { normalizeUrl } from '../modules/CrimsonChat/util/url-utils'
@@ -146,7 +147,24 @@ async function handleTagCommand(message: Message, { tagManager, guildConfigManag
 
     const tag = await tagManager.getTag(message.guild.id, tagName)
     if (!tag) {
-        await message.reply(`❌ Tag ${tagName} not found.`)
+        const allTags = await tagManager.listTags(message.guild.id)
+        if (allTags.length === 0) {
+            await message.reply(`❌ Tag "${tagName}" not found.`)
+            return
+        }
+
+        const suggestions = allTags
+            .map(t => ({ name: t.name, dist: distance(tagName, t.name) }))
+            .filter(t => t.dist < 3 && t.dist > 0)
+            .sort((a, b) => a.dist - b.dist)
+            .slice(0, 5)
+
+        if (suggestions.length > 0) {
+            const suggestionList = suggestions.map(s => `\`${s.name}\``).join(', ')
+            await message.reply(`❌ Tag "${tagName}" not found. Did you mean one of these?\n${suggestionList}`)
+        } else {
+            await message.reply(`❌ Tag "${tagName}" not found.`)
+        }
         return
     }
 

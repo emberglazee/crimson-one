@@ -5,6 +5,8 @@ import { SlashCommandBuilder, EmbedBuilder, InteractionContextType, MessageFlags
 import { SlashCommand } from '../types'
 import { relativeDiscordTimestamp } from '../util/functions'
 
+import { distance } from 'fastest-levenshtein'
+
 export default {
     data: new SlashCommandBuilder()
         .setName('tag')
@@ -94,7 +96,28 @@ export default {
                     await ctx.reply(tag.content)
                 } else {
                     logger.debug(`{get} Tag ${name} not found in guild ${ctx.guild.id}`)
-                    await ctx.reply({ content: '❌ A tag with that name was not found.', flags: MessageFlags.Ephemeral })
+
+                    const allTags = await tagManager.listTags(ctx.guild.id)
+                    if (allTags.length === 0) {
+                        await ctx.reply({ content: '❌ A tag with that name was not found.', flags: MessageFlags.Ephemeral })
+                        return
+                    }
+
+                    const suggestions = allTags
+                        .map(t => ({ name: t.name, dist: distance(name, t.name) }))
+                        .filter(t => t.dist < 3 && t.dist > 0)
+                        .sort((a, b) => a.dist - b.dist)
+                        .slice(0, 5)
+
+                    if (suggestions.length > 0) {
+                        const suggestionList = suggestions.map(s => `\`${s.name}\``).join(', ')
+                        await ctx.reply({
+                            content: `❌ A tag with that name was not found. Did you mean one of these?\n${suggestionList}`,
+                            flags: MessageFlags.Ephemeral
+                        })
+                    } else {
+                        await ctx.reply({ content: '❌ A tag with that name was not found.', flags: MessageFlags.Ephemeral })
+                    }
                 }
                 break
             }
