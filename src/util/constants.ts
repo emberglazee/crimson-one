@@ -1,3 +1,4 @@
+import { $ } from 'bun'
 import type { ModelMessage } from 'ai'
 import type { UserMessageOptions } from '../types'
 
@@ -159,3 +160,7 @@ export const getCrimsonChatHistoryFoundation = (systemPrompt: string = CRIMSON_C
 ]
 
 export const CRIMSON_CHAT_HISTORY_FOUNDATION = getCrimsonChatHistoryFoundation()
+
+export const GIT_BRANCH = (
+    await $`git branch --show-current`.text() // (almost) clean branch name
+).trim() // remove trailing newline

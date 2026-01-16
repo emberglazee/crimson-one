@@ -10,6 +10,7 @@ import type { GaxiosResponseWithHTTP2 } from 'googleapis-common'
 import { RustMarkovChain, type SimplifiedMessage } from '../modules/MarkovChain/RustChain'
 import { SlashCommand } from '../types'
 import { extractVideoId, formatYoutubeComment } from '../util/functions'
+import { GIT_BRANCH } from '../util/constants'
 
 interface YouTubeComment {
     text: string
@@ -683,7 +684,7 @@ export default {
             )
             const followUpText = (
                 '### Privacy concerns?\n' +
-                '- The bot\'s code is fully open source: <https://github.com/emberglazee/crimson-one> ([my own model implementation in Rust](<https://github.com/emberglazee/crimson-one/blob/rocketman02/crimson_markov/src/lib.rs>), [this command](<https://github.com/emberglazee/crimson-one/blob/rocketman02/src/commands/markov.ts>), and [FFI and database handlers](<https://github.com/emberglazee/crimson-one/tree/rocketman02/src/modules/MarkovChain>)).\n' +
+                `- The bot\'s code is fully open source: <https://github.com/emberglazee/crimson-one> ([my own model implementation in Rust](<https://github.com/emberglazee/crimson-one/blob/${GIT_BRANCH}/crimson_markov/src/lib.rs>), [this command](<https://github.com/emberglazee/crimson-one/blob/${GIT_BRANCH}/src/commands/markov.ts>), and [FFI and database handlers](<https://github.com/emberglazee/crimson-one/tree/${GIT_BRANCH}/src/modules/MarkovChain>)).\n` +
                 '- The messages in the database are never manually viewed or manipulated, unless it\'s crucial for debugging an issue with the model.\n' +
                 '- You can always delete your own messages from the database by using the `user` or `user_id` option with your own account.\n' +
                 '- Staff members with permissions like `Manage Server`, `Manage Channels`, `Ban Members` or `Administrator` can use the `/markov delete` command to remove data for other users or for entire channels.'
