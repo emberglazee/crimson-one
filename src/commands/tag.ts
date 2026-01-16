@@ -5,6 +5,8 @@ import { SlashCommandBuilder, EmbedBuilder, InteractionContextType, MessageFlags
 import { SlashCommand } from '../types'
 import { relativeDiscordTimestamp } from '../util/functions'
 
+import { distance } from 'fastest-levenshtein'
+
 export default {
     data: new SlashCommandBuilder()
         .setName('tag')
@@ -56,6 +58,18 @@ export default {
                 .setDescription('The name of the tag')
                 .setRequired(true)
             )
+        ).addSubcommand(subcommand => subcommand
+            .setName('rename')
+            .setDescription('Renames an existing tag')
+            .addStringOption(option => option
+                .setName('name')
+                .setDescription('The name of the tag to rename')
+                .setRequired(true)
+            ).addStringOption(option => option
+                .setName('new_name')
+                .setDescription('The new name for the tag')
+                .setRequired(true)
+            )
         ).setContexts(InteractionContextType.Guild),
     async execute(ctx: CommandContext<true>) {
         const subcommand = ctx.getSubcommand(true)
@@ -82,7 +96,28 @@ export default {
                     await ctx.reply(tag.content)
                 } else {
                     logger.debug(`{get} Tag ${name} not found in guild ${ctx.guild.id}`)
-                    await ctx.reply({ content: '❌ A tag with that name was not found.', flags: MessageFlags.Ephemeral })
+
+                    const allTags = await tagManager.listTags(ctx.guild.id)
+                    if (allTags.length === 0) {
+                        await ctx.reply({ content: '❌ A tag with that name was not found.', flags: MessageFlags.Ephemeral })
+                        return
+                    }
+
+                    const suggestions = allTags
+                        .map(t => ({ name: t.name, dist: distance(name, t.name) }))
+                        .filter(t => t.dist < 3 && t.dist > 0)
+                        .sort((a, b) => a.dist - b.dist)
+                        .slice(0, 5)
+
+                    if (suggestions.length > 0) {
+                        const suggestionList = suggestions.map(s => `\`${s.name}\``).join(', ')
+                        await ctx.reply({
+                            content: `❌ A tag with that name was not found. Did you mean one of these?\n${suggestionList}`,
+                            flags: MessageFlags.Ephemeral
+                        })
+                    } else {
+                        await ctx.reply({ content: '❌ A tag with that name was not found.', flags: MessageFlags.Ephemeral })
+                    }
                 }
                 break
             }
@@ -166,6 +201,34 @@ export default {
                     )
                 logger.debug(`{info} Sending info for tag ${name} in guild ${ctx.guild.id}`)
                 await ctx.reply({ embeds: [embed] })
+                break
+            }
+            case 'rename': {
+                const name = ctx.getStringOption('name', true)
+                const newName = ctx.getStringOption('new_name', true)
+                const tag = await tagManager.getTag(ctx.guild.id, name)
+
+                if (!tag) {
+                    logger.debug(`{rename} Tag ${name} not found in guild ${ctx.guild.id}`)
+                    await ctx.reply({ content: '❌ A tag with that name was not found.', flags: MessageFlags.Ephemeral })
+                    return
+                }
+
+                const canRename = hasPerms || tag.ownerId === ctx.user.id
+                if (!canRename) {
+                    logger.debug(`{rename} User ${ctx.user.id} has no permission to rename the tag ${name} in ${ctx.guild.id}`)
+                    await ctx.reply({ content: '❌ You do not have permission to rename this tag.', flags: MessageFlags.Ephemeral })
+                    return
+                }
+
+                try {
+                    logger.debug(`{rename} Renaming tag ${name} to ${newName} in guild ${ctx.guild.id}`)
+                    await tagManager.renameTag(ctx.guild.id, name, newName)
+                    logger.debug(`{rename} Renamed tag ${name} to ${newName} in guild ${ctx.guild.id}`)
+                    await ctx.reply(`✅ Tag \`${name}\` has been renamed to \`${newName}\`.`)
+                } catch (error) {
+                    await ctx.reply({ content: `❌ ${(error as Error).message}`, flags: MessageFlags.Ephemeral })
+                }
                 break
             }
         }

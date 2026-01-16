@@ -46,6 +46,21 @@ export class TagManager {
         await this.repository.delete({ guildId, name })
     }
 
+    public async renameTag(guildId: string, oldName: string, newName: string): Promise<void> {
+        const tag = await this.getTag(guildId, oldName)
+        if (!tag) {
+            throw new Error('A tag with that name was not found.')
+        }
+
+        const newNameTagExists = await this.getTag(guildId, newName)
+        if (newNameTagExists) {
+            throw new Error(`A tag with the name "${newName}" already exists.`)
+        }
+
+        tag.name = newName
+        await this.repository.save(tag)
+    }
+
     public async listTags(guildId: string): Promise<Tag[]> {
         return this.repository.find({ where: { guildId } })
     }
