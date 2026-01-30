@@ -406,70 +406,196 @@ function isRussianText(text: string): boolean {
     return russianChars.test(text)
 }
 
-export function drunkWrite(inputText: string): string {
-    const MAX_EXTRA_SPACES = 2
-    const MAX_REPEATS = 3
+const commonMisspellings: Record<string, string> = {
+    the: 'teh',
+    this: 'tihs',
+    with: 'wiht',
+    that: 'taht',
+    have: 'ahve',
+    when: 'wehn',
+    what: 'waht',
+    your: 'youre',
+    from: 'form',
+    they: 'tehy',
+    know: 'knwo',
+    there: 'ther',
+    where: 'were',
+    right: 'rgiht',
+    their: 'thier',
+    would: 'woudl',
+    about: 'abuot',
+    could: 'coudl',
+    other: 'otehr',
+    after: 'afetr',
+    first: 'frist',
+    because: 'becuase',
+    before: 'befroe',
+    these: 'thees',
+    people: 'peple',
+    little: 'litle',
+    should: 'shoudl',
+    think: 'thnik'
+}
 
-    // In percentages
-    const REPEAT_CHAR_CHANCE = 10
-    const SHOUTING_MODE_TOGGLE_CHANCE = 2
-    const EXTRA_SPACE_CHANCE = 8
-    const SKIP_CHAR_CHANCE = 3
-    const RANDOM_UPPERCASE_CHANCE = 5
-    const SHIFT_SPECIALS_CHANCE = 30
-    const ADJACENT_KEY_CHANCE = 10
+export function drunkWrite(inputText: string): string {
+    const isRussian = isRussianText(inputText)
+    const layoutMap = isRussian ? jcukenLayout : qwertyLayout
+
+    // Drunk state tracking
+    let tremorLevel = 0 // 0-100, builds momentum
+    let consecutiveErrors = 0
+    let heldShift = false
+    let wordsSinceLastError = 0
 
     function getRandomItem<T>(array: T[]): T {
         return array[Math.floor(Math.random() * array.length)]
     }
 
-    function repeatChar(char: string): string {
-        if (chance(REPEAT_CHAR_CHANCE)) {
-            return char.repeat(Math.floor(Math.random() * MAX_REPEATS) + 2)
+    function updateTremor() {
+        // Tremor builds momentum or decays
+        if (tremorLevel > 0 && chance(30)) {
+            tremorLevel = Math.max(0, tremorLevel - 15)
+        } else if (chance(8 + tremorLevel * 0.15)) {
+            // Starting or increasing a wave
+            tremorLevel = Math.min(100, tremorLevel + 20 + Math.random() * 25)
         }
-        return char
     }
 
-    let result = ''
-    let isShoutingMode = false
-    const isRussian = isRussianText(inputText)
-    const layoutMap = isRussian ? jcukenLayout : qwertyLayout
-
-    for (let i = 0; i < inputText.length; i++) {
-        const char = inputText[i]
-
-        // Randomly enter/exit shouting mode
-        if (chance(SHOUTING_MODE_TOGGLE_CHANCE)) isShoutingMode = !isShoutingMode
-
-        // Random extra spaces
-        if (chance(EXTRA_SPACE_CHANCE)) result += ' '.repeat(Math.floor(Math.random() * MAX_EXTRA_SPACES) + 1)
-
-        // Skip character (forget to type it)
-        if (chance(SKIP_CHAR_CHANCE)) continue
-
-        const lowerChar = char.toLowerCase()
-
-        // Apply case based on shouting mode or random uppercase
-        const shouldBeUpper = isShoutingMode || chance(RANDOM_UPPERCASE_CHANCE)
-        const finalChar = shouldBeUpper ? lowerChar.toUpperCase() : lowerChar
-
-        // Random shift specials (only for non-Russian text)
-        if (!isRussian && shiftSpecials[char as keyof typeof shiftSpecials] && chance(SHIFT_SPECIALS_CHANCE)) {
-            result += shiftSpecials[char as keyof typeof shiftSpecials]
-            continue
-        }
-
-        // Random adjacent key
-        if (layoutMap[lowerChar as keyof typeof layoutMap] && chance(ADJACENT_KEY_CHANCE)) {
-            result += getRandomItem(layoutMap[lowerChar as keyof typeof layoutMap])
-            continue
-        }
-
-        // Add potentially repeated character
-        result += repeatChar(finalChar)
+    function getErrorIntensity(): number {
+        // Returns 0-1 based on current tremor
+        return tremorLevel / 100
     }
 
-    return result
+    function shouldMakeError(): boolean {
+        const intensity = getErrorIntensity()
+        return chance(15 + intensity * 40)
+    }
+
+    function processWord(word: string): string {
+        wordsSinceLastError++
+        let result = ''
+
+        // Coherent misspelling chance (increases with sober time)
+        const lowerWord = word.toLowerCase()
+        if (
+            commonMisspellings[lowerWord] &&
+            chance(Math.min(25, wordsSinceLastError * 3))
+        ) {
+            wordsSinceLastError = 0
+            result = commonMisspellings[lowerWord]
+        } else {
+            // Process character by character with wave-based errors
+            for (let i = 0; i < word.length; i++) {
+                updateTremor()
+                const char = word[i]
+                const lowerChar = char.toLowerCase()
+                const intensity = getErrorIntensity()
+
+                // Decide what type of error (if any) to make
+                const errorType = shouldMakeError()
+                    ? Math.floor(Math.random() * 4)
+                    : -1
+
+                // Skip character (only at high tremor)
+                if (errorType === 0 && intensity > 0.5 && chance(20)) {
+                    consecutiveErrors++
+                    continue
+                }
+
+                // Double-tap (hit key twice accidentally)
+                if (errorType === 1 && intensity > 0.3 && chance(40)) {
+                    consecutiveErrors++
+                    result += char
+                    result += char
+                    continue
+                }
+
+                // Adjacent key fumble
+                if (
+                    errorType === 2 &&
+                    layoutMap[lowerChar as keyof typeof layoutMap] &&
+                    intensity > 0.4
+                ) {
+                    consecutiveErrors++
+                    const wrongKey = getRandomItem(
+                        layoutMap[lowerChar as keyof typeof layoutMap]
+                    ) as string
+                    result +=
+                        intensity > 0.7 && chance(50)
+                            ? wrongKey.repeat(2 + Math.floor(Math.random() * 2))
+                            : wrongKey
+                    continue
+                }
+
+                // Character repeats (stuttering)
+                if (errorType === 3 && intensity > 0.5 && chance(35)) {
+                    consecutiveErrors++
+                    const repeats =
+                        2 + Math.floor(Math.random() * 2 * intensity)
+                    result += char.repeat(repeats)
+                    continue
+                }
+
+                // Normal character - maybe with random uppercase
+                let finalChar = lowerChar
+
+                // Shift fumbling - runs of capitals or special chars
+                if (
+                    heldShift ||
+                    (intensity > 0.6 && chance(15) && !heldShift)
+                ) {
+                    heldShift = true
+                    if (chance(40)) heldShift = false // Release shift
+                    finalChar = lowerChar.toUpperCase()
+                } else if (chance(5)) {
+                    // Random uppercase
+                    finalChar = lowerChar.toUpperCase()
+                }
+
+                // Occasional shift special (only non-Russian, and only one per word typically)
+                if (
+                    !isRussian &&
+                    !result.includes('<') &&
+                    !result.includes('>') &&
+                    shiftSpecials[char as keyof typeof shiftSpecials] &&
+                    intensity > 0.5 &&
+                    chance(20)
+                ) {
+                    result += shiftSpecials[char as keyof typeof shiftSpecials]
+                } else {
+                    result += finalChar
+                }
+
+                if (errorType === -1) {
+                    consecutiveErrors = Math.max(0, consecutiveErrors - 1)
+                }
+            }
+        }
+
+        return result
+    }
+
+    // Split by words and spaces, process words
+    const tokens = inputText.split(/(\s+)/)
+    let output = ''
+
+    for (const token of tokens) {
+        if (token.match(/^\s+$/)) {
+            // Extra spaces between words (sloppy spacing)
+            const intensity = getErrorIntensity()
+            if (intensity > 0.3 && chance(25)) {
+                const extraSpaces =
+                    Math.floor(Math.random() * 3 * intensity) + 1
+                output += token + ' '.repeat(extraSpaces)
+            } else {
+                output += token
+            }
+        } else if (token) {
+            output += processWord(token)
+        }
+    }
+
+    return output
 }
 
 export function owoTranslate(input: string): string {
