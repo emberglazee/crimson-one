@@ -1,10 +1,7 @@
+use ahash::AHashMap;
 /// Bun FFI library for Markov chain processing
-
 // This code was written specifically for working around the
 // these hardware constraints: 2 VCPU cores and 4 GB of RAM.
-// Could be better, but this is the best and most efficient
-// implementation I've tested with my VPS the bot is hosted on.
-
 use fastrand::Rng;
 use levenshtein::levenshtein;
 use once_cell::sync::Lazy;
@@ -12,27 +9,26 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::borrow::Cow;
-use ahash::{AHashMap, AHashSet};
+use std::cell::{RefCell, UnsafeCell};
 use std::ffi::{CStr, CString};
+use std::fmt::Write;
 use std::os::raw::c_char;
 use std::ptr::{self, null_mut};
 use std::str;
-use std::cell::{RefCell, UnsafeCell};
 use std::time::Instant;
-use string_interner::{backend::StringBackend, StringInterner, symbol::SymbolUsize, Symbol};
-use std::fmt::Write; // Import Write for efficient string appending
+use string_interner::{backend::StringBackend, symbol::SymbolUsize, StringInterner, Symbol};
 
 #[derive(Serialize)]
 struct Timings {
     db_query_ms: f64,
     training_ms: f64,
-    generation_ms: f64
+    generation_ms: f64,
 }
 
 #[derive(Serialize)]
 struct GenerationResult {
     text: String,
-    timings: Timings
+    timings: Timings,
 }
 
 #[derive(Deserialize)]
@@ -43,24 +39,81 @@ struct SimplifiedMessage {
 
 struct MessageData {
     word_ids: Vec<u32>,
-    original_text: String
+    original_text: String,
 }
 
-type BigramMap = AHashMap<u32, AHashMap<u32, u32>>;
-type TrigramMap = AHashMap<(u32, u32), AHashMap<u32, u32>>;
-type TrigramInvertedStarters = AHashMap<u32, AHashSet<(u32, u32)>>;
+// Flattened hash maps for better cache locality
+// Bigram: key = (prev << 32) | next
+// Trigram: key = (p2 << 48) | (p1 << 32) | next
+// Using two-level lookup with precomputed weighted arrays for O(log n) sampling
+
+struct WeightedFollowers {
+    followers: Vec<(u32, u32)>, // (word_id, count)
+    cumulative: Vec<u64>,       // Precomputed cumulative weights for binary search
+    total: u64,
+}
+
+impl WeightedFollowers {
+    fn new(mut followers: Vec<(u32, u32)>) -> Self {
+        let total = followers.iter().map(|(_, count)| *count as u64).sum();
+        let mut cumulative = Vec::with_capacity(followers.len());
+        let mut sum = 0u64;
+
+        for (_, count) in &followers {
+            sum += *count as u64;
+            cumulative.push(sum);
+        }
+
+        // Sort by cumulative weight for binary search
+        followers.sort_by_key(|(_, count)| *count);
+        cumulative.sort_unstable();
+
+        Self {
+            followers,
+            cumulative,
+            total,
+        }
+    }
+
+    fn choose(&self, rng: &mut Rng) -> Option<u32> {
+        if self.total == 0 || self.followers.is_empty() {
+            return None;
+        }
+
+        let choice = rng.u64(..self.total);
+
+        // Binary search for the selected weight
+        match self.cumulative.binary_search(&choice) {
+            Ok(idx) => Some(self.followers[idx].0),
+            Err(idx) => {
+                // idx is the insertion point, which corresponds to the first element > choice
+                let actual_idx = if idx < self.followers.len() {
+                    idx
+                } else {
+                    self.followers.len() - 1
+                };
+                Some(self.followers[actual_idx].0)
+            }
+        }
+    }
+}
+
+type BigramMap = AHashMap<u32, WeightedFollowers>;
+type TrigramMap = AHashMap<u64, WeightedFollowers>;
 
 struct ChainState {
     all_messages: Vec<MessageData>,
     bigram_chain: BigramMap,
     trigram_chain: TrigramMap,
-    trigram_inverted_starters: TrigramInvertedStarters,
     bigram_starters: Vec<u32>,
     trigram_starters: Vec<(u32, u32)>,
     lowercase_word_interner: StringInterner<StringBackend<SymbolUsize>>,
     cased_word_interner: StringInterner<StringBackend<SymbolUsize>>,
     casing_map: AHashMap<u32, AHashMap<SymbolUsize, u32>>,
     cased_to_lower_map: AHashMap<SymbolUsize, u32>,
+    // Temporary storage during training (flattened for efficiency)
+    bigram_temp: AHashMap<u32, Vec<(u32, u32)>>,
+    trigram_temp: AHashMap<u64, Vec<(u32, u32)>>,
 }
 
 pub struct MarkovChain {
@@ -80,37 +133,40 @@ static TOKENIZER_REGEX: Lazy<Regex> = Lazy::new(|| {
         r"https?://[^\s<>]+|",       // URLs
         r"\[[^\]]+\]\([^\s<>)]+\)|", // Masked links
         r"\d+(?:[.,:']\d+)*%?|",     // Numbers with punctuation
-        r"[\w]+(?:['\-+/]\w+)*|",    // Words with mixed symbols (apostrophes, hyphens, slashes, plus signs)
+        r"[\w]+(?:['\-+/]\w+)*|",    // Words with mixed symbols
         r"~{2,}|",                   // Strikethrough
         r"\*{2,}|",                  // Bold
         r"_{2,}|",                   // Underline
         r"\*[^*]+\*|",               // Italics/actions
         r"\p{P}+|",                  // Punctuation
-        r"[_>]"                      // Other markdown (quotes)
+        r"[_>]"                      // Other markdown
     ))
     .unwrap()
 });
 
 fn tokenize<'a>(text: &'a str) -> impl Iterator<Item = &'a str> {
-    TOKENIZER_REGEX
-        .find_iter(text)
-        .map(|m| m.as_str())
+    TOKENIZER_REGEX.find_iter(text).map(|m| m.as_str())
+}
+
+fn pack_bigram_key(prev: u32, next: u32) -> u64 {
+    ((prev as u64) << 32) | (next as u64)
 }
 
 #[no_mangle]
 pub extern "C" fn create_chain() -> *mut MarkovChain {
     Box::into_raw(Box::new(MarkovChain {
         state: RefCell::new(ChainState {
-            all_messages: Vec::new(),
-            bigram_chain: AHashMap::new(),
-            trigram_chain: AHashMap::new(),
-            trigram_inverted_starters: AHashMap::new(),
-            bigram_starters: Vec::new(),
-            trigram_starters: Vec::new(),
+            all_messages: Vec::with_capacity(10000),
+            bigram_chain: AHashMap::with_capacity(10000),
+            trigram_chain: AHashMap::with_capacity(10000),
+            bigram_starters: Vec::with_capacity(1000),
+            trigram_starters: Vec::with_capacity(1000),
             lowercase_word_interner: StringInterner::new(),
             cased_word_interner: StringInterner::new(),
             casing_map: AHashMap::new(),
             cased_to_lower_map: AHashMap::new(),
+            bigram_temp: AHashMap::with_capacity(10000),
+            trigram_temp: AHashMap::with_capacity(10000),
         }),
         rng: UnsafeCell::new(Rng::new()),
     }))
@@ -141,7 +197,7 @@ fn intern_word_and_get_lower_id(state: &mut ChainState, word: &str) -> u32 {
         };
         let lower_id_symbol = state.lowercase_word_interner.get_or_intern(&*lower_word);
         let lower_id = lower_id_symbol.to_usize() as u32;
-        
+
         // 4. Cache the mapping
         state.cased_to_lower_map.insert(cased_id, lower_id);
         lower_id
@@ -154,11 +210,18 @@ fn intern_word_and_get_lower_id(state: &mut ChainState, word: &str) -> u32 {
     lower_id
 }
 
+fn add_or_increment(vec: &mut Vec<(u32, u32)>, word_id: u32) {
+    for (id, count) in vec.iter_mut() {
+        if *id == word_id {
+            *count += 1;
+            return;
+        }
+    }
+    vec.push((word_id, 1));
+}
+
 #[no_mangle]
-pub extern "C" fn train_on_batch(
-    ptr: *mut MarkovChain,
-    json_ptr: *const c_char,
-) {
+pub extern "C" fn train_on_batch(ptr: *mut MarkovChain, json_ptr: *const c_char) {
     if ptr.is_null() || json_ptr.is_null() {
         return;
     }
@@ -174,10 +237,14 @@ pub extern "C" fn train_on_batch(
         return;
     }
 
-    // Sort messages by timestamp to process them in chronological order
+    // Sort messages by timestamp
     messages.sort_by_key(|m| m.timestamp);
 
     let mut state = chain.state.borrow_mut();
+
+    // Reserve capacity to avoid reallocations
+    let additional_capacity = messages.len();
+    state.all_messages.reserve(additional_capacity);
 
     for message in messages {
         let tokens: Vec<&str> = tokenize(&message.text).collect();
@@ -185,38 +252,61 @@ pub extern "C" fn train_on_batch(
             continue;
         }
 
-        let word_ids: Vec<u32> = tokens.iter().map(|&word| intern_word_and_get_lower_id(&mut state, word)).collect();
+        let word_ids: Vec<u32> = tokens
+            .iter()
+            .map(|&word| intern_word_and_get_lower_id(&mut state, word))
+            .collect();
 
-        // Add to all_messages for similarity search later
+        // Add to all_messages
         state.all_messages.push(MessageData {
             word_ids: word_ids.clone(),
-            original_text: message.text.clone()
+            original_text: message.text.clone(),
         });
 
-        // --- Standard Word-Level Chain Training ---
+        // Training
         if let Some(first_id) = word_ids.get(0) {
             state.bigram_starters.push(*first_id);
         }
 
         if let Some(pair) = word_ids.get(0..2) {
             state.trigram_starters.push((pair[0], pair[1]));
-            state.bigram_chain.entry(pair[0]).or_default()
-                .entry(pair[1]).and_modify(|v| *v += 1).or_insert(1);
+
+            // Use flattened bigram storage
+            let bigram_vec = state.bigram_temp.entry(pair[0]).or_default();
+            add_or_increment(bigram_vec, pair[1]);
         }
 
         for window in word_ids.windows(3) {
             let (p2, p1, id) = (window[0], window[1], window[2]);
-            
-            // Trigram
-            let key = (p2, p1);
-            state.trigram_chain.entry(key).or_default()
-                .entry(id).and_modify(|v| *v += 1).or_insert(1);
-                
-            state.trigram_inverted_starters.entry(p2).or_default().insert(key);
+
+            // Trigram with flattened key
+            let trigram_key = pack_bigram_key(p2, p1);
+            let trigram_vec = state.trigram_temp.entry(trigram_key).or_default();
+            add_or_increment(trigram_vec, id);
 
             // Bigram
-            state.bigram_chain.entry(p1).or_default()
-                .entry(id).and_modify(|v| *v += 1).or_insert(1);
+            let bigram_vec = state.bigram_temp.entry(p1).or_default();
+            add_or_increment(bigram_vec, id);
+        }
+    }
+
+    // Build weighted followers from temporary storage for O(log n) sampling
+    // Only rebuild if temp storage has grown significantly
+    if state.bigram_temp.len() > state.bigram_chain.len() {
+        let bigram_entries: Vec<_> = state.bigram_temp.drain().collect();
+        for (prev_id, followers) in bigram_entries {
+            state
+                .bigram_chain
+                .insert(prev_id, WeightedFollowers::new(followers));
+        }
+    }
+
+    if state.trigram_temp.len() > state.trigram_chain.len() {
+        let trigram_entries: Vec<_> = state.trigram_temp.drain().collect();
+        for (key, followers) in trigram_entries {
+            state
+                .trigram_chain
+                .insert(key, WeightedFollowers::new(followers));
         }
     }
 }
@@ -239,22 +329,6 @@ fn get_seed_ids(chain: &MarkovChain, seed_words: &[String]) -> Vec<u32> {
         .collect()
 }
 
-fn choose_next_word(rng: &mut Rng, follower_counts: &AHashMap<u32, u32>) -> Option<u32> {
-    let total_count: u64 = follower_counts.values().map(|&c| c as u64).sum();
-    if total_count == 0 {
-        return None;
-    }
-    let mut choice = rng.u64(..total_count);
-
-    for (word_id, count) in follower_counts.iter() {
-        if choice < (*count as u64) {
-            return Some(*word_id);
-        }
-        choice -= *count as u64;
-    }
-    None
-}
-
 fn ids_to_string(chain: &MarkovChain, result_ids: &[u32]) -> String {
     if result_ids.is_empty() {
         return String::new();
@@ -262,8 +336,6 @@ fn ids_to_string(chain: &MarkovChain, result_ids: &[u32]) -> String {
 
     let state = chain.state.borrow();
 
-    // Pre-calculating a rough capacity estimation to reduce reallocations
-    // Assuming avg word length of 5 + 1 space
     let mut result = String::with_capacity(result_ids.len() * 6);
 
     let get_word_str = |id: u32| -> Cow<'_, str> {
@@ -274,7 +346,6 @@ fn ids_to_string(chain: &MarkovChain, result_ids: &[u32]) -> String {
                 }
             }
         }
-        // Fallback if case mapping fails or word missing (safety)
         let symbol = SymbolUsize::try_from_usize(id as usize).unwrap();
         state
             .lowercase_word_interner
@@ -298,32 +369,34 @@ fn ids_to_string(chain: &MarkovChain, result_ids: &[u32]) -> String {
 
             let mut add_space = true;
 
-            // Rule 1: No space if previous token ends with left-sticky punctuation.
             if let Some(c) = prev_token.chars().last() {
                 if left_sticky_punctuation.contains(&c) || bi_directional_punctuation.contains(&c) {
                     add_space = false;
                 }
             }
 
-            // Rule 2: No space if current token starts with right-sticky punctuation.
             if let Some(c) = current_token.chars().next() {
-                if right_sticky_punctuation.contains(&c) || bi_directional_punctuation.contains(&c) {
+                if right_sticky_punctuation.contains(&c) || bi_directional_punctuation.contains(&c)
+                {
                     add_space = false;
                 }
             }
 
-            // Rule 3: Override for specific cases. Add a space if a word follows a right-sticky punctuation.
-            // This allows for sentences like "Hello. World" instead of "Hello.World".
-            if let (Some(prev_last), Some(curr_first)) = (prev_token.chars().last(), current_token.chars().next()) {
-                if (right_sticky_punctuation.contains(&prev_last) || bi_directional_punctuation.contains(&prev_last)) && curr_first.is_alphanumeric() {
+            if let (Some(prev_last), Some(curr_first)) =
+                (prev_token.chars().last(), current_token.chars().next())
+            {
+                if (right_sticky_punctuation.contains(&prev_last)
+                    || bi_directional_punctuation.contains(&prev_last))
+                    && curr_first.is_alphanumeric()
+                {
                     add_space = true;
                 }
-                 // Rule 4: Prevent space between two bi-directional punctuations (e.g., empty quotes "").
-                if bi_directional_punctuation.contains(&prev_last) && bi_directional_punctuation.contains(&curr_first) {
+                if bi_directional_punctuation.contains(&prev_last)
+                    && bi_directional_punctuation.contains(&curr_first)
+                {
                     add_space = false;
                 }
             }
-
 
             if add_space {
                 result.push(' ');
@@ -364,7 +437,6 @@ fn generate_bigram(
         }
     }
 
-    // SAFETY: Single thread guarantee via Bun
     let rng = unsafe { &mut *chain.rng.get() };
     if !seeded {
         current_word_id = state.bigram_starters[rng.usize(..state.bigram_starters.len())];
@@ -373,8 +445,8 @@ fn generate_bigram(
 
     let words_to_generate = max_words.saturating_sub(result_ids.len());
     for _ in 0..words_to_generate {
-        if let Some(follower_counts) = state.bigram_chain.get(&current_word_id) {
-            if let Some(next_word_id) = choose_next_word(rng, follower_counts) {
+        if let Some(followers) = state.bigram_chain.get(&current_word_id) {
+            if let Some(next_word_id) = followers.choose(rng) {
                 current_word_id = next_word_id;
                 result_ids.push(current_word_id);
             } else {
@@ -401,7 +473,6 @@ fn generate_trigram(
     let mut result_ids = Vec::with_capacity(max_words);
     let mut current_pair: (u32, u32) = (0, 0);
     let mut seeded = false;
-    // SAFETY: Single thread guarantee
     let rng = unsafe { &mut *chain.rng.get() };
 
     if let Some(words) = seed_words {
@@ -409,45 +480,34 @@ fn generate_trigram(
             let seed_ids = get_seed_ids(chain, &words);
 
             if !seed_ids.is_empty() {
-                // Try seeding with the last two words if possible
                 if seed_ids.len() >= 2 {
-                    let key = (
-                        seed_ids[seed_ids.len() - 2],
-                        seed_ids[seed_ids.len() - 1],
-                    );
+                    let key =
+                        pack_bigram_key(seed_ids[seed_ids.len() - 2], seed_ids[seed_ids.len() - 1]);
                     if state.trigram_chain.contains_key(&key) {
                         result_ids = seed_ids.clone();
-                        current_pair = key;
+                        current_pair = (seed_ids[seed_ids.len() - 2], seed_ids[seed_ids.len() - 1]);
                         seeded = true;
                     }
                 }
 
-                if !seeded {
-                    let last_seed_id = *seed_ids.last().unwrap();
-                    if let Some(possible_starters_set) = state
-                        .trigram_inverted_starters
-                        .get(&last_seed_id)
-                    {
-                        if !possible_starters_set.is_empty() {
-                            let possible_starters: Vec<&(u32, u32)> =
-                                possible_starters_set.iter().collect();
-                            let chosen_pair =
-                                *possible_starters[rng.usize(..possible_starters.len())];
+                // Without trigram_inverted_starters, fall back to using the word as a starter anchor
+                // This is slightly less accurate but much more memory efficient
+                if !seeded && seed_ids.len() == 1 {
+                    // Try to find a trigram starter containing this word
+                    let target_word = seed_ids[0];
+                    let matching_starters: Vec<_> = state
+                        .trigram_starters
+                        .iter()
+                        .filter(|(a, b)| *a == target_word || *b == target_word)
+                        .cloned()
+                        .collect();
 
-                            if seed_ids.len() == 1 {
-                                result_ids.push(chosen_pair.0);
-                                result_ids.push(chosen_pair.1);
-                            } else {
-                                result_ids = seed_ids.clone();
-                                result_ids.push(chosen_pair.1);
-                            }
-
-                            current_pair = (
-                                *result_ids.get(result_ids.len() - 2).unwrap(),
-                                *result_ids.last().unwrap(),
-                            );
-                            seeded = true;
-                        }
+                    if !matching_starters.is_empty() {
+                        let chosen = &matching_starters[rng.usize(..matching_starters.len())];
+                        result_ids.push(chosen.0);
+                        result_ids.push(chosen.1);
+                        current_pair = *chosen;
+                        seeded = true;
                     }
                 }
             }
@@ -462,8 +522,9 @@ fn generate_trigram(
 
     let words_to_generate = max_words.saturating_sub(result_ids.len());
     for _ in 0..words_to_generate {
-        if let Some(follower_counts) = state.trigram_chain.get(&current_pair) {
-            if let Some(next_word_id) = choose_next_word(rng, follower_counts) {
+        let key = pack_bigram_key(current_pair.0, current_pair.1);
+        if let Some(followers) = state.trigram_chain.get(&key) {
+            if let Some(next_word_id) = followers.choose(rng) {
                 result_ids.push(next_word_id);
                 current_pair = (current_pair.1, next_word_id);
             } else {
@@ -493,7 +554,6 @@ fn generate_hybrid(
     let mut result_ids = Vec::with_capacity(max_words);
     let mut current_pair: (u32, u32) = (0, 0);
     let mut seeded = false;
-    // SAFETY: Single thread guarantee
     let rng = unsafe { &mut *chain.rng.get() };
 
     if let Some(words) = seed_words {
@@ -502,43 +562,41 @@ fn generate_hybrid(
 
             if !seed_ids.is_empty() {
                 if seed_ids.len() >= 2 {
-                    let key = (
-                        seed_ids[seed_ids.len() - 2],
-                        seed_ids[seed_ids.len() - 1],
-                    );
+                    let key =
+                        pack_bigram_key(seed_ids[seed_ids.len() - 2], seed_ids[seed_ids.len() - 1]);
                     if state.trigram_chain.contains_key(&key) {
                         result_ids = seed_ids.clone();
-                        current_pair = key;
+                        current_pair = (seed_ids[seed_ids.len() - 2], seed_ids[seed_ids.len() - 1]);
                         seeded = true;
                     }
                 }
 
-                if !seeded {
-                    let last_seed_id = *seed_ids.last().unwrap();
-                    if let Some(possible_starters_set) = state
-                        .trigram_inverted_starters
-                        .get(&last_seed_id)
-                    {
-                        if !possible_starters_set.is_empty() {
-                            let possible_starters: Vec<&(u32, u32)> =
-                                possible_starters_set.iter().collect();
-                            let chosen_pair =
-                                *possible_starters[rng.usize(..possible_starters.len())];
+                // Without trigram_inverted_starters, use matching starter approach
+                if !seeded && seed_ids.len() >= 1 {
+                    let target_word = *seed_ids.last().unwrap();
+                    let matching_starters: Vec<_> = state
+                        .trigram_starters
+                        .iter()
+                        .filter(|(a, b)| *a == target_word || *b == target_word)
+                        .cloned()
+                        .collect();
 
-                            if seed_ids.len() == 1 {
-                                result_ids.push(chosen_pair.0);
-                                result_ids.push(chosen_pair.1);
-                            } else {
-                                result_ids = seed_ids.clone();
-                                result_ids.push(chosen_pair.1);
-                            }
+                    if !matching_starters.is_empty() {
+                        let chosen = &matching_starters[rng.usize(..matching_starters.len())];
 
-                            current_pair = (
-                                *result_ids.get(result_ids.len() - 2).unwrap(),
-                                *result_ids.last().unwrap(),
-                            );
-                            seeded = true;
+                        if seed_ids.len() == 1 {
+                            result_ids.push(chosen.0);
+                            result_ids.push(chosen.1);
+                        } else {
+                            result_ids = seed_ids.clone();
+                            result_ids.push(chosen.1);
                         }
+
+                        current_pair = (
+                            *result_ids.get(result_ids.len() - 2).unwrap(),
+                            *result_ids.last().unwrap(),
+                        );
+                        seeded = true;
                     }
                 }
             }
@@ -556,17 +614,18 @@ fn generate_hybrid(
         let mut next_word_id: Option<u32> = None;
 
         // 1. Try trigram
-        if let Some(follower_counts) = state.trigram_chain.get(&current_pair) {
-            if !follower_counts.is_empty() {
-                next_word_id = choose_next_word(rng, follower_counts);
+        let key = pack_bigram_key(current_pair.0, current_pair.1);
+        if let Some(followers) = state.trigram_chain.get(&key) {
+            if !followers.cumulative.is_empty() {
+                next_word_id = followers.choose(rng);
             }
         }
 
         // 2. Fallback to bigram
         if next_word_id.is_none() {
-            if let Some(follower_counts) = state.bigram_chain.get(&current_pair.1) {
-                if !follower_counts.is_empty() {
-                    next_word_id = choose_next_word(rng, follower_counts);
+            if let Some(followers) = state.bigram_chain.get(&current_pair.1) {
+                if !followers.cumulative.is_empty() {
+                    next_word_id = followers.choose(rng);
                 }
             }
         }
@@ -575,7 +634,7 @@ fn generate_hybrid(
             result_ids.push(id);
             current_pair = (current_pair.1, id);
         } else {
-            // 3. Hybrid jump: if both fail, jump to a new random starter
+            // 3. Hybrid jump
             if !state.trigram_starters.is_empty() {
                 current_pair = state.trigram_starters[rng.usize(..state.trigram_starters.len())];
                 result_ids.push(current_pair.0);
@@ -591,22 +650,18 @@ fn generate_hybrid(
     ids_to_string(chain, &result_ids)
 }
 
-fn generate_chatbot_response(
-    chain: &MarkovChain,
-    max_words: usize,
-    seed_text: &str,
-) -> String {
+fn generate_chatbot_response(chain: &MarkovChain, max_words: usize, seed_text: &str) -> String {
     let state = chain.state.borrow();
     if state.all_messages.is_empty() {
         return String::new();
     }
 
-    // 1. Find the most similar message
+    // Find most similar message using Levenshtein distance
     let mut min_distance = usize::MAX;
     let mut best_match_index: Option<usize> = None;
 
     for (i, message_data) in state.all_messages.iter().enumerate() {
-        let distance = levenshtein(&seed_text, &message_data.original_text);
+        let distance = levenshtein(seed_text, &message_data.original_text);
         if distance < min_distance {
             min_distance = distance;
             best_match_index = Some(i);
@@ -615,36 +670,41 @@ fn generate_chatbot_response(
 
     let best_match_index = match best_match_index {
         Some(index) => index,
-        None => return String::new(), // Should not happen if all_messages is not empty
+        None => return String::new(),
     };
-    
-    // 2. Find the message that was posted immediately after
+
     let reply_candidate_index = best_match_index + 1;
     if reply_candidate_index >= state.all_messages.len() {
-        // The best match was the last message, so we can't find a reply.
-        // Fallback: use a random starter.
         return generate_hybrid(chain, max_words, None);
     }
-    
+
     let reply_candidate = &state.all_messages[reply_candidate_index];
 
-    // 3. Take the first 2-3 words of the reply candidate as the new seed
     let new_seed_ids = &reply_candidate.word_ids;
-    let seed_word_count = if new_seed_ids.len() >= 2 { 2 } else { new_seed_ids.len() };
-    
+    let seed_word_count = if new_seed_ids.len() >= 2 {
+        2
+    } else {
+        new_seed_ids.len()
+    };
+
     if seed_word_count == 0 {
         return generate_hybrid(chain, max_words, None);
     }
 
-    let seed_words_as_strings: Vec<String> = new_seed_ids[..seed_word_count].iter().map(|&id| {
-        let symbol = SymbolUsize::try_from_usize(id as usize).unwrap();
-        state.lowercase_word_interner.resolve(symbol).unwrap().to_string()
-    }).collect();
+    let seed_words_as_strings: Vec<String> = new_seed_ids[..seed_word_count]
+        .iter()
+        .map(|&id| {
+            let symbol = SymbolUsize::try_from_usize(id as usize).unwrap();
+            state
+                .lowercase_word_interner
+                .resolve(symbol)
+                .unwrap()
+                .to_string()
+        })
+        .collect();
 
-    // 4. Generate the rest of the message
     generate_hybrid(chain, max_words, Some(seed_words_as_strings))
 }
-
 
 #[no_mangle]
 pub extern "C" fn generate_text(
@@ -654,7 +714,7 @@ pub extern "C" fn generate_text(
     seed_ptr: *const c_char,
     db_query_ms: f64,
     training_ms: f64,
-    batch_size: usize
+    batch_size: usize,
 ) -> *mut c_char {
     if ptr.is_null() {
         return ptr::null_mut();
@@ -669,16 +729,12 @@ pub extern "C" fn generate_text(
         if seed_str.is_empty() {
             None
         } else {
-            Some(
-                tokenize(seed_str)
-                    .map(|s| s.to_string())
-                    .collect()
-            )
+            Some(tokenize(seed_str).map(|s| s.to_string()).collect())
         }
     };
 
     let mut results = Vec::with_capacity(batch_size);
-    
+
     for i in 0..batch_size {
         let start_time = Instant::now();
         let result_str = match mode {
@@ -704,40 +760,31 @@ pub extern "C" fn generate_text(
         return null_mut();
     }
 
-    // Optimization: Use a single pre-allocated buffer for JSON construction 
-    // to avoid allocating multiple Strings via format!().
     let mut json_out = String::with_capacity(256 * results.len());
-    
+
     if batch_size > 1 {
         json_out.push('[');
         for (i, r) in results.iter().enumerate() {
-            if i > 0 { json_out.push(','); }
-            
-            // We must still use serde_json for the text content to ensure 
-            // proper escaping of quotes, backslashes, etc.
+            if i > 0 {
+                json_out.push(',');
+            }
+
             let escaped_text = serde_json::to_string(&r.text).unwrap();
-            
+
             let _ = write!(
                 json_out,
                 r#"{{"text":{},"timings":{{"db_query_ms":{},"training_ms":{},"generation_ms":{}}}}}"#,
-                escaped_text,
-                r.timings.db_query_ms,
-                r.timings.training_ms,
-                r.timings.generation_ms
+                escaped_text, r.timings.db_query_ms, r.timings.training_ms, r.timings.generation_ms
             );
         }
         json_out.push(']');
     } else {
-        // Single object return for backwards compatibility / simplicity
         let r = &results[0];
         let escaped_text = serde_json::to_string(&r.text).unwrap();
         let _ = write!(
             json_out,
             r#"{{"text":{},"timings":{{"db_query_ms":{},"training_ms":{},"generation_ms":{}}}}}"#,
-            escaped_text,
-            r.timings.db_query_ms,
-            r.timings.training_ms,
-            r.timings.generation_ms
+            escaped_text, r.timings.db_query_ms, r.timings.training_ms, r.timings.generation_ms
         );
     }
 
@@ -750,7 +797,7 @@ pub extern "C" fn generate_chat_response(
     max_words: usize,
     seed_ptr: *const c_char,
     db_query_ms: f64,
-    training_ms: f64
+    training_ms: f64,
 ) -> *mut c_char {
     if ptr.is_null() {
         return ptr::null_mut();
@@ -761,7 +808,7 @@ pub extern "C" fn generate_chat_response(
     let start_time = Instant::now();
     let result_str = generate_chatbot_response(chain, max_words, seed_str);
     let generation_ms = start_time.elapsed().as_nanos() as f64 / 1_000_000.0;
-    
+
     let result = GenerationResult {
         text: result_str,
         timings: Timings {
@@ -774,7 +821,6 @@ pub extern "C" fn generate_chat_response(
     let json_out = serde_json::to_string(&result).unwrap();
     CString::new(json_out).map_or(ptr::null_mut(), |s| s.into_raw())
 }
-
 
 #[no_mangle]
 pub extern "C" fn free_text(s: *mut c_char) {
