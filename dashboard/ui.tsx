@@ -2,11 +2,51 @@ import React, { useState, useEffect } from 'react'
 import { render, Box, Text } from 'ink'
 import WebSocket from 'ws'
 
+interface MemoryStats {
+    heapUsed: number
+    heapTotal: number
+    rss: number
+}
+
+interface Stats {
+    memory?: MemoryStats
+    uptime?: number
+    guilds?: number
+    users?: number
+}
+
+interface HistoryInfo {
+    mode: string
+    count: number
+    limit: number
+}
+
+interface CrimsonChatStatus {
+    enabled?: boolean
+    model?: string
+    history?: HistoryInfo
+    modes?: string[]
+}
+
+interface Operation {
+    id: string
+    name: string
+    startTime: string
+}
+
+type LogLevel = 'ERROR' | 'WARN' | 'INFO' | 'OK' | 'DEBUG'
+
+interface LogEntry {
+    level: LogLevel
+    message: string
+    module?: string
+}
+
 const App = () => {
-    const [stats, setStats] = useState<any>({})
-    const [logs, setLogs] = useState<any>([])
-    const [crimsonChatStatus, setCrimsonChatStatus] = useState<any>({})
-    const [operations, setOperations] = useState<any>([])
+    const [stats, setStats] = useState<Stats>({})
+    const [logs, setLogs] = useState<LogEntry[]>([])
+    const [crimsonChatStatus, setCrimsonChatStatus] = useState<CrimsonChatStatus>({})
+    const [operations, setOperations] = useState<Operation[]>([])
     const [latestAwacsEvent, setLatestAwacsEvent] = useState('')
 
     useEffect(() => {
@@ -29,7 +69,9 @@ const App = () => {
                     setLatestAwacsEvent(message.payload.message)
                     break
                 case 'log':
-                    setLogs((prevLogs: any) => [message.payload, ...prevLogs].slice(0, 50))
+                    setLogs((prevLogs: LogEntry[]) =>
+                        [message.payload as LogEntry, ...prevLogs].slice(0, 50),
+                    )
                     break
             }
         }
@@ -45,23 +87,46 @@ const App = () => {
             <Box>
                 <Box borderStyle="round" flexDirection="column" width="50%">
                     <Text>System Status</Text>
-                    <Text>Memory: {stats.memory ? `${(stats.memory.heapUsed / 1024 / 1024).toFixed(2)}MB` : 'N/A'}</Text>
-                    <Text>Uptime: {stats.uptime ? `${Math.floor(stats.uptime / 3600)}h ${Math.floor((stats.uptime % 3600) / 60)}m ${stats.uptime % 60}s` : 'N/A'}</Text>
+                    <Text>
+                        Memory:{' '}
+                        {stats.memory
+                            ? `${(stats.memory.heapUsed / 1024 / 1024).toFixed(2)}MB`
+                            : 'N/A'}
+                    </Text>
+                    <Text>
+                        Uptime:{' '}
+                        {stats.uptime
+                            ? `${Math.floor(stats.uptime / 3600)}h ${Math.floor((stats.uptime % 3600) / 60)}m ${stats.uptime % 60}s`
+                            : 'N/A'}
+                    </Text>
                     <Text>Guilds: {stats.guilds ?? 'N/A'}</Text>
                     <Text>Users: {stats.users ?? 'N/A'}</Text>
                 </Box>
                 <Box borderStyle="round" flexDirection="column" width="50%">
                     <Text>CrimsonChat AI</Text>
-                    <Text>Status: {crimsonChatStatus.enabled ? 'ENABLED' : 'DISABLED'}</Text>
+                    <Text>
+                        Status:{' '}
+                        {crimsonChatStatus.enabled ? 'ENABLED' : 'DISABLED'}
+                    </Text>
                     <Text>Model: {crimsonChatStatus.model}</Text>
-                    <Text>History: {crimsonChatStatus.history ? `${crimsonChatStatus.history.count} / ${crimsonChatStatus.history.limit} ${crimsonChatStatus.history.mode}` : 'N/A'}</Text>
-                    <Text>Modes: {crimsonChatStatus.modes ? crimsonChatStatus.modes.join(', ') : 'N/A'}</Text>
+                    <Text>
+                        History:{' '}
+                        {crimsonChatStatus.history
+                            ? `${crimsonChatStatus.history.count} / ${crimsonChatStatus.history.limit} ${crimsonChatStatus.history.mode}`
+                            : 'N/A'}
+                    </Text>
+                    <Text>
+                        Modes:{' '}
+                        {crimsonChatStatus.modes
+                            ? crimsonChatStatus.modes.join(', ')
+                            : 'N/A'}
+                    </Text>
                 </Box>
             </Box>
             <Box>
                 <Box borderStyle="round" flexDirection="column" width="50%">
                     <Text>Ongoing Operations</Text>
-                    {operations.map((op: any) => (
+                    {operations.map((op: Operation) => (
                         <Text key={op.id}>{op.name}</Text>
                     ))}
                 </Box>
@@ -72,8 +137,11 @@ const App = () => {
             </Box>
             <Box borderStyle="round" flexDirection="column">
                 <Text>Live Log Stream</Text>
-                {logs.map((log: any, i: number) => (
-                    <Text key={i}>[{log.level}] {log.module ? `[${log.module}]` : ''} {log.message}</Text>
+                {logs.map((log: LogEntry, i: number) => (
+                    <Text key={i}>
+                        [{log.level}] {log.module ? `[${log.module}]` : ''}{' '}
+                        {log.message}
+                    </Text>
                 ))}
             </Box>
         </Box>
