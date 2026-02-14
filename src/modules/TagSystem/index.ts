@@ -4,17 +4,21 @@ const logger = new Logger('TagManager')
 
 import { type CommandContext } from '../CommandManager/CommandContext'
 import { inspect } from 'bun'
-import { GuildConfigManager } from '../GuildConfig'
+import { ServerConfigManager } from '../ServerConfig'
 
 import { TagDataSource } from './DataSource'
-import { Tag } from './entities/Tag'
-import { Message, PermissionsBitField, type PermissionResolvable } from 'discord.js'
+import { Tag, type PlatformType } from './entities/Tag'
+import { Message } from 'discord.js'
+import type {
+    IPlatformMessage,
+    IPlatformServerMember
+} from '../../platform/interfaces'
 
 @singleton()
 export class TagManager {
     public constructor(
         private dataSource: TagDataSource,
-        private guildConfigManager: GuildConfigManager
+        private serverConfigManager: ServerConfigManager
     ) {}
 
     public async init() {
@@ -23,36 +27,65 @@ export class TagManager {
 
     private get repository() {
         if (!this.dataSource.orm) {
-            throw new Error('DataSource is not initialized. Call TagManager.init() first.')
+            throw new Error(
+                'DataSource is not initialized. Call TagManager.init() first.'
+            )
         }
         return this.dataSource.orm.getRepository(Tag)
     }
 
-    public async getTag(guildId: string, name: string): Promise<Tag | null> {
-        return this.repository.findOne({ where: { guildId, name } })
+    public async getTag(
+        platform: PlatformType,
+        serverId: string,
+        name: string
+    ): Promise<Tag | null> {
+        return this.repository.findOne({ where: { platform, serverId, name } })
     }
 
-    public async createTag(guildId: string, name: string, content: string, ownerId: string): Promise<Tag> {
-        const existingTag = await this.getTag(guildId, name)
+    public async createTag(
+        platform: PlatformType,
+        serverId: string,
+        name: string,
+        content: string,
+        ownerId: string
+    ): Promise<Tag> {
+        const existingTag = await this.getTag(platform, serverId, name)
         if (existingTag) {
-            throw new Error('A tag with this name already exists on this server.')
+            throw new Error(
+                'A tag with this name already exists on this server.'
+            )
         }
 
-        const newTag = this.repository.create({ guildId, name, content, ownerId })
+        const newTag = this.repository.create({
+            platform,
+            serverId,
+            name,
+            content,
+            ownerId
+        })
         return this.repository.save(newTag)
     }
 
-    public async deleteTag(guildId: string, name: string): Promise<void> {
-        await this.repository.delete({ guildId, name })
+    public async deleteTag(
+        platform: PlatformType,
+        serverId: string,
+        name: string
+    ): Promise<void> {
+        await this.repository.delete({ platform, serverId, name })
     }
 
-    public async renameTag(guildId: string, oldName: string, newName: string): Promise<void> {
-        const tag = await this.getTag(guildId, oldName)
+    public async renameTag(
+        platform: PlatformType,
+        serverId: string,
+        oldName: string,
+        newName: string
+    ): Promise<void> {
+        const tag = await this.getTag(platform, serverId, oldName)
         if (!tag) {
             throw new Error('A tag with that name was not found.')
         }
 
-        const newNameTagExists = await this.getTag(guildId, newName)
+        const newNameTagExists = await this.getTag(platform, serverId, newName)
         if (newNameTagExists) {
             throw new Error(`A tag with the name "${newName}" already exists.`)
         }
@@ -61,55 +94,124 @@ export class TagManager {
         await this.repository.save(tag)
     }
 
-    public async listTags(guildId: string): Promise<Tag[]> {
-        return this.repository.find({ where: { guildId } })
+    public async listTags(
+        platform: PlatformType,
+        serverId: string
+    ): Promise<Tag[]> {
+        return this.repository.find({ where: { platform, serverId } })
     }
 
-    public async canModerateTags(ctx: CommandContext | Message): Promise<boolean> {
-        if (!ctx.guild) {
-            logger.debug('{canModerateTags} CommandContext or Message is not in a guild.')
+    /**
+     * Check if a user can moderate tags (create/delete/rename)
+     * Works with both Discord CommandContext/Messages and platform messages
+     */
+    public async canModerateTags(
+        ctx: CommandContext | Message | IPlatformMessage
+    ): Promise<boolean> {
+        // Extract guild/server ID and member from different context types
+        let serverId: string | null = null
+        let member: IPlatformServerMember | null = null
+
+        if ('server' in ctx) {
+            // It's an IPlatformMessage
+            serverId = ctx.server?.id || null
+            member = ctx.member || null
+        } else if ('guild' in ctx) {
+            // It's a Discord CommandContext or Message
+            serverId = ctx.guild?.id || null
+            if ('member' in ctx && ctx.member) {
+                // Convert Discord GuildMember to platform-compatible checks
+                member = ctx.member as unknown as IPlatformServerMember
+            }
+        }
+
+        if (!serverId) {
+            logger.debug('{canModerateTags} Context is not in a guild/server.')
             return false
         }
 
-        logger.debug(`{canModerateTags} Getting configuration for guild ${ctx.guild.id}`)
-        const guildConfig = await this.guildConfigManager.getConfig(ctx.guild.id)
-        logger.debug(`{canModerateTags} GuildConfig for guild ${ctx.guild.id}:\n${inspect(guildConfig, { colors: true, depth: Infinity })}`)
+        logger.debug(
+            `{canModerateTags} Getting configuration for server ${serverId}`
+        )
+        const serverConfig = await this.serverConfigManager.getConfig(serverId)
+        logger.debug(
+            `{canModerateTags} ServerConfig for server ${serverId}:\n${inspect(serverConfig, { colors: true, depth: Infinity })}`
+        )
 
-        if (!guildConfig.tagSystemEnabled) {
-            logger.debug(`{canModerateTags} ❌ Tag system disabled for guild ${ctx.guild.id}`)
+        if (!serverConfig.tagSystemEnabled) {
+            logger.debug(
+                `{canModerateTags} Tag system disabled for server ${serverId}`
+            )
             return false
         }
 
-        const member = ctx.member
         if (!member) {
-            logger.debug(`{canModerateTags} ❌ No member found for guild ${ctx.guild.id}`)
+            logger.debug(
+                `{canModerateTags} No member found for server ${serverId}`
+            )
             return false
         }
 
-        const hasPermission = guildConfig.tagCreatePermissions.some(p => member.permissions.has(p as PermissionResolvable))
+        // Check permissions using platform-agnostic interface
+        const hasPermission = serverConfig.tagCreatePermissions.some(
+            (p: bigint | string) => {
+                const permString =
+                    typeof p === 'bigint' ? p.toString() : String(p)
+                return member.havePermission(permString)
+            }
+        )
+
         if (hasPermission) {
-            logger.debug(`{canModerateTags} ✅ Member ${member.id} has a permission required for guild ${ctx.guild.id}`)
+            logger.debug(
+                `{canModerateTags} Member ${member.id} has a permission required for server ${serverId}`
+            )
             return true
         }
 
-        const hasRole = guildConfig.tagCreateRoles.some(r => member.roles.cache.has(r))
+        // Check roles
+        const hasRole = serverConfig.tagCreateRoles.some(r =>
+            member.roles.includes(r)
+        )
         if (hasRole) {
-            logger.debug(`{canModerateTags} ✅ Member ${member.id} has a role required for guild ${ctx.guild.id}`)
+            logger.debug(
+                `{canModerateTags} Member ${member.id} has a role required for server ${serverId}`
+            )
             return true
         }
 
-        const hasUser = guildConfig.tagCreateUsers.includes(member.id)
+        // Check specific users
+        const hasUser = serverConfig.tagCreateUsers.includes(member.id)
         if (hasUser) {
-            logger.debug(`{canModerateTags} ✅ Member ${member.id} is allowed in guild ${ctx.guild.id}`)
+            logger.debug(
+                `{canModerateTags} Member ${member.id} is allowed in server ${serverId}`
+            )
             return true
         }
 
-        if (member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            logger.debug(`{canModerateTags} ✅ Member ${member.id} has administrator permission in guild ${ctx.guild.id}`)
+        // Check administrator permission
+        if (member.havePermission('Administrator')) {
+            logger.debug(
+                `{canModerateTags} Member ${member.id} has administrator permission in server ${serverId}`
+            )
             return true
         }
 
-        logger.debug(`{canModerateTags} ❌ No match, no permission given to ${member.id} in guild ${ctx.guild.id}`)
+        logger.debug(
+            `{canModerateTags} No match, no permission given to ${member.id} in server ${serverId}`
+        )
         return false
+    }
+
+    /**
+     * Execute a tag and return the content
+     * Platform-agnostic version
+     */
+    public async executeTag(
+        platform: PlatformType,
+        serverId: string,
+        name: string
+    ): Promise<string | null> {
+        const tag = await this.getTag(platform, serverId, name)
+        return tag?.content || null
     }
 }

@@ -1,4 +1,14 @@
-import { Logger, TagManager, GuildConfigManager, CommandManager, CrimsonChat, MessageTrigger, AntiRaidManager, MarkovBotManager, MarkovChat } from '../modules'
+import {
+    Logger,
+    TagManager,
+    ServerConfigManager,
+    CommandManager,
+    CrimsonChat,
+    MessageTrigger,
+    AntiRaidManager,
+    MarkovBotManager,
+    MarkovChat
+} from '../modules'
 import { distance } from 'fastest-levenshtein'
 const logger = new Logger('event.messageCreate')
 import { type Client, TextChannel, Message } from 'discord.js'
@@ -7,12 +17,16 @@ import { parseMentions } from '../modules/CrimsonChat/util/formatters'
 import { create, all, type MathJsInstance } from 'mathjs'
 import { toFeetInches } from '../util/functions'
 import util from 'util'
-import { QOTD_ANSWERS_CHANNEL_ID, QOTD_CHANNEL_ID, QOTD_ROLE_ID, SOLITARY_CONFINEMENT_GUILD_ID } from '../util/constants'
-
+import {
+    QOTD_ANSWERS_CHANNEL_ID,
+    QOTD_CHANNEL_ID,
+    QOTD_ROLE_ID,
+    SOLITARY_CONFINEMENT_GUILD_ID
+} from '../util/constants'
 
 interface MessageCreateServices {
     tagManager: TagManager
-    guildConfigManager: GuildConfigManager
+    serverConfigManager: ServerConfigManager
     commandManager: CommandManager
     crimsonChat: CrimsonChat
     messageTrigger: MessageTrigger
@@ -21,8 +35,14 @@ interface MessageCreateServices {
     markovChat: MarkovChat
 }
 
-async function handleQOTD(message: Message, { crimsonChat }: Pick<MessageCreateServices, 'crimsonChat'>): Promise<void> {
-    if (message.guildId !== SOLITARY_CONFINEMENT_GUILD_ID || message.channelId !== QOTD_CHANNEL_ID) {
+async function handleQOTD(
+    message: Message,
+    { crimsonChat }: Pick<MessageCreateServices, 'crimsonChat'>
+): Promise<void> {
+    if (
+        message.guildId !== SOLITARY_CONFINEMENT_GUILD_ID ||
+        message.channelId !== QOTD_CHANNEL_ID
+    ) {
         return
     }
 
@@ -35,9 +55,13 @@ async function handleQOTD(message: Message, { crimsonChat }: Pick<MessageCreateS
         return
     }
 
-    const answersChannel = await message.client.channels.fetch(QOTD_ANSWERS_CHANNEL_ID).catch(() => null) as TextChannel | null
+    const answersChannel = (await message.client.channels
+        .fetch(QOTD_ANSWERS_CHANNEL_ID)
+        .catch(() => null)) as TextChannel | null
     if (!answersChannel) {
-        logger.warn(`QOTD answers channel with ID ${QOTD_ANSWERS_CHANNEL_ID} not found.`)
+        logger.warn(
+            `QOTD answers channel with ID ${QOTD_ANSWERS_CHANNEL_ID} not found.`
+        )
         return
     }
 
@@ -46,18 +70,27 @@ async function handleQOTD(message: Message, { crimsonChat }: Pick<MessageCreateS
         allowedMentions: { users: [] }
     })
 
-    crimsonChat.sendMessage(message.content, {
-        messageContent: message.content,
-        username: message.author.username,
-        displayName: message.member?.displayName ?? message.author.displayName,
-        serverDisplayName: message.member?.displayName ?? message.author.displayName,
-        guildName: message.guild?.name,
-        channelName: answersChannel.name,
-        targetChannel: answersChannel
-    }, forwardedMessage)
+    crimsonChat.sendMessage(
+        message.content,
+        {
+            messageContent: message.content,
+            username: message.author.username,
+            displayName:
+                message.member?.displayName ?? message.author.displayName,
+            serverDisplayName:
+                message.member?.displayName ?? message.author.displayName,
+            guildName: message.guild?.name,
+            channelName: answersChannel.name,
+            targetChannel: answersChannel
+        },
+        forwardedMessage
+    )
 }
 
-async function handleMathCommand(message: Message, math: MathJsInstance): Promise<void> {
+async function handleMathCommand(
+    message: Message,
+    math: MathJsInstance
+): Promise<void> {
     const expression = message.content.slice(2).trim()
     if (!expression) return
 
@@ -65,7 +98,11 @@ async function handleMathCommand(message: Message, math: MathJsInstance): Promis
         const result = math.evaluate(expression, { toFeetInches })
 
         let resultString = ''
-        if ((typeof result === 'object' || typeof result === 'function') && result !== null && result.toString) {
+        if (
+            (typeof result === 'object' || typeof result === 'function') &&
+            result !== null &&
+            result.toString
+        ) {
             resultString = result.toString()
         } else {
             resultString = String(result)
@@ -76,20 +113,29 @@ async function handleMathCommand(message: Message, math: MathJsInstance): Promis
         }
 
         if (resultString.length > 1900) {
-            resultString = resultString.substring(0, 1900) + '... (result truncated)'
+            resultString =
+                resultString.substring(0, 1900) + '... (result truncated)'
         }
 
         await message.reply(`\`${expression}\` = \`${resultString}\``)
     } catch (error) {
-        await message.reply(`❌ **Math.js Error:** \`${(error as Error).message}\``)
+        await message.reply(
+            `❌ **Math.js Error:** \`${(error as Error).message}\``
+        )
     }
 }
 
-async function handleTagCommand(message: Message, { tagManager, guildConfigManager }: Pick<MessageCreateServices, 'tagManager' | 'guildConfigManager'>): Promise<void> {
+async function handleTagCommand(
+    message: Message,
+    {
+        tagManager,
+        serverConfigManager
+    }: Pick<MessageCreateServices, 'tagManager' | 'serverConfigManager'>
+): Promise<void> {
     if (!message.guild) return // Tags are guild-specific
 
     const { content } = message
-    const guildConfig = await guildConfigManager.getConfig(message.guild.id)
+    const guildConfig = await serverConfigManager.getConfig(message.guild.id)
     if (!guildConfig.tagSystemEnabled) return
 
     // Tag creation
@@ -99,22 +145,34 @@ async function handleTagCommand(message: Message, { tagManager, guildConfigManag
 
         const tagContent = content.slice(2 + tagName.length + 1)
         if (!tagContent) {
-            await message.reply('❌ Tag content cannot be empty.\n-# ❕ If you want an image as the tag, copy the link to the image.')
+            await message.reply(
+                '❌ Tag content cannot be empty.\n-# ❕ If you want an image as the tag, copy the link to the image.'
+            )
             return
         }
 
         const hasPerms = await tagManager.canModerateTags(message)
         if (!hasPerms) {
-            await message.reply('❌ You do not have permission to moderate tags.')
+            await message.reply(
+                '❌ You do not have permission to moderate tags.'
+            )
             return
         }
 
-        if (await tagManager.getTag(message.guild.id, tagName)) {
-            await message.reply(`❌ A tag with the name "${tagName}" already exists.`)
+        if (await tagManager.getTag('discord', message.guild.id, tagName)) {
+            await message.reply(
+                `❌ A tag with the name "${tagName}" already exists.`
+            )
             return
         }
 
-        await tagManager.createTag(message.guild.id, tagName, tagContent, message.author.id)
+        await tagManager.createTag(
+            'discord',
+            message.guild.id,
+            tagName,
+            tagContent,
+            message.author.id
+        )
         await message.reply(`✅ Tag ${tagName} created.`)
         return
     }
@@ -126,17 +184,23 @@ async function handleTagCommand(message: Message, { tagManager, guildConfigManag
 
         const hasPerms = await tagManager.canModerateTags(message)
         if (!hasPerms) {
-            await message.reply('❌ You do not have permission to moderate tags.')
+            await message.reply(
+                '❌ You do not have permission to moderate tags.'
+            )
             return
         }
 
-        const tag = await tagManager.getTag(message.guild.id, tagName)
+        const tag = await tagManager.getTag(
+            'discord',
+            message.guild.id,
+            tagName
+        )
         if (!tag) {
             await message.reply(`❌ Tag "${tagName}" not found.`)
             return
         }
 
-        await tagManager.deleteTag(message.guild.id, tagName)
+        await tagManager.deleteTag('discord', message.guild.id, tagName)
         await message.reply(`✅ Tag ${tagName} deleted.`)
         return
     }
@@ -145,9 +209,9 @@ async function handleTagCommand(message: Message, { tagManager, guildConfigManag
     const tagName = content.slice(1).split(' ')[0]
     if (!tagName) return
 
-    const tag = await tagManager.getTag(message.guild.id, tagName)
+    const tag = await tagManager.getTag('discord', message.guild.id, tagName)
     if (!tag) {
-        const allTags = await tagManager.listTags(message.guild.id)
+        const allTags = await tagManager.listTags('discord', message.guild.id)
         if (allTags.length === 0) {
             await message.reply(`❌ Tag "${tagName}" not found.`)
             return
@@ -160,8 +224,12 @@ async function handleTagCommand(message: Message, { tagManager, guildConfigManag
             .slice(0, 5)
 
         if (suggestions.length > 0) {
-            const suggestionList = suggestions.map(s => `\`${s.name}\``).join(', ')
-            await message.reply(`❌ Tag "${tagName}" not found. Did you mean one of these?\n${suggestionList}`)
+            const suggestionList = suggestions
+                .map(s => `\`${s.name}\``)
+                .join(', ')
+            await message.reply(
+                `❌ Tag "${tagName}" not found. Did you mean one of these?\n${suggestionList}`
+            )
         } else {
             await message.reply(`❌ Tag "${tagName}" not found.`)
         }
@@ -171,7 +239,14 @@ async function handleTagCommand(message: Message, { tagManager, guildConfigManag
     await message.reply(tag.content)
 }
 
-async function handleCrimsonChat(message: Message, { crimsonChat, markovBotManager }: Pick<MessageCreateServices, 'crimsonChat' | 'markovBotManager'>, client: Client<true>): Promise<void> {
+async function handleCrimsonChat(
+    message: Message,
+    {
+        crimsonChat,
+        markovBotManager
+    }: Pick<MessageCreateServices, 'crimsonChat' | 'markovBotManager'>,
+    client: Client<true>
+): Promise<void> {
     if (markovBotManager.isChannelActive(message.channel.id)) return
 
     const isMainChannel = message.channel.id === '1335992675459141632'
@@ -189,28 +264,49 @@ async function handleCrimsonChat(message: Message, { crimsonChat, markovBotManag
 
     // Handle forwarded messages (Snapshots)
     if (message.messageSnapshots?.size > 0) {
-        const forwardedMessages = (await Promise.all(
-            Array.from(message.messageSnapshots.values()).map(async snapshot => {
-                try {
-                    if (snapshot.channelId && snapshot.id) {
-                        const channel = await client.channels.fetch(snapshot.channelId)
-                        if (channel?.isTextBased()) {
-                            const fullMessage = await channel.messages.fetch(snapshot.id)
-                            return `[${fullMessage.author.username}]: ${fullMessage.content}`
+        const forwardedMessages = (
+            await Promise.all(
+                Array.from(message.messageSnapshots.values()).map(
+                    async snapshot => {
+                        try {
+                            if (snapshot.channelId && snapshot.id) {
+                                const channel = await client.channels.fetch(
+                                    snapshot.channelId
+                                )
+                                if (channel?.isTextBased()) {
+                                    const fullMessage =
+                                        await channel.messages.fetch(
+                                            snapshot.id
+                                        )
+                                    return `[${fullMessage.author.username}]: ${fullMessage.content}`
+                                }
+                            }
+                        } catch {
+                            /* Fallback below */
                         }
+                        return `[${snapshot.author!.username}]: ${snapshot.content}`
                     }
-                } catch { /* Fallback below */ }
-                return `[${snapshot.author!.username}]: ${snapshot.content}`
-            })
-        )).join('\n')
+                )
+            )
+        ).join('\n')
         content += `\n< forwarded messages:\n${forwardedMessages}\n>`
     }
 
     // Get reply context
-    const respondingTo = message.reference?.messageId ? {
-        targetUsername: (await message.channel.messages.fetch(message.reference.messageId)).author.username,
-        targetText: (await message.channel.messages.fetch(message.reference.messageId)).content
-    } : undefined
+    const respondingTo = message.reference?.messageId
+        ? {
+              targetUsername: (
+                  await message.channel.messages.fetch(
+                      message.reference.messageId
+                  )
+              ).author.username,
+              targetText: (
+                  await message.channel.messages.fetch(
+                      message.reference.messageId
+                  )
+              ).content
+          }
+        : undefined
 
     // Collect image attachments
     const imageAttachments = new Set<string>()
@@ -243,20 +339,38 @@ async function handleCrimsonChat(message: Message, { crimsonChat, markovBotManag
     // Parse Discord mentions into our required JSON format
     content = await parseMentions(client, content)
 
-    crimsonChat.sendMessage(content, {
-        messageContent: content,
-        username: message.author.username,
-        displayName: message.member?.displayName ?? message.author.displayName,
-        serverDisplayName: message.member?.displayName ?? message.author.displayName,
-        respondingTo,
-        imageAttachments: Array.from(imageAttachments),
-        targetChannel: (isMentioned && !isMainChannel) ? (message.channel as TextChannel) : undefined,
-        guildName: message.guild?.name,
-        channelName: message.channel instanceof TextChannel ? message.channel.name : undefined
-    }, message)
+    crimsonChat.sendMessage(
+        content,
+        {
+            messageContent: content,
+            username: message.author.username,
+            displayName:
+                message.member?.displayName ?? message.author.displayName,
+            serverDisplayName:
+                message.member?.displayName ?? message.author.displayName,
+            respondingTo,
+            imageAttachments: Array.from(imageAttachments),
+            targetChannel:
+                isMentioned && !isMainChannel
+                    ? (message.channel as TextChannel)
+                    : undefined,
+            guildName: message.guild?.name,
+            channelName:
+                message.channel instanceof TextChannel
+                    ? message.channel.name
+                    : undefined
+        },
+        message
+    )
 }
 
-async function handleMarkovBot(message: Message, { markovBotManager, markovChat }: Pick<MessageCreateServices, 'markovBotManager' | 'markovChat'>): Promise<void> {
+async function handleMarkovBot(
+    message: Message,
+    {
+        markovBotManager,
+        markovChat
+    }: Pick<MessageCreateServices, 'markovBotManager' | 'markovChat'>
+): Promise<void> {
     if (!markovBotManager.isChannelActive(message.channel.id)) return
 
     const instance = markovBotManager.getInstance(message.channel.id)
@@ -275,27 +389,63 @@ async function handleMarkovBot(message: Message, { markovBotManager, markovChat 
         }
 
         // Continuous learning
-        markovBotManager.train(message.channel.id, [{
-            text: message.content,
-            timestamp: message.createdTimestamp
-        }])
-
+        markovBotManager.train(message.channel.id, [
+            {
+                text: message.content,
+                timestamp: message.createdTimestamp
+            }
+        ])
     } catch (error) {
         logger.error(`Error generating Markov response: ${error}`)
     }
 }
 
-export default async function onMessageCreate(client: Client<true>, services: MessageCreateServices) {
-    const { tagManager, guildConfigManager, commandManager, crimsonChat, messageTrigger, antiRaidManager, markovBotManager, markovChat } = services
+export default async function onMessageCreate(
+    client: Client<true>,
+    services: MessageCreateServices
+) {
+    const {
+        tagManager,
+        serverConfigManager,
+        commandManager,
+        crimsonChat,
+        messageTrigger,
+        antiRaidManager,
+        markovBotManager,
+        markovChat
+    } = services
 
     const math = create(all)
-    math.createUnit({
-        embil: { baseName: 'length', definition: '165 cm', aliases: ['embi_length', 'embi_height'] },
-        embim: { baseName: 'mass', definition: '50 kg', aliases: ['embi_weight', 'embi_mass'] },
-        ly: { baseName: 'length', definition: '9460730472580.8 km', aliases: ['light_year'] },
-        au: { baseName: 'length', definition: '149597870.69 km', aliases: ['astronomical_unit'] },
-        c0: { baseName: 'length', definition: '299792458 m/s', aliases: ['light_speed'] }
-    }, { override: true, prefixes: 'long' })
+    math.createUnit(
+        {
+            embil: {
+                baseName: 'length',
+                definition: '165 cm',
+                aliases: ['embi_length', 'embi_height']
+            },
+            embim: {
+                baseName: 'mass',
+                definition: '50 kg',
+                aliases: ['embi_weight', 'embi_mass']
+            },
+            ly: {
+                baseName: 'length',
+                definition: '9460730472580.8 km',
+                aliases: ['light_year']
+            },
+            au: {
+                baseName: 'length',
+                definition: '149597870.69 km',
+                aliases: ['astronomical_unit']
+            },
+            c0: {
+                baseName: 'length',
+                definition: '299792458 m/s',
+                aliases: ['light_speed']
+            }
+        },
+        { override: true, prefixes: 'long' }
+    )
 
     client.on('messageCreate', async message => {
         try {
@@ -304,14 +454,19 @@ export default async function onMessageCreate(client: Client<true>, services: Me
             // Anti-raid check
             await antiRaidManager.checkMessage(message)
 
-            const guildConfig = await guildConfigManager.getConfig(message.guild?.id)
+            const guildConfig = await serverConfigManager.getConfig(
+                message.guild?.id
+            )
 
             // Markov Bot
             await handleMarkovBot(message, { markovBotManager, markovChat })
 
             // Prefix commands
             if (message.content.startsWith(guildConfig.prefix)) {
-                await commandManager.handleMessageCommand(message, guildConfig.prefix)
+                await commandManager.handleMessageCommand(
+                    message,
+                    guildConfig.prefix
+                )
                 return
             }
 
@@ -320,7 +475,10 @@ export default async function onMessageCreate(client: Client<true>, services: Me
                 if (message.content.startsWith('% ')) {
                     await handleMathCommand(message, math)
                 } else {
-                    await handleTagCommand(message, { tagManager, guildConfigManager })
+                    await handleTagCommand(message, {
+                        tagManager,
+                        serverConfigManager
+                    })
                 }
                 return
             }
@@ -334,10 +492,15 @@ export default async function onMessageCreate(client: Client<true>, services: Me
             }
 
             // CrimsonChat
-            await handleCrimsonChat(message, { crimsonChat, markovBotManager }, client)
-
+            await handleCrimsonChat(
+                message,
+                { crimsonChat, markovBotManager },
+                client
+            )
         } catch (error) {
-            logger.error(`Error in messageCreate event handler!\n${error instanceof Error ? error.stack ?? error.message : util.inspect(error)}`)
+            logger.error(
+                `Error in messageCreate event handler!\n${error instanceof Error ? (error.stack ?? error.message) : util.inspect(error)}`
+            )
         }
     })
 }

@@ -16,6 +16,7 @@ import type {
     Guild, Attachment,
     ChatInputCommandInteraction
 } from 'discord.js'
+import type { Message as StoatMessage } from 'stoat.js'
 
 import { getUserAvatar, guildMember } from '../../util/functions'
 
@@ -23,12 +24,12 @@ import { BotInstallationType, type JSONResolvable } from '../../types'
 
 import { EMBI_ID, PING_EMBI, TYPING_EMOJI } from '../../util/constants'
 import type { ArgumentsCamelCase } from 'yargs'
-import type { BanishmentManager, BotSettingsManager, CrimsonChat, GuildConfigManager, LongTermMemoryManager, MarkovChat, OperationTracker, TagManager, CommandManager, MarkovBotManager } from '..'
+import type { BanishmentManager, BotSettingsManager, CrimsonChat, ServerConfigManager, LongTermMemoryManager, MarkovChat, OperationTracker, TagManager, CommandManager, MarkovBotManager } from '..'
 
 export interface CommandContextServices {
     banishmentManager: BanishmentManager
     crimsonChat: CrimsonChat
-    guildConfigManager: GuildConfigManager
+    serverConfigManager: ServerConfigManager
     markovChat: MarkovChat
     tagManager: TagManager
     operationTracker: OperationTracker
@@ -40,11 +41,12 @@ export interface CommandContextServices {
 
 export class CommandContext<InGuild extends boolean = boolean> {
     private originalMessageReply: Message | null = null
-    public chainedReplies: Message[] = []
+    public chainedReplies: (Message | StoatMessage)[] = []
 
     public readonly client: Client<true>
     public readonly interaction: ChatInputCommandInteraction | null
     public readonly message: Message | null
+    public readonly stoatMessage: StoatMessage | null
     public readonly embiId: typeof EMBI_ID = EMBI_ID
     public readonly pingEmbi: typeof PING_EMBI = PING_EMBI
 
@@ -59,7 +61,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
     // Services
     public readonly banishmentManager: BanishmentManager
     public readonly crimsonChat: CrimsonChat
-    public readonly guildConfigManager: GuildConfigManager
+    public readonly serverConfigManager: ServerConfigManager
     public readonly markovChat: MarkovChat
     public readonly tagManager: TagManager
     public readonly operationTracker: OperationTracker
@@ -69,13 +71,11 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public readonly markovBotManager: MarkovBotManager
 
 
-    constructor(source: ChatInputCommandInteraction | Message, services: CommandContextServices, rawArgs?: string[]) {
-        this.client = source.client
-
+    constructor(source: ChatInputCommandInteraction | Message | StoatMessage, services: CommandContextServices, rawArgs?: string[]) {
         // Inject services
         this.banishmentManager = services.banishmentManager
         this.crimsonChat = services.crimsonChat
-        this.guildConfigManager = services.guildConfigManager
+        this.serverConfigManager = services.serverConfigManager
         this.markovChat = services.markovChat
         this.tagManager = services.tagManager
         this.operationTracker = services.operationTracker
@@ -85,12 +85,18 @@ export class CommandContext<InGuild extends boolean = boolean> {
         this.markovBotManager = services.markovBotManager
 
         if (source instanceof Message) {
+            this.client = source.client
             this.message = source
             this.interaction = null
+            this.stoatMessage = null
             this.args = rawArgs || []
-        } else {
+            this.guild = this.message.guild as InGuild extends true ? Guild : Guild | null
+            this.member = this.message.member as InGuild extends true ? GuildMember : GuildMember | null
+        } else if ('reply' in source && 'deferReply' in source) { // Check for interaction methods
             this.interaction = source as ChatInputCommandInteraction
+            this.client = this.interaction.client
             this.message = null
+            this.stoatMessage = null
             this.args = []
             if (this.interaction.options) {
                 try {
@@ -100,18 +106,51 @@ export class CommandContext<InGuild extends boolean = boolean> {
                     this.subcommandName = this.interaction.options.getSubcommand(false)
                 } catch { this.subcommandName = null }
             }
+            this.guild = this.interaction.guild as InGuild extends true ? Guild : Guild | null
+            this.member = guildMember(this.interaction.member) as InGuild extends true ? GuildMember : GuildMember | null
+        } else {
+            // Stoat Message
+            this.stoatMessage = source as StoatMessage
+            this.client = services.commandManager['client'] as Client<true>
+
+            this.message = null
+            this.interaction = null
+            this.args = rawArgs || []
+            this.guild = null as (InGuild extends true ? Guild : Guild | null)
+            this.member = null as (InGuild extends true ? GuildMember : GuildMember | null)
         }
-        this.guild = (this.interaction ? this.interaction.guild : this.message!.guild) as InGuild extends true ? Guild : Guild | null
-        this.member = (this.interaction ? guildMember(this.interaction.member) : this.message!.member) as InGuild extends true ? GuildMember : GuildMember | null
     }
-
-
 
     get isInteraction(): boolean { return this.interaction !== null }
     get isMessage(): boolean { return this.message !== null }
-    get author(): User { return this.interaction ? this.interaction.user : this.message!.author }
+    get isStoat(): boolean { return this.stoatMessage !== null }
+    get author(): User {
+        if (this.interaction) return this.interaction.user
+        if (this.message) return this.message.author
+        if (this.stoatMessage) {
+            // This is a workaround until we have cross-platform User
+            // Return a mock user object compatible with discord.js User interface
+            return {
+                id: this.stoatMessage.author?.id ?? 'unknown',
+                username: this.stoatMessage.author?.username ?? 'unknown',
+                discriminator: '0',
+                bot: !!this.stoatMessage.author?.bot,
+                toString: () => this.stoatMessage?.author ? `<@${this.stoatMessage.author.id}>` : 'Unknown User',
+                displayAvatarURL: () => this.stoatMessage?.author?.avatarURL ?? ''
+                // Add other necessary properties/methods as needed or cast to User
+            } as unknown as User
+        }
+        throw new Error('Cannot access Discord User object from unknown context')
+    }
     get user(): User { return this.author }
-    get isEmbi(): boolean { return this.user.id === this.embiId }
+    get isEmbi(): boolean {
+        if (this.stoatMessage) {
+            // Check Stoat user ID (assuming consistent IDs or mapping)
+            // Ideally we'd have a cross-platform ID check
+            return false // Placeholder
+        }
+        return this.user.id === this.embiId
+    }
 
     public async checkEmbi(options: { andReply?: boolean } = { andReply: true }): Promise<boolean> {
         if (this.isEmbi) {
@@ -123,7 +162,9 @@ export class CommandContext<InGuild extends boolean = boolean> {
         return false
     }
 
-    get channel(): TextBasedChannel | null { return this.interaction ? this.interaction.channel : this.message!.channel }
+    get channel(): TextBasedChannel | null {
+        return this.interaction ? this.interaction.channel : (this.message ? this.message.channel : null)
+    }
 
     get memberPermissions(): Readonly<PermissionsBitField> | null {
         if (this.interaction?.memberPermissions) return this.interaction.memberPermissions
@@ -131,9 +172,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
         return null
     }
 
-
-
-    async reply(options: string | InteractionReplyOptions | MessageReplyOptions): Promise<Message | InteractionResponse | void> {
+    async reply(options: string | InteractionReplyOptions | MessageReplyOptions): Promise<Message | InteractionResponse | StoatMessage | void> {
         if (this.interaction) {
             if (this.interaction.isRepliable() && !this.interaction.replied && !this.interaction.deferred) {
                 const reply = await this.interaction.reply(options as string | InteractionReplyOptions)
@@ -148,11 +187,33 @@ export class CommandContext<InGuild extends boolean = boolean> {
             this.originalMessageReply = await this.message.reply(options as string | MessageReplyOptions)
             if (this.originalMessageReply) this.chainedReplies.push(this.originalMessageReply)
             return this.originalMessageReply
+        } else if (this.stoatMessage) {
+            const content = typeof options === 'string' ? options : (options as MessageReplyOptions).content || ''
+            try {
+                const reply = await this.stoatMessage.reply(content)
+                if (reply) this.chainedReplies.push(reply)
+                logger.info(`[CommandContext] Stoat reply successful: "${content}"`)
+                return reply
+            } catch (error) {
+                logger.error(`[CommandContext] Stoat reply failed: ${error}`)
+                // Attempt fallback if channel is missing on message object
+                if (this.stoatMessage.channelId) {
+                    try {
+                        logger.info(`[CommandContext] Attempting fallback reply via channel ID ${this.stoatMessage.channelId}`)
+                        // We need access to the client. this.client is DiscordClient<true>.
+                        // But we can try to access the underlying stoat client if we are lucky or pass it in services.
+                        // Actually, we can use the message object to get the client if it's exposed (it's private #client).
+                        // Let's just log the error for now, as we don't have easy access to the stoat client here.
+                    } catch (e) {
+                        logger.error(`[CommandContext] Fallback failed: ${e}`)
+                    }
+                }
+            }
         }
     }
-    public async ephemeralReply(options: string | InteractionReplyOptions | MessageReplyOptions): Promise<Message | InteractionResponse | void> {
+
+    public async ephemeralReply(options: string | InteractionReplyOptions | MessageReplyOptions): Promise<Message | InteractionResponse | StoatMessage | void> {
         if (this.interaction) {
-            // For slash commands, use ephemeral interaction reply
             const replyOptions: InteractionReplyOptions = typeof options === 'string'
                 ? { content: options, flags: MessageFlags.Ephemeral }
                 : { ...options as InteractionReplyOptions, flags: MessageFlags.Ephemeral }
@@ -163,7 +224,6 @@ export class CommandContext<InGuild extends boolean = boolean> {
                 return this.interaction.followUp(replyOptions)
             }
         } else if (this.message) {
-            // For text commands, attempt to DM the user
             try {
                 const dmChannel = await this.author.createDM()
                 await dmChannel.send(options as string | MessageReplyOptions)
@@ -180,9 +240,13 @@ export class CommandContext<InGuild extends boolean = boolean> {
                     logger.warn(`{ephemeralReply} Failed to send fallback error reply to message: ${err.message}`)
                 })
             }
+        } else if (this.stoatMessage) {
+            const content = typeof options === 'string' ? options : (options as MessageReplyOptions).content || ''
+            return this.stoatMessage.reply(content)
         }
     }
-    async deferReply(options?: InteractionDeferReplyOptions): Promise<Message | InteractionResponse | void> {
+
+    async deferReply(options?: InteractionDeferReplyOptions): Promise<Message | InteractionResponse | StoatMessage | void> {
         if (this.interaction && this.interaction.isRepliable() && !this.interaction.deferred) {
             return this.interaction.deferReply(options)
         } else if (this.message) {
@@ -191,9 +255,12 @@ export class CommandContext<InGuild extends boolean = boolean> {
                 this.originalMessageReply = await this.message.reply(`${TYPING_EMOJI} ${this.client.user.displayName} is thinking...`)
                 return this.originalMessageReply
             }
+        } else if (this.stoatMessage) {
+            return this.stoatMessage.reply(`${TYPING_EMOJI} thinking...`)
         }
     }
-    async editReply(options: string | InteractionEditReplyOptions | MessageEditOptions): Promise<Message | void> {
+
+    async editReply(options: string | InteractionEditReplyOptions | MessageEditOptions): Promise<Message | StoatMessage | void> {
         if (this.interaction && this.interaction.isRepliable()) {
             const reply = await this.interaction.editReply(options as string | InteractionEditReplyOptions)
             if (reply) {
@@ -205,7 +272,6 @@ export class CommandContext<InGuild extends boolean = boolean> {
         } else if (this.message) {
             const channel = this.message.channel
             if (channel && 'send' in channel && typeof channel.send === 'function' && this.originalMessageReply) {
-                // If editing with only embeds or attachments, and no content, erase the message content (replicates the interaction reply edit behavior)
                 if (
                     typeof options === 'object' &&
                     options !== null &&
@@ -231,9 +297,21 @@ export class CommandContext<InGuild extends boolean = boolean> {
                 else this.chainedReplies.push(reply)
             }
             return reply
+        } else if (this.stoatMessage) {
+            // Stoat messages are editable if we tracked the reply
+            // We assume the last reply is what we want to edit, or we should track it better
+            const lastReply = this.chainedReplies[this.chainedReplies.length - 1] as StoatMessage | undefined
+            if (lastReply && 'edit' in lastReply) {
+                const content = typeof options === 'string' ? options : (options as MessageEditOptions).content || ''
+                // Stoat edit signature: edit(data: DataEditMessage): Promise<APIMessage>;
+                // DataEditMessage = { content?: string, embeds?: ... }
+                await lastReply.edit({ content })
+                return lastReply
+            }
         }
     }
-    async followUp(options: string | InteractionReplyOptions): Promise<Message | void> {
+
+    async followUp(options: string | InteractionReplyOptions): Promise<Message | StoatMessage | void> {
         if (this.interaction && this.interaction.isRepliable()) {
             const reply = await this.interaction.followUp(options)
             if (reply) this.chainedReplies.push(reply)
@@ -245,10 +323,13 @@ export class CommandContext<InGuild extends boolean = boolean> {
                 if (reply) this.chainedReplies.push(reply)
                 return reply
             }
+        } else if (this.stoatMessage) {
+            const content = typeof options === 'string' ? options : (options as MessageReplyOptions).content || ''
+            const reply = await this.stoatMessage.reply(content)
+            if (reply) this.chainedReplies.push(reply)
+            return reply
         }
     }
-
-
 
     private async resolveUser(idOrMention: string): Promise<User | null> {
         if (!idOrMention) return null
@@ -305,8 +386,6 @@ export class CommandContext<InGuild extends boolean = boolean> {
         return roleByName || null
     }
 
-
-
     public getStringOption(name: string, required: true): string
     public getStringOption(name: string, required?: false): string | null
     public getStringOption(name: string): string | null
@@ -317,7 +396,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public getStringOption(name: string, required?: boolean, defaultValue?: string | null): string | null {
         let value: string | null = null
         if (this.interaction) {
-            value = this.interaction.options.getString(name, false) // Always fetch as non-required first
+            value = this.interaction.options.getString(name, false)
         } else if (this.parsedArgs) {
             const parsedValue = this.parsedArgs[name]
             value = parsedValue !== undefined && parsedValue !== null ? String(parsedValue) : null
@@ -343,7 +422,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public getIntegerOption(name: string, required?: boolean, defaultValue?: number | null): number | null {
         let value: number | null = null
         if (this.interaction) {
-            value = this.interaction.options.getInteger(name, false) // Always fetch as non-required first
+            value = this.interaction.options.getInteger(name, false)
         } else if (this.parsedArgs) {
             const parsedValue = this.parsedArgs[name]
             value = Number.isInteger(parsedValue) ? Number(parsedValue) : null
@@ -369,10 +448,9 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public getBooleanOption(name: string, required?: boolean, defaultValue?: boolean | null): boolean | null {
         let value: boolean | null = null
         if (this.interaction) {
-            value = this.interaction.options.getBoolean(name, false) // Always fetch as non-required first
+            value = this.interaction.options.getBoolean(name, false)
         } else if (this.parsedArgs) {
             const parsedValue = this.parsedArgs[name]
-            // For yargs, a boolean flag not present might be undefined. If present, it's true/false.
             value = typeof parsedValue === 'boolean' ? parsedValue : null
         }
 
@@ -383,8 +461,6 @@ export class CommandContext<InGuild extends boolean = boolean> {
         if (value === null && !required && defaultValue !== undefined && defaultValue !== null) {
             return defaultValue
         }
-        // For booleans, if not required and no default, null is a valid "not provided" state.
-        // If a default is explicitly null, it should also return null.
         return value
     }
 
@@ -398,9 +474,13 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public async getUserOption(name: string, required?: boolean, defaultValue?: User | null): Promise<User | null> {
         let value: User | null = null
         if (this.interaction) {
-            value = this.interaction.options.getUser(name, false) // Always fetch as non-required first
-        } else if (this.parsedArgs && this.message) {
+            value = this.interaction.options.getUser(name, false)
+        } else if (this.parsedArgs && (this.message || this.stoatMessage)) {
             const parsedVal = this.parsedArgs[name] as string | undefined
+            // If on Stoat, resolving user from string arg is tricky without Discord client context for that ID.
+            // For now, if we have a parsedVal, we try to resolve it if it looks like a Discord ID, or return null if it fails.
+            // But if we are on Stoat, this.client is Discord client. So resolveUser will look up Discord users.
+            // This is "correct" if we assume cross-platform IDs or arguments are Discord IDs.
             value = parsedVal ? await this.resolveUser(parsedVal) : null
         }
 
@@ -411,10 +491,8 @@ export class CommandContext<InGuild extends boolean = boolean> {
         if (value === null && !required && defaultValue !== undefined) {
             if (!defaultValue) return null
             try {
-                // Try to fetch the default user to ensure it's up to date
                 return await this.client.users.fetch(defaultValue.id)
             } catch {
-                // If fetch fails, fall back to the provided default value
                 return defaultValue
             }
         }
@@ -431,7 +509,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public async getMemberOption(name: string, required?: boolean, defaultValue?: GuildMember | null): Promise<GuildMember | null> {
         let member: GuildMember | null = null
         if (this.interaction) {
-            member = guildMember(this.interaction.options.getMember(name)) // getMember can return APIInteractionGuildMember | GuildMember | null
+            member = guildMember(this.interaction.options.getMember(name))
         } else if (this.parsedArgs && this.message) {
             const parsedVal = this.parsedArgs[name] as string | undefined
             member = parsedVal ? await this.resolveMember(parsedVal) : null
@@ -444,10 +522,8 @@ export class CommandContext<InGuild extends boolean = boolean> {
         if (member === null && !required && defaultValue !== undefined && this.guild) {
             if (!defaultValue) return null
             try {
-                // Try to fetch the default member to ensure it's up to date
                 return await this.guild.members.fetch(defaultValue.id)
             } catch {
-                // If fetch fails, fall back to the provided default value
                 return defaultValue
             }
         }
@@ -464,7 +540,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public async getChannelOption(name: string, required?: boolean, defaultValue?: GuildBasedChannel | null): Promise<GuildBasedChannel | null> {
         let value: GuildBasedChannel | null = null
         if (this.interaction) {
-            value = this.interaction.options.getChannel(name, false) as GuildBasedChannel | null // Always fetch as non-required first
+            value = this.interaction.options.getChannel(name, false) as GuildBasedChannel | null
         } else if (this.parsedArgs && this.message) {
             const parsedVal = this.parsedArgs[name] as string | undefined
             value = parsedVal ? await this.resolveChannel(parsedVal) : null
@@ -490,7 +566,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public async getRoleOption(name: string, required?: boolean, defaultValue?: Role | null): Promise<Role | null> {
         let value: Role | null = null
         if (this.interaction) {
-            value = this.interaction.options.getRole(name, false) as Role | null // Always fetch as non-required first
+            value = this.interaction.options.getRole(name, false) as Role | null
         } else if (this.parsedArgs && this.message) {
             const parsedVal = this.parsedArgs[name] as string | undefined
             value = parsedVal ? await this.resolveRole(parsedVal) : null
@@ -516,7 +592,7 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public getNumberOption(name: string, required?: boolean, defaultValue?: number | null): number | null {
         let value: number | null = null
         if (this.interaction) {
-            value = this.interaction.options.getNumber(name, false) // Always fetch as non-required first
+            value = this.interaction.options.getNumber(name, false)
         } else if (this.parsedArgs) {
             const parsedValue = this.parsedArgs[name]
             value = typeof parsedValue === 'number' ? parsedValue : null
@@ -542,11 +618,11 @@ export class CommandContext<InGuild extends boolean = boolean> {
     public getAttachmentOption(name: string, required?: boolean, defaultValue?: Attachment | null): Attachment | null {
         let value: Attachment | null = null
         if (this.interaction) {
-            value = this.interaction.options.getAttachment(name, false) // Always fetch as non-required first
+            value = this.interaction.options.getAttachment(name, false)
         } else if (this.message && this.parsedArgs) {
             const attachmentFlagPresent = this.parsedArgs[name] === true || typeof this.parsedArgs[name] === 'string'
             if (attachmentFlagPresent && this.message.attachments.size > 0) {
-                value = this.message.attachments.first()! // Non-null assertion as size > 0
+                value = this.message.attachments.first()!
             }
         }
 
@@ -577,40 +653,29 @@ export class CommandContext<InGuild extends boolean = boolean> {
         return this.subcommandGroupName
     }
 
-
-
-    // getUserAvatar needs to be adapted or the CommandContext needs to provide user/guild
     public getUserAvatar(user: User, guild?: Guild | null, options?: { extension?: ImageExtension, size?: ImageSize, useGlobalAvatar?: boolean }): string {
         return getUserAvatar(user, guild || this.guild, options)
     }
 
-
-
     public getInstallationType(): BotInstallationType {
-        // Logic 1: Message Command -> Guaranteed Guild Install
         if (!this.isInteraction) {
             return BotInstallationType.GuildInstall
         }
 
-        // Logic 2: Slash Command - Check if it's a DM/Group DM or a Guild
-        if (!this.interaction!.guildId) { // Determined that `interaction` is defined
+        if (!this.interaction!.guildId) {
             return BotInstallationType.UserInstallDM
         }
 
-        // Logic 3: Slash Command in a Guild - Differentiate between Guild and User install
         const authOwners = this.interaction!.authorizingIntegrationOwners
         if (authOwners && typeof authOwners === 'object') {
-            // Check if the guild's ID is listed as a GuildInstall owner
             if (Object.prototype.hasOwnProperty.call(authOwners, ApplicationIntegrationType.GuildInstall)) {
                 return BotInstallationType.GuildInstall
             }
-            // Check if the user's ID is listed as a UserInstall owner
             if (Object.prototype.hasOwnProperty.call(authOwners, ApplicationIntegrationType.UserInstall)) {
                 return BotInstallationType.UserInstallGuild
             }
         }
 
-        // Fallback if authorizingIntegrationOwners is not available or doesn't contain expected info
         return BotInstallationType.Unknown
     }
 }

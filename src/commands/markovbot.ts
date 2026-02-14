@@ -33,7 +33,7 @@ export default {
         }
 
         const subcommand = ctx.getSubcommand(true)
-        const guildConfig = await ctx.guildConfigManager.getConfig(ctx.guild.id)
+        const guildConfig = await ctx.serverConfigManager.getConfig(ctx.guild.id)
         const channelId = ctx.channel?.id
 
         if (!channelId || ![

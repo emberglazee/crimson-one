@@ -4,12 +4,21 @@ import { User, type User as UserType } from './User'
 import { Channel, type Channel as ChannelType } from './Channel'
 import { Guild, type Guild as GuildType } from './Guild'
 
+export type MessagePlatform = 'discord' | 'stoat'
+
 @Entity('messages')
-@Index(['guildId', 'channelId', 'authorId'])
-@Index(['guildId', 'authorId'])
+@Index(['platform', 'guildId', 'channelId', 'authorId'])
+@Index(['platform', 'guildId', 'authorId'])
+@Index(['platform', 'guildId'])
 export class Message {
     @PrimaryColumn()
     id!: string
+
+    @Column({
+        type: 'text',
+        default: 'discord',
+    })
+    platform!: MessagePlatform
 
     @Column('text')
     text!: string
@@ -24,14 +33,14 @@ export class Message {
     @Column()
     guildId!: string
 
-    @ManyToOne(() => User, user => user.messages)
+    @ManyToOne(() => User, (user) => user.messages)
     author!: UserType
 
-    @ManyToOne(() => Channel, channel => channel.messages)
+    @ManyToOne(() => Channel, (channel) => channel.messages)
     @Index()
     channel!: ChannelType
 
-    @ManyToOne(() => Guild, guild => guild.messages)
+    @ManyToOne(() => Guild, (guild) => guild.messages)
     @Index()
     guild!: GuildType
 
