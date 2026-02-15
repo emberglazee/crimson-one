@@ -49,25 +49,29 @@ export class AWACSFeed extends EventEmitter<{
     private static readonly roleSelfAddMessages = [
         (member: string, role: string) => `🛰️ ${member} has acquired the ${role} role.`,
         (member: string, role: string) => `🛰️ ${member} has taken on the ${role} designation.`,
-        (member: string, role: string) => `🛰️ ${member} now identifies as ${role}.`
+        (member: string, role: string) => `🛰️ ${member} now identifies as ${role}.`,
+        (member: string, role: string) => `🛰️ ${member} has adopted the ${role} role.`
     ]
 
     private static readonly roleSelfRemoveMessages = [
         (member: string, role: string) => `🛰️ ${member} has relinquished the ${role} role.`,
-        (member: string, role: string) => `🛰️ ${member} is no longer designated as ${role}.`
+        (member: string, role: string) => `🛰️ ${member} is no longer designated as ${role}.`,
+        (member: string, role: string) => `🛰️ ${member} has shed the ${role} role.`
     ]
 
     private static readonly timeoutMessages = [
         (member: string, moderator: string) => `🔇 ${member} has been muted${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
         (member: string, moderator: string) => `🔇 ${member} has been silenced${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
         (member: string, moderator: string) => `🔇 ${member} has been timed out${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
-        (member: string, moderator: string) => `🔇 ${member} has been sent to the sin bin${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`
+        (member: string, moderator: string) => `🔇 ${member} has been sent to the sin bin${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
+        (member: string, moderator: string) => `🔇 ${member}'s communication rights have been 'detained'${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`
     ]
 
     private static readonly roleRenameMessages = [
         (oldName: string, newName: string, renamer: string) => `✏️ Squadron ${oldName} was renamed to ${newName}${renamer === NO_IFF_DATA ? '.' : ` by ${renamer}.`}`,
         (oldName: string, newName: string, renamer: string) => `📝 ${oldName} squadron is now known as ${newName}${renamer === NO_IFF_DATA ? '.' : `, updated by ${renamer}.`}`,
-        (oldName: string, newName: string, renamer: string) => `🔄 The ${oldName} unit has been redesignated as ${newName}${renamer === NO_IFF_DATA ? '.' : `, thanks to ${renamer}.`}`
+        (oldName: string, newName: string, renamer: string) => `🔄 The ${oldName} unit has been redesignated as ${newName}${renamer === NO_IFF_DATA ? '.' : `, courtesy of ${renamer}.`}`,
+        (oldName: string, newName: string, renamer: string) => `🎖️ ${oldName} squadron has been rebranded to ${newName}${renamer === NO_IFF_DATA ? '.' : ` by ${renamer}.`}`
     ]
 
     private static EventHandlers: EventHandler<keyof ClientEvents>[] = [
@@ -78,7 +82,9 @@ export class AWACSFeed extends EventEmitter<{
                 (name: string, _banner: string) => `✅ ${name} has arrived in the AO.`,
                 (name: string, _banner: string) => `✅ ${name} has penetrated the CAP line.`,
                 (name: string, _banner: string) => `✅ ${name} has taken off the runway.`,
-                (name: string, _banner: string) => `✅ ${name} has been deported to Solitary Confinement for freaky behavior.`
+                (name: string, _banner: string) => `✅ ${name} has been deported to Solitary Confinement.`,
+                (name: string, _banner: string) => `✅ ${name} has been deployed to the AO.`,
+                (name: string, _banner: string) => `✅ ${name}'s signature has appeared on the radar.`
             ]
         },
         {
@@ -116,7 +122,10 @@ export class AWACSFeed extends EventEmitter<{
                 (banned, banner) => `🔨 ${banned} was slain${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
                 (banned, banner) => `🔨 ${banned} was shot down${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
                 (banned, banner) => `🔨 ${banned} was sent to the gulag${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
-                (banned, banner) => `🔨 ${banned} has been neutralized${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`
+                (banned, banner) => `🔨 ${banned} has been neutralized${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
+                (banned, banner) => `🔨 ${banned} has been terminated${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
+                (banned, banner) => `🔨 ${banned} has been vaporized${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
+                (banned, banner) => `🔨 ${banned} has been obliterated${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`
             ]
         },
         {
@@ -168,7 +177,8 @@ export class AWACSFeed extends EventEmitter<{
             messages: [
                 (role: string, deleter: string) => `🗑️ Squadron ${role} was deleted${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`,
                 (role: string, deleter: string) => `➖ The ${role} squadron was disbanded${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`,
-                (role: string, deleter: string) => `🔥 ${deleter === NO_IFF_DATA ? 'Someone' : deleter} incinerated the ${role} squadron.`
+                (role: string, deleter: string) => `🔥 ${deleter === NO_IFF_DATA ? 'Someone' : deleter} incinerated the ${role} squadron.`,
+                (role: string, deleter: string) => `🔥 The ${role} squadron was wiped out${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`
             ]
         },
         {
