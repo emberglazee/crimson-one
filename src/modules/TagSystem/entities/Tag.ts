@@ -3,7 +3,7 @@ import {
     PrimaryGeneratedColumn,
     Column,
     CreateDateColumn,
-    Index,
+    Index
 } from 'typeorm'
 
 export type PlatformType = 'discord' | 'stoat'
@@ -16,7 +16,7 @@ export class Tag {
 
     @Column({
         type: 'text',
-        default: 'discord',
+        default: 'discord'
     })
     platform!: PlatformType
 

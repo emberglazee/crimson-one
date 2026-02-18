@@ -16,7 +16,7 @@ export class Message {
 
     @Column({
         type: 'text',
-        default: 'discord',
+        default: 'discord'
     })
     platform!: MessagePlatform
 
@@ -33,14 +33,14 @@ export class Message {
     @Column()
     guildId!: string
 
-    @ManyToOne(() => User, (user) => user.messages)
+    @ManyToOne(() => User, user => user.messages)
     author!: UserType
 
-    @ManyToOne(() => Channel, (channel) => channel.messages)
+    @ManyToOne(() => Channel, channel => channel.messages)
     @Index()
     channel!: ChannelType
 
-    @ManyToOne(() => Guild, (guild) => guild.messages)
+    @ManyToOne(() => Guild, guild => guild.messages)
     @Index()
     guild!: GuildType
 

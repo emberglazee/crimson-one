@@ -25,6 +25,7 @@ import type {
     IPlatformClient,
     IPlatformEventMap
 } from '../interfaces'
+import type { ExplicitAny } from '../../types'
 
 export class StoatUserAdapter implements IPlatformUser {
     constructor(private user: StoatUser) {}
@@ -220,11 +221,15 @@ export class StoatChannelAdapter implements IPlatformChannel {
     async sendMessage(
         content: string | IPlatformMessageOptions
     ): Promise<IPlatformMessage> {
-        logger.info(`[StoatAdapter] Sending message to channel ID: ${this.channel.id}`)
+        logger.info(
+            `[StoatAdapter] Sending message to channel ID: ${this.channel.id}`
+        )
 
         if (typeof content === 'string') {
             const message = await this.channel.sendMessage(content)
-            logger.info(`[StoatAdapter] Sent text message: ${message.id} (Content: "${content}")`)
+            logger.info(
+                `[StoatAdapter] Sent text message: ${message.id} (Content: "${content}")`
+            )
             return new StoatMessageAdapter(message)
         }
 
@@ -248,7 +253,9 @@ export class StoatChannelAdapter implements IPlatformChannel {
             delete stoatData.replies
         }
 
-        logger.info(`[StoatAdapter] Sending complex message payload: ${JSON.stringify(stoatData)}`)
+        logger.info(
+            `[StoatAdapter] Sending complex message payload: ${JSON.stringify(stoatData)}`
+        )
 
         const message = await this.channel.sendMessage(stoatData)
         logger.info(`[StoatAdapter] Sent complex message: ${message.id}`)
@@ -394,8 +401,14 @@ export class StoatClientAdapter
     }
 
     private setupEventForwarding(): void {
-        const logPacket = (packet: any) => {
-            if (packet.type === 'Authenticated' || packet.type === 'Ping' || packet.type === 'Pong') return
+        // TODO: replace `ExplicitAny`
+        const logPacket = (packet: ExplicitAny) => {
+            if (
+                packet.type === 'Authenticated' ||
+                packet.type === 'Ping' ||
+                packet.type === 'Pong'
+            )
+                return
             if (packet.type === 'Bulk') {
                 packet.v.forEach(logPacket)
                 return
@@ -423,7 +436,9 @@ export class StoatClientAdapter
             }
 
             this.emit('ready')
-            logger.info(`[StoatAdapter] Connected as: ${this.user?.username} (${this.user?.id})`)
+            logger.info(
+                `[StoatAdapter] Connected as: ${this.user?.username} (${this.user?.id})`
+            )
 
             // Start HTTP polling fallback
             this.startPolling()
@@ -456,7 +471,9 @@ export class StoatClientAdapter
         }
 
         this.client.on('messageCreate', message => {
-            logger.info(`[StoatAdapter] WS Received: ${message.content} (${message.id})`)
+            logger.info(
+                `[StoatAdapter] WS Received: ${message.content} (${message.id})`
+            )
             this.handleIncomingMessage(message)
         })
 
@@ -521,30 +538,38 @@ export class StoatClientAdapter
         try {
             // Iterate over all active text channels we can see
             for (const channel of this.client.channels.values()) {
-                if (channel.type === 'TextChannel' || channel.type === 'DirectMessage' || channel.type === 'Group') {
+                if (
+                    channel.type === 'TextChannel' ||
+                    channel.type === 'DirectMessage' ||
+                    channel.type === 'Group'
+                ) {
                     // Skip if we processed this channel very recently?
                     // For now, simple polling.
                     // Note: fetchMessages fetches latest messages.
 
                     // We catch errors per channel to avoid stopping the loop
-                    channel.fetchMessages({ limit: 3, sort: 'Latest' }).then(messages => {
-                        for (const msg of messages) {
-                            // Only process messages from others, and newer than some threshold?
-                            // Deduplication handles the "new" part effectively.
-                            // We also rely on processedMessageIds to avoid re-emitting old messages
-                            // if the bot restarts (though active session logic applies).
-                            // Actually, on startup, fetching history might emit old commands.
-                            // We should probably check timestamp if it's very old?
-                            // Let's assume 1 minute window for "live" commands for now.
+                    channel
+                        .fetchMessages({ limit: 3, sort: 'Latest' })
+                        .then(messages => {
+                            for (const msg of messages) {
+                                // Only process messages from others, and newer than some threshold?
+                                // Deduplication handles the "new" part effectively.
+                                // We also rely on processedMessageIds to avoid re-emitting old messages
+                                // if the bot restarts (though active session logic applies).
+                                // Actually, on startup, fetching history might emit old commands.
+                                // We should probably check timestamp if it's very old?
+                                // Let's assume 1 minute window for "live" commands for now.
 
-                            const age = Date.now() - msg.createdAt.getTime()
-                            if (age < 60000) { // Only process messages from last minute
-                                this.handleIncomingMessage(msg)
+                                const age = Date.now() - msg.createdAt.getTime()
+                                if (age < 60000) {
+                                    // Only process messages from last minute
+                                    this.handleIncomingMessage(msg)
+                                }
                             }
-                        }
-                    }).catch(() => {
-                        // Suppress polling errors (permissions, etc)
-                    })
+                        })
+                        .catch(() => {
+                            // Suppress polling errors (permissions, etc)
+                        })
                 }
             }
         } catch (e) {
@@ -586,5 +611,9 @@ export class StoatClientAdapter
     getUser(userId: string): IPlatformUser | undefined {
         const user = this.client.users.get(userId)
         return user ? new StoatUserAdapter(user) : undefined
+    }
+
+    wrapMessage(rawMessage: StoatMessage): IPlatformMessage {
+        return new StoatMessageAdapter(rawMessage)
     }
 }

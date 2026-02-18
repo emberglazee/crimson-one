@@ -13,7 +13,18 @@ import type {
     PermissionResolvable
 } from 'discord.js'
 import { ChannelType, EmbedBuilder } from 'discord.js'
-import type { IPlatformAttachment, IPlatformChannel, IPlatformClient, IPlatformEmbed, IPlatformEventMap, IPlatformMessage, IPlatformMessageOptions, IPlatformServer, IPlatformServerMember, IPlatformUser } from '../interfaces'
+import type {
+    IPlatformAttachment,
+    IPlatformChannel,
+    IPlatformClient,
+    IPlatformEmbed,
+    IPlatformEventMap,
+    IPlatformMessage,
+    IPlatformMessageOptions,
+    IPlatformServer,
+    IPlatformServerMember,
+    IPlatformUser
+} from '../interfaces'
 
 type SendableChannel = Exclude<TextBasedChannel, PartialGroupDMChannel>
 
@@ -147,7 +158,9 @@ export class DiscordServerMemberAdapter implements IPlatformServerMember {
 
     havePermission(permission: string): boolean {
         try {
-            return this.member.permissions.has(permission as PermissionResolvable)
+            return this.member.permissions.has(
+                permission as PermissionResolvable
+            )
         } catch {
             return false
         }
@@ -248,7 +261,10 @@ export class DiscordChannelAdapter implements IPlatformChannel {
         }
     }
     get serverId(): string | undefined {
-        if ('guildId' in this.channel && typeof this.channel.guildId === 'string') {
+        if (
+            'guildId' in this.channel &&
+            typeof this.channel.guildId === 'string'
+        ) {
             return this.channel.guildId
         }
         return undefined
@@ -257,8 +273,13 @@ export class DiscordChannelAdapter implements IPlatformChannel {
     async sendMessage(
         content: string | IPlatformMessageOptions
     ): Promise<IPlatformMessage> {
-        if (!('send' in this.channel) || typeof (this.channel as SendableChannel).send !== 'function') {
-            throw new Error(`Cannot send messages to channel type ${this.channel.type}`)
+        if (
+            !('send' in this.channel) ||
+            typeof (this.channel as SendableChannel).send !== 'function'
+        ) {
+            throw new Error(
+                `Cannot send messages to channel type ${this.channel.type}`
+            )
         }
         const textChannel = this.channel as SendableChannel
 
@@ -322,7 +343,9 @@ export class DiscordChannelAdapter implements IPlatformChannel {
             return null
         }
         try {
-            const message = await (this.channel as SendableChannel).messages.fetch(messageId)
+            const message = await (
+                this.channel as SendableChannel
+            ).messages.fetch(messageId)
             return new DiscordMessageAdapter(message)
         } catch {
             return null
@@ -337,11 +360,13 @@ export class DiscordChannelAdapter implements IPlatformChannel {
         if (!('messages' in this.channel)) {
             return []
         }
-        const messages = await (this.channel as SendableChannel).messages.fetch({
-            limit: options?.limit,
-            before: options?.before,
-            after: options?.after
-        })
+        const messages = await (this.channel as SendableChannel).messages.fetch(
+            {
+                limit: options?.limit,
+                before: options?.before,
+                after: options?.after
+            }
+        )
         return messages.map(m => new DiscordMessageAdapter(m))
     }
 }
@@ -378,7 +403,9 @@ export class DiscordMessageAdapter implements IPlatformMessage {
                 this.message.channel as TextChannel
             )
         }
-        throw new Error(`Channel type not supported: ${this.message.channel.type}`)
+        throw new Error(
+            `Channel type not supported: ${this.message.channel.type}`
+        )
     }
     get server(): IPlatformServer | undefined {
         if (!this.message.guild) return undefined
@@ -581,5 +608,9 @@ export class DiscordClientAdapter
     getUser(userId: string): IPlatformUser | undefined {
         const user = this.client.users.cache.get(userId)
         return user ? new DiscordUserAdapter(user) : undefined
+    }
+
+    wrapMessage(rawMessage: DiscordMessage): IPlatformMessage {
+        return new DiscordMessageAdapter(rawMessage)
     }
 }

@@ -124,28 +124,11 @@ export interface IPlatformClient {
     getServer(serverId: string): IPlatformServer | undefined
     getChannel(channelId: string): IPlatformChannel | undefined
     getUser(userId: string): IPlatformUser | undefined
-    on<K extends keyof IPlatformEventMap>(
-        event: K,
-        listener: IPlatformEventMap[K],
-    ): this
-    once<K extends keyof IPlatformEventMap>(
-        event: K,
-        listener: IPlatformEventMap[K],
-    ): this
-    emit<K extends keyof IPlatformEventMap>(
-        event: K,
-        ...args: Parameters<IPlatformEventMap[K]>
-    ): boolean
-}
-
-export interface IPlatformClient {
-    user: IPlatformUser | null
-    isReady: boolean
-    connect(): Promise<void>
-    disconnect(): Promise<void>
-    getServer(serverId: string): IPlatformServer | undefined
-    getChannel(channelId: string): IPlatformChannel | undefined
-    getUser(userId: string): IPlatformUser | undefined
+    /**
+     * Wrap a native platform message into IPlatformMessage without an API call.
+     * This is used when we already have the native message object available.
+     */
+    wrapMessage?(rawMessage: DiscordMessage | StoatMessage): IPlatformMessage
     on<K extends keyof IPlatformEventMap>(
         event: K,
         listener: IPlatformEventMap[K],

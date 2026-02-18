@@ -227,13 +227,17 @@ export class CommandManager {
         prefix: string
     ): Promise<void> {
         if (!this.initialized) {
-            logger.warn('{handlePlatformMessage} CommandManager not initialized')
+            logger.warn(
+                '{handlePlatformMessage} CommandManager not initialized'
+            )
             return
         }
 
         // Ensure message content is defined before checking startsWith
         if (!message || !message.content) {
-            logger.warn('{handlePlatformMessage} Received message with undefined content')
+            logger.warn(
+                '{handlePlatformMessage} Received message with undefined content'
+            )
             return
         }
 
@@ -270,7 +274,9 @@ export class CommandManager {
         )
 
         if (!command || !this.registry.isSlashCommand(command)) {
-            logger.debug(`{handlePlatformMessage} Command not found: ${commandName}`)
+            logger.debug(
+                `{handlePlatformMessage} Command not found: ${commandName}`
+            )
             return
         }
 
@@ -304,7 +310,9 @@ export class CommandManager {
                 return
             }
 
-            logger.debug(`{handlePlatformMessage} Executing command: ${commandName}`)
+            logger.debug(
+                `{handlePlatformMessage} Executing command: ${commandName}`
+            )
             await this.executeUnifiedCommand(command, context)
         } catch (e) {
             const error = e as Error & { name?: string }
@@ -453,38 +461,34 @@ export class CommandManager {
     ): Promise<void> {
         try {
             // Convert Discord message to platform message and use unified handler
-            const platformMessage = await this.convertDiscordMessageToPlatform(message)
+            const platformMessage =
+                this.convertDiscordMessageToPlatform(message)
             await this.handlePlatformMessage(platformMessage, prefix)
         } catch (error) {
-            logger.error(`Error in handleMessageCommand: ${error instanceof Error ? error.message : String(error)}`)
+            logger.error(
+                `Error in handleMessageCommand: ${error instanceof Error ? error.message : String(error)}`
+            )
         }
     }
 
     /**
      * Convert Discord Message to IPlatformMessage
+     * Uses wrapMessage to avoid unnecessary API calls
      */
-    private async convertDiscordMessageToPlatform(
+    private convertDiscordMessageToPlatform(
         message: Message
-    ): Promise<IPlatformMessage> {
-        // This should use the Discord adapter's conversion
-        // For now, we use a simple adapter lookup
+    ): IPlatformMessage {
         const discordClient = this.platformManager.getClient('discord')
         if (!discordClient) {
             throw new Error('Discord client not available')
         }
 
-        // Get the message through the adapter's channel
-        const channel = discordClient.getChannel(message.channel.id)
-        if (!channel) {
-            throw new Error('Channel not found in platform adapter')
+        if (!discordClient.wrapMessage) {
+            throw new Error('Discord adapter does not support wrapMessage')
         }
 
-        // Use the adapter's fetchMessage method and handle potential null/Promise return
-        const platformMessage = await channel.fetchMessage(message.id)
-        if (!platformMessage) {
-             throw new Error('Failed to fetch platform message from adapter')
-        }
-        return platformMessage
+        // Use wrapMessage to wrap the existing message without an API call
+        return discordClient.wrapMessage(message)
     }
 
     private findMatchingSlashCommand(
