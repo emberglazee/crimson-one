@@ -30,18 +30,24 @@ npm run dashboard
 ### TypeScript/JavaScript
 
 - **Runtime:** Bun (ES modules, `"type": "module"`)
-- **Semicolons:** **NEVER** use semicolons (`semi: false`)
+- **Semicolons:** **NEVER** use semicolons (`@stylistic/semi: ['error', 'never']`)
 - **Quotes:** Single quotes with `avoidEscape: true`
 - **Indentation:** 4 spaces (tabWidth: 4)
-- **Trailing commas:** **NEVER** use trailing commas
-- **Arrow functions:** Parens as-needed (`x => x` not `(x) => x`)
-- **Function spacing:**
+- **Comma Dangle (Trailing Commas):** Never use trailing commas. This is strictly enforced by the `comma-dangle: ['error', 'never']` rule.
+    - No trailing commas in arrays, objects, imports, exports, or function parameters.
+- **Arrow functions:** Parens as-needed (`x => x` not `(x) => x`) (`arrow-parens: ['error', 'as-needed']`)
+- **Function spacing:** (`space-before-function-paren`)
     - Anonymous: `function ()` (space before paren)
     - Named: `function name()` (no space)
     - Async arrow: `async () =>` (space before paren)
-- **Member Delimiters:**
+- **Member Delimiters:** (`@stylistic/member-delimiter-style`)
     - Multiline interfaces: No delimiter
     - Singleline interfaces: Comma delimiter
+- **Unused Variables:** allowed if prefixed with `_` (`@typescript-eslint/no-unused-vars`: `argsIgnorePattern: ^_`)
+- **Formatting:**
+    - `no-trailing-spaces`: error
+    - `eol-last`: error (file must end with newline)
+    - `@stylistic/space-infix-ops`: error (space around operators)
 
 ### TypeScript Types
 
