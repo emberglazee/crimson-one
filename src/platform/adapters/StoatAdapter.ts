@@ -527,8 +527,8 @@ export class StoatClientAdapter
     private startPolling() {
         if (this.pollingInterval) return
         logger.info('[StoatAdapter] Starting HTTP polling fallback...')
-        // Poll every 5 seconds to avoid rate limits but stay relatively responsive
-        this.pollingInterval = setInterval(() => this.pollChannels(), 5000)
+        // Poll every 10 seconds to avoid rate limits but stay relatively responsive
+        this.pollingInterval = setInterval(() => this.pollChannels(), 10000)
         this.pollChannels() // Initial poll
     }
 
