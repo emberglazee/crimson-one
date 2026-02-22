@@ -393,7 +393,7 @@ export class StoatClientAdapter
     public user: IPlatformUser | null = null
     public isReady = false
     private processedMessageIds = new Set<string>()
-    private pollingInterval: NodeJS.Timer | null = null
+    private pollingInterval: NodeJS.Timeout | null = null
 
     constructor(private client: StoatClient) {
         super()
