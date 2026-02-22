@@ -386,6 +386,8 @@ export class StoatMessageAdapter implements IPlatformMessage {
     }
 }
 
+export type StoatConnectionMode = 'websocket' | 'polling' | 'hybrid'
+
 export class StoatClientAdapter
     extends EventEmitter<IPlatformEventMap>
     implements IPlatformClient
@@ -394,10 +396,29 @@ export class StoatClientAdapter
     public isReady = false
     private processedMessageIds = new Set<string>()
     private pollingInterval: NodeJS.Timeout | null = null
+    private connectionMode: StoatConnectionMode = 'websocket'
 
     constructor(private client: StoatClient) {
         super()
         this.setupEventForwarding()
+    }
+
+    public setConnectionMode(mode: StoatConnectionMode): void {
+        this.connectionMode = mode
+        logger.info(`[StoatAdapter] Connection mode set to: ${mode}`)
+
+        if (mode === 'websocket') {
+            this.stopPolling()
+            // Ensure websocket is connected if not already?
+            // client.connect() handles that.
+        } else if (mode === 'polling') {
+            this.startPolling()
+            // We might want to disconnect websocket here, but stoat.js might rely on it for other things?
+            // For now, we'll just enable polling.
+        } else {
+            // hybrid
+            this.startPolling()
+        }
     }
 
     private setupEventForwarding(): void {
@@ -471,6 +492,8 @@ export class StoatClientAdapter
         }
 
         this.client.on('messageCreate', message => {
+            if (this.connectionMode === 'polling') return
+
             logger.info(
                 `[StoatAdapter] WS Received: ${message.content} (${message.id})`
             )
@@ -478,6 +501,8 @@ export class StoatClientAdapter
         })
 
         this.client.on('messageUpdate', (message, previousMessage) => {
+            if (this.connectionMode === 'polling') return
+
             this.emit(
                 'messageUpdate',
                 new StoatMessageAdapter(message),
@@ -490,6 +515,8 @@ export class StoatClientAdapter
         })
 
         this.client.on('messageDelete', message => {
+            if (this.connectionMode === 'polling') return
+
             this.emit(
                 'messageDelete',
                 new StoatMessageAdapter(message as unknown as StoatMessage)
@@ -497,10 +524,12 @@ export class StoatClientAdapter
         })
 
         this.client.on('serverMemberJoin', member => {
+            if (this.connectionMode === 'polling') return
             this.emit('serverMemberJoin', new StoatServerMemberAdapter(member))
         })
 
         this.client.on('serverMemberLeave', member => {
+            if (this.connectionMode === 'polling') return
             this.emit(
                 'serverMemberLeave',
                 new StoatServerMemberAdapter(
@@ -525,11 +554,24 @@ export class StoatClientAdapter
     }
 
     private startPolling() {
+        if (this.connectionMode === 'websocket' && this.isReady) {
+            // If in strict websocket mode, do not poll
+            return
+        }
+
         if (this.pollingInterval) return
-        logger.info('[StoatAdapter] Starting HTTP polling fallback...')
+        logger.info('[StoatAdapter] Starting HTTP polling...')
         // Poll every 10 seconds to avoid rate limits but stay relatively responsive
         this.pollingInterval = setInterval(() => this.pollChannels(), 10000)
         this.pollChannels() // Initial poll
+    }
+
+    private stopPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval)
+            this.pollingInterval = null
+            logger.info('[StoatAdapter] Stopped HTTP polling')
+        }
     }
 
     private async pollChannels() {

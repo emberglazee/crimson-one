@@ -193,6 +193,12 @@ export class PlatformManager extends EventEmitter<{
 
                 const adapter = new StoatClientAdapter(stoatClient!)
 
+                // Configure connection mode
+                const mode =
+                    (process.env.STOAT_CONNECTION_MODE?.toLowerCase() ||
+                        'websocket') as 'websocket' | 'polling' | 'hybrid'
+                adapter.setConnectionMode(mode)
+
                 this.platforms.set('stoat', {
                     type: 'stoat',
                     enabled: true,
