@@ -10,6 +10,7 @@ import { DiscordClientAdapter } from './adapters/DiscordAdapter'
 import { StoatClientAdapter } from './adapters/StoatAdapter'
 import { Client as DiscordClient, IntentsBitField, Partials } from 'discord.js'
 import { Client as StoatClient } from 'stoat.js'
+import { inspect } from 'node:util'
 
 const logger = new Logger('PlatformManager')
 
@@ -167,7 +168,7 @@ export class PlatformManager extends EventEmitter<{
                 // Add error handler immediately to catch any connection errors
                 stoatClient.on('error', err => {
                     logger.warn(
-                        `Stoat client error (may be expected during connection): ${err instanceof Error ? err.message : String(err)}`
+                        `Stoat client error (may be expected during connection): ${err instanceof Error ? err.message : '\n' + inspect(err, { colors: true, depth: 2 })}`
                     )
                 })
 
