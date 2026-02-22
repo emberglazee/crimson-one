@@ -128,17 +128,31 @@ export class CommandContext<InGuild extends boolean = boolean> {
         if (this.interaction) return this.interaction.user
         if (this.message) return this.message.author
         if (this.stoatMessage) {
-            // This is a workaround until we have cross-platform User
-            // Return a mock user object compatible with discord.js User interface
+            // Method to log and return placeholder 'unknown' string for undefined properties
+            const returnUnknown = <T = 'unknown'>(property: string, override?: T): T => {
+                logger.warn(`[CommandContext] {author()} Stoat message author is missing property: ${property}. Returning '${override}'.`)
+                return (override ?? 'unknown') as T
+            }
+            // TODO: implement a common User interface and write adapters instead
             return {
-                id: this.stoatMessage.author?.id ?? 'unknown',
-                username: this.stoatMessage.author?.username ?? 'unknown',
-                discriminator: '0',
-                bot: !!this.stoatMessage.author?.bot,
-                toString: () => this.stoatMessage?.author ? `<@${this.stoatMessage.author.id}>` : 'Unknown User',
-                displayAvatarURL: () => this.stoatMessage?.author?.avatarURL ?? ''
-                // Add other necessary properties/methods as needed or cast to User
-            } as unknown as User
+                id: this.stoatMessage.author?.id ?? returnUnknown('id'),
+                username: this.stoatMessage.author?.username ?? returnUnknown('username'),
+                discriminator: this.stoatMessage.author?.discriminator ?? '0', // Stoat _does_ have discriminators, not sure why the property can be undefined though
+                bot: !!this.stoatMessage.author?.bot, // stoat.js returns `{ owner: string } | undefined`, so convert to boolean to match discord.js
+                toString: () => this.stoatMessage?.author ? `<@${this.stoatMessage.author.id}>` : returnUnknown('toString', '<@unknown>'),
+                displayAvatarURL: () => this.stoatMessage?.author?.avatarURL ?? returnUnknown('displayAvatarURL'),
+                accentColor: null, // Not in stoat.js
+                avatar: this.stoatMessage.author?.avatarURL ?? null,
+                avatarDecoration: null, // Deprecated in favor of `avatarDecorationData`
+                avatarDecorationData: null, // Not in Stoat at all
+                banner: null, // TODO: Not in stoat.js but in Stoat itself; fetch it ourselves?
+                createdAt: this.stoatMessage.author?.createdAt ?? returnUnknown('createdAt', new Date(0)),
+                createdTimestamp: this.stoatMessage.author?.createdAt.getTime() ?? 0,
+                displayName: this.stoatMessage.author?.displayName ?? returnUnknown('displayName'),
+                collectibles: null, // Not in Stoat at all
+                defaultAvatarURL: this.stoatMessage.author?.defaultAvatarURL ?? returnUnknown('defaultAvatarURL')
+                // ...add other necessary properties/methods as needed or cast to User
+            } as User // FIX: Not the full discord.js User object but treat as such to avoid editor-time type errors. DOES NOT AVOID RUN-TIME ERRORS! Edit out `as User` to see missing properties in the TypeScript error.
         }
         throw new Error('Cannot access Discord User object from unknown context')
     }

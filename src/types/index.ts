@@ -26,7 +26,7 @@ export type ChannelIdResolvable = GuildChannel | Message | CommandInteraction |
 export type AtleastOne<T, U = { [K in keyof T]: Pick<T, K> }> = Partial<T> & U[keyof U]
 
 export interface DiscordEventListener {
-    default: (client: Client, ...args: any[]) => void
+    default: (client: Client, ...args: ExplicitAny[]) => void
 }
 
 export type Emoji = string
@@ -70,10 +70,10 @@ export type JSONResolvable = string | number | boolean | {[key: string]: JSONRes
 export type GuildOnlyCommandContext = CommandContext<true>
 
 /**
- * the "i know what im doing" `any` type, bypasses eslint
+ * The "i know what im doing" `any` type, bypasses ESlint.
+ * Causes existential crisies. Maintainer discretion is adviced.
  * */
-
-export type ExplicitAny = any
+export type ExplicitAny = any // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export type OldSlashCommandHelpers = {
     reply: ChatInputCommandInteraction['reply']
