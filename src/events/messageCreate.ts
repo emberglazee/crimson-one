@@ -94,6 +94,8 @@ async function handleMathCommand(
     const expression = message.content.slice(2).trim()
     if (!expression) return
 
+    logger.info(`Processing math expression: ${expression}`)
+
     try {
         const result = math.evaluate(expression, { toFeetInches })
 
@@ -119,6 +121,7 @@ async function handleMathCommand(
 
         await message.reply(`\`${expression}\` = \`${resultString}\``)
     } catch (error) {
+        logger.error(`Math.js Error: ${(error as Error).message}`)
         await message.reply(
             `❌ **Math.js Error:** \`${(error as Error).message}\``
         )
@@ -404,6 +407,7 @@ export default async function onMessageCreate(
     client: Client<true>,
     services: MessageCreateServices
 ) {
+    logger.info('Initializing messageCreate event handler...')
     const {
         tagManager,
         serverConfigManager,
@@ -416,38 +420,44 @@ export default async function onMessageCreate(
     } = services
 
     const math = create(all)
-    math.createUnit(
-        {
-            embil: {
-                baseName: 'length',
-                definition: '165 cm',
-                aliases: ['embi_length', 'embi_height']
+    try {
+        math.createUnit(
+            {
+                embil: {
+                    baseName: 'length',
+                    definition: '165 cm',
+                    aliases: ['embi_length', 'embi_height']
+                },
+                embim: {
+                    baseName: 'mass',
+                    definition: '50 kg',
+                    aliases: ['embi_weight', 'embi_mass']
+                },
+                ly: {
+                    baseName: 'length',
+                    definition: '9460730472580.8 km',
+                    aliases: ['light_year']
+                },
+                au: {
+                    baseName: 'length',
+                    definition: '149597870.69 km',
+                    aliases: ['astronomical_unit']
+                },
+                c0: {
+                    baseName: 'length',
+                    definition: '299792458 m/s',
+                    aliases: ['light_speed']
+                }
             },
-            embim: {
-                baseName: 'mass',
-                definition: '50 kg',
-                aliases: ['embi_weight', 'embi_mass']
-            },
-            ly: {
-                baseName: 'length',
-                definition: '9460730472580.8 km',
-                aliases: ['light_year']
-            },
-            au: {
-                baseName: 'length',
-                definition: '149597870.69 km',
-                aliases: ['astronomical_unit']
-            },
-            c0: {
-                baseName: 'length',
-                definition: '299792458 m/s',
-                aliases: ['light_speed']
-            }
-        },
-        { override: true, prefixes: 'long' }
-    )
+            { override: true, prefixes: 'long' }
+        )
+        logger.ok('Math.js units initialized.')
+    } catch (e) {
+        logger.error(`Error initializing Math.js units: ${e}`)
+    }
 
     client.on('messageCreate', async message => {
+        // logger.info(`Received message: ${message.content}`)
         try {
             if (message.author.bot) return
 
@@ -473,8 +483,10 @@ export default async function onMessageCreate(
             // "%" commands (math and tags)
             if (message.content.startsWith('%')) {
                 if (message.content.startsWith('% ')) {
+                    logger.info('Handling math command...')
                     await handleMathCommand(message, math)
                 } else {
+                    logger.info('Handling tag command...')
                     await handleTagCommand(message, {
                         tagManager,
                         serverConfigManager

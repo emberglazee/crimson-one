@@ -8,7 +8,7 @@ import { ServerConfigManager } from '../ServerConfig'
 
 import { TagDataSource } from './DataSource'
 import { Tag, type PlatformType } from './entities/Tag'
-import { Message } from 'discord.js'
+import { Message, GuildMember, type PermissionResolvable } from 'discord.js'
 import type {
     IPlatformMessage,
     IPlatformServerMember
@@ -110,7 +110,7 @@ export class TagManager {
     ): Promise<boolean> {
         // Extract guild/server ID and member from different context types
         let serverId: string | null = null
-        let member: IPlatformServerMember | null = null
+        let member: IPlatformServerMember | GuildMember | null = null
 
         if ('server' in ctx) {
             // It's an IPlatformMessage
@@ -120,8 +120,8 @@ export class TagManager {
             // It's a Discord CommandContext or Message
             serverId = ctx.guild?.id || null
             if ('member' in ctx && ctx.member) {
-                // Convert Discord GuildMember to platform-compatible checks
-                member = ctx.member as unknown as IPlatformServerMember
+                // Keep as GuildMember for now
+                member = ctx.member as GuildMember
             }
         }
 
@@ -152,14 +152,25 @@ export class TagManager {
             return false
         }
 
-        // Check permissions using platform-agnostic interface
-        const hasPermission = serverConfig.tagCreatePermissions.some(
-            (p: bigint | string) => {
-                const permString =
-                    typeof p === 'bigint' ? p.toString() : String(p)
-                return member.havePermission(permString)
-            }
-        )
+        // Check permissions
+        let hasPermission = false
+        if (member instanceof GuildMember) {
+            // Discord GuildMember
+            hasPermission = serverConfig.tagCreatePermissions.some(p =>
+                member.permissions.has(p as PermissionResolvable)
+            )
+        } else if ('havePermission' in member) {
+            // IPlatformServerMember
+            hasPermission = serverConfig.tagCreatePermissions.some(
+                (p: bigint | string) => {
+                    const permString =
+                        typeof p === 'bigint' ? p.toString() : String(p)
+                    return (member as IPlatformServerMember).havePermission(
+                        permString
+                    )
+                }
+            )
+        }
 
         if (hasPermission) {
             logger.debug(
@@ -169,9 +180,14 @@ export class TagManager {
         }
 
         // Check roles
+        const roles =
+            member instanceof GuildMember
+                ? member.roles.cache.map(r => r.id)
+                : (member as IPlatformServerMember).roles
         const hasRole = serverConfig.tagCreateRoles.some(r =>
-            member.roles.includes(r)
+            roles.includes(r)
         )
+
         if (hasRole) {
             logger.debug(
                 `{canModerateTags} Member ${member.id} has a role required for server ${serverId}`
@@ -189,7 +205,16 @@ export class TagManager {
         }
 
         // Check administrator permission
-        if (member.havePermission('Administrator')) {
+        let isAdmin = false
+        if (member instanceof GuildMember) {
+            isAdmin = member.permissions.has('Administrator') // String literal or PermissionResolvable
+        } else if ('havePermission' in member) {
+            isAdmin = (member as IPlatformServerMember).havePermission(
+                'Administrator'
+            )
+        }
+
+        if (isAdmin) {
             logger.debug(
                 `{canModerateTags} Member ${member.id} has administrator permission in server ${serverId}`
             )

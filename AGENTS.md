@@ -25,30 +25,30 @@ npm run dashboard:install
 npm run dashboard
 ```
 
-**Note:** No test framework is currently configured. Tests should be run manually or added via a test framework like `bun:test`.
-
 ## Code Style Guidelines
 
 ### TypeScript/JavaScript
 
 - **Runtime:** Bun (ES modules, `"type": "module"`)
-- **Semicolons:** Never use semicolons
+- **Semicolons:** **NEVER** use semicolons (`semi: false`)
 - **Quotes:** Single quotes with `avoidEscape: true`
 - **Indentation:** 4 spaces (tabWidth: 4)
-- **Trailing commas:** Never use trailing commas
+- **Trailing commas:** **NEVER** use trailing commas
 - **Arrow functions:** Parens as-needed (`x => x` not `(x) => x`)
 - **Function spacing:**
-    - Anonymous: `function ()`
-    - Named: `function name()`
-    - Async arrow: `async () =>`
+    - Anonymous: `function ()` (space before paren)
+    - Named: `function name()` (no space)
+    - Async arrow: `async () =>` (space before paren)
+- **Member Delimiters:**
+    - Multiline interfaces: No delimiter
+    - Singleline interfaces: Comma delimiter
 
 ### TypeScript Types
 
-- Enable `strict: true` in tsconfig
-- Use `verbatimModuleSyntax: true` (import type separately)
-- Prefer `type` imports for types
-- Experimental decorators enabled for TypeORM
-- Interface/type naming: PascalCase
+- **Strict Mode:** Enabled (`strict: true`)
+- **Imports:** Use `verbatimModuleSyntax: true` (import type separately or use `import type`)
+- **Decorators:** Experimental decorators enabled (for TypeORM)
+- **Naming:** PascalCase for Interfaces and Types
 
 ### Naming Conventions
 
@@ -57,43 +57,48 @@ npm run dashboard
 - **Functions/Methods:** camelCase
 - **Variables:** camelCase
 - **Constants:** UPPER_SNAKE_CASE for true constants
-- **Private members:** Prefix with underscore (e.g., `_log()`)
-- **Files:** camelCase or PascalCase matching the main export
+- **Private members:** Prefix with underscore (e.g., `_log()`) - optional but common
+- **Files:** camelCase (e.g., `commandHandler.ts`) or PascalCase matching the main export
 
 ### Imports
 
-```typescript
-// External imports first
-import { container } from 'tsyringe'
-import { EventEmitter } from 'tseep'
+Sort imports by group:
 
-// Internal imports
+1.  **External/Runtime:** `bun`, `tsyringe`, `discord.js`, etc.
+2.  **Internal:** Local modules, utils (`./modules`, `../util`)
+3.  **Side-effects:** `import 'reflect-metadata'` (usually at the top if critical, or bottom if just for effect)
+
+```typescript
+// External
+import { container } from 'tsyringe'
+import { spawn } from 'bun'
+
+// Internal
 import { Logger } from './modules'
-import { blue, red } from '../util/colors'
 import type { LogLevel } from '../types'
 
-// Side-effect imports
+// Side-effects
 import 'reflect-metadata'
 ```
 
 ### Error Handling
 
-- Use graceful shutdown handler (`GracefulShutdown`) for uncaught errors
-- Log errors using the `Logger` class
-- Prefer early returns over nested conditionals
-- Use `try/catch` for async operations that may fail
+- **Graceful Shutdown:** Use the `GracefulShutdown` handler for uncaught errors.
+- **Logging:** Always use the `Logger` class, not `console.log`.
+- **Async:** Use `try/catch` for async operations.
+- **Flow:** Prefer early returns over nested conditionals.
 
 ### Dependency Injection
 
-- Use `tsyringe` for DI
-- Register services in `container` before resolution
-- Use `resolveServices()` utility for bulk resolution
+- **Library:** `tsyringe`
+- **Registration:** Register services in the global container before resolution.
+- **Resolution:** Use `resolveServices()` for bulk resolution where applicable.
 
 ### Discord.js Patterns
 
-- Commands use `SlashCommandBuilder` with `.satisfies SlashCommand`
-- Events are in `src/events/` and export a default function
-- Use `InteractionContextType` for command contexts
+- **Commands:** Use `SlashCommandBuilder` with `.satisfies SlashCommand`.
+- **Events:** Located in `src/events/`, exporting a default function.
+- **Context:** Use `InteractionContextType` for command contexts.
 
 ## File Organization
 
@@ -105,15 +110,14 @@ src/
 ├── types/           # TypeScript type definitions
 ├── util/            # Utility functions and helpers
 ├── migrations/      # Database migrations
-├── guardian.ts      # Entry point wrapper
-├── index.ts         # Main initialization
+├── guardian.ts      # Entry point wrapper (auto-restart/update)
+├── index.ts         # Main bot initialization
 └── init.ts          # First-time setup
 ```
 
 ## Important Notes
 
-- This bot uses **Bun runtime** - do not use Node.js-specific APIs without checking Bun compatibility
-- Database: SQLite/PostgreSQL via TypeORM
-- External AI integration via `@ai-sdk/openai-compatible`
-- The `crimson_markov` Rust crate provides Markov chain functionality
-- Environment variables loaded from `.env`
+- **Bun Runtime:** Do not use Node.js-specific APIs that are incompatible with Bun.
+- **Database:** Uses TypeORM with SQLite/PostgreSQL.
+- **AI Integration:** Uses `@ai-sdk/openai-compatible`.
+- **Rust Integration:** The `crimson_markov` crate is compiled separately and potentially called via FFI or subprocess.
