@@ -13,7 +13,7 @@ export class MessageTrigger {
             pattern: [/comic/gmi, /peg/gmi, /mick/gmi, msg => msg.author.id === '244975212448317440'],
             async action(message) {
                 if (chance(10)) await message.reply('<:peg:1341742361004212285><:ging:1341742389257310279>')
-            }
+                }
         },
         {
             pattern: [/ronald mcdonald/gmi],
@@ -42,7 +42,7 @@ export class MessageTrigger {
         {
             pattern: [/absolute cinema/gmi],
             async action(message) {
-                await message.reply(getRandomElement([
+                if (chance(10)) await message.reply(getRandomElement([
                     'https://tenor.com/view/absolute-cinema-cinema-cine-absolute-cine-gif-5324030207930286506',
                     'https://tenor.com/view/johnqt-cinema-johnqt-absolute-cinema-gif-8595958281962294369',
                     'https://tenor.com/view/me-atrapaste-es-cine-its-cinema-cinema-esto-es-cine-gif-17729711691959966457',
@@ -76,7 +76,7 @@ export class MessageTrigger {
                 if (message.channelId === '1372567739931037890') return
                 if (message.mentions.users.has(EMBI_ID) || message.author.id === EMBI_ID) return
                 if (message.guildId !== SOLITARY_CONFINEMENT_GUILD_ID) return
-                if (chance(50)) await message.reply(getRandomElement([
+                if (chance(10)) await message.reply(getRandomElement([
                     'https://cdn.discordapp.com/attachments/982138135653793804/1441168198857916510/image.png?ex=6920cffa&is=691f7e7a&hm=d394326b0355911a1264fd7d5c6947e7513e5d3447e9887720f97c5238a7f924&',
                     'https://cdn.discordapp.com/attachments/982138135653793804/1441168467326799985/image.png?ex=6920d03a&is=691f7eba&hm=2eaadc52d2454ccdab7d59a2eaa4734db2075c863cc6164d43de94139db87033&',
                     'https://cdn.discordapp.com/attachments/982138135653793804/1441169290748498000/image.png?ex=6920d0fe&is=691f7f7e&hm=8f45939afdc32412631bb10dae7f14689d26cc8babb2f2685feadc18c38d1fc8&',
@@ -106,7 +106,7 @@ export class MessageTrigger {
                 if (message.channelId === '1372567739931037890') return
                 if (message.guildId !== SOLITARY_CONFINEMENT_GUILD_ID) return
                 if (message.mentions.users.has(ashleighId) || message.author.id === ashleighId) return
-                if (chance(50)) await message.reply(getRandomElement([
+                if (chance(10)) await message.reply(getRandomElement([
                     'https://cdn.discordapp.com/attachments/1267488539503886386/1331344509036003338/file.jpg?ex=67e25af2&is=67e10972&hm=847306a43bf42323c2ffa3e1b641d1a4bd1c3a737d89a526e84df7e034694dc0&',
                     'https://media.discordapp.net/attachments/1351770874625130577/1351770895559164004/image.png?ex=67e2d680&is=67e18500&hm=235591676beae2c24528840dc66a2b78ee4fbef5fb16747edb0783b8ef561cb3&format=webp&quality=lossless&',
                     'https://cdn.discordapp.com/attachments/982138135653793804/1386323970369912832/image.png?ex=68594a4f&is=6857f8cf&hm=b13f4b8ed47332399b5f3041c1ef83554a4e318fb44ee779d2741b376ae55a4c&',
@@ -154,14 +154,16 @@ export class MessageTrigger {
         {
             pattern: [/\bhungry\b/gmi],
             async action(message) {
-                await message.react('🐴')
-                await message.reply(getRandomElement([
-                    'https://tenor.com/view/horse-you-have-alerted-the-horse-alert-alert-horse-horse-alert-gif-10675569724654458517',
-                    'https://tenor.com/view/order-of-iris-how-hungry-horse-honse-gif-14835892721220569918',
-                    'https://tenor.com/view/meme-horse-you-have-alerted-the-horse-pretty-derby-uma-musume-gif-15063465391514740847',
-                    'https://tenor.com/view/how-hungry-horse-meme-how-hungry-meme-hungry-gif-3271609735629330991',
-                    'https://tenor.com/view/you-have-alerted-the-horse-horse-gt-when-the-gif-13896701654039849313'
-                ]))
+                await Promise.all([
+                    message.react('🐴'),
+                    message.reply(getRandomElement([
+                        'https://tenor.com/view/horse-you-have-alerted-the-horse-alert-alert-horse-horse-alert-gif-10675569724654458517',
+                        'https://tenor.com/view/order-of-iris-how-hungry-horse-honse-gif-14835892721220569918',
+                        'https://tenor.com/view/meme-horse-you-have-alerted-the-horse-pretty-derby-uma-musume-gif-15063465391514740847',
+                        'https://tenor.com/view/how-hungry-horse-meme-how-hungry-meme-hungry-gif-3271609735629330991',
+                        'https://tenor.com/view/you-have-alerted-the-horse-horse-gt-when-the-gif-13896701654039849313'
+                    ]))
+                ])
             }
         },
         {
@@ -184,35 +186,33 @@ export class MessageTrigger {
         {
             pattern: [/\b(i'm|im|i am)\b\s+(.+)/gmi],
             async action(message) {
-                if (!message.member?.moderatable) return
-                if (
-                    message.member.id === '1065465855191814284' // screw them in particular
-                    || !chance(1)
-                ) return
-
+                if (!chance(1)) return
+                
+                const moderatable = !!message.member && message.member.moderatable
+                
                 const match = message.content.match(/\b(i'm|im|i am)\b\s+(.+)/gmi)
                 if (!match) return
-
+                
                 let name = match[0].replace(/\b(i'm|im|i am)\b\s+/gmi, '').trim()
                 name = name.split(/[.,]/)[0].trim()
                 if (name.length > 32) {
                     name = name.substring(0, 32)
                 }
                 if (!name) return
-
+                
                 const member = message.member as GuildMember
                 const originalNickname = member.nickname
-
-                await message.member.setNickname(name)
-                await message.reply(`Hi \`${name}\`, I\'m Crimson 1`)
+                
+                if (moderatable) await message.member.setNickname(name)
+                    await message.reply(`Hi \`${name}\`, I\'m Crimson 1`)
                 await sleep(60 * 1000)
-                await message.member.setNickname(originalNickname)
-            }
+                if (moderatable) await message.member.setNickname(originalNickname)
+                }
         },
         {
             pattern: [/twink/gmi],
             async action(message) {
-                await message.reply('https://cdn.discordapp.com/attachments/1261829304271245463/1413087375105724507/r9rgr1evtph91.png?ex=68baa7ac&is=68b9562c&hm=f58001e1a1b88211e0f7449320883aa6114c406b809d23c84a3f2732c259fb8b&')
+                if (chance(50)) await message.reply('https://cdn.discordapp.com/attachments/1261829304271245463/1413087375105724507/r9rgr1evtph91.png?ex=68baa7ac&is=68b9562c&hm=f58001e1a1b88211e0f7449320883aa6114c406b809d23c84a3f2732c259fb8b&')
             }
         },
         {
@@ -235,13 +235,13 @@ export class MessageTrigger {
         for (const { pattern, action } of this.triggers) {
             if (pattern.some(
                 r => r instanceof RegExp
-                    ? r.test(message.content) : typeof r === 'function'
-                    ? r(message) : message.content.includes(r)
+                ? r.test(message.content) : typeof r === 'function'
+                ? r(message) : message.content.includes(r)
             )) {
                 matchingTriggers.push({ pattern, action })
             }
         }
-
+        
         // If there are matching triggers, pick a random one and execute the action
         if (matchingTriggers.length > 0) {
             const randomTrigger = getRandomElement(matchingTriggers)
