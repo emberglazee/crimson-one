@@ -71,22 +71,6 @@ export class MessageTrigger {
             }
         },
         {
-            pattern: [/spade/gmi],
-            async action(message) {
-                await message.reply(getRandomElement([
-                    'https://cdn.discordapp.com/attachments/1267488539503886386/1344353319849558140/39e67e09-c811-479a-8011-9fb07b917e0e.gif?ex=67e23858&is=67e0e6d8&hm=79d98a161943f6e42ac43a9cf12b72000ea72102f43c8f936a5930ce735ab5ba&',
-                    'https://cdn.discordapp.com/attachments/1225579254448652420/1280117275063484458/makesweet-9h1bj4.gif?ex=67e1e15d&is=67e08fdd&hm=bf1121e8169df5acf545947cf577ca81d2e486db04bec7d2d77686f27909f28b&',
-                    'https://tenor.com/view/shots-fired-smoke-shoot-gif-15830209',
-                    'https://tenor.com/view/dog-swing-gif-23878746',
-                    'https://tenor.com/view/grand-theft-auto-gta-gta5-gta-v-davey-gif-25947802',
-                    'https://tenor.com/view/project-wingman-crimson-1-cordium-consequence-of-power-gif-18137013603651714218',
-                    'https://tenor.com/view/%D0%BF%D1%80%D0%B0%D1%86%D1%8E%D1%94-%D0%BF%D0%BF%D0%BE-%D0%BF%D0%BF%D0%BE-%D0%BF%D0%B2%D0%BE-%D0%BF%D0%B5%D1%82%D1%80%D1%96%D0%BE%D1%82-%D0%BF%D0%B0%D1%82%D1%80%D1%96%D0%BE%D1%82-gif-12934051785885241735',
-                    'https://cdn.discordapp.com/attachments/982138135653793804/1441173396393164820/image.png?ex=6920d4d1&is=691f8351&hm=057124e122b56586166862ec70a8a99f1bef86cb6f3fbd8f15bffcd92348ceab&',
-                    'https://cdn.discordapp.com/attachments/982138135653793804/1441173688014602300/image.png?ex=6920d516&is=691f8396&hm=c863bcc1b60662be93d180302cbb9e146b45b06cecce23b19dd574f0f1baec1d&'
-                ]))
-            }
-        },
-        {
             pattern: [/embi/gmi, /\bember/gmi],
             async action(message) {
                 if (message.channelId === '1372567739931037890') return
