@@ -187,22 +187,22 @@ export class MessageTrigger {
             pattern: [/\b(i'm|im|i am)\b\s+(.+)/gmi],
             async action(message) {
                 if (!chance(1)) return
-                
+
                 const moderatable = !!message.member && message.member.moderatable
-                
+
                 const match = message.content.match(/\b(i'm|im|i am)\b\s+(.+)/gmi)
                 if (!match) return
-                
+
                 let name = match[0].replace(/\b(i'm|im|i am)\b\s+/gmi, '').trim()
                 name = name.split(/[.,]/)[0].trim()
                 if (name.length > 32) {
                     name = name.substring(0, 32)
                 }
                 if (!name) return
-                
+
                 const member = message.member as GuildMember
                 const originalNickname = member.nickname
-                
+
                 if (moderatable) await message.member.setNickname(name)
                     await message.reply(`Hi \`${name}\`, I\'m Crimson 1`)
                 await sleep(60 * 1000)
@@ -241,7 +241,7 @@ export class MessageTrigger {
                 matchingTriggers.push({ pattern, action })
             }
         }
-        
+
         // If there are matching triggers, pick a random one and execute the action
         if (matchingTriggers.length > 0) {
             const randomTrigger = getRandomElement(matchingTriggers)
