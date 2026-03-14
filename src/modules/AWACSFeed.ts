@@ -2,11 +2,29 @@ import { singleton, inject } from 'tsyringe'
 import { Logger } from './Logger'
 const logger = new Logger('AWACSFeed')
 
-import { Client, Events, ChannelType, TextChannel, AuditLogEvent, GuildMember, User, GuildBan, Role } from 'discord.js'
+import {
+    Client,
+    Events,
+    ChannelType,
+    TextChannel,
+    AuditLogEvent,
+    GuildMember,
+    User,
+    GuildBan,
+    Role
+} from 'discord.js'
 import type { ClientEvents, PartialGuildMember } from 'discord.js'
-import { AWACS_FEED_CHANNEL, SOLITARY_CONFINEMENT_GUILD_ID, BANISH_ROLE_ID } from '../util/constants'
+import {
+    AWACS_FEED_CHANNEL,
+    SOLITARY_CONFINEMENT_GUILD_ID,
+    BANISH_ROLE_ID
+} from '../util/constants'
 import { formatDuration, getRandomElement } from '../util/functions'
-import { BanishmentManager, type BanishmentEvent, type UnbanishmentEvent } from './BanishmentManager'
+import {
+    BanishmentManager,
+    type BanishmentEvent,
+    type UnbanishmentEvent
+} from './BanishmentManager'
 
 import { EventEmitter } from 'tseep'
 
@@ -31,76 +49,118 @@ export class AWACSFeed extends EventEmitter<{
     ]
 
     private static readonly roleAddMessages = [
-        (member: string, role: string, assigner: string) => `✈️ ${member} was assigned to the ${role} squadron${assigner === NO_IFF_DATA ? '.' : ` by ${assigner}.`}`,
-        (member: string, role: string, assigner: string) => `🎖️ ${member} has joined the ${role} ranks${assigner === NO_IFF_DATA ? '.' : `, courtesy of ${assigner}.`}`,
-        (member: string, role: string, assigner: string) => `✨ ${member} is now part of the ${role} squadron${assigner === NO_IFF_DATA ? '.' : `, thanks to ${assigner}.`}`,
-        (member: string, role: string, assigner: string) => `🏷️ ${member} received the ${role} designation${assigner === NO_IFF_DATA ? '.' : ` from ${assigner}.`}`,
-        (member: string, role: string, assigner: string) => `🧑‍✈️ ${member} has been promoted to the ${role} unit${assigner === NO_IFF_DATA ? '.' : ` by ${assigner}.`}`
+        (member: string, role: string, assigner: string) =>
+            `✈️ ${member} was assigned to the ${role} squadron${assigner === NO_IFF_DATA ? '.' : ` by ${assigner}.`}`,
+        (member: string, role: string, assigner: string) =>
+            `🎖️ ${member} has joined the ${role} ranks${assigner === NO_IFF_DATA ? '.' : `, courtesy of ${assigner}.`}`,
+        (member: string, role: string, assigner: string) =>
+            `✨ ${member} is now part of the ${role} squadron${assigner === NO_IFF_DATA ? '.' : `, thanks to ${assigner}.`}`,
+        (member: string, role: string, assigner: string) =>
+            `🏷️ ${member} received the ${role} designation${assigner === NO_IFF_DATA ? '.' : ` from ${assigner}.`}`,
+        (member: string, role: string, assigner: string) =>
+            `🧑‍✈️ ${member} has been promoted to the ${role} unit${assigner === NO_IFF_DATA ? '.' : ` by ${assigner}.`}`
     ]
 
     private static readonly roleRemoveMessages = [
-        (member: string, role: string, remover: string) => `✈️ ${member} was removed from the ${role} squadron${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`,
-        (member: string, role: string, remover: string) => `🎖️ ${member} has departed the ${role} ranks${remover === NO_IFF_DATA ? '.' : `, decision by ${remover}.`}`,
-        (member: string, role: string, remover: string) => `✨ ${member} is no longer part of the ${role} squadron${remover === NO_IFF_DATA ? '.' : `, per ${remover}.`}`,
-        (member: string, role: string, remover: string) => `🏷️ ${member}'s ${role} designation was revoked${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`,
-        (member: string, role: string, remover: string) => `🧑‍✈️ ${member} has been demoted from the ${role} unit${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`
+        (member: string, role: string, remover: string) =>
+            `✈️ ${member} was removed from the ${role} squadron${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`,
+        (member: string, role: string, remover: string) =>
+            `🎖️ ${member} has departed the ${role} ranks${remover === NO_IFF_DATA ? '.' : `, decision by ${remover}.`}`,
+        (member: string, role: string, remover: string) =>
+            `✨ ${member} is no longer part of the ${role} squadron${remover === NO_IFF_DATA ? '.' : `, per ${remover}.`}`,
+        (member: string, role: string, remover: string) =>
+            `🏷️ ${member}'s ${role} designation was revoked${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`,
+        (member: string, role: string, remover: string) =>
+            `🧑‍✈️ ${member} has been demoted from the ${role} unit${remover === NO_IFF_DATA ? '.' : ` by ${remover}.`}`
     ]
 
     private static readonly roleSelfAddMessages = [
-        (member: string, role: string) => `🛰️ ${member} has acquired the ${role} role.`,
-        (member: string, role: string) => `🛰️ ${member} has taken on the ${role} designation.`,
-        (member: string, role: string) => `🛰️ ${member} now identifies as ${role}.`,
-        (member: string, role: string) => `🛰️ ${member} has adopted the ${role} role.`
+        (member: string, role: string) =>
+            `🛰️ ${member} has acquired the ${role} role.`,
+        (member: string, role: string) =>
+            `🛰️ ${member} has taken on the ${role} designation.`,
+        (member: string, role: string) =>
+            `🛰️ ${member} now identifies as ${role}.`,
+        (member: string, role: string) =>
+            `🛰️ ${member} has adopted the ${role} role.`
     ]
 
     private static readonly roleSelfRemoveMessages = [
-        (member: string, role: string) => `🛰️ ${member} has relinquished the ${role} role.`,
-        (member: string, role: string) => `🛰️ ${member} is no longer designated as ${role}.`,
-        (member: string, role: string) => `🛰️ ${member} has shed the ${role} role.`
+        (member: string, role: string) =>
+            `🛰️ ${member} has relinquished the ${role} role.`,
+        (member: string, role: string) =>
+            `🛰️ ${member} is no longer designated as ${role}.`,
+        (member: string, role: string) =>
+            `🛰️ ${member} has shed the ${role} role.`
     ]
 
     private static readonly timeoutMessages = [
-        (member: string, moderator: string) => `🔇 ${member} has been muted${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
-        (member: string, moderator: string) => `🔇 ${member} has been silenced${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
-        (member: string, moderator: string) => `🔇 ${member} has been timed out${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
-        (member: string, moderator: string) => `🔇 ${member} has been sent to the sin bin${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
-        (member: string, moderator: string) => `🔇 ${member}'s communication rights have been 'detained'${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`
+        (member: string, moderator: string) =>
+            `🔇 ${member} has been muted${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
+        (member: string, moderator: string) =>
+            `🔇 ${member} has been silenced${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
+        (member: string, moderator: string) =>
+            `🔇 ${member} has been timed out${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
+        (member: string, moderator: string) =>
+            `🔇 ${member} has been sent to the sin bin${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`,
+        (member: string, moderator: string) =>
+            `🔇 ${member}'s communication rights have been 'detained'${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}.`}`
     ]
 
     private static readonly roleRenameMessages = [
-        (oldName: string, newName: string, renamer: string) => `✏️ Squadron ${oldName} was renamed to ${newName}${renamer === NO_IFF_DATA ? '.' : ` by ${renamer}.`}`,
-        (oldName: string, newName: string, renamer: string) => `📝 ${oldName} squadron is now known as ${newName}${renamer === NO_IFF_DATA ? '.' : `, updated by ${renamer}.`}`,
-        (oldName: string, newName: string, renamer: string) => `🔄 The ${oldName} unit has been redesignated as ${newName}${renamer === NO_IFF_DATA ? '.' : `, courtesy of ${renamer}.`}`,
-        (oldName: string, newName: string, renamer: string) => `🎖️ ${oldName} squadron has been rebranded to ${newName}${renamer === NO_IFF_DATA ? '.' : ` by ${renamer}.`}`
+        (oldName: string, newName: string, renamer: string) =>
+            `✏️ Squadron ${oldName} was renamed to ${newName}${renamer === NO_IFF_DATA ? '.' : ` by ${renamer}.`}`,
+        (oldName: string, newName: string, renamer: string) =>
+            `📝 ${oldName} squadron is now known as ${newName}${renamer === NO_IFF_DATA ? '.' : `, updated by ${renamer}.`}`,
+        (oldName: string, newName: string, renamer: string) =>
+            `🔄 The ${oldName} unit has been redesignated as ${newName}${renamer === NO_IFF_DATA ? '.' : `, courtesy of ${renamer}.`}`,
+        (oldName: string, newName: string, renamer: string) =>
+            `🎖️ ${oldName} squadron has been rebranded to ${newName}${renamer === NO_IFF_DATA ? '.' : ` by ${renamer}.`}`
     ]
 
     private static EventHandlers: EventHandler<keyof ClientEvents>[] = [
         {
             event: Events.GuildMemberAdd,
-            extract: async ([member]) => [(member as GuildMember).user.username, ''],
+            extract: async ([member]) => [
+                (member as GuildMember).user.username,
+                ''
+            ],
             messages: [
-                (name: string, _banner: string) => `✅ ${name} has arrived in the AO.`,
-                (name: string, _banner: string) => `✅ ${name} has penetrated the CAP line.`,
-                (name: string, _banner: string) => `✅ ${name} has taken off the runway.`,
-                (name: string, _banner: string) => `✅ ${name} has been deported to Solitary Confinement.`,
-                (name: string, _banner: string) => `✅ ${name} has been deployed to the AO.`,
-                (name: string, _banner: string) => `✅ ${name}'s signature has appeared on the radar.`
+                (name: string, _banner: string) =>
+                    `✅ ${name} has arrived in the AO.`,
+                (name: string, _banner: string) =>
+                    `✅ ${name} has penetrated the CAP line.`,
+                (name: string, _banner: string) =>
+                    `✅ ${name} has taken off the runway.`,
+                (name: string, _banner: string) =>
+                    `✅ ${name} has been deported to Solitary Confinement.`,
+                (name: string, _banner: string) =>
+                    `✅ ${name} has been deployed to the AO.`,
+                (name: string, _banner: string) =>
+                    `✅ ${name}'s signature has appeared on the radar.`
             ]
         },
         {
             event: Events.GuildMemberRemove,
-            extract: async ([member]) => [(member as GuildMember).user?.username || 'Unknown user', ''],
+            extract: async ([member]) => [
+                (member as GuildMember).user?.username || 'Unknown user',
+                ''
+            ],
             messages: [
-                (name: string, _banner: string) => `❌ ${name} has retreated out of the AO.`,
-                (name: string, _banner: string) => `❌ ${name} has left the AO.`,
-                (name: string, _banner: string) => `❌ ${name} has been extracted from the AO.`,
+                (name: string, _banner: string) =>
+                    `❌ ${name} has retreated out of the AO.`,
+                (name: string, _banner: string) =>
+                    `❌ ${name} has left the AO.`,
+                (name: string, _banner: string) =>
+                    `❌ ${name} has been extracted from the AO.`,
                 (name: string, _banner: string) => `❌ ${name} is disengaging.`
             ]
         },
         {
             event: Events.GuildBanAdd,
             extract: async ([ban], _client) => {
-                const banned = (ban as GuildBan).user?.username || 'Unknown user'
+                const banned =
+                    (ban as GuildBan).user?.username || 'Unknown user'
                 let banner = NO_IFF_DATA
                 try {
                     const guild = (ban as GuildBan).guild
@@ -109,23 +169,35 @@ export class AWACSFeed extends EventEmitter<{
                             type: AuditLogEvent.MemberBanAdd,
                             limit: 5
                         })
-                        const entry = auditLogs.entries.find(e => e.target?.id === (ban as GuildBan).user?.id)
+                        const entry = auditLogs.entries.find(
+                            e => e.target?.id === (ban as GuildBan).user?.id
+                        )
                         if (entry && entry.executor) {
                             banner = entry.executor.username ?? NO_IFF_DATA
                         }
                     }
-                } catch { /* ignore */ }
+                } catch {
+                    /* ignore */
+                }
                 return [banned, banner]
             },
             messages: [
-                (banned, banner) => `🔨 ${banned} was blown up${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
-                (banned, banner) => `🔨 ${banned} was slain${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
-                (banned, banner) => `🔨 ${banned} was shot down${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
-                (banned, banner) => `🔨 ${banned} was sent to the gulag${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
-                (banned, banner) => `🔨 ${banned} has been neutralized${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
-                (banned, banner) => `🔨 ${banned} has been terminated${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
-                (banned, banner) => `🔨 ${banned} has been vaporized${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
-                (banned, banner) => `🔨 ${banned} has been obliterated${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`
+                (banned, banner) =>
+                    `🔨 ${banned} was blown up${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
+                (banned, banner) =>
+                    `🔨 ${banned} was slain${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
+                (banned, banner) =>
+                    `🔨 ${banned} was shot down${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
+                (banned, banner) =>
+                    `🔨 ${banned} was sent to the gulag${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
+                (banned, banner) =>
+                    `🔨 ${banned} has been neutralized${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
+                (banned, banner) =>
+                    `🔨 ${banned} has been terminated${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
+                (banned, banner) =>
+                    `🔨 ${banned} has been vaporized${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`,
+                (banned, banner) =>
+                    `🔨 ${banned} has been obliterated${banner === NO_IFF_DATA ? '.' : ` by ${banner}`}`
             ]
         },
         {
@@ -140,18 +212,25 @@ export class AWACSFeed extends EventEmitter<{
                             type: AuditLogEvent.RoleCreate,
                             limit: 5
                         })
-                        const entry = auditLogs.entries.find(e => e.target?.id === createdRole.id)
+                        const entry = auditLogs.entries.find(
+                            e => e.target?.id === createdRole.id
+                        )
                         if (entry && entry.executor) {
                             creator = entry.executor.username ?? NO_IFF_DATA
                         }
                     }
-                } catch { /* ignore */ }
+                } catch {
+                    /* ignore */
+                }
                 return [createdRole.name, creator]
             },
             messages: [
-                (role: string, creator: string) => `✨ Squadron ${role} was created${creator === NO_IFF_DATA ? '.' : ` by ${creator}`}.`,
-                (role: string, creator: string) => `➕ New Squadron ${role} added${creator === NO_IFF_DATA ? '.' : ` by ${creator}`}.`,
-                (role: string, creator: string) => `🛠️ ${creator === NO_IFF_DATA ? 'Someone' : creator} formed the ${role} squadron.`
+                (role: string, creator: string) =>
+                    `✨ Squadron ${role} was created${creator === NO_IFF_DATA ? '.' : ` by ${creator}`}.`,
+                (role: string, creator: string) =>
+                    `➕ New Squadron ${role} added${creator === NO_IFF_DATA ? '.' : ` by ${creator}`}.`,
+                (role: string, creator: string) =>
+                    `🛠️ ${creator === NO_IFF_DATA ? 'Someone' : creator} formed the ${role} squadron.`
             ]
         },
         {
@@ -166,19 +245,27 @@ export class AWACSFeed extends EventEmitter<{
                             type: AuditLogEvent.RoleDelete,
                             limit: 5
                         })
-                        const entry = auditLogs.entries.find(e => e.target?.id === deletedRole.id)
+                        const entry = auditLogs.entries.find(
+                            e => e.target?.id === deletedRole.id
+                        )
                         if (entry && entry.executor) {
                             deleter = entry.executor.username ?? NO_IFF_DATA
                         }
                     }
-                } catch { /* ignore */ }
+                } catch {
+                    /* ignore */
+                }
                 return [deletedRole.name, deleter]
             },
             messages: [
-                (role: string, deleter: string) => `🗑️ Squadron ${role} was deleted${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`,
-                (role: string, deleter: string) => `➖ The ${role} squadron was disbanded${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`,
-                (role: string, deleter: string) => `🔥 ${deleter === NO_IFF_DATA ? 'Someone' : deleter} incinerated the ${role} squadron.`,
-                (role: string, deleter: string) => `🔥 The ${role} squadron was wiped out${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`
+                (role: string, deleter: string) =>
+                    `🗑️ Squadron ${role} was deleted${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`,
+                (role: string, deleter: string) =>
+                    `➖ The ${role} squadron was disbanded${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`,
+                (role: string, deleter: string) =>
+                    `🔥 ${deleter === NO_IFF_DATA ? 'Someone' : deleter} incinerated the ${role} squadron.`,
+                (role: string, deleter: string) =>
+                    `🔥 The ${role} squadron was wiped out${deleter === NO_IFF_DATA ? '.' : ` by ${deleter}`}.`
             ]
         },
         {
@@ -196,9 +283,15 @@ export class AWACSFeed extends EventEmitter<{
                                 type: AuditLogEvent.RoleUpdate,
                                 limit: 5
                             })
-                            const entry = auditLogs.entries.find(e =>
-                                e.target?.id === newR.id &&
-                                e.changes.some(change => change.key === 'name' && change.old === oldR.name && change.new === newR.name)
+                            const entry = auditLogs.entries.find(
+                                e =>
+                                    e.target?.id === newR.id &&
+                                    e.changes.some(
+                                        change =>
+                                            change.key === 'name' &&
+                                            change.old === oldR.name &&
+                                            change.new === newR.name
+                                    )
                             )
                             if (entry && entry.executor) {
                                 renamer = entry.executor.username ?? NO_IFF_DATA
@@ -207,7 +300,7 @@ export class AWACSFeed extends EventEmitter<{
                     } catch { /* ignore */ }
                     return [oldR.name, newR.name, renamer]
                 }
-                return [] // No name change
+                return [ /* No name change */ ]
             },
             messages: AWACSFeed.roleRenameMessages
         }
@@ -228,17 +321,22 @@ export class AWACSFeed extends EventEmitter<{
     private async initializeListeners() {
         // Handle the simple events first
         for (const handler of AWACSFeed.EventHandlers) {
-            this.client.on(handler.event, async (...args: ClientEvents[keyof ClientEvents]) => {
-                const guildSource = args[0] as { guild?: { id: string } }
-                const guild = guildSource.guild
-                if (!guild || !this.isTargetGuild(guild.id)) return
+            this.client.on(
+                handler.event,
+                async (...args: ClientEvents[keyof ClientEvents]) => {
+                    const guildSource = args[0] as { guild?: { id: string } }
+                    const guild = guildSource.guild
+                    if (!guild || !this.isTargetGuild(guild.id)) return
 
-                const params = await handler.extract(args, this.client)
-                if (params.length === 0) return
+                    const params = await handler.extract(args, this.client)
+                    if (params.length === 0) return
 
-                const message = getRandomElement(handler.messages)(...params)
-                await this.sendMessage(message)
-            })
+                    const message = getRandomElement(handler.messages)(
+                        ...params
+                    )
+                    await this.sendMessage(message)
+                }
+            )
         }
 
         // Then handle the complex event separately
@@ -248,8 +346,12 @@ export class AWACSFeed extends EventEmitter<{
         })
 
         // Banishment Manager listeners
-        this.banishmentManager.on('userBanished', data => this.onUserBanished(data))
-        this.banishmentManager.on('userUnbanished', data => this.onUserUnbanished(data))
+        this.banishmentManager.on('userBanished', data =>
+            this.onUserBanished(data)
+        )
+        this.banishmentManager.on('userUnbanished', data =>
+            this.onUserUnbanished(data)
+        )
     }
 
     private onUserBanished(data: BanishmentEvent) {
@@ -285,32 +387,68 @@ export class AWACSFeed extends EventEmitter<{
         this.sendMessage(message)
     }
 
-    private async handleGuildMemberUpdate(oldMember: GuildMember | PartialGuildMember, newMember: GuildMember): Promise<void> {
-        if (newMember.user.bot || this.banishmentManager.isActionInProgress(newMember.id)) return
+    private async handleGuildMemberUpdate(
+        oldMember: GuildMember | PartialGuildMember,
+        newMember: GuildMember
+    ): Promise<void> {
+        if (
+            newMember.user.bot ||
+            this.banishmentManager.isActionInProgress(newMember.id)
+        )
+            return
 
         await this.handleRoleChanges(oldMember, newMember)
         await this.handleTimeoutChanges(oldMember, newMember)
     }
 
-    private async handleRoleChanges(oldMember: GuildMember | PartialGuildMember, newMember: GuildMember): Promise<void> {
-        const oldRoleIds = new Set(oldMember.roles?.cache.map(r => r.id) || [])
-        const addedRoles = newMember.roles.cache.filter(role => !oldRoleIds.has(role.id))
-        const removedRoles = oldMember.roles?.cache.filter(role => !newMember.roles.cache.has(role.id))
+    private async handleRoleChanges(
+        oldMember: GuildMember | PartialGuildMember,
+        newMember: GuildMember
+    ): Promise<void> {
+        const oldRoleIds = new Set(
+            oldMember.roles?.cache.map(r => r.id) || []
+        )
+        const addedRoles = newMember.roles.cache.filter(
+            role => !oldRoleIds.has(role.id)
+        )
+        const removedRoles = oldMember.roles?.cache.filter(
+            role => !newMember.roles.cache.has(role.id)
+        )
 
         for (const role of addedRoles.values()) {
             if (role.id === BANISH_ROLE_ID) {
-                const assigner = await this.findRoleChanger(newMember, role, '$add')
+                const assigner = await this.findRoleChanger(
+                    newMember,
+                    role,
+                    '$add'
+                )
                 if (assigner !== NO_IFF_DATA) {
-                    const actor = await this.client.users.fetch(assigner).catch(() => null)
-                    if (actor) this.banishmentManager.reportManualBanishment(newMember, actor)
+                    const actor = await this.client.users
+                        .fetch(assigner)
+                        .catch(() => null)
+                    if (actor)
+                        this.banishmentManager.reportManualBanishment(
+                            newMember,
+                            actor
+                        )
                 }
             } else if (!AWACSFeed.IGNORED_ROLE_IDS.includes(role.id)) {
-                const assigner = await this.findRoleChanger(newMember, role, '$add')
+                const assigner = await this.findRoleChanger(
+                    newMember,
+                    role,
+                    '$add'
+                )
                 if (assigner === newMember.user.username) {
-                    const message = getRandomElement(AWACSFeed.roleSelfAddMessages)(newMember.user.username, role.name)
+                    const message = getRandomElement(
+                        AWACSFeed.roleSelfAddMessages
+                    )(newMember.user.username, role.name)
                     await this.sendMessage(message)
                 } else {
-                    const message = getRandomElement(AWACSFeed.roleAddMessages)(newMember.user.username, role.name, assigner)
+                    const message = getRandomElement(AWACSFeed.roleAddMessages)(
+                        newMember.user.username,
+                        role.name,
+                        assigner
+                    )
                     await this.sendMessage(message)
                 }
             }
@@ -318,30 +456,52 @@ export class AWACSFeed extends EventEmitter<{
 
         for (const role of removedRoles.values()) {
             if (role.id === BANISH_ROLE_ID) {
-                const remover = await this.findRoleChanger(newMember, role, '$remove')
+                const remover = await this.findRoleChanger(
+                    newMember,
+                    role,
+                    '$remove'
+                )
                 if (remover !== NO_IFF_DATA) {
-                    const actor = await this.client.users.fetch(remover).catch(() => null)
-                    if (actor) this.banishmentManager.reportManualUnbanishment(newMember, actor)
+                    const actor = await this.client.users
+                        .fetch(remover)
+                        .catch(() => null)
+                    if (actor)
+                        this.banishmentManager.reportManualUnbanishment(
+                            newMember,
+                            actor
+                        )
                 }
             } else if (!AWACSFeed.IGNORED_ROLE_IDS.includes(role.id)) {
-                const remover = await this.findRoleChanger(newMember, role, '$remove')
+                const remover = await this.findRoleChanger(
+                    newMember,
+                    role,
+                    '$remove'
+                )
                 if (remover === newMember.user.username) {
-                    const message = getRandomElement(AWACSFeed.roleSelfRemoveMessages)(newMember.user.username, role.name)
+                    const message = getRandomElement(
+                        AWACSFeed.roleSelfRemoveMessages
+                    )(newMember.user.username, role.name)
                     await this.sendMessage(message)
                 } else {
-                    const message = getRandomElement(AWACSFeed.roleRemoveMessages)(newMember.user.username, role.name, remover)
+                    const message = getRandomElement(
+                        AWACSFeed.roleRemoveMessages
+                    )(newMember.user.username, role.name, remover)
                     await this.sendMessage(message)
                 }
             }
         }
     }
 
-    private async handleTimeoutChanges(oldMember: GuildMember | PartialGuildMember, newMember: GuildMember): Promise<void> {
+    private async handleTimeoutChanges(
+        oldMember: GuildMember | PartialGuildMember,
+        newMember: GuildMember
+    ): Promise<void> {
         const oldTimeout = oldMember.communicationDisabledUntil
         const newTimeout = newMember.communicationDisabledUntil
 
         if (oldTimeout?.getTime() !== newTimeout?.getTime()) {
-            const { executor, reason } = await this.findTimeoutChanger(newMember)
+            const { executor, reason } =
+                await this.findTimeoutChanger(newMember)
 
             if (!executor) {
                 // If no specific timeout audit log entry is found,
@@ -351,8 +511,12 @@ export class AWACSFeed extends EventEmitter<{
             }
             const moderator = executor.username ?? NO_IFF_DATA
 
-            if (newTimeout) { // User was timed out
-                let message = getRandomElement(AWACSFeed.timeoutMessages)(newMember.user.username, moderator)
+            if (newTimeout) {
+                // User was timed out
+                let message = getRandomElement(AWACSFeed.timeoutMessages)(
+                    newMember.user.username,
+                    moderator
+                )
                 const duration = newTimeout.getTime() - Date.now()
                 if (duration > 0) {
                     message += ` for ${formatDuration(Math.floor(duration / 1000))}`
@@ -361,7 +525,8 @@ export class AWACSFeed extends EventEmitter<{
                     message += `. Reason: ${reason}`
                 }
                 await this.sendMessage(message)
-            } else if (oldTimeout) { // User was untimed out
+            } else if (oldTimeout) {
+                // User was untimed out
                 let message = `🔊 ${newMember.user.username} has been unmuted${moderator === NO_IFF_DATA ? '.' : ` by ${moderator}`}.`
                 if (reason) {
                     message += ` Reason: ${reason}`
@@ -371,7 +536,11 @@ export class AWACSFeed extends EventEmitter<{
         }
     }
 
-    private async findRoleChanger(member: GuildMember, role: Role, changeKey: '$add' | '$remove'): Promise<string> {
+    private async findRoleChanger(
+        member: GuildMember,
+        role: Role,
+        changeKey: '$add' | '$remove'
+    ): Promise<string> {
         try {
             const auditLogs = await member.guild.fetchAuditLogs({
                 limit: 10,
@@ -384,13 +553,26 @@ export class AWACSFeed extends EventEmitter<{
                 // Iterate through changes and find the relevant one
                 return entry.changes.some(change => {
                     // Check if change.key exists and is 'roles'
-                    if (change && typeof change === 'object' && 'key' in change && (change.key === '$add' || change.key === '$remove')) {
-                        const roleChange = change as { key: '$add' | '$remove', new?: { id: string }[], old?: { id: string }[] }
+                    if (
+                        change &&
+                        typeof change === 'object' &&
+                        'key' in change &&
+                        (change.key === '$add' || change.key === '$remove')
+                    ) {
+                        const roleChange = change as {
+                            key: '$add' | '$remove'
+                            new?: { id: string }[]
+                            old?: { id: string }[]
+                        }
 
                         if (changeKey === '$add' && roleChange.new) {
-                            return roleChange.new.some(newRole => newRole.id === role.id)
+                            return roleChange.new.some(
+                                newRole => newRole.id === role.id
+                            )
                         } else if (changeKey === '$remove' && roleChange.old) {
-                            return roleChange.old.some(oldRole => oldRole.id === role.id)
+                            return roleChange.old.some(
+                                oldRole => oldRole.id === role.id
+                            )
                         }
                     }
                     return false
@@ -401,14 +583,18 @@ export class AWACSFeed extends EventEmitter<{
                 return logEntry.executor.username ?? NO_IFF_DATA
             }
         } catch (error) {
-            logger.warn(`[AWACSFeed] Error fetching audit logs for ${member.user.tag} role change: ${error instanceof Error ? error.message : String(error)}`)
+            logger.warn(
+                `[AWACSFeed] Error fetching audit logs for ${member.user.tag} role change: ${error instanceof Error ? error.message : String(error)}`
+            )
         }
         return NO_IFF_DATA
     }
 
-    private async findTimeoutChanger(member: GuildMember | User): Promise<{ executor: User | null, reason: string | null }> {
+    private async findTimeoutChanger(
+        member: GuildMember | User
+    ): Promise<{ executor: User | null, reason: string | null }> {
         try {
-            const guild = (member instanceof GuildMember) ? member.guild : null
+            const guild = member instanceof GuildMember ? member.guild : null
             if (!guild) return { executor: null, reason: null }
 
             const auditLogs = await guild.fetchAuditLogs({
@@ -416,20 +602,29 @@ export class AWACSFeed extends EventEmitter<{
                 limit: 10
             })
 
-            const logEntry = auditLogs.entries.find(entry =>
-                entry.target?.id === member.id &&
-                entry.changes.some(change => change.key === 'communication_disabled_until')
+            const logEntry = auditLogs.entries.find(
+                entry =>
+                    entry.target?.id === member.id &&
+                    entry.changes.some(
+                        change =>
+                            change.key === 'communication_disabled_until'
+                    )
             )
 
             if (logEntry) {
                 return {
-                    executor: logEntry.executor,
+                    executor: logEntry.executor as User | null,
                     reason: logEntry.reason
                 }
             }
         } catch (error) {
-            const username = (member instanceof GuildMember) ? member.user.username : member.username
-            logger.warn(`[AWACSFeed] Error fetching audit logs for ${username} timeout change: ${error instanceof Error ? error.message : String(error)}`)
+            const username =
+                member instanceof GuildMember
+                    ? member.user.username
+                    : member.username
+            logger.warn(
+                `[AWACSFeed] Error fetching audit logs for ${username} timeout change: ${error instanceof Error ? error.message : String(error)}`
+            )
         }
         return { executor: null, reason: null }
     }
@@ -438,10 +633,15 @@ export class AWACSFeed extends EventEmitter<{
         this.emit('awacsEvent', message)
         if (!this.awacsChannel) {
             const channel = await this.client.channels.fetch(AWACS_FEED_CHANNEL)
-            if (channel?.isTextBased() && channel.type === ChannelType.GuildText) {
+            if (
+                channel?.isTextBased() &&
+                channel.type === ChannelType.GuildText
+            ) {
                 this.awacsChannel = channel
             } else {
-                logger.warn(`Could not find AWACS feed channel with ID: ${AWACS_FEED_CHANNEL}`)
+                logger.warn(
+                    `Could not find AWACS feed channel with ID: ${AWACS_FEED_CHANNEL}`
+                )
                 return
             }
         }
