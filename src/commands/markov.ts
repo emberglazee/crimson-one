@@ -645,8 +645,10 @@ export default {
 
         } else if (subcommand === 'help') {
 
+            // Cosmetic types for convenience
             type ChannelID = string & {}
             type Timestamp = number & {}
+
             const helpCooldowns = new Map<ChannelID, Timestamp>()
             const COOLDOWN_TIME = 60 * 1000 // 1 minute
 
@@ -669,7 +671,9 @@ export default {
                 '- The bot requires messages to generate sentences. More data results in more accurate and coherent generated sentences.\n' +
                 '  - `/markov collect`: Collects messages from a *single* specified channel;\n' +
                 '  - `/markov collect_all`: Collects messages from ***all* channels accessible by the bot**.\n' +
-                '- **Note**: both commands have extensive options, like only collecting from a certain user, or with a certain message cap (limit). You can view them all in the slash command option suggestions.\n' +
+                '- **Note**:\n' +
+                '  - Both commands have extensive options, like only collecting from a certain user, or with a certain message cap (limit). You can view them all in the slash command option suggestions.\n' +
+                '  - Having privacy concerns? Refer to the follow-up message below. (Don\'t see one? Contact @emberglaze)\n' +
                 '### 2. Text Generation\n' +
                 '  - `/markov generate`: Generate a new sentence using the Markov chain model.\n' +
                 '- To support filters, the messages are stored inside a PostgreSQL database.\n' +
@@ -693,6 +697,7 @@ export default {
             await ctx.followUp(followUpText)
 
         } else if (subcommand === 'delete') {
+
             if (!ctx.interaction) {
                 await ctx.reply({ content: 'This command can only be used as a slash command.', flags: MessageFlags.Ephemeral })
                 return
