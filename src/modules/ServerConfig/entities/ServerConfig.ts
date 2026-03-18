@@ -1,7 +1,10 @@
 import { Entity, PrimaryColumn, Column } from 'typeorm'
 
-export interface IGuildConfig {
-    guildId: string
+export type PlatformType = 'discord' | 'stoat'
+
+export interface IServerConfig {
+    serverId: string
+    platform: PlatformType
     prefix: string
     messageTrigger: boolean
     tagSystemEnabled: boolean
@@ -11,13 +14,19 @@ export interface IGuildConfig {
     markovBotWhitelistedChannels: string[]
 }
 
+/**
+ * Server configuration entity supporting both Discord guilds and Stoat servers
+ */
 @Entity('guild_configs')
-export class GuildConfig implements IGuildConfig {
+export class ServerConfig implements IServerConfig {
     @PrimaryColumn('varchar')
-    guildId: string = ''
+    serverId: string = ''
 
-    @Column('varchar', { default: 'c1' })
-    prefix: string = 'c1'
+    @PrimaryColumn('varchar', { default: 'discord' })
+    platform: PlatformType = 'discord'
+
+    @Column('varchar', { default: 'c1!' })
+    prefix: string = 'c1!'
 
     @Column('boolean', { default: false })
     messageTrigger: boolean = false

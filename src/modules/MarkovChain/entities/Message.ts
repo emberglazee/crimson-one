@@ -4,12 +4,21 @@ import { User, type User as UserType } from './User'
 import { Channel, type Channel as ChannelType } from './Channel'
 import { Guild, type Guild as GuildType } from './Guild'
 
+export type MessagePlatform = 'discord' | 'stoat'
+
 @Entity('messages')
-@Index(['guildId', 'channelId', 'authorId'])
-@Index(['guildId', 'authorId'])
+@Index(['platform', 'guildId', 'channelId', 'authorId'])
+@Index(['platform', 'guildId', 'authorId'])
+@Index(['platform', 'guildId'])
 export class Message {
     @PrimaryColumn()
     id!: string
+
+    @Column({
+        type: 'text',
+        default: 'discord'
+    })
+    platform!: MessagePlatform
 
     @Column('text')
     text!: string

@@ -18,7 +18,7 @@ export class TextCommandParser {
         const context = new CommandContext(message, services, rawArgsString.split(/ +/))
         context.parsedArgs = parsedYargsArgs as ArgumentsCamelCase<{ [key: string]: JSONResolvable }>
 
-        this._setSubcommandContextFromArgs(context, parsedYargsArgs, command.data.toJSON())
+        this.setSubcommandContextFromArgs(context, parsedYargsArgs, command.data.toJSON())
 
         return context
     }
@@ -100,7 +100,7 @@ export class TextCommandParser {
             .join(' ')
     }
 
-    private static _setSubcommandContextFromArgs(context: CommandContext, parsedArgs: ArgumentsCamelCase, commandData: { options?: APIApplicationCommandOption[] }): void {
+    public static setSubcommandContextFromArgs(context: CommandContext, parsedArgs: ArgumentsCamelCase, commandData: { options?: APIApplicationCommandOption[] }): void {
         const yargsCommandPath = parsedArgs?._?.map(String) ?? []
         const options = commandData.options ?? []
         const commandPathForContext = [...yargsCommandPath]
@@ -203,7 +203,7 @@ export class TextCommandParser {
             .exitProcess(false)
             .recommendCommands()
             .strict()
-            .fail(async (msg, err, yargsInstanceItself) => {
+            .fail(async (msg, err, _yargsInstanceItself) => {
                 let replyMessage = ''
 
                 if (msg) {
@@ -218,10 +218,10 @@ export class TextCommandParser {
 
                 if (!replyMessage) {
                     try {
-                        if (yargsInstanceItself && typeof yargsInstanceItself.getHelp === 'function') {
-                            replyMessage = await yargsInstanceItself.getHelp()
+                        if (parser && typeof parser.getHelp === 'function') {
+                            replyMessage = await parser.getHelp()
                         } else {
-                            logger.warn(`{buildYargsParserForCommand.fail} yargsInstanceItself.getHelp is not a function for ${baseCommandData.name}. Falling back. Msg: "${msg}", Err: "${err ? err.message : 'N/A'}"`)
+                            logger.warn(`{buildYargsParserForCommand.fail} parser.getHelp is not a function for ${baseCommandData.name}. Falling back. Msg: "${msg}", Err: "${err ? err.message : 'N/A'}"`)
                             replyMessage = msg || (err ? `Error: ${err.message}` : 'Invalid command usage. Use --help for more info.')
                         }
                     } catch (getHelpError) {
@@ -230,13 +230,13 @@ export class TextCommandParser {
                     }
                 } else {
                     try {
-                        if (yargsInstanceItself && typeof yargsInstanceItself.getHelp === 'function') {
-                            const fullHelp = await yargsInstanceItself.getHelp()
+                        if (parser && typeof parser.getHelp === 'function') {
+                            const fullHelp = await parser.getHelp()
                             if (fullHelp && !replyMessage.includes(fullHelp.slice(0, Math.min(50, fullHelp.length)))) {
                                 replyMessage += `\n\nUsage:\n${fullHelp}`
                             }
                         } else {
-                            logger.warn(`{buildYargsParserForCommand} yargsInstanceItself.getHelp is not a function (in else branch) for ${baseCommandData.name}. Cannot append full help.`)
+                            logger.warn(`{buildYargsParserForCommand} parser.getHelp is not a function (in else branch) for ${baseCommandData.name}. Cannot append full help.`)
                         }
                     } catch (getHelpError) {
                         logger.warn(`{buildYargsParserForCommand} Could not append full yargs help output: ${getHelpError}`)

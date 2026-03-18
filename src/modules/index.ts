@@ -18,7 +18,8 @@ export { CommandManager } from './CommandManager'
 export { CommandContext } from './CommandManager/CommandContext'
 
 export { BanishmentManager } from './BanishmentManager'
-export { GuildConfigManager } from './GuildConfig'
+export { ServerConfigManager } from './ServerConfig'
+export type { PlatformType } from './ServerConfig/entities/ServerConfig'
 
 export { BotSettingsManager } from './BotSettingsManager'
 

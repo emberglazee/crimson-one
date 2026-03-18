@@ -42,15 +42,30 @@ export class MarkovDataSource {
             })
 
             await this.orm.initialize()
+
+            // Run pending migrations
+            await this.orm.runMigrations()
+
             this.initialized = true
-            logger.ok('{init} PostgreSQL database initialized')
+            logger.ok(
+                '{init} PostgreSQL database initialized and migrations run'
+            )
         } catch (error) {
-            logger.error(`Failed to initialize database: ${red(error instanceof Error ? error.message : String(error))}`)
+            logger.error(
+                `Failed to initialize database: ${red(error instanceof Error ? error.message : String(error))}`
+            )
             throw error
         }
     }
 
-    public async addMessages(messages: SimplifiedMessage[], guildId: string, channelName: string, channelId: string, fullyCollectedChannelId?: string, forceRescan = false) {
+    public async addMessages(
+        messages: SimplifiedMessage[],
+        guildId: string,
+        channelName: string,
+        channelId: string,
+        fullyCollectedChannelId?: string,
+        forceRescan = false
+    ) {
         await this.init()
 
         const BATCH_SIZE = 1000
@@ -62,7 +77,10 @@ export class MarkovDataSource {
             logger.debug(`{addMessages} Guild ${yellow(guildId)} upserted`)
 
             // 1. Collect all unique users and channels from the entire message set first.
-            const allUsers = removeDuplicatesByKey(messages.map(msg => ({ id: msg.authorId })), user => user.id)
+            const allUsers = removeDuplicatesByKey(
+                messages.map(msg => ({ id: msg.authorId })),
+                user => user.id
+            )
             const channelPayload = {
                 id: channelId,
                 guild: { id: guildId },
@@ -72,19 +90,36 @@ export class MarkovDataSource {
 
             // 2. Bulk upsert all unique users ONCE.
             if (allUsers.length > 0) {
-                logger.debug(`{addMessages} Upserting ${yellow(allUsers.length)} unique users`)
-                await manager.createQueryBuilder().insert().into(User).values(allUsers).orIgnore().execute()
+                logger.debug(
+                    `{addMessages} Upserting ${yellow(allUsers.length)} unique users`
+                )
+                await manager
+                    .createQueryBuilder()
+                    .insert()
+                    .into(User)
+                    .values(allUsers)
+                    .orIgnore()
+                    .execute()
                 logger.debug('{addMessages} Unique users upserted')
             }
 
             // 3. Bulk upsert all unique channels ONCE.
-            logger.debug(`{addMessages} Upserting 1 unique channel: ${channelName}`)
-            await manager.createQueryBuilder().insert().into(Channel).values(channelPayload).orIgnore().execute()
+            logger.debug(
+                `{addMessages} Upserting 1 unique channel: ${channelName}`
+            )
+            await manager
+                .createQueryBuilder()
+                .insert()
+                .into(Channel)
+                .values(channelPayload)
+                .orIgnore()
+                .execute()
             logger.debug('{addMessages} Unique channel upserted')
 
-
             // 4. Process messages in batches for insertion.
-            logger.debug('{addMessages} Beginning to process message batches for insertion')
+            logger.debug(
+                '{addMessages} Beginning to process message batches for insertion'
+            )
             for (let i = 0; i < messages.length; i += BATCH_SIZE) {
                 const chunk = messages.slice(i, i + BATCH_SIZE)
                 const messagesToInsert = chunk.map(msg => ({
@@ -93,17 +128,31 @@ export class MarkovDataSource {
                 }))
 
                 if (messagesToInsert.length > 0) {
-                    logger.debug(`{addMessages} Inserting batch of ${yellow(messagesToInsert.length)} messages`)
+                    logger.debug(
+                        `{addMessages} Inserting batch of ${yellow(messagesToInsert.length)} messages`
+                    )
                     // Use `orUpdate` for PostgreSQL to handle conflicts (ON CONFLICT DO UPDATE)
-                    await manager.createQueryBuilder().insert().into(Message).values(messagesToInsert).orUpdate(['text', 'timestamp'], ['id']).execute()
+                    await manager
+                        .createQueryBuilder()
+                        .insert()
+                        .into(Message)
+                        .values(messagesToInsert)
+                        .orUpdate(['text', 'timestamp'], ['id'])
+                        .execute()
                 }
             }
             logger.debug('{addMessages} All message batches inserted')
 
             // Mark channel as fully collected if specified
             if (fullyCollectedChannelId) {
-                await manager.update(Channel, { id: fullyCollectedChannelId }, { fullyCollected: !forceRescan })
-                logger.debug(`{addMessages} Marked channel ${yellow(fullyCollectedChannelId)} as fully collected`)
+                await manager.update(
+                    Channel,
+                    { id: fullyCollectedChannelId },
+                    { fullyCollected: !forceRescan }
+                )
+                logger.debug(
+                    `{addMessages} Marked channel ${yellow(fullyCollectedChannelId)} as fully collected`
+                )
             }
             logger.debug('{addMessages} Finished!')
         })
@@ -134,23 +183,34 @@ export class MarkovDataSource {
             // No guild/channel filters
         } else {
             if (options.guildId) {
-                query.andWhere('message.guildId = :guildId', { guildId: options.guildId })
+                query.andWhere('message.guildId = :guildId', {
+                    guildId: options.guildId
+                })
             }
             if (options.channelId) {
-                query.andWhere('message.channelId = :channelId', { channelId: options.channelId })
+                query.andWhere('message.channelId = :channelId', {
+                    channelId: options.channelId
+                })
             }
         }
 
         if (options.user) {
-            query.andWhere('message.authorId = :authorId', { authorId: options.user.id })
+            query.andWhere('message.authorId = :authorId', {
+                authorId: options.user.id
+            })
         } else if (options.userId) {
-            query.andWhere('message.authorId = :authorId', { authorId: options.userId })
+            query.andWhere('message.authorId = :authorId', {
+                authorId: options.userId
+            })
         }
 
         return query.getMany()
     }
 
-    public async isChannelFullyCollected(guildId: string, channelId: string): Promise<boolean> {
+    public async isChannelFullyCollected(
+        guildId: string,
+        channelId: string
+    ): Promise<boolean> {
         await this.init()
         const channel = await this.orm.getRepository(Channel).findOne({
             where: { id: channelId, guild: { id: guildId } }
@@ -158,7 +218,10 @@ export class MarkovDataSource {
         return channel?.fullyCollected ?? false
     }
 
-    public async getExistingMessageIds(guildId: string, channelId: string): Promise<Set<string>> {
+    public async getExistingMessageIds(
+        guildId: string,
+        channelId: string
+    ): Promise<Set<string>> {
         await this.init()
         const messages = await this.orm.getRepository(Message).find({
             where: { guild: { id: guildId }, channel: { id: channelId } },
@@ -186,20 +249,32 @@ export class MarkovDataSource {
         } else if (options.guildId) {
             query.andWhere('guildId = :guildId', { guildId: options.guildId })
             if (options.channelId) {
-                query.andWhere('channelId = :channelId', { channelId: options.channelId })
+                query.andWhere('channelId = :channelId', {
+                    channelId: options.channelId
+                })
             }
         }
 
         if (options.user) {
-            query.andWhere('authorId = :authorId', { authorId: options.user.id })
+            query.andWhere('authorId = :authorId', {
+                authorId: options.user.id
+            })
         } else if (options.userId) {
             query.andWhere('authorId = :authorId', { authorId: options.userId })
         }
 
         // Safety net: if no filters are applied, this would be a global delete.
         // The command logic should prevent this, but as a last resort, we check here.
-        if (!options.global && !options.guildId && !options.channelId && !options.user && !options.userId) {
-            throw new Error('Unfiltered delete operations are not allowed. Please specify a guild, channel, or user.')
+        if (
+            !options.global &&
+            !options.guildId &&
+            !options.channelId &&
+            !options.user &&
+            !options.userId
+        ) {
+            throw new Error(
+                'Unfiltered delete operations are not allowed. Please specify a guild, channel, or user.'
+            )
         }
 
         return query.execute()

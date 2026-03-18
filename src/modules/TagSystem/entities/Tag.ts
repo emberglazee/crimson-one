@@ -1,13 +1,27 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm'
+import {
+    Entity,
+    PrimaryGeneratedColumn,
+    Column,
+    CreateDateColumn,
+    Index
+} from 'typeorm'
+
+export type PlatformType = 'discord' | 'stoat'
 
 @Entity('tags')
-@Index(['guildId', 'name'], { unique: true })
+@Index(['platform', 'serverId', 'name'], { unique: true })
 export class Tag {
     @PrimaryGeneratedColumn()
     id!: number
 
+    @Column({
+        type: 'text',
+        default: 'discord'
+    })
+    platform!: PlatformType
+
     @Column()
-    guildId!: string
+    serverId!: string
 
     @Column()
     name!: string
