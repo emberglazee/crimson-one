@@ -14,8 +14,7 @@ const logger = new Logger('event.messageCreate')
 import { type Client, TextChannel, Message } from 'discord.js'
 import { normalizeUrl } from '../modules/CrimsonChat/util/url-utils'
 import { parseMentions } from '../modules/CrimsonChat/util/formatters'
-import { create, all, type MathJsInstance } from 'mathjs'
-import { toFeetInches } from '../util/functions'
+import { evaluateMathWorker } from '../util/mathEvaluator'
 import util from 'util'
 import {
     QOTD_ANSWERS_CHANNEL_ID,
@@ -87,37 +86,14 @@ async function handleQOTD(
     )
 }
 
-async function handleMathCommand(
-    message: Message,
-    math: MathJsInstance
-): Promise<void> {
+async function handleMathCommand(message: Message): Promise<void> {
     const expression = message.content.slice(2).trim()
     if (!expression) return
 
     logger.info(`Processing math expression: ${expression}`)
 
     try {
-        const result = math.evaluate(expression, { toFeetInches })
-
-        let resultString = ''
-        if (
-            (typeof result === 'object' || typeof result === 'function') &&
-            result !== null &&
-            result.toString
-        ) {
-            resultString = result.toString()
-        } else {
-            resultString = String(result)
-        }
-
-        if (expression.replace(/\s+/g, '') === '9+10') {
-            resultString = '21'
-        }
-
-        if (resultString.length > 1900) {
-            resultString =
-                resultString.substring(0, 1900) + '... (result truncated)'
-        }
+        const resultString = await evaluateMathWorker(expression)
 
         await message.reply(`\`${expression}\` = \`${resultString}\``)
     } catch (error) {
@@ -419,43 +395,6 @@ export default async function onMessageCreate(
         markovChat
     } = services
 
-    const math = create(all)
-    try {
-        math.createUnit(
-            {
-                embil: {
-                    baseName: 'length',
-                    definition: '165 cm',
-                    aliases: ['embi_length', 'embi_height']
-                },
-                embim: {
-                    baseName: 'mass',
-                    definition: '50 kg',
-                    aliases: ['embi_weight', 'embi_mass']
-                },
-                ly: {
-                    baseName: 'length',
-                    definition: '9460730472580.8 km',
-                    aliases: ['light_year']
-                },
-                au: {
-                    baseName: 'length',
-                    definition: '149597870.69 km',
-                    aliases: ['astronomical_unit']
-                },
-                c0: {
-                    baseName: 'length',
-                    definition: '299792458 m/s',
-                    aliases: ['light_speed']
-                }
-            },
-            { override: true, prefixes: 'long' }
-        )
-        logger.ok('Math.js units initialized.')
-    } catch (e) {
-        logger.error(`Error initializing Math.js units: ${e}`)
-    }
-
     client.on('messageCreate', async message => {
         // logger.info(`Received message: ${message.content}`)
         try {
@@ -484,7 +423,7 @@ export default async function onMessageCreate(
             if (message.content.startsWith('%')) {
                 if (message.content.startsWith('% ')) {
                     logger.info('Handling math command...')
-                    await handleMathCommand(message, math)
+                    await handleMathCommand(message)
                 } else {
                     logger.info('Handling tag command...')
                     await handleTagCommand(message, {
