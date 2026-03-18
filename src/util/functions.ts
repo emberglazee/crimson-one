@@ -1,9 +1,14 @@
 import {
-    AttachmentBuilder, Guild, GuildMember,
-    PermissionFlagsBits, PermissionOverwrites, User,
+    AttachmentBuilder,
+    Guild,
+    GuildMember,
+    PermissionFlagsBits,
+    PermissionOverwrites,
+    User,
     type APIInteractionDataResolvedGuildMember,
     type APIInteractionGuildMember,
-    type ImageExtension, type ImageSize,
+    type ImageExtension,
+    type ImageSize,
     type PermissionOverwriteOptions
 } from 'discord.js'
 import type { ExplicitAny } from '../types'
@@ -16,19 +21,25 @@ import { unit } from 'mathjs'
 // --- Randomization & Array Manipulation ---
 
 export const randRange = (min: number, max: number) => randomInt(min, max + 1)
-export const getRandomElement = <T>(array: T[]): T => array[randomInt(array.length)]
+export const getRandomElement = <T>(array: T[]): T =>
+    array[randomInt(array.length)]
 export function shuffleArray<T>(array: T[]): T[] {
     const shuffled = [...array]
     for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = randomInt(i + 1);
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+        const j = randomInt(i + 1)
+        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
     }
     return shuffled
 }
 export function removeDuplicatesAndNulls<T>(array: T[]): T[] {
-    return [...new Set(array)].filter(item => item !== undefined && item !== null)
+    return [...new Set(array)].filter(
+        item => item !== undefined && item !== null
+    )
 }
-export function removeDuplicatesByKey<T>(arr: T[], key: (item: T) => ExplicitAny): T[] {
+export function removeDuplicatesByKey<T>(
+    arr: T[],
+    key: (item: T) => ExplicitAny
+): T[] {
     const map = new Map()
     return arr.reduce((acc: T[], item: T) => {
         if (!map.has(key(item))) {
@@ -47,8 +58,14 @@ export function chance(percentage: number): boolean {
 
 // --- String, Number & Formatting ---
 
-export const hexStringToNumber = (hex: string) => parseInt(hex.replace('#', ''), 16)
-export function pluralize(count: number, singular: string, few: string, many: string) {
+export const hexStringToNumber = (hex: string) =>
+    parseInt(hex.replace('#', ''), 16)
+export function pluralize(
+    count: number,
+    singular: string,
+    few: string,
+    many: string
+) {
     if (count === 1) return singular
     if (count > 1 && count < 5) return few
     return many
@@ -59,12 +76,15 @@ export function formatBytes(bytes: number): string {
     const i = Math.floor(Math.log(bytes) / Math.log(1024))
     return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`
 }
-export const smallFooterNote = <T extends string>(note: T) => `-# - ${note}` as const
+export const smallFooterNote = <T extends string>(note: T) =>
+    `-# - ${note}` as const
 
 // --- Time & Date ---
 
-export const absoluteDiscordTimestamp = (seconds: number) => `<t:${seconds}>`   as const
-export const relativeDiscordTimestamp = (seconds: number) => `<t:${seconds}:R>` as const
+export const absoluteDiscordTimestamp = (seconds: number) =>
+    `<t:${seconds}>` as const
+export const relativeDiscordTimestamp = (seconds: number) =>
+    `<t:${seconds}:R>` as const
 /**
  * Format seconds into a human-readable time string
  */
@@ -137,7 +157,10 @@ export function parseDuration(durationStr: string): bigint | null {
 }
 
 export function formatDuration(input: Date | number): string {
-    let totalSeconds = input instanceof Date ? Math.floor((input.getTime() - Date.now()) / 1000) : input
+    let totalSeconds =
+        input instanceof Date
+            ? Math.floor((input.getTime() - Date.now()) / 1000)
+            : input
 
     if (totalSeconds <= 0) {
         return '0s'
@@ -172,11 +195,17 @@ export function stringToAttachment(string: string, filename?: string) {
     const buffer = Buffer.from(string, 'utf-8')
     return new AttachmentBuilder(buffer).setName(filename)
 }
-export const boolToEmoji = (bool: boolean) => bool ? '✅' : '❌'
+export const boolToEmoji = (bool: boolean) => (bool ? '✅' : '❌')
 /**
  * Type-safe function to exclude `APIInteractionGuildMember` from `GuildMember | null`
  */
-export function guildMember(member: GuildMember | APIInteractionGuildMember | APIInteractionDataResolvedGuildMember | null): GuildMember | null {
+export function guildMember(
+    member:
+        | GuildMember
+        | APIInteractionGuildMember
+        | APIInteractionDataResolvedGuildMember
+        | null
+): GuildMember | null {
     if (!member) return null
     if (member instanceof GuildMember) return member
     return null
@@ -190,11 +219,7 @@ export function getUserAvatar(
         useGlobalAvatar?: boolean
     } = {}
 ): string {
-    const {
-        extension = 'png',
-        size = 1024,
-        useGlobalAvatar = false
-    } = options
+    const { extension = 'png', size = 1024, useGlobalAvatar = false } = options
 
     if (useGlobalAvatar || !guild) {
         return user.displayAvatarURL({ extension, size })
@@ -207,7 +232,10 @@ export function getUserAvatar(
 
     return member.displayAvatarURL({ extension, size })
 }
-export async function findMember(guild: Guild, query: string): Promise<GuildMember | null> {
+export async function findMember(
+    guild: Guild,
+    query: string
+): Promise<GuildMember | null> {
     // by username
     await guild.members.fetch({ query: query, limit: 10 })
     const memberByUsername = guild.members.cache.find(
@@ -235,10 +263,13 @@ export async function findMember(guild: Guild, query: string): Promise<GuildMemb
     return null
 }
 // For correctly casting `PermissionOverwrites` as `PermissionOverwriteOptions`
-export function convertOverwriteToOptions(overwrite: PermissionOverwrites): PermissionOverwriteOptions {
+export function convertOverwriteToOptions(
+    overwrite: PermissionOverwrites
+): PermissionOverwriteOptions {
     const options: Record<string, boolean | null> = {}
     for (const perm of Object.keys(PermissionFlagsBits)) {
-        const bit = PermissionFlagsBits[perm as keyof typeof PermissionFlagsBits]
+        const bit =
+            PermissionFlagsBits[perm as keyof typeof PermissionFlagsBits]
         if (overwrite.allow.has(bit)) {
             options[perm] = true
         } else if (overwrite.deny.has(bit)) {
@@ -248,7 +279,10 @@ export function convertOverwriteToOptions(overwrite: PermissionOverwrites): Perm
     return options
 }
 
-export const dontPing = (content: string) => ({ content, allowedMentions: { parse: [] } })
+export const dontPing = (content: string) => ({
+    content,
+    allowedMentions: { parse: [] }
+})
 
 // --- Type Guards & Object Utilities ---
 
@@ -300,12 +334,14 @@ export async function randomProjectWingmanArticle(): Promise<string> {
 
     // Select all the <a> tags within the list items.
     const articleLinks: string[] = []
-    $('#mw-content-text > div.mw-allpages-body > ul > li > a').each((_, element) => {
-        const href = $(element).attr('href')
-        if (href && href.startsWith('/wiki/') && !href.includes(':')) {
-            articleLinks.push(`https://projectwingman.wiki.gg${href}`)
+    $('#mw-content-text > div.mw-allpages-body > ul > li > a').each(
+        (_, element) => {
+            const href = $(element).attr('href')
+            if (href && href.startsWith('/wiki/') && !href.includes(':')) {
+                articleLinks.push(`https://projectwingman.wiki.gg${href}`)
+            }
         }
-    })
+    )
 
     if (articleLinks.length === 0) {
         throw new Error('No articles found on the page.')
@@ -318,7 +354,7 @@ export async function randomProjectWingmanArticle(): Promise<string> {
 export { sleep } from 'bun'
 
 interface ServiceClass<T> {
-    new (...args: any[]): T
+    new (...args: ExplicitAny[]): T
 }
 
 /**
@@ -327,14 +363,14 @@ interface ServiceClass<T> {
  * @param services An array of service classes to resolve.
  * @returns An array of resolved service instances, maintaining tuple order.
  */
-export function resolveServices<T extends readonly ServiceClass<any>[] >(
+export function resolveServices<T extends readonly ServiceClass<ExplicitAny>[]>(
     container: DependencyContainer,
     ...services: T
 ): { [K in keyof T]: T[K] extends ServiceClass<infer I> ? I : never } {
-    return services.map(service => container.resolve(service)) as any
+    return services.map(service => container.resolve(service)) as ExplicitAny
 }
 
-export function toFeetInches(value: any): `${number}'${number}` {
+export function toFeetInches(value: ExplicitAny): `${number}'${number}` {
     const inches = unit(value).toNumber('inch')
     const feet = Math.floor(inches / 12)
     const remainingInches = inches % 12
@@ -344,7 +380,8 @@ export function toFeetInches(value: any): `${number}'${number}` {
 // --- YouTube Utilities ---
 
 export function extractVideoId(url: string): string | null {
-    const regex = /(?:(?:music\.)?youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
+    const regex =
+        /(?:(?:music\.)?youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/
     const match = url.match(regex)
     return match ? match[1] : null
 }
@@ -355,7 +392,8 @@ export function formatYoutubeComment(text: string): string {
         const decodedUrl = url.replace(/&amp;/g, '&')
         return `[${linkText}](${decodedUrl})`
     })
-    decodedText = decodedText.replace(/<br\s*\/?>/g, '\n')
+    decodedText = decodedText
+        .replace(/<br\s*\/?>/g, '\n')
         .replace(/&#39;/g, "'")
         .replace(/&quot;/g, '"')
         .replace(/&amp;/g, '&')
@@ -367,38 +405,87 @@ export function formatYoutubeComment(text: string): string {
 // --- Text Manipulation ---
 
 const qwertyLayout = {
-    a: ['q', 'w', 's', 'z'], b: ['v', 'g', 'h', 'n'], c: ['x', 'd', 'f', 'v'],
-    d: ['s', 'e', 'r', 'f', 'c', 'x'], e: ['w', 'r', 's', 'd'], f: ['d', 'r', 't', 'g', 'v', 'c'],
-    g: ['f', 't', 'y', 'h', 'b', 'v'], h: ['g', 'y', 'u', 'j', 'n', 'b'],
-    i: ['u', 'o', 'k', 'j'], j: ['h', 'u', 'i', 'k', 'n', 'm'], k: ['j', 'i', 'o', 'l', 'm'],
-    l: ['k', 'o', 'p', ';'], m: ['n', 'j', 'k'], n: ['b', 'h', 'j', 'm'],
-    o: ['i', 'p', 'l', 'k'], p: ['o', 'l', ';'], q: ['a', 'w'],
-    r: ['e', 't', 'd', 'f'], s: ['a', 'w', 'e', 'd', 'x', 'z'],
-    t: ['r', 'y', 'f', 'g'], u: ['y', 'i', 'h', 'j'], v: ['c', 'f', 'g', 'b'],
-    w: ['q', 'e', 'a', 's'], x: ['z', 's', 'd', 'c'],
-    y: ['t', 'u', 'g', 'h'], z: ['a', 's', 'x'],
-    ',': ['m'], '.': [','], '/': ['.'], ';': ['l'],
-    '[': ['p'], ']': ['[']
+    a: ['q', 'w', 's', 'z'],
+    b: ['v', 'g', 'h', 'n'],
+    c: ['x', 'd', 'f', 'v'],
+    d: ['s', 'e', 'r', 'f', 'c', 'x'],
+    e: ['w', 'r', 's', 'd'],
+    f: ['d', 'r', 't', 'g', 'v', 'c'],
+    g: ['f', 't', 'y', 'h', 'b', 'v'],
+    h: ['g', 'y', 'u', 'j', 'n', 'b'],
+    i: ['u', 'o', 'k', 'j'],
+    j: ['h', 'u', 'i', 'k', 'n', 'm'],
+    k: ['j', 'i', 'o', 'l', 'm'],
+    l: ['k', 'o', 'p', ';'],
+    m: ['n', 'j', 'k'],
+    n: ['b', 'h', 'j', 'm'],
+    o: ['i', 'p', 'l', 'k'],
+    p: ['o', 'l', ';'],
+    q: ['a', 'w'],
+    r: ['e', 't', 'd', 'f'],
+    s: ['a', 'w', 'e', 'd', 'x', 'z'],
+    t: ['r', 'y', 'f', 'g'],
+    u: ['y', 'i', 'h', 'j'],
+    v: ['c', 'f', 'g', 'b'],
+    w: ['q', 'e', 'a', 's'],
+    x: ['z', 's', 'd', 'c'],
+    y: ['t', 'u', 'g', 'h'],
+    z: ['a', 's', 'x'],
+    ',': ['m'],
+    '.': [','],
+    '/': ['.'],
+    ';': ['l'],
+    '[': ['p'],
+    ']': ['[']
 }
 
 const jcukenLayout = {
-    'а': ['ф', 'ы', 'в'], 'б': ['ь', 'в', 'н'], 'в': ['а', 'ы', 'п', 'ф'],
-    'г': ['п', 'р', 'о', 'л'], 'д': ['л', 'ж', 'э'], 'е': ['к', 'н', 'г'],
-    'ё': ['э', 'ж', 'е'], 'ж': ['д', 'э', 'х', '.'], 'з': ['щ', 'д', 'х'],
-    'и': ['у', 'ш', 'щ'], 'й': ['ц', 'у', 'к'], 'к': ['у', 'е', 'н'],
-    'л': ['о', 'р', 'д', 'ж'], 'м': ['и', 'т', 'ь'], 'н': ['е', 'г', 'р'],
-    'о': ['л', 'д', 'ж'], 'п': ['р', 'а', 'в'], 'р': ['п', 'к', 'в'],
-    'с': ['ч', 'м', 'и'], 'т': ['ь', 'б', 'ю'], 'у': ['ц', 'к', 'е'],
-    'ф': ['ы', 'в', 'а'], 'х': ['з', '.', 'ъ'], 'ц': ['й', 'у', 'к'],
-    'ч': ['с', 'м', 'и'], 'ш': ['щ', 'з', 'х'], 'щ': ['ш', 'з', 'х'],
-    'ъ': ['х', 'ж', 'э'], 'ы': ['ф', 'в', 'а'], 'ь': ['т', 'б', 'ю'],
-    'э': ['ж', 'д', 'л'], 'ю': ['б', 'ь', '.'], 'я': ['ч', 'с', 'м']
+    а: ['ф', 'ы', 'в'],
+    б: ['ь', 'в', 'н'],
+    в: ['а', 'ы', 'п', 'ф'],
+    г: ['п', 'р', 'о', 'л'],
+    д: ['л', 'ж', 'э'],
+    е: ['к', 'н', 'г'],
+    ё: ['э', 'ж', 'е'],
+    ж: ['д', 'э', 'х', '.'],
+    з: ['щ', 'д', 'х'],
+    и: ['у', 'ш', 'щ'],
+    й: ['ц', 'у', 'к'],
+    к: ['у', 'е', 'н'],
+    л: ['о', 'р', 'д', 'ж'],
+    м: ['и', 'т', 'ь'],
+    н: ['е', 'г', 'р'],
+    о: ['л', 'д', 'ж'],
+    п: ['р', 'а', 'в'],
+    р: ['п', 'к', 'в'],
+    с: ['ч', 'м', 'и'],
+    т: ['ь', 'б', 'ю'],
+    у: ['ц', 'к', 'е'],
+    ф: ['ы', 'в', 'а'],
+    х: ['з', '.', 'ъ'],
+    ц: ['й', 'у', 'к'],
+    ч: ['с', 'м', 'и'],
+    ш: ['щ', 'з', 'х'],
+    щ: ['ш', 'з', 'х'],
+    ъ: ['х', 'ж', 'э'],
+    ы: ['ф', 'в', 'а'],
+    ь: ['т', 'б', 'ю'],
+    э: ['ж', 'д', 'л'],
+    ю: ['б', 'ь', '.'],
+    я: ['ч', 'с', 'м']
 }
 
 // Define special characters when Shift is held
 const shiftSpecials = {
-    ',': '<', '.': '>', '/': '?', ';': ':', "'": '"',
-    '[': '{', ']': '}', '\\': '|', '`': '~'
+    ',': '<',
+    '.': '>',
+    '/': '?',
+    ';': ':',
+    "'": '"',
+    '[': '{',
+    ']': '}',
+    '\\': '|',
+    '`': '~'
 }
 
 function isRussianText(text: string): boolean {
@@ -600,25 +687,50 @@ export function drunkWrite(inputText: string): string {
 
 export function owoTranslate(input: string): string {
     const replaceWords: Record<string, string> = {
-        'love': 'wuv',
-        'mr': 'mistuh',
-        'dog': 'doggo',
-        'cat': 'kitteh',
-        'hello': 'henwo',
-        'hell': 'heck',
-        'fuck': 'fwick',
-        'fuk': 'fwick',
-        'shit': 'shoot',
-        'friend': 'fwend',
-        'stop': 'stamp',
-        'god': 'gosh',
-        'dick': 'peepee',
-        'penis': 'peepee',
-        'damn': 'darn'
+        love: 'wuv',
+        mr: 'mistuh',
+        dog: 'doggo',
+        cat: 'kitteh',
+        hello: 'henwo',
+        hell: 'heck',
+        fuck: 'fwick',
+        fuk: 'fwick',
+        shit: 'shoot',
+        friend: 'fwend',
+        stop: 'stamp',
+        god: 'gosh',
+        dick: 'peepee',
+        penis: 'peepee',
+        damn: 'darn'
     }
 
-    const prefixes = ['OwO', 'hehe', '*nuzzles*', '*blushes*', '*giggles*', '*waises paw*', 'OwO whats this?']
-    const suffixes = [':3', '>:3', 'xox', '>3<', 'UwU', 'hehe', 'r@^eJ', '(- • w •)', '(>• w •<)', 'murr~', '(  • ⌒ •)', '(* ⌒Д⌒)', '(   ¡   )', '(  • ω •)', '*gwomps*', '(＾ ω＾)']
+    const prefixes = [
+        'OwO',
+        'hehe',
+        '*nuzzles*',
+        '*blushes*',
+        '*giggles*',
+        '*waises paw*',
+        'OwO whats this?'
+    ]
+    const suffixes = [
+        ':3',
+        '>:3',
+        'xox',
+        '>3<',
+        'UwU',
+        'hehe',
+        'r@^eJ',
+        '(- • w •)',
+        '(>• w •<)',
+        'murr~',
+        '(  • ⌒ •)',
+        '(* ⌒Д⌒)',
+        '(   ¡   )',
+        '(  • ω •)',
+        '*gwomps*',
+        '(＾ ω＾)'
+    ]
 
     // Replace words
     for (const [key, value] of Object.entries(replaceWords)) {
@@ -636,11 +748,14 @@ export function owoTranslate(input: string): string {
     input = input.replace(/(\b\w*y\b)/gi, '$1 $1')
 
     // Stuttering effect (10% chance per word)
-    input = input.replace(/\b(\w)/g, match => Math.random() < 0.1 ? `${match}-${match}` : match)
+    input = input.replace(/\b(\w)/g, match =>
+        Math.random() < 0.1 ? `${match}-${match}` : match
+    )
 
     // Add a random prefix (10% chance)
     if (Math.random() < 0.1) {
-        input = prefixes[Math.floor(Math.random() * prefixes.length)] + ' ' + input
+        input =
+            prefixes[Math.floor(Math.random() * prefixes.length)] + ' ' + input
     }
 
     // Add a random suffix (10% chance)
