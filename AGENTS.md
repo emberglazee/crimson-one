@@ -156,4 +156,5 @@ crimson-one/
 
 - **Tool Usage:** Always read configuration files, package.json, and tsconfig.json to understand dependencies and settings before executing large refactors.
 - **Testing:** If modifying logic, verify via `bun test` if a corresponding `.test.ts` file exists.
+- **Database Migrations (SQLite):** Do _not_ migrate to `better-sqlite3` as it is not currently supported by Bun as of v1.3.10 (track at https://github.com/oven-sh/bun/issues/4290). Additionally, do not attempt to migrate from `node-sqlite3` to Bun's native SQLite driver, as it is not supported by TypeORM. TypeORM's 2026 H1 roadmap states they will be migrating away from `node-sqlite3` for not being maintained, but it remains the only viable choice despite the recent v6 release.
 - **Rules Environment:** There are currently no `.cursorrules` or Copilot instruction files. This file acts as the primary rulebook for AI operations.
