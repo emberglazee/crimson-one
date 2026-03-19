@@ -25,9 +25,8 @@ export default {
         try {
             const code = ctx.getStringOption('code', true)
             const asyncWrapper = (body: string) =>
-                `return (async () => { ${body} })()`
-            const fn = new Function('ctx', asyncWrapper(code))
-            const result = await fn(ctx)
+                `(async () => { ${body} })()`
+            const result = await (eval(asyncWrapper(code)) as Promise<unknown>)
             const output = (
                 typeof result === 'string' ? result : inspect(result, { depth: 2 })
             ).slice(0, 1900)
