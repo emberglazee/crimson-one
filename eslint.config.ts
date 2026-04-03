@@ -9,6 +9,64 @@ export default defineConfig([
     eslint.configs.recommended,
     ...tseslint.configs.recommended,
     {
+        files: ['pm2.config.cjs'],
+        languageOptions: {
+            globals: {
+                ...globals.node,
+                ...globals.commonjs
+            }
+        }
+    },
+    {
+        files: ['eslint.config.ts'],
+        languageOptions: {
+            globals: {
+                ...globals.node
+            },
+            parserOptions: {
+                project: './tsconfig.json',
+                tsconfigRootDir: path.resolve(),
+                ecmaVersion: 'latest',
+                sourceType: 'module'
+            },
+            parser: tseslint.parser
+        },
+        plugins: {
+            '@stylistic': stylistic,
+            '@typescript-eslint': tseslint.plugin
+        },
+        rules: {
+            'no-trailing-spaces': 'error',
+            'eol-last': 'error',
+            '@stylistic/semi': ['error', 'never'],
+            'arrow-parens': ['error', 'as-needed'],
+            'comma-dangle': ['error', 'never'],
+            '@stylistic/member-delimiter-style': [
+                'error',
+                {
+                    multiline: {
+                        delimiter: 'none',
+                        requireLast: false
+                    },
+                    singleline: {
+                        delimiter: 'comma',
+                        requireLast: false
+                    }
+                }
+            ],
+            '@stylistic/space-infix-ops': ['error'],
+            'space-before-function-paren': [
+                'error',
+                {
+                    anonymous: 'always',
+                    named: 'never',
+                    asyncArrow: 'always'
+                }
+            ],
+            quotes: ['error', 'single', { avoidEscape: true }]
+        }
+    },
+    {
         files: ['src/**/*.{js,mjs,cjs,ts}'],
         languageOptions: {
             globals: {
@@ -33,33 +91,39 @@ export default defineConfig([
             'no-async-promise-executor': 'off',
             'no-case-declarations': 'off',
             '@typescript-eslint/no-empty-object-type': 'off',
-            '@typescript-eslint/no-unused-vars': ['error', {
-                argsIgnorePattern: '^_',
-                varsIgnorePattern: '^_'
-            }],
+            '@typescript-eslint/no-unused-vars': [
+                'error',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_'
+                }
+            ],
             '@typescript-eslint/no-unused-expressions': 'off',
             'arrow-parens': ['error', 'as-needed'],
             'comma-dangle': ['error', 'never'],
-            '@stylistic/member-delimiter-style': ['error', {
-                multiline: {
-                    delimiter: 'none',
-                    requireLast: false
-                },
-                singleline: {
-                    delimiter: 'comma',
-                    requireLast: false
+            '@stylistic/member-delimiter-style': [
+                'error',
+                {
+                    multiline: {
+                        delimiter: 'none',
+                        requireLast: false
+                    },
+                    singleline: {
+                        delimiter: 'comma',
+                        requireLast: false
+                    }
                 }
-            }],
+            ],
             '@stylistic/space-infix-ops': ['error'],
-            'space-before-function-paren': ['error', {
-                anonymous: 'always',
-                named: 'never',
-                asyncArrow: 'always'
-            }],
-            'quotes': [
-                'error', 'single',
-                { avoidEscape: true }
-            ]
+            'space-before-function-paren': [
+                'error',
+                {
+                    anonymous: 'always',
+                    named: 'never',
+                    asyncArrow: 'always'
+                }
+            ],
+            quotes: ['error', 'single', { avoidEscape: true }]
         }
     }
 ])
