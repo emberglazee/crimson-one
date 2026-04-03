@@ -7,7 +7,7 @@ This document provides comprehensive guidelines for AI coding agents operating w
 Crimson-One is a modern Discord bot built with the Bun runtime, focusing on AI chat, moderation, webhooks, and advanced Markov chain capabilities.
 
 - **Primary Language:** TypeScript (ES Modules, `"type": "module"`)
-- **Runtime:** Bun
+- **Runtime:** Bun v1.3.11+
 - **Database:** PostgreSQL/SQLite via TypeORM
 - **Dependency Injection:** `tsyringe`
 - **Native Extensions:** Rust-based subproject (`crimson_markov/`)
@@ -19,9 +19,14 @@ Crimson-One is a modern Discord bot built with the Bun runtime, focusing on AI c
 ```bash
 # Start the primary bot process (using the guardian wrapper)
 bun src/guardian.ts
+# OR
+npm start
 
 # Run the CLI dashboard (React/ink-based)
 npm run dashboard
+
+# Delete all registered Discord commands
+npm run delete-commands
 ```
 
 ### Linting & Formatting
@@ -54,9 +59,13 @@ bun test --watch
 
 ```bash
 # Check for compilation errors without building
+npm run markov:check
+# OR
 cd crimson_markov && cargo check
 
 # Build the release binary
+npm run markov:build
+# OR
 cd crimson_markov && cargo build --release
 
 # Run Rust tests
@@ -133,6 +142,27 @@ import 'reflect-metadata'
 - **Discord Commands:** Implement commands utilizing `SlashCommandBuilder` and ensure they satisfy the `SlashCommand` interface.
 - **Discord Events:** Placed in `src/events/`, each file must export a default handler function.
 - **Math Evaluation (`math.js`):** User-provided math expressions are evaluated using `math.js` inside an isolated Web Worker (`src/workers/mathWorker.ts`) wrapped by `src/util/mathEvaluator.ts`. This worker runs with an empty environment (`env: {}`) and a strict timeout to prevent sandbox escapes, infinite loops, and environment variable leaks. The worker disables dangerous functions (`import`, `createUnit`, `reviver`) and includes custom utility/meme units (e.g., `embil`, `embim`, `ly`, `au`).
+
+### ESLint Configuration
+
+The project uses a custom ESLint configuration (`eslint.config.ts`) with the following key rules:
+
+- **No trailing spaces:** `no-trailing-spaces: 'error'`
+- **End of line:** `eol-last: 'error'` (files must end with newline)
+- **No async promise executor:** Disabled (`no-async-promise-executor: 'off'`)
+- **No case declarations:** Disabled (`no-case-declarations: 'off'`)
+- **Empty object types:** Allowed (`@typescript-eslint/no-empty-object-type: 'off'`)
+- **Unused expressions:** Allowed (`@typescript-eslint/no-unused-expressions: 'off'`)
+- **Infix operators:** Must have spacing (`@stylistic/space-infix-ops: ['error']`)
+
+### Prettier Configuration
+
+The project uses Prettier with the following settings (`.prettierrc`):
+
+- **Semicolons:** `false` (no semicolons)
+- **Quotes:** `singleQuote: true`
+- **Tab Width:** `4` spaces
+- **Bracket Spacing:** `true` (spaces inside object literals)
 
 ## 4. Directory Structure
 
