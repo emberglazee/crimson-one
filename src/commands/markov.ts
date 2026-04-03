@@ -1187,15 +1187,12 @@ export default {
 
                 const confirmationMessage = `Are you sure you want to delete **${count.toLocaleString()}** message(s) from the Markov database?\n\n**Filters:**\n${filterDescription}\n\n⚠️ **This action is irreversible.**`
 
-                const reply = await ctx.editReply({
+                await ctx.editReply({
                     content: confirmationMessage,
                     components: [row]
                 })
 
-                if (!reply) {
-                    await ctx.editReply('Failed to send confirmation message.')
-                    return
-                }
+                const reply = await ctx.interaction!.fetchReply()
 
                 const collector = reply.createMessageComponentCollector({
                     componentType: ComponentType.Button,
