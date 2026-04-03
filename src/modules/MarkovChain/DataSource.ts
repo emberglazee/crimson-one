@@ -26,11 +26,14 @@ export interface SimplifiedMessage {
 export class MarkovDataSource {
     public orm!: ORMDataSource
     private initialized = false
+    private migrationsRunning = false
+    private migrationsCompleted = false
 
-    public async init() {
+    public async init(timeoutMs: number = 15000) {
         if (this.initialized) return
 
-        try {
+        const initPromise = (async () => {
+            logger.debug('{init} Creating ORM DataSource...')
             this.orm = new ORMDataSource({
                 type: 'postgres',
                 host: process.env.POSTGRES_HOST,
@@ -43,23 +46,68 @@ export class MarkovDataSource {
                     AddMessageIndexes1760228277158,
                     AddPlatformDiscriminator1760228277159
                 ],
-                synchronize: false
+                synchronize: false,
+                connectTimeoutMS: 5000
             })
 
+            logger.debug('{init} Initializing ORM connection...')
             await this.orm.initialize()
-
-            // Run pending migrations
-            await this.orm.runMigrations()
+            logger.debug('{init} ORM connection initialized')
 
             this.initialized = true
-            logger.ok(
-                '{init} PostgreSQL database initialized and migrations run'
+            logger.ok('{init} PostgreSQL database connection established')
+
+            // Run migrations in the background without blocking initialization
+            this.runMigrationsAsync()
+        })()
+
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(
+                () => reject(new Error(`Database initialization timeout after ${timeoutMs}ms`)),
+                timeoutMs
             )
+        })
+
+        try {
+            await Promise.race([initPromise, timeoutPromise])
         } catch (error) {
             logger.error(
                 `Failed to initialize database: ${red(error instanceof Error ? error.message : String(error))}`
             )
             throw error
+        }
+    }
+
+    private async runMigrationsAsync(): Promise<void> {
+        if (this.migrationsRunning || this.migrationsCompleted) return
+
+        this.migrationsRunning = true
+        logger.info('{runMigrationsAsync} Running pending migrations in background...')
+
+        try {
+            const pendingMigrations = await this.orm.showMigrations()
+            if (!pendingMigrations) {
+                logger.info('{runMigrationsAsync} No pending migrations')
+                this.migrationsCompleted = true
+                this.migrationsRunning = false
+                return
+            }
+
+            const startTime = Date.now()
+            await this.orm.runMigrations()
+            const duration = ((Date.now() - startTime) / 1000).toFixed(2)
+
+            this.migrationsCompleted = true
+            this.migrationsRunning = false
+            logger.ok(`{runMigrationsAsync} Migrations completed in ${yellow(duration)}s`)
+        } catch (error) {
+            this.migrationsRunning = false
+            logger.error(
+                `{runMigrationsAsync} Failed to run migrations: ${red(error instanceof Error ? error.message : String(error))}`
+            )
+            logger.warn(
+                '{runMigrationsAsync} Database operations may be slower without indexes'
+            )
         }
     }
 
