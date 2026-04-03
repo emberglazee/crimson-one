@@ -844,12 +844,6 @@ parentPort!.on(
                     )
                     result = 'ok'
                     break
-                case 'destroy_persistent_chain':
-                    engine.destroyPersistentChain(
-                        (message.options as { chainId: string }).chainId
-                    )
-                    result = 'ok'
-                    break
                 default:
                     throw new Error(`Unknown task type: ${message.type}`)
             }
