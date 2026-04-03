@@ -11,6 +11,8 @@ import { Message } from './entities/Message'
 import { Channel } from './entities/Channel'
 import { Guild } from './entities/Guild'
 import { User } from './entities/User'
+import { AddMessageIndexes1760228277158 } from '../../migrations/1760228277158-AddMarkovIndexes'
+import { AddPlatformDiscriminator1760228277159 } from '../../migrations/1760228277159-AddPlatformDiscriminator'
 
 export interface SimplifiedMessage {
     id: string
@@ -37,7 +39,10 @@ export class MarkovDataSource {
                 password: process.env.POSTGRES_PASSWORD,
                 database: process.env.POSTGRES_DB,
                 entities: [Channel, Message, Guild, User],
-                migrations: ['./migrations/*.ts'],
+                migrations: [
+                    AddMessageIndexes1760228277158,
+                    AddPlatformDiscriminator1760228277159
+                ],
                 synchronize: false
             })
 
