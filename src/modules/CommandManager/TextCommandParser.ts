@@ -2,64 +2,124 @@ import { Logger } from '../Logger'
 const logger = new Logger('TextCommandParser')
 
 import { Message, ApplicationCommandOptionType } from 'discord.js'
-import type { APIApplicationCommandOption, APIApplicationCommandSubcommandGroupOption, APIApplicationCommandSubcommandOption } from 'discord.js'
+import type {
+    APIApplicationCommandOption,
+    APIApplicationCommandSubcommandGroupOption,
+    APIApplicationCommandSubcommandOption
+} from 'discord.js'
 import type { SlashCommand, JSONResolvable } from '../../types'
 import type { ArgumentsCamelCase, Argv, Options as YargsOptions } from 'yargs'
 import yargs from 'yargs'
 import { CommandContext, type CommandContextServices } from './CommandContext'
 
 export class TextCommandParser {
-    public static async createContextForMessageCommand(message: Message, command: SlashCommand, rawArgsString: string, prefix: string, services: CommandContextServices): Promise<CommandContext> {
-        const finalArgsString = this._reconstructArgumentsForYargs(rawArgsString, command)
-        const yargsParser = this._buildYargsParserForCommand(command, message, finalArgsString, prefix)
+    public static async createContextForMessageCommand(
+        message: Message,
+        command: SlashCommand,
+        rawArgsString: string,
+        prefix: string,
+        services: CommandContextServices
+    ): Promise<CommandContext> {
+        const finalArgsString = this._reconstructArgumentsForYargs(
+            rawArgsString,
+            command
+        )
+        const yargsParser = this._buildYargsParserForCommand(
+            command,
+            message,
+            finalArgsString,
+            prefix
+        )
 
         const parsedYargsArgs = await yargsParser.parseAsync()
 
-        const context = new CommandContext(message, services, rawArgsString.split(/ +/))
-        context.parsedArgs = parsedYargsArgs as ArgumentsCamelCase<{ [key: string]: JSONResolvable }>
+        const context = new CommandContext(
+            message,
+            services,
+            rawArgsString.split(/ +/)
+        )
+        context.parsedArgs = parsedYargsArgs as ArgumentsCamelCase<{
+            [key: string]: JSONResolvable
+        }>
 
-        this.setSubcommandContextFromArgs(context, parsedYargsArgs, command.data.toJSON())
+        this.setSubcommandContextFromArgs(
+            context,
+            parsedYargsArgs,
+            command.data.toJSON()
+        )
 
         return context
     }
 
-    public static parseCommandFromMessage(content: string, prefix: string): { commandName: string | null, rawArgsString: string } {
+    public static parseCommandFromMessage(
+        content: string,
+        prefix: string
+    ): { commandName: string | null, rawArgsString: string } {
         const contentWithoutPrefix = content.slice(prefix.length).trim()
-        const commandName = contentWithoutPrefix.split(/ +/)[0]?.toLowerCase() ?? null
+        const commandName =
+            contentWithoutPrefix.split(/ +/)[0]?.toLowerCase() ?? null
         const firstSpaceIndex = contentWithoutPrefix.indexOf(' ')
-        const rawArgsString = firstSpaceIndex !== -1 ? contentWithoutPrefix.substring(firstSpaceIndex + 1).trimStart() : ''
+        const rawArgsString =
+            firstSpaceIndex !== -1
+                ? contentWithoutPrefix
+                      .substring(firstSpaceIndex + 1)
+                      .trimStart()
+                : ''
         return { commandName, rawArgsString }
     }
 
-    static _reconstructArgumentsForYargs(rawArgsString: string, command: SlashCommand): string {
+    static _reconstructArgumentsForYargs(
+        rawArgsString: string,
+        command: SlashCommand
+    ): string {
         const commandData = command.data.toJSON()
         const allTokens = this.tokenizeArgs(rawArgsString)
 
         const commandPath: string[] = []
-        let activeOptions: readonly APIApplicationCommandOption[] = commandData.options ?? []
+        let activeOptions: readonly APIApplicationCommandOption[] =
+            commandData.options ?? []
         let argsStartIndex = 0
 
         if (allTokens.length > 0) {
-            let currentLevelOptions: readonly APIApplicationCommandOption[] = commandData.options ?? []
-            const groupDef = currentLevelOptions.find(o => o.name === allTokens[0] && o.type === ApplicationCommandOptionType.SubcommandGroup)
+            let currentLevelOptions: readonly APIApplicationCommandOption[] =
+                commandData.options ?? []
+            const groupDef = currentLevelOptions.find(
+                o =>
+                    o.name === allTokens[0] &&
+                    o.type === ApplicationCommandOptionType.SubcommandGroup
+            )
             if (groupDef) {
                 commandPath.push(allTokens[0])
                 argsStartIndex = 1
-                currentLevelOptions = (groupDef as APIApplicationCommandSubcommandGroupOption).options ?? []
+                currentLevelOptions =
+                    (groupDef as APIApplicationCommandSubcommandGroupOption)
+                        .options ?? []
                 if (allTokens.length > 1) {
-                    const subDef = currentLevelOptions.find(o => o.name === allTokens[1] && o.type === ApplicationCommandOptionType.Subcommand)
+                    const subDef = currentLevelOptions.find(
+                        o =>
+                            o.name === allTokens[1] &&
+                            o.type === ApplicationCommandOptionType.Subcommand
+                    )
                     if (subDef) {
                         commandPath.push(allTokens[1])
                         argsStartIndex = 2
-                        activeOptions = (subDef as APIApplicationCommandSubcommandOption).options ?? []
+                        activeOptions =
+                            (subDef as APIApplicationCommandSubcommandOption)
+                                .options ?? []
                     }
                 }
             } else {
-                const subDef = currentLevelOptions.find(o => o.name === allTokens[0] && o.type === ApplicationCommandOptionType.Subcommand)
+                const subDef = currentLevelOptions.find(
+                    o =>
+                        o.name === allTokens[0] &&
+                        o.type === ApplicationCommandOptionType.Subcommand
+                )
                 if (subDef) {
                     commandPath.push(allTokens[0])
                     argsStartIndex = 1
-                    activeOptions = (subDef as APIApplicationCommandSubcommandOption).options ?? []
+                    activeOptions =
+                        (subDef as APIApplicationCommandSubcommandOption)
+                            .options ?? []
                 }
             }
         }
@@ -96,57 +156,101 @@ export class TextCommandParser {
         reconstructedArgs.push(...flaggedTokens)
 
         return reconstructedArgs
-            .map(arg => (/S/).test(arg) ? `"${arg.replace(/"/g, '"')}"` : arg)
+            .map(arg => (/S/.test(arg) ? `"${arg.replace(/"/g, '"')}"` : arg))
             .join(' ')
     }
 
-    public static setSubcommandContextFromArgs(context: CommandContext, parsedArgs: ArgumentsCamelCase, commandData: { options?: APIApplicationCommandOption[] }): void {
+    public static setSubcommandContextFromArgs(
+        context: CommandContext,
+        parsedArgs: ArgumentsCamelCase,
+        commandData: { options?: APIApplicationCommandOption[] }
+    ): void {
         const yargsCommandPath = parsedArgs?._?.map(String) ?? []
         const options = commandData.options ?? []
         const commandPathForContext = [...yargsCommandPath]
 
-        if (options.some(o => o.type === ApplicationCommandOptionType.SubcommandGroup)) {
+        if (
+            options.some(
+                o => o.type === ApplicationCommandOptionType.SubcommandGroup
+            )
+        ) {
             const potentialGroup = commandPathForContext[0]
-            if (potentialGroup && options.find(o => o.name === potentialGroup && o.type === ApplicationCommandOptionType.SubcommandGroup)) {
-                context.subcommandGroupName = commandPathForContext.shift() || null
+            if (
+                potentialGroup &&
+                options.find(
+                    o =>
+                        o.name === potentialGroup &&
+                        o.type === ApplicationCommandOptionType.SubcommandGroup
+                )
+            ) {
+                context.subcommandGroupName =
+                    commandPathForContext.shift() || null
             }
         }
         if (
-            options.some(o => o.type === ApplicationCommandOptionType.Subcommand) ||
+            options.some(
+                o => o.type === ApplicationCommandOptionType.Subcommand
+            ) ||
             (() => {
-                const group = context.subcommandGroupName && options.find(
-                    (o): o is APIApplicationCommandSubcommandGroupOption =>
-                        o.name === context.subcommandGroupName &&
-                        o.type === ApplicationCommandOptionType.SubcommandGroup &&
-                        Array.isArray(o.options)
-                )
-                return !!(group && Array.isArray(group.options) &&
-                    group.options.some(subOpt => subOpt.type === ApplicationCommandOptionType.Subcommand)
+                const group =
+                    context.subcommandGroupName &&
+                    options.find(
+                        (o): o is APIApplicationCommandSubcommandGroupOption =>
+                            o.name === context.subcommandGroupName &&
+                            o.type ===
+                                ApplicationCommandOptionType.SubcommandGroup &&
+                            Array.isArray(o.options)
+                    )
+                return !!(
+                    group &&
+                    Array.isArray(group.options) &&
+                    group.options.some(
+                        subOpt =>
+                            subOpt.type ===
+                            ApplicationCommandOptionType.Subcommand
+                    )
                 )
             })()
         ) {
             const potentialSubcommand = commandPathForContext[0]
             if (potentialSubcommand) {
-                let subOptExists = false
+                let subOptExists: boolean
                 if (context.subcommandGroupName) {
                     const group = options.find(
                         (o): o is APIApplicationCommandSubcommandGroupOption =>
                             o.name === context.subcommandGroupName &&
-                            o.type === ApplicationCommandOptionType.SubcommandGroup &&
+                            o.type ===
+                                ApplicationCommandOptionType.SubcommandGroup &&
                             Array.isArray(o.options)
                     )
-                    subOptExists = !!(group && group.options?.find(subOpt => subOpt.name === potentialSubcommand && subOpt.type === ApplicationCommandOptionType.Subcommand))
+                    subOptExists = !!(
+                        group &&
+                        group.options?.find(
+                            subOpt =>
+                                subOpt.name === potentialSubcommand &&
+                                subOpt.type ===
+                                    ApplicationCommandOptionType.Subcommand
+                        )
+                    )
                 } else {
-                    subOptExists = !!options.find(o => o.name === potentialSubcommand && o.type === ApplicationCommandOptionType.Subcommand)
+                    subOptExists = !!options.find(
+                        o =>
+                            o.name === potentialSubcommand &&
+                            o.type === ApplicationCommandOptionType.Subcommand
+                    )
                 }
                 if (subOptExists) {
-                    context.subcommandName = commandPathForContext.shift() || null
+                    context.subcommandName =
+                        commandPathForContext.shift() || null
                 }
             }
         }
     }
 
-    private static buildYargsOptions(yargsInstance: Argv, options: Readonly<APIApplicationCommandOption[]>): void {
+    private static buildYargsOptions(
+        yargsInstance: Argv,
+        options: Readonly<APIApplicationCommandOption[]>
+    ): void {
         for (const option of options) {
             const opt = option
             const yargsOptConfig: YargsOptions = {
@@ -161,13 +265,21 @@ export class TextCommandParser {
             switch (opt.type) {
                 case ApplicationCommandOptionType.String:
                     yargsOptConfig.type = 'string'
-                    if ('choices' in opt && opt.choices) yargsOptConfig.choices = opt.choices.map((c: { name: string, value: string }) => c.value)
+                    if ('choices' in opt && opt.choices)
+                        yargsOptConfig.choices = opt.choices.map(
+                            (c: { name: string, value: string }) => c.value
+                        )
                     break
                 case ApplicationCommandOptionType.Integer:
                 case ApplicationCommandOptionType.Number:
                     yargsOptConfig.type = 'number'
-                    if (opt.type === ApplicationCommandOptionType.Integer) yargsOptConfig.coerce = (arg: string | number) => parseInt(String(arg), 10)
-                    if ('choices' in opt && opt.choices) yargsOptConfig.choices = opt.choices.map((c: { name: string, value: number }) => c.value)
+                    if (opt.type === ApplicationCommandOptionType.Integer)
+                        yargsOptConfig.coerce = (arg: string | number) =>
+                            parseInt(String(arg), 10)
+                    if ('choices' in opt && opt.choices)
+                        yargsOptConfig.choices = opt.choices.map(
+                            (c: { name: string, value: number }) => c.value
+                        )
                     break
                 case ApplicationCommandOptionType.Boolean:
                     yargsOptConfig.type = 'boolean'
@@ -182,23 +294,32 @@ export class TextCommandParser {
                     yargsOptConfig.type = 'boolean'
                     yargsOptConfig.default = false
                     yargsOptConfig.describe = `${opt.description} (Upload file with message when using this flag for text commands.)`
-                    if (opt.required) yargsOptConfig.describe = `(Required) ${yargsOptConfig.describe}`
+                    if (opt.required)
+                        yargsOptConfig.describe = `(Required) ${yargsOptConfig.describe}`
                     break
                 default:
-                    logger.warn(`{buildYargsOptions} Unsupported option type: ${opt.type} for ${opt.name}`)
+                    logger.warn(
+                        `{buildYargsOptions} Unsupported option type: ${opt.type} for ${opt.name}`
+                    )
                     yargsOptConfig.type = 'string'
             }
             yargsInstance.option(opt.name, yargsOptConfig)
         }
     }
 
-    static _buildYargsParserForCommand(commandDef: SlashCommand, message: Message, rawArgsString: string, prefix: string): Argv<{}> {
+    static _buildYargsParserForCommand(
+        commandDef: SlashCommand,
+        message: Message,
+        rawArgsString: string,
+        prefix: string
+    ): Argv<{}> {
         const baseCommandData = commandDef.data.toJSON()
         const parser = yargs(rawArgsString)
 
         parser
             .scriptName(`${prefix}${baseCommandData.name}`)
-            .help('h').alias('h', 'help')
+            .help('h')
+            .alias('h', 'help')
             .version(false)
             .exitProcess(false)
             .recommendCommands()
@@ -213,7 +334,9 @@ export class TextCommandParser {
                 if (err) {
                     if (replyMessage) replyMessage += '\n'
                     replyMessage += `Error: ${err.message}`
-                    logger.warn(`{buildYargsParserForCommand} Yargs internal error for ${baseCommandData.name}: ${err.message}`)
+                    logger.warn(
+                        `{buildYargsParserForCommand} Yargs internal error for ${baseCommandData.name}: ${err.message}`
+                    )
                 }
 
                 if (!replyMessage) {
@@ -221,25 +344,46 @@ export class TextCommandParser {
                         if (parser && typeof parser.getHelp === 'function') {
                             replyMessage = await parser.getHelp()
                         } else {
-                            logger.warn(`{buildYargsParserForCommand.fail} parser.getHelp is not a function for ${baseCommandData.name}. Falling back. Msg: "${msg}", Err: "${err ? err.message : 'N/A'}"`)
-                            replyMessage = msg || (err ? `Error: ${err.message}` : 'Invalid command usage. Use --help for more info.')
+                            logger.warn(
+                                `{buildYargsParserForCommand.fail} parser.getHelp is not a function for ${baseCommandData.name}. Falling back. Msg: "${msg}", Err: "${err ? err.message : 'N/A'}"`
+                            )
+                            replyMessage =
+                                msg ||
+                                (err
+                                    ? `Error: ${err.message}`
+                                    : 'Invalid command usage. Use --help for more info.')
                         }
                     } catch (getHelpError) {
-                        logger.error(`{buildYargsParserForCommand} Failed to generate help string: ${getHelpError}`)
-                        replyMessage = 'Invalid command usage. Could not generate help text.'
+                        logger.error(
+                            `{buildYargsParserForCommand} Failed to generate help string: ${getHelpError}`
+                        )
+                        replyMessage =
+                            'Invalid command usage. Could not generate help text.'
                     }
                 } else {
                     try {
                         if (parser && typeof parser.getHelp === 'function') {
                             const fullHelp = await parser.getHelp()
-                            if (fullHelp && !replyMessage.includes(fullHelp.slice(0, Math.min(50, fullHelp.length)))) {
+                            if (
+                                fullHelp &&
+                                !replyMessage.includes(
+                                    fullHelp.slice(
+                                        0,
+                                        Math.min(50, fullHelp.length)
+                                    )
+                                )
+                            ) {
                                 replyMessage += `\n\nUsage:\n${fullHelp}`
                             }
                         } else {
-                            logger.warn(`{buildYargsParserForCommand} parser.getHelp is not a function (in else branch) for ${baseCommandData.name}. Cannot append full help.`)
+                            logger.warn(
+                                `{buildYargsParserForCommand} parser.getHelp is not a function (in else branch) for ${baseCommandData.name}. Cannot append full help.`
+                            )
                         }
                     } catch (getHelpError) {
-                        logger.warn(`{buildYargsParserForCommand} Could not append full yargs help output: ${getHelpError}`)
+                        logger.warn(
+                            `{buildYargsParserForCommand} Could not append full yargs help output: ${getHelpError}`
+                        )
                     }
                 }
 
@@ -247,24 +391,36 @@ export class TextCommandParser {
                     const formattedReply = `\`\`\`\n${replyMessage.trim()}\n\`\`\``
                     await message.reply(formattedReply)
                 } else {
-                    logger.warn(`{buildYargsParserForCommand} Yargs .fail() called with no message and no error for ${baseCommandData.name}.`)
-                    await message.reply('An unspecified error occurred with your command input.')
+                    logger.warn(
+                        `{buildYargsParserForCommand} Yargs .fail() called with no message and no error for ${baseCommandData.name}.`
+                    )
+                    await message.reply(
+                        'An unspecified error occurred with your command input.'
+                    )
                 }
             })
 
-        const topLevelOptions = baseCommandData.options?.filter(
-            (opt): opt is APIApplicationCommandOption => opt.type !== ApplicationCommandOptionType.Subcommand &&
-                                  opt.type !== ApplicationCommandOptionType.SubcommandGroup
-        ) || []
+        const topLevelOptions =
+            baseCommandData.options?.filter(
+                (opt): opt is APIApplicationCommandOption =>
+                    opt.type !== ApplicationCommandOptionType.Subcommand &&
+                    opt.type !== ApplicationCommandOptionType.SubcommandGroup
+            ) || []
 
         if (topLevelOptions.length > 0) {
             this.buildYargsOptions(parser, topLevelOptions)
         }
 
-        const subRelatedOptions = baseCommandData.options?.filter(
-            (opt): opt is (APIApplicationCommandSubcommandOption | APIApplicationCommandSubcommandGroupOption) => opt.type === ApplicationCommandOptionType.Subcommand ||
-                                  opt.type === ApplicationCommandOptionType.SubcommandGroup
-        ) || []
+        const subRelatedOptions =
+            baseCommandData.options?.filter(
+                (
+                    opt
+                ): opt is
+                    | APIApplicationCommandSubcommandOption
+                    | APIApplicationCommandSubcommandGroupOption =>
+                    opt.type === ApplicationCommandOptionType.Subcommand ||
+                    opt.type === ApplicationCommandOptionType.SubcommandGroup
+            ) || []
 
         let hasSubcommandsOrGroups = false
         if (subRelatedOptions.length > 0) {
@@ -276,23 +432,41 @@ export class TextCommandParser {
                         optData.name,
                         optData.description,
                         yargsSubcommand => {
-                            if (optData.options) this.buildYargsOptions(yargsSubcommand, optData.options)
+                            if (optData.options)
+                                this.buildYargsOptions(
+                                    yargsSubcommand,
+                                    optData.options
+                                )
                             return yargsSubcommand
                         },
                         async _argv => {}
                     )
-                } else if (optData.type === ApplicationCommandOptionType.SubcommandGroup) {
+                } else if (
+                    optData.type ===
+                    ApplicationCommandOptionType.SubcommandGroup
+                ) {
                     parser.command(
                         optData.name,
                         optData.description,
                         yargsGroup => {
-                            if (optData.options && Array.isArray(optData.options)) {
+                            if (
+                                optData.options &&
+                                Array.isArray(optData.options)
+                            ) {
                                 for (const subCmdOpt of optData.options) {
-                                    if (subCmdOpt.type === ApplicationCommandOptionType.Subcommand) {
+                                    if (
+                                        subCmdOpt.type ===
+                                        ApplicationCommandOptionType.Subcommand
+                                    ) {
                                         yargsGroup.command(
-                                            subCmdOpt.name, subCmdOpt.description,
+                                            subCmdOpt.name,
+                                            subCmdOpt.description,
                                             yargsSubcommand => {
-                                                if (subCmdOpt.options) this.buildYargsOptions(yargsSubcommand, subCmdOpt.options)
+                                                if (subCmdOpt.options)
+                                                    this.buildYargsOptions(
+                                                        yargsSubcommand,
+                                                        subCmdOpt.options
+                                                    )
                                                 return yargsSubcommand
                                             },
                                             async _argv => {}
@@ -300,7 +474,10 @@ export class TextCommandParser {
                                     }
                                 }
                             }
-                            yargsGroup.demandCommand(1, `You need to specify a subcommand for '${optData.name}'.`)
+                            yargsGroup.demandCommand(
+                                1,
+                                `You need to specify a subcommand for '${optData.name}'.`
+                            )
                             return yargsGroup
                         },
                         async _argv => {}

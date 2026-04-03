@@ -233,7 +233,7 @@ export class CommandManager {
             return
         }
 
-        // Ensure message content is defined before checking startsWith
+        // Validate message object and content
         if (!message || !message.content) {
             logger.warn(
                 '{handlePlatformMessage} Received message with undefined content'

@@ -3,7 +3,6 @@ import { BotSettingsManager } from './BotSettingsManager'
 
 import type { JSONResolvable, LogLevel, LogPayload } from '../types'
 import { EventEmitter } from 'tseep'
-import fs from 'fs'
 import path from 'path'
 import url from 'url'
 
@@ -25,6 +24,7 @@ export class Logger extends EventEmitter<{
     file = ''
     useWebhook = false
     module: string | undefined
+    private writeQueue: Promise<void> = Promise.resolve()
 
     public static readonly events = staticEventEmitter
 
@@ -70,15 +70,36 @@ export class Logger extends EventEmitter<{
     }
 
     _createLogFile(date = formatDate()) {
-        const logsPath = path.join(esmodules ? path.dirname(url.fileURLToPath(import.meta.url)) : __dirname, '../../logs')
-        if (!fs.existsSync(logsPath)) fs.mkdirSync(logsPath)
+        const logsPath = path.join(
+            esmodules
+                ? path.dirname(url.fileURLToPath(import.meta.url))
+                : __dirname,
+            '../../logs'
+        )
         const logFile = path.join(logsPath, `${date}.log`)
-        fs.writeFileSync(logFile, '')
+
+        // Create log file asynchronously
+        Bun.write(logFile, '').catch(err => {
+            console.error(`Failed to create log file: ${err}`)
+        })
+
         this.file = logFile
         return logFile
     }
+
     writeLogLine(str: string) {
-        fs.appendFileSync(this.file, `${str}\n`)
+        // Queue writes to prevent race conditions
+        this.writeQueue = this.writeQueue
+            .then(async () => {
+                const existingContent = await Bun.file(this.file)
+                    .text()
+                    .catch(() => '')
+                await Bun.write(this.file, existingContent + `${str}\n`)
+            })
+            .catch(err => {
+                // Fallback to console if file write fails
+                console.error(`Failed to write to log file: ${err}`)
+            })
     }
 }
 export function formatDate() {
@@ -89,24 +110,31 @@ export function formatDate() {
     }
     return `${d.toLocaleDateString('ru-RU', opts).replace(/\//g, '.')}-${d.toLocaleTimeString('ru-RU', opts).replace(/:/g, '.')}`
 }
-function logoutput(level: 'error' | 'warn' | 'info' | 'ok' | 'debug', data: JSONResolvable, module?: string, formatting = false) {
+function logoutput(
+    level: 'error' | 'warn' | 'info' | 'ok' | 'debug',
+    data: JSONResolvable,
+    module?: string,
+    formatting = false
+) {
     let str = ''
     const displayLevelsColored = {
-        'error': red('error'),
-        'warn' : yellow(' warn'),
-        'info' : cyan(' info'),
-        'ok'   : green('   ok'),
-        'debug': blue('debug')
+        error: red('error'),
+        warn: yellow(' warn'),
+        info: cyan(' info'),
+        ok: green('   ok'),
+        debug: blue('debug')
     }
     const displayLevels = {
-        'error': 'error',
-        'warn' : ' warn',
-        'info' : ' info',
-        'ok'   : '   ok',
-        'debug': 'debug'
+        error: 'error',
+        warn: ' warn',
+        info: ' info',
+        ok: '   ok',
+        debug: 'debug'
     }
-    if (module) str += `${formatDate()} - ${formatting ? displayLevelsColored[level] : displayLevels[level]}: [${module}]`
-    else str += `${formatDate()} - ${formatting ? displayLevelsColored[level] : displayLevels[level]}:`
+    if (module)
+        str += `${formatDate()} - ${formatting ? displayLevelsColored[level] : displayLevels[level]}: [${module}]`
+    else
+        str += `${formatDate()} - ${formatting ? displayLevelsColored[level] : displayLevels[level]}:`
     if (typeof data === 'string') str += ` ${data}`
     else str += ` ${JSON.stringify(data)}`
     return str

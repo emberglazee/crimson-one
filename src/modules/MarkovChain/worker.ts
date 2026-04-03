@@ -9,7 +9,9 @@ import { MarkovDataSource, type SimplifiedMessage } from './DataSource'
 import { container } from 'tsyringe'
 
 if (isMainThread) {
-    throw new Error('This file is a worker and should not be run on the main thread.')
+    throw new Error(
+        'This file is a worker and should not be run on the main thread.'
+    )
 }
 
 // Helper to send logs back to the main thread
@@ -64,6 +66,7 @@ class MarkovEngine {
     private chainCache = new Map<string, CachedChain>()
     private readonly MAX_CACHE_SIZE = 5 // Limit to 5 trained chains to manage memory
     private readonly CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes
+    private cacheCleanupInterval: Timer | null = null
 
     public getMessages = this.dataSource.getMessages.bind(this.dataSource)
 
@@ -164,7 +167,56 @@ class MarkovEngine {
         if (this.rest) return
         this.rest = new REST({ version: '10' }).setToken(token)
         await this.dataSource.init()
+
+        // Start periodic cache cleanup
+        this.startCacheCleanup()
+
         log('info', 'Worker REST client and data source initialized.')
+    }
+
+    private startCacheCleanup(): void {
+        // Clean up expired cache entries every 5 minutes
+        this.cacheCleanupInterval = setInterval(
+            () => {
+                const now = Date.now()
+                let cleaned = 0
+
+                for (const [key, entry] of this.chainCache.entries()) {
+                    if (now - entry.createdAt > this.CACHE_TTL_MS) {
+                        entry.chain.destroy()
+                        this.chainCache.delete(key)
+                        cleaned++
+                    }
+                }
+
+                if (cleaned > 0) {
+                    log('debug', `Cleaned ${cleaned} expired cache entries`)
+                }
+            },
+            5 * 60 * 1000
+        ) // Every 5 minutes
+    }
+
+    public shutdown(): void {
+        // Stop cache cleanup interval
+        if (this.cacheCleanupInterval) {
+            clearInterval(this.cacheCleanupInterval)
+            this.cacheCleanupInterval = null
+        }
+
+        // Destroy all cached chains
+        for (const entry of this.chainCache.values()) {
+            entry.chain.destroy()
+        }
+        this.chainCache.clear()
+
+        // Destroy all persistent chains
+        for (const chain of this.persistentChains.values()) {
+            chain.destroy()
+        }
+        this.persistentChains.clear()
+
+        log('info', 'MarkovEngine shutdown complete')
     }
 
     private addToDbWriteQueue(
