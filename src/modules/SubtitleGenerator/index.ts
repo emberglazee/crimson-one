@@ -1,20 +1,29 @@
 import { singleton, inject } from 'tsyringe'
+import { Logger } from '../Logger'
+import { yellow, red } from '../../util/colors'
+import type { ExplicitAny } from '../../types'
+const logger = new Logger('SubtitleGenerator')
+
+import { Client, Guild } from 'discord.js'
 import { Worker } from 'worker_threads'
 import path from 'path'
-import { Logger } from '../Logger'
-import { red, yellow } from '../../util/colors'
-import { type Client, type Guild } from 'discord.js'
 
-import type { SubtitleGradientType } from '../../util/colors'
-
-const logger = new Logger('SubtitleGenerator')
 
 export type SubtitleImageResult = {
     buffer: Buffer
     type: 'image/gif' | 'image/png'
 }
 
-export type SubtitleStyle = 'pw' | 'ac7' | 'acz' | 'hd2'
+export type SubtitleStyle =
+    | 'ac7'
+    | 'pw'
+    | 'acz'
+    | 'hd2'
+    | 'ac7-white'
+    | 'pw-white'
+    | 'acz-white'
+    | 'hd2-white'
+export type SubtitleGradientType = 'none' | 'vertical' | 'horizontal'
 
 interface GenerateTaskOptions {
     speaker: string
@@ -32,7 +41,13 @@ interface GenerateTaskOptions {
 export class SubtitleGenerator {
     private worker: Worker | null = null
     private taskIdCounter = 0
-    private pendingTasks = new Map<string, { resolve: (value: any) => void, reject: (reason?: any) => void }>()
+    private pendingTasks = new Map<
+        string,
+        {
+            resolve: (value: ExplicitAny) => void
+            reject: (reason?: ExplicitAny) => void
+        }
+    >()
 
     constructor(@inject('Client') private client: Client) {
         this.initializeWorker()
@@ -43,17 +58,25 @@ export class SubtitleGenerator {
 
         this.worker = new Worker(path.join(__dirname, 'worker.js'))
 
-        this.worker.on('message', (message: { type: string, taskId: string, data?: any, error?: string }) => {
-            const task = this.pendingTasks.get(message.taskId)
-            if (!task) return
+        this.worker.on(
+            'message',
+            (message: {
+                type: string
+                taskId: string
+                data?: ExplicitAny
+                error?: string
+            }) => {
+                const task = this.pendingTasks.get(message.taskId)
+                if (!task) return
 
-            if (message.type === 'result') {
-                task.resolve(message.data)
-            } else if (message.type === 'error') {
-                task.reject(new Error(message.error))
+                if (message.type === 'result') {
+                    task.resolve(message.data)
+                } else if (message.type === 'error') {
+                    task.reject(new Error(message.error))
+                }
+                this.pendingTasks.delete(message.taskId)
             }
-            this.pendingTasks.delete(message.taskId)
-        })
+        )
 
         this.worker.on('error', err => {
             logger.error(`SubtitleGenerator worker error: ${red(err.message)}`)
@@ -64,17 +87,21 @@ export class SubtitleGenerator {
 
         this.worker.on('exit', code => {
             if (code !== 0) {
-                logger.warn(`SubtitleGenerator worker exited with code ${yellow(code)}`)
+                logger.warn(
+                    `SubtitleGenerator worker exited with code ${yellow(code)}`
+                )
             }
             this.worker = null
         })
     }
 
-    private sendTask<T>(type: string, options: any): Promise<T> {
+    private sendTask<T>(type: string, options: ExplicitAny): Promise<T> {
         if (!this.worker) {
             this.initializeWorker()
             if (!this.worker) {
-                return Promise.reject(new Error('SubtitleGenerator worker is not running.'))
+                return Promise.reject(
+                    new Error('SubtitleGenerator worker is not running.')
+                )
             }
         }
 
@@ -85,7 +112,10 @@ export class SubtitleGenerator {
         })
     }
 
-    private async fetchUsername(id: string, guild: Guild | null): Promise<string> {
+    private async fetchUsername(
+        id: string,
+        guild: Guild | null
+    ): Promise<string> {
         if (!this.client) return id
         try {
             if (guild) {
@@ -95,7 +125,9 @@ export class SubtitleGenerator {
             const user = await this.client.users.fetch(id)
             return user.displayName
         } catch (e) {
-            logger.error(`Failed to fetch username for ${yellow(id)}: ${red((e as Error).message)}`)
+            logger.error(
+                `Failed to fetch username for ${yellow(id)}: ${red((e as Error).message)}`
+            )
             return id
         }
     }
@@ -113,10 +145,12 @@ export class SubtitleGenerator {
     ): Promise<SubtitleImageResult> {
         // Find all user mentions to resolve display names
         const pingRegex = /<@!?(\d+)>/g
-        const allPings = new Set([
-            ...(speaker.match(pingRegex) || []),
-            ...(quote.match(pingRegex) || [])
-        ].map(m => m.replace(/<@!?|>/g, '')))
+        const allPings = new Set(
+            [
+                ...(speaker.match(pingRegex) || []),
+                ...(quote.match(pingRegex) || [])
+            ].map(m => m.replace(/<@!?|>/g, ''))
+        )
 
         const usernames: Record<string, string> = {}
         for (const id of allPings) {
@@ -135,15 +169,27 @@ export class SubtitleGenerator {
             usernames
         }
 
-        const result: SubtitleImageResult = await this.sendTask('generate', options)
+        const result: SubtitleImageResult = await this.sendTask(
+            'generate',
+            options
+        )
 
         // The buffer from the worker can be a plain object or a Uint8Array, so convert it to a proper Buffer
         if (result.buffer) {
             if (result.buffer instanceof Buffer) {
                 // It's already a buffer, nothing to do.
-            } else if ((result.buffer as any).type === 'Buffer' && Array.isArray((result.buffer as any).data)) {
+            } else if (
+                typeof result.buffer === 'object' &&
+                result.buffer !== null &&
+                'type' in result.buffer &&
+                (result.buffer as { type: unknown }).type === 'Buffer' &&
+                'data' in result.buffer &&
+                Array.isArray((result.buffer as { data: unknown }).data)
+            ) {
                 // It's a serialized buffer object
-                result.buffer = Buffer.from((result.buffer as any).data)
+                result.buffer = Buffer.from(
+                    (result.buffer as { data: number[] }).data
+                )
             } else if (result.buffer instanceof Uint8Array) {
                 // It's a Uint8Array
                 result.buffer = Buffer.from(result.buffer)

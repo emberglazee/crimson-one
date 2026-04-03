@@ -14,6 +14,40 @@ interface InitializeTaskOptions {
 
 export type { GenerationResult, SimplifiedMessage }
 
+export interface MarkovGenerateProgressEvent {
+    step: 'querying' | 'training' | 'generating'
+    progress: number
+    total: number
+    elapsedTime: number
+    estimatedTimeRemaining: number | null
+    taskId: string
+}
+
+export interface MarkovCollectProgressEvent {
+    batchNumber: number
+    messagesCollected: number
+    totalCollected: number
+    totalFetched: number
+    totalIgnored: number
+    limit: number | 'entire'
+    percentComplete: number
+    channelName: string
+    startTime: number
+    elapsedTime: number
+    messagesPerSecond: number
+    estimatedTimeRemaining: number | null
+    taskId: string
+}
+
+export interface MarkovInfoProgressEvent {
+    step: 'querying' | 'processing'
+    progress: number
+    total: number
+    elapsedTime: number
+    estimatedTimeRemaining: number | null
+    taskId: string
+}
+
 interface CollectTaskOptions {
     guildId: string
     channelId: string
@@ -69,40 +103,6 @@ type AllTaskOptions =
     | PersistentChainGenerateOptions
     | PersistentChainTrainOptions
     | PersistentChainDestroyOptions
-
-interface MarkovCollectProgressEvent {
-    batchNumber: number
-    messagesCollected: number
-    totalCollected: number
-    totalFetched: number
-    totalIgnored: number
-    limit: number | 'entire'
-    percentComplete: number
-    channelName: string
-    startTime: number
-    elapsedTime: number
-    messagesPerSecond: number
-    estimatedTimeRemaining: number | null
-    taskId: string
-}
-
-interface MarkovGenerateProgressEvent {
-    step: 'querying' | 'training' | 'generating'
-    progress: number
-    total: number
-    elapsedTime: number
-    estimatedTimeRemaining: number | null
-    taskId: string
-}
-
-interface MarkovInfoProgressEvent {
-    step: 'querying' | 'processing'
-    progress: number
-    total: number
-    elapsedTime: number
-    estimatedTimeRemaining: number | null
-    taskId: string
-}
 
 interface MessageStats {
     messageCount: number
@@ -450,9 +450,9 @@ export class MarkovChat extends EventEmitter<{
         user?: User
         userId?: string
         global?: boolean
-    }): Promise<any[]> {
+    }): Promise<SimplifiedMessage[]> {
         const { guild, channel, user, userId, global } = options
-        return this.sendTask<any[]>('getMessages', {
+        return this.sendTask<SimplifiedMessage[]>('getMessages', {
             guildId: guild?.id,
             channelId: channel?.id,
             user,

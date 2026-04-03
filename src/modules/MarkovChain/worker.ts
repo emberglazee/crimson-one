@@ -489,6 +489,14 @@ class MarkovEngine {
             }
             if (lastId) fetchOptions.before = lastId
 
+            // Convert to string params for URLSearchParams
+            const queryParams: Record<string, string> = {
+                limit: String(fetchOptions.limit)
+            }
+            if (fetchOptions.before) {
+                queryParams.before = fetchOptions.before
+            }
+
             let retries = 0
             let batch: APIMessage[] | null = null
 
@@ -496,7 +504,9 @@ class MarkovEngine {
                 try {
                     batch = (await this.rest.get(
                         Routes.channelMessages(channelId),
-                        { query: new URLSearchParams(fetchOptions as any) }
+                        {
+                            query: new URLSearchParams(queryParams)
+                        }
                     )) as APIMessage[]
                     break
                 } catch (error) {
@@ -753,7 +763,7 @@ const engine = new MarkovEngine()
 
 parentPort!.on(
     'message',
-    async (message: { type: string, options: any, taskId: string }) => {
+    async (message: { type: string, options: unknown, taskId: string }) => {
         try {
             if (message.type === 'initialize') {
                 const { token } = message.options as { token: string }
@@ -770,7 +780,15 @@ parentPort!.on(
             switch (message.type) {
                 case 'collect':
                     result = await engine.collectMessages(
-                        message.options,
+                        message.options as {
+                            guildId: string
+                            channelId: string
+                            user?: { id: string }
+                            userId?: string
+                            limit?: number | 'entire'
+                            delayMs?: number
+                            forceRescan?: boolean
+                        },
                         message.taskId
                     )
                     break
@@ -803,14 +821,33 @@ parentPort!.on(
                     )
                     break
                 case 'generate_from_persistent_chain':
-                    result = engine.generateFromPersistentChain(message.options)
+                    result = engine.generateFromPersistentChain(
+                        message.options as {
+                            chainId: string
+                            seed?: string
+                            words?: number
+                        }
+                    )
                     break
                 case 'train_persistent_chain':
-                    engine.trainPersistentChain(message.options)
+                    engine.trainPersistentChain(
+                        message.options as {
+                            chainId: string
+                            messages: SimplifiedMessage[]
+                        }
+                    )
                     result = 'ok'
                     break
                 case 'destroy_persistent_chain':
-                    engine.destroyPersistentChain(message.options.chainId)
+                    engine.destroyPersistentChain(
+                        (message.options as { chainId: string }).chainId
+                    )
+                    result = 'ok'
+                    break
+                case 'destroy_persistent_chain':
+                    engine.destroyPersistentChain(
+                        (message.options as { chainId: string }).chainId
+                    )
                     result = 'ok'
                     break
                 default:

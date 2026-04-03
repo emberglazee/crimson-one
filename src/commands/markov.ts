@@ -2,7 +2,9 @@ import {
     Logger,
     type CommandContext,
     ProgressTracker,
-    InteractionMessageManager
+    InteractionMessageManager,
+    type MarkovGenerateProgressEvent,
+    type MarkovInfoProgressEvent
 } from '../modules'
 import { yellow, red } from '../util/colors'
 const logger = new Logger('/markov')
@@ -219,21 +221,24 @@ async function performGeneration(ctx: CommandContext<true>, isQueued: boolean) {
             `Generating message with global: ${yellow(global)}, user: ${yellow(user?.tag ?? userId)}, channel: ${yellow(channel?.name)}, words: ${yellow(words)}, seed: ${yellow(seed)}, batch: ${yellow(batch)}`
         )
 
-        markov.on('generateProgress', (progress: any) => {
-            if (progress.step === 'training' && progressTracker) {
-                progressTracker
-                    .update({
-                        current: progress.progress,
-                        total: progress.total,
-                        statusText: 'Training model...'
-                    })
-                    .catch(e =>
-                        logger.warn(
-                            `Failed to update progress tracker: ${e.message}`
+        markov.on(
+            'generateProgress',
+            (progress: MarkovGenerateProgressEvent) => {
+                if (progress.step === 'training' && progressTracker) {
+                    progressTracker
+                        .update({
+                            current: progress.progress,
+                            total: progress.total,
+                            statusText: 'Training model...'
+                        })
+                        .catch(e =>
+                            logger.warn(
+                                `Failed to update progress tracker: ${e.message}`
+                            )
                         )
-                    )
+                }
             }
-        })
+        )
 
         const result = await markov.generateMessage({
             guild: ctx.guild,
@@ -843,15 +848,18 @@ export default {
                     ctx,
                     'Gathering statistics...'
                 )
-                markov.on('infoProgress', (progress: any) => {
-                    if (progress.step === 'processing') {
-                        progressTracker.update({
-                            current: progress.progress,
-                            total: progress.total,
-                            statusText: 'Processing messages...'
-                        })
+                markov.on(
+                    'infoProgress',
+                    (progress: MarkovInfoProgressEvent) => {
+                        if (progress.step === 'processing') {
+                            progressTracker.update({
+                                current: progress.progress,
+                                total: progress.total,
+                                statusText: 'Processing messages...'
+                            })
+                        }
                     }
-                })
+                )
 
                 const stats = await markov.getMessageStats({
                     guild: !global ? ctx.guild : undefined,

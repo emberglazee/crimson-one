@@ -1,5 +1,6 @@
 import 'reflect-metadata'
 import { parentPort, isMainThread } from 'worker_threads'
+import type { ExplicitAny } from '../../types'
 
 import {
     createCanvas,
@@ -103,10 +104,10 @@ async function ffmpegCreateGif(
             outputPath
         ])
         let stderr = ''
-        ffmpeg.stderr.on('data', (data: any) => {
+        ffmpeg.stderr.on('data', (data: ExplicitAny) => {
             stderr += data.toString()
         })
-        ffmpeg.on('close', async (code: any) => {
+        ffmpeg.on('close', async (code: ExplicitAny) => {
             if (code === 0) {
                 try {
                     resolve(await fs.readFile(outputPath))
@@ -117,7 +118,7 @@ async function ffmpegCreateGif(
                 reject(new Error(`FFmpeg failed with code ${code}:\n${stderr}`))
             }
         })
-        ffmpeg.on('error', (error: any) =>
+        ffmpeg.on('error', (error: ExplicitAny) =>
             reject(new Error(`Failed to start FFmpeg: ${error}.`))
         )
     })
@@ -149,7 +150,7 @@ async function ffmpegExtractFrames(
             gifPath
         ])
         let durationsStr = ''
-        ffprobeDurations.stdout.on('data', (data: any) => {
+        ffprobeDurations.stdout.on('data', (data: ExplicitAny) => {
             durationsStr += data.toString()
         })
         await new Promise(resolve => ffprobeDurations.on('close', resolve))
@@ -168,10 +169,10 @@ async function ffmpegExtractFrames(
             path.join(outputDir, 'frame-%d.png')
         ])
         let stderr = ''
-        ffmpeg.stderr.on('data', (data: any) => {
+        ffmpeg.stderr.on('data', (data: ExplicitAny) => {
             stderr += data.toString()
         })
-        ffmpeg.on('close', async (code: any) => {
+        ffmpeg.on('close', async (code: ExplicitAny) => {
             if (code === 0) {
                 const files = await fs.readdir(outputDir)
                 const frameFiles = files
@@ -196,7 +197,9 @@ async function ffmpegExtractFrames(
 async function performGeneration(options: SubtitleOptions) {
     let {
         speaker,
-        quote,
+        quote
+    } = options
+    const {
         color,
         gradient,
         stretchGradient,
@@ -947,7 +950,7 @@ async function performGeneration(options: SubtitleOptions) {
             (
                 e
             ): e is typeof e & {
-                frames: any[]
+                frames: Canvas[]
                 frameDelays: number[]
                 framerate?: number
             } =>

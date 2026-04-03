@@ -7,5 +7,8 @@ export interface CrimsonTool {
         description: string
         required: boolean
     }>
-    execute: (args: Record<string, any>, deps: { client: import('discord.js').Client }) => Promise<string | void>
+    execute: (
+        args: Record<string, unknown>,
+        deps: { client: import('discord.js').Client },
+    ) => Promise<string | void>
 }

@@ -4,7 +4,7 @@ const logger = new Logger('CrimsonChat | xmlParser')
 
 export interface ParsedToolCall {
     toolName: string
-    args: Record<string, any>
+    args: Record<string, unknown>
     raw: string
 }
 
@@ -52,7 +52,7 @@ function parseToolCalls(toolCallsText: string): ParsedToolCall[] {
         const toolName = match[1]
         const innerContent = match[2].trim()
 
-        const args: Record<string, any> = {}
+        const args: Record<string, unknown> = {}
         const argRegex = /<(\w+)>([\s\S]*?)<\/\1>/gs
         let argMatch
         while ((argMatch = argRegex.exec(innerContent)) !== null) {
@@ -60,13 +60,14 @@ function parseToolCalls(toolCallsText: string): ParsedToolCall[] {
             const argValue = argMatch[2].trim()
             args[argName] = argValue
         }
-        logger.info(`Parsed tool call: ${yellow(toolName)} with args: ${yellow(JSON.stringify(args))}`)
+        logger.info(
+            `Parsed tool call: ${yellow(toolName)} with args: ${yellow(JSON.stringify(args))}`
+        )
         toolCalls.push({ toolName, args, raw })
     }
 
     return toolCalls
 }
-
 
 /**
  * Strips all tool call XML blocks from a response string.
