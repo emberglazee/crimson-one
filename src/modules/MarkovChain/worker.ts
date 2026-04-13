@@ -9,7 +9,9 @@ import { MarkovDataSource, type SimplifiedMessage } from './DataSource'
 import { container } from 'tsyringe'
 
 if (isMainThread) {
-    throw new Error('This file is a worker and should not be run on the main thread.')
+    throw new Error(
+        'This file is a worker and should not be run on the main thread.'
+    )
 }
 
 // Helper to send logs back to the main thread
@@ -45,6 +47,47 @@ interface DeleteOptions {
     user?: { id: string }
     userId?: string
     global?: boolean
+}
+
+interface CollectOptions {
+    guildId: string
+    channelId: string
+    user?: { id: string }
+    userId?: string
+    limit?: number | 'entire'
+    delayMs?: number
+    forceRescan?: boolean
+}
+
+interface PersistentChainGenerateOptions {
+    chainId: string
+    seed?: string
+    words?: number
+}
+
+interface PersistentChainTrainOptions {
+    chainId: string
+    messages: SimplifiedMessage[]
+}
+
+interface PersistentChainDestroyOptions {
+    chainId: string
+}
+
+type WorkerMessageOptions =
+    | GenerateOptions
+    | MessageStatsOptions
+    | DeleteOptions
+    | CollectOptions
+    | PersistentChainGenerateOptions
+    | PersistentChainTrainOptions
+    | PersistentChainDestroyOptions
+    | { token: string }
+
+interface WorkerMessage {
+    type: string
+    options: WorkerMessageOptions
+    taskId: string
 }
 
 interface CachedChain {
@@ -442,9 +485,15 @@ class MarkovEngine {
 
             while (retries < MAX_RETRIES) {
                 try {
+                    const queryParams: Record<string, string> = {
+                        limit: fetchOptions.limit.toString()
+                    }
+                    if (fetchOptions.before)
+                        queryParams.before = fetchOptions.before
+
                     batch = (await this.rest.get(
                         Routes.channelMessages(channelId),
-                        { query: new URLSearchParams(fetchOptions as any) }
+                        { query: new URLSearchParams(queryParams) }
                     )) as APIMessage[]
                     break
                 } catch (error) {
@@ -699,87 +748,90 @@ class MarkovEngine {
 
 const engine = new MarkovEngine()
 
-parentPort!.on(
-    'message',
-    async (message: { type: string, options: any, taskId: string }) => {
-        try {
-            if (message.type === 'initialize') {
-                const { token } = message.options as { token: string }
-                await engine.initialize(token)
-                parentPort!.postMessage({
-                    type: 'result',
-                    taskId: message.taskId,
-                    data: 'initialized'
-                })
-                return
-            }
-
-            let result
-            switch (message.type) {
-                case 'collect':
-                    result = await engine.collectMessages(
-                        message.options,
-                        message.taskId
-                    )
-                    break
-                case 'generate':
-                    result = await engine.generateMessage(
-                        message.options as GenerateOptions,
-                        message.taskId
-                    )
-                    break
-                case 'info':
-                    result = await engine.getMessageStats(
-                        message.options as MessageStatsOptions,
-                        message.taskId
-                    )
-                    break
-                case 'delete':
-                    result = await engine.deleteMessages(
-                        message.options as DeleteOptions
-                    )
-                    break
-                case 'getMessages':
-                    result = await engine.getMessages(
-                        message.options as MessageStatsOptions
-                    )
-                    break
-                case 'create_persistent_chain':
-                    result = await engine.createPersistentChain(
-                        message.options as MessageStatsOptions,
-                        message.taskId
-                    )
-                    break
-                case 'generate_from_persistent_chain':
-                    result = engine.generateFromPersistentChain(message.options)
-                    break
-                case 'train_persistent_chain':
-                    engine.trainPersistentChain(message.options)
-                    result = 'ok'
-                    break
-                case 'destroy_persistent_chain':
-                    engine.destroyPersistentChain(message.options.chainId)
-                    result = 'ok'
-                    break
-                default:
-                    throw new Error(`Unknown task type: ${message.type}`)
-            }
+parentPort!.on('message', async (message: WorkerMessage) => {
+    try {
+        if (message.type === 'initialize') {
+            const { token } = message.options as { token: string }
+            await engine.initialize(token)
             parentPort!.postMessage({
                 type: 'result',
                 taskId: message.taskId,
-                data: result
+                data: 'initialized'
             })
-        } catch (e) {
-            const error = e as Error
-            log(
-                'error',
-                `Error in worker task '${message.type}': ${error.stack ?? error.message}`
-            )
-            parentPort!.postMessage({
-                type: 'error',
-                taskId: message.taskId,
-                error: error.message
-            })
+            return
         }
+
+        let result
+        switch (message.type) {
+            case 'collect':
+                result = await engine.collectMessages(
+                    message.options as CollectOptions,
+                    message.taskId
+                )
+                break
+            case 'generate':
+                result = await engine.generateMessage(
+                    message.options as GenerateOptions,
+                    message.taskId
+                )
+                break
+            case 'info':
+                result = await engine.getMessageStats(
+                    message.options as MessageStatsOptions,
+                    message.taskId
+                )
+                break
+            case 'delete':
+                result = await engine.deleteMessages(
+                    message.options as DeleteOptions
+                )
+                break
+            case 'getMessages':
+                result = await engine.getMessages(
+                    message.options as MessageStatsOptions
+                )
+                break
+            case 'create_persistent_chain':
+                result = await engine.createPersistentChain(
+                    message.options as MessageStatsOptions,
+                    message.taskId
+                )
+                break
+            case 'generate_from_persistent_chain':
+                result = engine.generateFromPersistentChain(
+                    message.options as PersistentChainGenerateOptions
+                )
+                break
+            case 'train_persistent_chain':
+                engine.trainPersistentChain(
+                    message.options as PersistentChainTrainOptions
+                )
+                result = 'ok'
+                break
+            case 'destroy_persistent_chain':
+                engine.destroyPersistentChain(
+                    (message.options as PersistentChainDestroyOptions).chainId
+                )
+                result = 'ok'
+                break
+            default:
+                throw new Error(`Unknown task type: ${message.type}`)
+        }
+        parentPort!.postMessage({
+            type: 'result',
+            taskId: message.taskId,
+            data: result
+        })
+    } catch (e) {
+        const error = e as Error
+        log(
+            'error',
+            `Error in worker task '${message.type}': ${error.stack ?? error.message}`
+        )
+        parentPort!.postMessage({
+            type: 'error',
+            taskId: message.taskId,
+            error: error.message
+        })
     }
-)
+})

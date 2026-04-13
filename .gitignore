@@ -4,6 +4,7 @@ data/.initialized
 data/message_triggers.ts
 data/crimsonchat_state.toon
 data/timed-banishments.json
+data/*.sqlite
 
 crimson_markov/target
 crimson_markov.dll

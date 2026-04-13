@@ -1,7 +1,17 @@
 import {
-    Guild, BaseInteraction, GuildChannel, Message, GuildMember, CommandInteraction,
-    ChatInputCommandInteraction, type APIInteractionDataResolvedChannel,
-    Client, User, type ImageSize, type ImageExtension, TextChannel
+    Guild,
+    BaseInteraction,
+    GuildChannel,
+    Message,
+    GuildMember,
+    CommandInteraction,
+    ChatInputCommandInteraction,
+    type APIInteractionDataResolvedChannel,
+    Client,
+    User,
+    type ImageSize,
+    type ImageExtension,
+    TextChannel
 } from 'discord.js'
 import { EMBI_ID as EMBI_ID, PING_EMBI as PING_EMBI } from '../util/constants'
 
@@ -18,15 +28,26 @@ import {
 } from 'discord.js'
 import type { CommandContext } from '../modules/CommandManager/CommandContext'
 
-export type GuildIdResolvable = string | Guild | BaseInteraction | GuildChannel | Message
+export type GuildIdResolvable =
+    | string
+    | Guild
+    | BaseInteraction
+    | GuildChannel
+    | Message
 export type UserIdResolvable = GuildMember | User | string | Message
-export type ChannelIdResolvable = GuildChannel | Message | CommandInteraction |
-    ChatInputCommandInteraction | string | APIInteractionDataResolvedChannel
+export type ChannelIdResolvable =
+    | GuildChannel
+    | Message
+    | CommandInteraction
+    | ChatInputCommandInteraction
+    | string
+    | APIInteractionDataResolvedChannel
 
-export type AtleastOne<T, U = { [K in keyof T]: Pick<T, K> }> = Partial<T> & U[keyof U]
+export type AtleastOne<T, U = { [K in keyof T]: Pick<T, K> }> = Partial<T> &
+    U[keyof U]
 
 export interface DiscordEventListener {
-    default: (client: Client, ...args: any[]) => void
+    default: (client: Client, ...args: unknown[]) => void
 }
 
 export type Emoji = string
@@ -65,15 +86,20 @@ export interface MessageTriggerEntry {
     action: (message: Message) => Promise<void>
 }
 
-export type JSONResolvable = string | number | boolean | {[key: string]: JSONResolvable} | {[key: string]: JSONResolvable}[] | null
+export type JSONResolvable =
+    | string
+    | number
+    | boolean
+    | { [key: string]: JSONResolvable }
+    | { [key: string]: JSONResolvable }[]
+    | null
 
 export type GuildOnlyCommandContext = CommandContext<true>
 
 /**
  * the "i know what im doing" `any` type, bypasses eslint
  * */
-
-export type ExplicitAny = any
+export type ExplicitAny = any // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export type OldSlashCommandHelpers = {
     reply: ChatInputCommandInteraction['reply']
@@ -84,11 +110,22 @@ export type OldSlashCommandHelpers = {
     guild: ChatInputCommandInteraction['guild']
     embiId: typeof EMBI_ID
     pingEmbi: typeof PING_EMBI
-    getUserAvatar: (user: User, guild: Guild | null, options?: { extension?: ImageExtension, size?: ImageSize, useGlobalAvatar?: boolean }) => string
+    getUserAvatar: (
+        user: User,
+        guild: Guild | null,
+        options?: {
+            extension?: ImageExtension
+            size?: ImageSize
+            useGlobalAvatar?: boolean
+        },
+    ) => string
 }
 
 export type SlashCommandProps = {
-    data: SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder // Allow subcommands-only builder
+    data:
+        | SlashCommandBuilder
+        | SlashCommandSubcommandsOnlyBuilder
+        | SlashCommandOptionsOnlyBuilder // Allow subcommands-only builder
     permissions?: PermissionsBitField[]
     aliases?: string[]
     description?: string
@@ -112,7 +149,10 @@ export interface IGuildSlashCommand extends ISlashCommand {
     execute: (context: GuildOnlyCommandContext) => Promise<void>
 }
 
-export abstract class GuildSlashCommand extends SlashCommand implements IGuildSlashCommand {
+export abstract class GuildSlashCommand
+    extends SlashCommand
+    implements IGuildSlashCommand
+{
     guildId!: string
     declare execute: (context: GuildOnlyCommandContext) => Promise<void>
 }
@@ -122,7 +162,7 @@ export type ContextMenuCommandProps<T extends 2 | 3 = 2 | 3> = {
     type: T
     execute: (
         helpers: OldSlashCommandHelpers,
-        interaction: ContextMenuInteractionType<T>
+        interaction: ContextMenuInteractionType<T>,
     ) => Promise<void>
     permissions?: SlashCommandProps['permissions']
 }
@@ -131,9 +171,13 @@ export type ContextMenuInteractionType<T extends 2 | 3> = T extends 2
     ? UserContextMenuCommandInteraction
     : MessageContextMenuCommandInteraction
 
-export interface IContextMenuCommand<T extends 2 | 3 = 2 | 3> extends ContextMenuCommandProps<T> {}
+export interface IContextMenuCommand<
+    T extends 2 | 3 = 2 | 3,
+> extends ContextMenuCommandProps<T> {}
 
-export abstract class ContextMenuCommand<T extends 2 | 3 = 2 | 3> implements IContextMenuCommand<T> {
+export abstract class ContextMenuCommand<
+    T extends 2 | 3 = 2 | 3,
+> implements IContextMenuCommand<T> {
     data!: ContextMenuCommandProps<T>['data']
     type!: ContextMenuCommandProps<T>['type']
     execute!: ContextMenuCommandProps<T>['execute']
@@ -154,8 +198,11 @@ export class MissingPermissionsError extends Error {
     }
 }
 
-export type FixedLengthArray<T, N extends number, R extends T[] = []> =
-    R['length'] extends N ? R : FixedLengthArray<T, N, [T, ...R]>
+export type FixedLengthArray<
+    T,
+    N extends number,
+    R extends T[] = [],
+> = R['length'] extends N ? R : FixedLengthArray<T, N, [T, ...R]>
 
 export type GuildId = string & {} // `& {}` because otherwise intellisense will show `string` instead of `GuildId`
 
@@ -163,7 +210,7 @@ export enum BotInstallationType {
     GuildInstall = 'GUILD_INSTALL',
     UserInstallDM = 'USER_INSTALL_DM',
     UserInstallGuild = 'USER_INSTALL_GUILD',
-    Unknown = 'UNKNOWN'
+    Unknown = 'UNKNOWN',
 }
 
 export interface UserMessageOptions {
@@ -193,13 +240,15 @@ export interface UserMessageOptions {
 
 export interface UserStatus {
     roles: string[]
-    presence: {
-        name: string
-        type: number
-        state?: string
-        details?: string
-        createdAt: string
-    }[] | 'offline or no activities'
+    presence:
+        | {
+              name: string
+              type: number
+              state?: string
+              details?: string
+              createdAt: string
+          }[]
+        | 'offline or no activities'
 }
 
 export interface MentionData {
