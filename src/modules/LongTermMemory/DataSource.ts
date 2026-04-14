@@ -12,7 +12,10 @@ import { existsSync, mkdirSync } from 'fs'
 export class LongTermMemoryDataSource {
     public orm!: DataSource
     private initialized = false
-    private readonly databasePath = join(process.cwd(), 'data/long-term-memory.sqlite')
+    private readonly databasePath = join(
+        process.cwd(),
+        'data/long-term-memory.sqlite'
+    )
 
     private ensureDataDirectory() {
         const dataDir = join(process.cwd(), 'data')
@@ -32,15 +35,28 @@ export class LongTermMemoryDataSource {
                 type: 'sqlite',
                 database: this.databasePath,
                 entities: [Memory],
-                synchronize: true
+                synchronize: false
             })
 
             await this.orm.initialize()
 
+            // Manually create table if it doesn't exist (sqlite3 v6 compatible)
+            // Column order matches TypeORM's original schema
+            await this.orm.query(`
+                CREATE TABLE IF NOT EXISTS memories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    text TEXT NOT NULL,
+                    importance INTEGER NOT NULL,
+                    createdAt DATETIME NOT NULL DEFAULT (datetime('now'))
+                )
+            `)
+
             this.initialized = true
             logger.ok('{init} LongTermMemory SQLite database initialized')
         } catch (error) {
-            logger.error(`Failed to initialize database: ${red(error instanceof Error ? error.message : String(error))}`)
+            logger.error(
+                `Failed to initialize database: ${red(error instanceof Error ? error.message : String(error))}`
+            )
             throw error
         }
     }

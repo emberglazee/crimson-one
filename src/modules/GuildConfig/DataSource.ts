@@ -12,7 +12,10 @@ import { existsSync, mkdirSync } from 'fs'
 export class GuildConfigDataSource {
     public orm!: DataSource
     private initialized = false
-    private readonly databasePath = join(process.cwd(), 'data/guild-config.sqlite')
+    private readonly databasePath = join(
+        process.cwd(),
+        'data/guild-config.sqlite'
+    )
 
     private ensureDataDirectory() {
         const dataDir = join(process.cwd(), 'data')
@@ -32,42 +35,56 @@ export class GuildConfigDataSource {
                 type: 'sqlite',
                 database: this.databasePath,
                 entities: [GuildConfig],
-                synchronize: true
+                synchronize: false
             })
 
             await this.orm.initialize()
 
-            // Verify tables exist
-            const tables = await this.orm.query(`
-                SELECT name FROM sqlite_master 
-                WHERE type='table' 
-                AND name IN ('guild_configs')
+            // Manually create table if it doesn't exist (sqlite3 v6 compatible)
+            // Column order matches TypeORM's original schema
+            await this.orm.query(`
+                CREATE TABLE IF NOT EXISTS guild_configs (
+                    prefix VARCHAR NOT NULL DEFAULT ('c1'),
+                    messageTrigger BOOLEAN NOT NULL DEFAULT (0),
+                    tagSystemEnabled BOOLEAN NOT NULL DEFAULT (0),
+                    tagCreateRoles TEXT NOT NULL DEFAULT (''),
+                    tagCreateUsers TEXT NOT NULL DEFAULT (''),
+                    tagCreatePermissions TEXT NOT NULL DEFAULT (''),
+                    markovBotWhitelistedChannels TEXT NOT NULL DEFAULT (''),
+                    guildId VARCHAR PRIMARY KEY NOT NULL
+                )
             `)
-
-            if (tables.length < 1) {
-                logger.warn('The guild config table is missing, forcing table creation')
-                await this.orm.synchronize(true)
-            }
 
             this.initialized = true
             logger.ok('{init} SQLite database initialized')
         } catch (error) {
-            logger.error(`Failed to initialize database: ${red(error instanceof Error ? error.message : String(error))}`)
+            logger.error(
+                `Failed to initialize database: ${red(error instanceof Error ? error.message : String(error))}`
+            )
             throw error
         }
     }
 
     public async getGuildConfig(guildId: string): Promise<GuildConfig | null> {
-        const config = await this.orm.getRepository(GuildConfig).findOne({ where: { guildId } })
+        const config = await this.orm
+            .getRepository(GuildConfig)
+            .findOne({ where: { guildId } })
         return config || null
     }
 
-    public async setGuildConfig(guildId: string, config: Partial<GuildConfig>): Promise<void> {
+    public async setGuildConfig(
+        guildId: string,
+        config: Partial<GuildConfig>
+    ): Promise<void> {
         const existingConfig = await this.getGuildConfig(guildId)
         if (existingConfig) {
-            await this.orm.getRepository(GuildConfig).update({ guildId }, config)
+            await this.orm
+                .getRepository(GuildConfig)
+                .update({ guildId }, config)
         } else {
-            await this.orm.getRepository(GuildConfig).insert({ guildId, ...config })
+            await this.orm
+                .getRepository(GuildConfig)
+                .insert({ guildId, ...config })
         }
     }
 
