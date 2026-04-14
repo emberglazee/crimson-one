@@ -4,7 +4,7 @@ import { green, yellow, red } from '../../util/colors'
 const logger = new Logger('CrimsonChat')
 
 import { Client, TextChannel, Message, ChatInputCommandInteraction, EmbedBuilder, type MessageReplyOptions, type HexColorString } from 'discord.js'
-import type { UserMessageOptions, SlashCommand } from '../../types'
+import type { UserMessageOptions, SlashCommand, ExplicitAny } from '../../types'
 import type { CommandContext } from '../'
 import { MessageQueue } from './MessageQueue'
 import { CrimsonChatState, type HistoryLimitMode } from './memory'
@@ -367,7 +367,7 @@ export class CrimsonChat extends EventEmitter<{
 
             try {
                 // Parameter validation and type casting
-                const validatedArgs: Record<string, any> = {}
+                const validatedArgs: Record<string, ExplicitAny> = {}
                 for (const param of tool.parameters) {
                     const argValue = call.args[param.name]
                     if (param.required && argValue === undefined) {
