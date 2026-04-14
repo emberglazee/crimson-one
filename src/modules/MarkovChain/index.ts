@@ -85,7 +85,7 @@ interface MarkovCollectProgressEvent {
     taskId: string
 }
 
-interface MarkovGenerateProgressEvent {
+export interface MarkovGenerateProgressEvent {
     step: 'querying' | 'training' | 'generating'
     progress: number
     total: number
@@ -94,7 +94,7 @@ interface MarkovGenerateProgressEvent {
     taskId: string
 }
 
-interface MarkovInfoProgressEvent {
+export interface MarkovInfoProgressEvent {
     step: 'querying' | 'processing'
     progress: number
     total: number

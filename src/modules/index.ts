@@ -11,6 +11,10 @@ export { DashboardServer } from './DashboardServer'
 export { CrimsonChat } from './CrimsonChat'
 export { ToolRegistry } from './CrimsonChat/ToolRegistry'
 export { MarkovChat } from './MarkovChain'
+export type {
+    MarkovGenerateProgressEvent,
+    MarkovInfoProgressEvent
+} from './MarkovChain'
 export { GithubWebhookManager } from './GithubWebhook'
 export { AWACSFeed } from './AWACSFeed'
 
