@@ -71,7 +71,7 @@ export class MessageTrigger {
             }
         },
         {
-            pattern: [/spade/gmi],
+            pattern: [/spadeeeeeeeeeeeeeeeeeeee/gmi],
             async action(message) {
                 await message.reply(getRandomElement([
                     'https://cdn.discordapp.com/attachments/1267488539503886386/1344353319849558140/39e67e09-c811-479a-8011-9fb07b917e0e.gif?ex=67e23858&is=67e0e6d8&hm=79d98a161943f6e42ac43a9cf12b72000ea72102f43c8f936a5930ce735ab5ba&',
