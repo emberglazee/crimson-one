@@ -4,7 +4,7 @@ const logger = new Logger('CrimsonChat | xmlParser')
 
 export interface ParsedToolCall {
     toolName: string
-    args: Record<string, any>
+    args: Record<string, string>
     raw: string
 }
 
@@ -52,7 +52,7 @@ function parseToolCalls(toolCallsText: string): ParsedToolCall[] {
         const toolName = match[1]
         const innerContent = match[2].trim()
 
-        const args: Record<string, any> = {}
+        const args: Record<string, string> = {}
         const argRegex = /<(\w+)>([\s\S]*?)<\/\1>/gs
         let argMatch
         while ((argMatch = argRegex.exec(innerContent)) !== null) {
