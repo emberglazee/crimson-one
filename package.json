@@ -11,8 +11,7 @@
         "dashboard:install": "cd dashboard && npm install",
         "markov:check": "cd crimson_markov && cargo check",
         "markov:build": "cd crimson_markov && cargo build --release",
-        "install": "bun install && npm install --lockfile-only",
-        "install:all": "bun install && npm install --lockfile-only && cd dashboard && npm install --lockfile-only && cd .. && cd crimson_markov && cargo fetch"
+        "install:all": "bun install && npm install --package-lock-only && cd dashboard && npm install --package-lock-only && cd .. && cd crimson_markov && cargo fetch"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
