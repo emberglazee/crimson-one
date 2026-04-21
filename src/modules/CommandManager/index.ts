@@ -37,7 +37,7 @@ export class CommandManager {
     private initialized = false
 
     public constructor(
-        // @ts-ignore - ts(6138) -> `client` is "unused"
+        // @ts-expect-error - ts(6138) -> `client` is "unused"
         @inject('Client') private client: Client,
         private registry: CommandRegistry,
         private deployer: CommandDeployer,
