@@ -127,7 +127,7 @@ export class TextCommandParser {
         ) {
             const potentialSubcommand = commandPathForContext[0]
             if (potentialSubcommand) {
-                let subOptExists = false
+                let subOptExists
                 if (context.subcommandGroupName) {
                     const group = options.find(
                         (o): o is APIApplicationCommandSubcommandGroupOption =>
